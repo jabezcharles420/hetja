@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="StrayNet Feeder">
+  <rect width="512" height="512" rx="96" fill="#0a1a12"/>
+  <circle cx="256" cy="256" r="168" fill="#0b7a3b"/>
+  <circle cx="256" cy="256" r="128" fill="#14a34a"/>
+  <circle cx="200" cy="210" r="14" fill="#f4f1de"/>
+  <circle cx="312" cy="210" r="14" fill="#f4f1de"/>
+  <circle cx="200" cy="210" r="5" fill="#0a1a12"/>
+  <circle cx="312" cy="210" r="5" fill="#0a1a12"/>
+  <path d="M176 300 Q256 366 336 300 Q326 330 256 348 Q186 330 176 300 Z" fill="#f4f1de"/>
+  <path d="M204 176 q-18 -34 8 -46" stroke="#f4f1de" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M308 176 q18 -34 -8 -46" stroke="#f4f1de" stroke-width="16" stroke-linecap="round" fill="none"/>
+</svg>

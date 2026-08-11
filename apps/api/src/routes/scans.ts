@@ -5,6 +5,7 @@ import { verifyAccessToken } from "../lib/jwt.js";
 import { verifyDeviceToken } from "../lib/device.js";
 import { logTrustEvent, recomputeScore, type TxClient } from "../lib/trust.js";
 import { newPhotoKey, storePhoto, type StorageConfig } from "../lib/storage.js";
+import { dateInKolkata, updateFeedStreak } from "../lib/gamification.js";
 
 interface DogIdRow {
   id: string;
@@ -118,6 +119,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       const scanId = insertRes.rows[0].id;
       if (geo) await applyLww(client, dog.id, geoWkt(geo.lat, geo.lng), captured, receivedAt);
       if (type === "feed" && feederId) {
+        await updateFeedStreak(feederId, dateInKolkata(captured), client);
         await logTrustEvent(
           { feederId, eventType: "feed", reason: "feed scan logged", refScanId: scanId },
           client,

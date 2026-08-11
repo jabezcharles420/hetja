@@ -1,0 +1,112 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 12, 9, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.modal {
+  background: #13271c;
+  border: 1px solid #24402f;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.title {
+  margin: 0 0 4px;
+  color: #f4f1de;
+}
+
+.dog {
+  margin: 0 0 16px;
+  color: #8fae9b;
+  font-size: 0.85rem;
+}
+
+.severities {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.severity {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  padding: 10px;
+  border: 1px solid #24402f;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.severity.selected {
+  border-color: #e0522a;
+  background: #1c0f0a;
+}
+
+.severity input {
+  grid-row: span 2;
+  align-self: center;
+}
+
+.severityLabel {
+  color: #f4f1de;
+  font-weight: 600;
+}
+
+.hint {
+  color: #8fae9b;
+  font-size: 0.8rem;
+}
+
+.note {
+  width: 100%;
+  min-height: 72px;
+  background: #0a1a12;
+  color: #f4f1de;
+  border: 1px solid #24402f;
+  border-radius: 10px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.status {
+  color: #d8e6dd;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.cancel {
+  background: transparent;
+  color: #d8e6dd;
+  border: 1px solid #24402f;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.send {
+  background: #e0522a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.send:disabled {
+  opacity: 0.6;
+}

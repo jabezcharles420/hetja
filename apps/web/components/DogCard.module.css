@@ -1,0 +1,86 @@
+.card {
+  background: #13271c;
+  border: 1px solid #24402f;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.photoWrap {
+  aspect-ratio: 4 / 3;
+  background: #0a1a12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photoPlaceholder {
+  font-size: 4rem;
+}
+
+.body {
+  padding: 16px;
+}
+
+.name {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #f4f1de;
+}
+
+.slug {
+  margin: 4px 0 12px;
+  color: #8fae9b;
+  font-size: 0.85rem;
+}
+
+.statusRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.badge {
+  background: #0b7a3b;
+  color: #f4f1de;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+
+.dl dt {
+  color: #8fae9b;
+}
+
+.dl dd {
+  margin: 0;
+  color: #f4f1de;
+}
+
+.story {
+  color: #d8e6dd;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.meta {
+  color: #8fae9b;
+  font-size: 0.8rem;
+  margin-bottom: 0;
+}

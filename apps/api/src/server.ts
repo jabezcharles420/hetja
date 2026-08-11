@@ -1,7 +1,7 @@
 /**
  * StrayNet API — Fastify bootstrap with health endpoint, CORS, and
  * graceful shutdown. Routes are registered per module (auth, dogs, scans,
- * sos, medical, ledger, stories, moderation, trust, heatmap).
+ * sos, medical, ledger, stories, moderation, trust, heatmap, territories).
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
@@ -16,6 +16,9 @@ import ledgerRoutes from "./routes/ledger.js";
 import storyRoutes from "./routes/stories.js";
 import moderationRoutes from "./routes/moderation.js";
 import trustRoutes from "./routes/trust.js";
+import heatmapRoutes from "./routes/heatmap.js";
+import territoryRoutes from "./routes/territories.js";
+import gamificationRoutes from "./routes/gamification.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -66,6 +69,9 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(storyRoutes);
   void app.register(moderationRoutes);
   void app.register(trustRoutes);
+  void app.register(heatmapRoutes);
+  void app.register(territoryRoutes);
+  void app.register(gamificationRoutes);
 
   return app;
 }

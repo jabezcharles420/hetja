@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^13.1.0",
     "@straynet/contracts": "workspace:*",
     "@straynet/db": "workspace:*",
     "@straynet/ledger": "workspace:^",

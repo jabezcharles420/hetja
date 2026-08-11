@@ -149,11 +149,6 @@ export async function recomputeScore(feederId: string, client?: TxClient): Promi
   return score;
 }
 
-export interface ResolveReversalInput {
-  feederId: string;
-  reason: string;
-}
-
 export interface DisputeResult {
   original: TrustEventRow;
   reversal: TrustEventRow;

@@ -5,6 +5,7 @@
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import dogRoutes from "./routes/dogs.js";
@@ -18,11 +19,31 @@ import trustRoutes from "./routes/trust.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
-    logger: { level: config.NODE_ENV === "test" ? "warn" : "info" },
-    trustProxy: true,
+    logger: {
+      level: config.NODE_ENV === "test" ? "warn" : "info",
+      // RESEARCH-2: redact PII from logs — phone_hmac, exact coordinates,
+      // device tokens, bearer tokens.
+      redact: {
+        paths: [
+          "phone", "phoneHmac", "phone_hmac", "deviceToken", "device_token",
+          "lat", "lng", "authorization", "token", "signature",
+        ],
+        censor: "[REDACTED]",
+      },
+    },
+    // RESEARCH-2: trustProxy must be pinned to the real proxy, never `true`
+    // (true lets any client forge X-Forwarded-For).
+    trustProxy: config.TRUST_PROXY || false,
   });
 
-  void app.register(cors, { origin: true });
+  void app.register(helmet);
+  void app.register(cors, {
+    // Tighten from reflect-any-origin to the scan origin + dev hosts.
+    origin:
+      config.NODE_ENV === "production"
+        ? [/\.straynet\.in$/, /\.pages\.dev$/]
+        : true,
+  });
   app.decorate("config", config);
 
   app.get("/healthz", async () => ({

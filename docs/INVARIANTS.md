@@ -19,7 +19,7 @@ how it is verified. Updated as the build progresses.
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
 | 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
 | 14 | AI validation flags, never silently rejects | ✅ | `apps/ai/worker.py` stub → `flagged`; test asserted |
-| 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | 🔄 | trust engine agent (in flight) |
+| 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate + `trust.test.ts` (serial rejects pause provisional feeder) |
 
 Legend: ✅ done + tested · 🔄 in flight · 🔶 designed/documented
 

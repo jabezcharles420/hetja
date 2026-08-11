@@ -25,6 +25,8 @@ const EnvSchema = z.object({
   STRAYNET_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
   // Anonymous device-token proof-of-work difficulty (desktop fallback).
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(14),
+  // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),
   // Object storage (S3-compatible). Dev default: local disk backend.
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("data/photos"),

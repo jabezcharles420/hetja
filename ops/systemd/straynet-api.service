@@ -1,0 +1,21 @@
+[Unit]
+Description=StrayNet API (Fastify)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/straynet
+Environment=NODE_ENV=production
+Environment=PORT=8080
+EnvironmentFile=/root/straynet/apps/api/.env.production
+ExecStart=/usr/local/bin/node apps/api/dist/server.js
+Restart=always
+RestartSec=3
+# OOM containment (3GB box, multiple agents)
+MemoryHigh=350M
+MemoryMax=500M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

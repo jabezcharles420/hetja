@@ -1,0 +1,19 @@
+[Unit]
+Description=StrayNet Worker (job queue)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/straynet
+Environment=NODE_ENV=production
+EnvironmentFile=/root/straynet/apps/api/.env.production
+ExecStart=/usr/local/bin/node apps/worker/dist/index.js
+Restart=always
+RestartSec=5
+MemoryHigh=250M
+MemoryMax=400M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

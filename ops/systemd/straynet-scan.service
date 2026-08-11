@@ -1,0 +1,16 @@
+[Unit]
+Description=StrayNet scan landing (static)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/straynet
+ExecStart=/usr/local/bin/node apps/scan/scripts/serve.mjs --port 8081
+Restart=always
+RestartSec=3
+MemoryHigh=64M
+MemoryMax=128M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

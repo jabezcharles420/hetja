@@ -21,10 +21,13 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(16).default("dev-jwt-secret-change-me"),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("30d"),
+  // HMAC key that attests anonymous device tokens (INVARIANT 6 rate-limit subject).
+  STRAYNET_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
   // Anonymous device-token proof-of-work difficulty (desktop fallback).
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(14),
   // Object storage (S3-compatible). Dev default: local disk backend.
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
+  STORAGE_LOCAL_DIR: z.string().default("data/photos"),
   S3_ENDPOINT: z.string().default(""),
   S3_BUCKET: z.string().default("straynet"),
   S3_ACCESS_KEY: z.string().default(""),

@@ -6,6 +6,9 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { loadConfig, type AppConfig } from "./config.js";
+import authRoutes from "./routes/auth.js";
+import dogRoutes from "./routes/dogs.js";
+import scanRoutes from "./routes/scans.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -26,6 +29,10 @@ export function buildServer(config: AppConfig): FastifyInstance {
     service: "StrayNet API",
     docs: "/docs",
   }));
+
+  void app.register(authRoutes);
+  void app.register(dogRoutes);
+  void app.register(scanRoutes);
 
   return app;
 }

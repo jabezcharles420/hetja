@@ -33,12 +33,37 @@ importers:
       '@straynet/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@straynet/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       fastify:
         specifier: ^5.0.0
         version: 5.11.3
       zod:
         specifier: ^3.23.0
         version: 3.25.76
+
+  apps/scan:
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  apps/worker:
+    dependencies:
+      '@straynet/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.21.0
+        version: 8.21.0
 
   packages/contracts:
     dependencies:

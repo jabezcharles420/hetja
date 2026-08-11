@@ -1,20 +1,20 @@
 {
-  "name": "@straynet/api",
+  "name": "@straynet/worker",
   "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@fastify/cors": "^10.0.0",
-    "@straynet/contracts": "workspace:*",
     "@straynet/db": "workspace:*",
-    "fastify": "^5.0.0",
-    "zod": "^3.23.0"
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.21.0"
   }
 }

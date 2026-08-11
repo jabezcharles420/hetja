@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>StrayNet</title>
+<meta name="description" content="StrayNet — scan a dog collar for identity, care and emergency contact." />
+<link rel="icon" href="data:," />
+<style>
+:root{--bg:#0b1220;--card:#111b2e;--line:#1e2a44;--txt:#e8eefb;--mut:#8ea0c0;--acc:#38e1a0;--warn:#f4b740;--danger:#ff5d5d}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body{max-width:480px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+.hidden{display:none!important}
+.topbar{display:flex;align-items:center;gap:10px;padding:14px 0 6px}
+.brand{font-weight:700;letter-spacing:.4px}
+.tag{color:var(--mut);font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.net{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);flex:none}
+.net.on{color:var(--acc);border-color:var(--acc)}
+.net.off{color:var(--warn);border-color:var(--warn)}
+.hero{padding:10px 0 18px}
+.hero h1{font-size:20px;font-weight:650}
+.hero .sub{color:var(--mut);font-size:13px;margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.card.stale{border-color:var(--warn)}
+.photo{aspect-ratio:4/3;background:linear-gradient(135deg,#1c2a47,#0e1830);display:flex;align-items:center;justify-content:center}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.placeholder{font-size:64px;font-weight:800;color:#2c3d63}
+.body{padding:14px 16px}
+.name-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+h2.name{font-size:22px}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);text-transform:capitalize;flex:none}
+.chip.acc{color:var(--acc);border-color:var(--acc)}
+.chip.warn{color:var(--warn);border-color:var(--warn)}
+.meta{color:var(--mut);font-size:13px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.row dt{color:var(--mut);flex:none}
+.row dd{font-weight:550;text-align:right}
+.story{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:14px}
+.stale-note{background:rgba(244,183,64,.12);color:var(--warn);font-size:12px;padding:8px 12px;border-radius:10px;margin:0 0 12px}
+.banner{background:rgba(244,183,64,.14);border:1px solid var(--warn);color:var(--warn);font-size:12px;padding:8px 12px;border-radius:10px;margin:0 0 12px}
+.error{color:var(--danger)}
+.ctas{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
+.btn{flex:1;border:1px solid var(--line);background:var(--card);color:var(--txt);padding:12px 8px;border-radius:12px;font:inherit;font-weight:650;font-size:14px;cursor:pointer}
+.btn:disabled{opacity:.5}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#06231a}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;width:calc(100% - 32px);max-width:440px;background:#16223a;border:1px solid var(--line);padding:10px 14px;border-radius:12px;font-size:13px;text-align:center;z-index:5}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">StrayNet</span>
+  <span class="tag">No stray sleeps hungry.</span>
+  <span id="net" class="net on">online</span>
+</header>
+<main>
+  <section class="hero">
+    <h1 id="status">Scanning&hellip;</h1>
+    <p class="sub" id="sub">Point your camera at the collar QR code.</p>
+  </section>
+  <div id="note"></div>
+  <section id="profile" class="hidden" aria-live="polite"></section>
+  <nav class="ctas" aria-label="Actions">
+    <button id="cta-view" class="btn primary" type="button">View</button>
+    <button id="cta-feed" class="btn" type="button">Log Feed</button>
+    <button id="cta-sos" class="btn danger" type="button">Report Emergency</button>
+  </nav>
+</main>
+<div id="toast" class="toast hidden" role="status"></div>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/service-worker.js").catch(function(){});
+}
+</script>
+<script src="./main.js" defer></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ import { query } from "@straynet/db";
 const config = loadConfig();
 
 function randomPhone(): string {
-  return `+91${Math.floor(Math.random() * 4) + 6}${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  return `+91${Math.floor(Math.random() * 4) + 6}${String(Math.floor(Math.random() * 1e8)).padStart(9, "0")}`;
 }
 
 const usedPhones: string[] = [];

@@ -26,7 +26,7 @@ export const GeoPoint = z.object({
 export type GeoPoint = z.infer<typeof GeoPoint>;
 
 export const Dog = z.object({
-  slug: z.string().regex(SLUG_REGEX, { message: "slug must match /^[a-z2-7]{8}$/" }),
+  slug: z.string().regex(SLUG_REGEX, { message: "slug must match /^[a-z2-7]{9}$/" }),
   name: z.string().min(1).max(80).optional(),
   sex: z.enum(["male", "female", "unknown"]).optional(),
   approxAge: z.number().int().min(0).optional(),
@@ -70,7 +70,7 @@ export const Scan = z.object({
 });
 export type Scan = z.infer<typeof Scan>;
 
-const SKEW_MS = 15 * 60 * 1000;
+const SKEW_MS = 15 * 60 * 1000; // ±15 minutes (INVARIANT 4 — clock-skew clamp)
 
 export const clockSkewClamped = () =>
   isoDateTime().refine(

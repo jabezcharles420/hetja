@@ -53,7 +53,7 @@ def claim_job(conn: Any) -> Optional[dict[str, Any]]:
         row = cur.fetchone()
         if row is None:
             return None
-        job_id, payload = row
+        job_id, payload = row["id"], row["payload"]
         cur.execute(
             "UPDATE jobs SET locked_until = now() + interval '60 seconds', attempts = attempts + 1 WHERE id = %s",
             (job_id,),

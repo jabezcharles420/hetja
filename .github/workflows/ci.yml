@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: straynet
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: straynet_dev_2026
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app_user"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: straynet
+      PGUSER: app_user
+      PGPASSWORD: straynet_dev_2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Enable PostGIS + pgvector
+        run: |
+          psql -h 127.0.0.1 -U app_user -d straynet -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+      - name: Apply migrations
+        run: pnpm db:migrate
+      - name: EXPLAIN gate (INVARIANT 12)
+        run: bash ops/check-queries.sh
+      - name: Lint + typecheck
+        run: pnpm -r typecheck
+      - name: Unit tests
+        run: pnpm -r test
+      - name: Security gate
+        run: bash ops/security-gate.sh

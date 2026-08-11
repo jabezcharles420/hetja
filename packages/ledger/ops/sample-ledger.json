@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ledger-0001",
+    "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+    "payload": {
+      "kind": "registration",
+      "tag": "STRAY-MUM-001",
+      "dog": {
+        "name": "Gulu",
+        "zone": "Khar West",
+        "sex": "M"
+      }
+    },
+    "vetId": "vet-01",
+    "ts": "2026-08-01T10:00:00.000Z",
+    "hash": "5312acc2a22fb891900e060ac4e7c5f0b4e572fcd81edbd9b749dfc06284ec48"
+  },
+  {
+    "id": "ledger-0002",
+    "payload": {
+      "kind": "vaccination",
+      "vaccine": "ARV",
+      "dose": "booster",
+      "batch": "ARV-2026-0417"
+    },
+    "vetId": "vet-01",
+    "ts": "2026-08-02T11:30:00.000Z",
+    "prev": "5312acc2a22fb891900e060ac4e7c5f0b4e572fcd81edbd9b749dfc06284ec48",
+    "hash": "7fa069fcd8cc156fb2c4ece00b293221146b61bb991dd9209e71f1cc352c935e"
+  },
+  {
+    "id": "ledger-0003",
+    "payload": {
+      "kind": "checkup",
+      "weightKg": 12.4,
+      "bodyScore": 3,
+      "notes": "healthy"
+    },
+    "vetId": "vet-03",
+    "ts": "2026-08-03T09:15:00.000Z",
+    "prev": "7fa069fcd8cc156fb2c4ece00b293221146b61bb991dd9209e71f1cc352c935e",
+    "hash": "41df1cf74582c390074b1c92b76c9ab328987f2bd11b797fe9a1d6466681a3b3"
+  }
+]

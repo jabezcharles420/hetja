@@ -101,6 +101,8 @@ export const SosReport = z.object({
 export type SosReport = z.infer<typeof SosReport>;
 
 export const MedicalRecordInput = z.object({
+  dogId: z.string().uuid(),
+  correctsRecordId: z.string().uuid().optional(), // corrections APPEND, never UPDATE
   recordType: z.string().min(1).max(64),
   vaccineName: z.string().min(1).max(64).optional(),
   vaccineDate: z.iso.date().optional(),

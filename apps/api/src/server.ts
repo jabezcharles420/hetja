@@ -9,6 +9,9 @@ import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import dogRoutes from "./routes/dogs.js";
 import scanRoutes from "./routes/scans.js";
+import sosRoutes from "./routes/sos.js";
+import medicalRoutes from "./routes/medical.js";
+import ledgerRoutes from "./routes/ledger.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -33,6 +36,9 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(authRoutes);
   void app.register(dogRoutes);
   void app.register(scanRoutes);
+  void app.register(sosRoutes);
+  void app.register(medicalRoutes);
+  void app.register(ledgerRoutes);
 
   return app;
 }

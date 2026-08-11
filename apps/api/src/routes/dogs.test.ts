@@ -3,6 +3,7 @@ import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signSlug } from "../lib/hmac.js";
 import { query } from "@straynet/db";
+import { GENESIS_PREV_HASH, computeHash } from "@straynet/ledger";
 
 const config = loadConfig();
 
@@ -24,6 +25,7 @@ interface TestDog {
 let testDog: TestDog | undefined;
 
 async function setupDog(): Promise<TestDog> {
+  const ts = new Date().toISOString() + Math.random();
   const slug = randomSlug();
   const dogRes = await query<{ id: string }>(
     `INSERT INTO dogs (slug, name, ward_id, last_seen_geo, last_seen_at, last_seen_received_at)
@@ -46,9 +48,9 @@ async function setupDog(): Promise<TestDog> {
     [id, feederRes.rows[0].id],
   );
   await query(
-    `INSERT INTO medical_records (dog_id, record_type, vaccine_name, vaccine_date, is_verified, payload_len, hash_prev, hash_curr)
-     VALUES ($1, 'vaccination', 'Anti-Rabies', '2026-01-15', TRUE, 0, 'prev', 'curr')`,
-    [id],
+    `INSERT INTO medical_records (dog_id, record_type, vaccine_name, vaccine_date, is_verified, payload_len, hash_prev, hash_curr, hash_vet_id, hash_ts)
+     VALUES ($1, 'vaccination', 'Anti-Rabies', '2026-01-15', TRUE, 0, $2, $3, 'feeder', $4)`,
+    [id, GENESIS_PREV_HASH, computeHash(GENESIS_PREV_HASH, { recordType: "vaccination" }, "feeder", ts), ts],
   );
 
   testDog = { slug, id };
@@ -61,10 +63,13 @@ beforeEach(async () => {
 
 afterEach(async () => {
   if (testDog) {
-    await query(`DELETE FROM medical_records WHERE dog_id = $1`, [testDog.id]);
     await query(`DELETE FROM dog_stories WHERE dog_id = $1`, [testDog.id]);
     await query(`DELETE FROM scans WHERE dog_id = $1`, [testDog.id]);
-    await query(`DELETE FROM dogs WHERE id = $1`, [testDog.id]);
+    try {
+      await query(`DELETE FROM dogs WHERE id = $1`, [testDog.id]);
+    } catch {
+      /* FK kept by the append-only medical row — fine */
+    }
     testDog = undefined;
   }
 });

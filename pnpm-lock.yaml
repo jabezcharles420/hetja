@@ -36,6 +36,9 @@ importers:
       '@straynet/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@straynet/ledger':
+        specifier: workspace:^
+        version: link:../../packages/ledger
       fastify:
         specifier: ^5.0.0
         version: 5.11.3

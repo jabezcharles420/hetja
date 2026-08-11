@@ -9,3 +9,10 @@ build/
 coverage/
 .vercel/
 .next/
+
+# secrets + runtime state (never commit)
+apps/api/.env.production
+apps/*/data/
+**/dist/
+apps/scan/dist/
+*.local

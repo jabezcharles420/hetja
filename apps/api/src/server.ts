@@ -14,6 +14,7 @@ import medicalRoutes from "./routes/medical.js";
 import ledgerRoutes from "./routes/ledger.js";
 import storyRoutes from "./routes/stories.js";
 import moderationRoutes from "./routes/moderation.js";
+import trustRoutes from "./routes/trust.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -43,6 +44,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(ledgerRoutes);
   void app.register(storyRoutes);
   void app.register(moderationRoutes);
+  void app.register(trustRoutes);
 
   return app;
 }

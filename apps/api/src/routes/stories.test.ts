@@ -48,7 +48,7 @@ beforeEach(async () => {
   );
   const feeder = await insertFeeder("feeder", 50);
   const admin = await insertFeeder("admin", 80);
-  fx = { dogId: dogRes.rows[0].id, dogSlug: slug, ...feeder, adminId: admin.id, adminToken: admin.token };
+  fx = { dogId: dogRes.rows[0].id, dogSlug: slug, feederId: feeder.id, feederToken: feeder.token, adminId: admin.id, adminToken: admin.token };
 });
 
 afterEach(async () => {
@@ -208,6 +208,9 @@ describe("GET /api/v1/dogs/:slug/stories (anon, moderated only)", () => {
 
 describe("moderation queue (admin only)", () => {
   it("lists pending stories oldest first for admins", async () => {
+    // Isolation: the queue is global — purge pending stories left behind by
+    // earlier runs so the count assertion below is deterministic.
+    await query(`DELETE FROM dog_stories WHERE moderated_at IS NULL`);
     const app = buildServer(config);
     await app.inject({
       method: "POST",

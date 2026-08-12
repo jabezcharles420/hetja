@@ -16,7 +16,8 @@ vi.mock("@/lib/api", async () => {
 
 import { api, ApiError } from "@/lib/api";
 
-const createReportMock = (api as { createReport: ReturnType<typeof vi.fn> }).createReport;
+const createReportMock = (api as unknown as { createReport: ReturnType<typeof vi.fn> })
+  .createReport;
 
 describe("SosModal", () => {
   afterEach(() => {

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { createElement } from "react";
+import type { ReactNode } from "react";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ slug: "abc234567" }),
@@ -10,7 +11,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/link", async () => {
   const { createElement: el } = await import("react");
   return {
-    default: ({ href, children }: { href: string; children: unknown }) =>
+    default: ({ href, children }: { href: string; children: ReactNode }) =>
       el("a", { href }, children),
   };
 });
@@ -32,7 +33,7 @@ vi.mock("@/lib/api", async () => {
 import DogPage from "@/app/dog/[slug]/page";
 import { api } from "@/lib/api";
 
-const apiMock = api as {
+const apiMock = api as unknown as {
   getDog: ReturnType<typeof vi.fn>;
   getDogMedical: ReturnType<typeof vi.fn>;
   getDogStories: ReturnType<typeof vi.fn>;

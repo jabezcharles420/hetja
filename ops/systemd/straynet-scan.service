@@ -4,13 +4,15 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/straynet
-ExecStart=/usr/local/bin/node apps/scan/scripts/serve.mjs
+WorkingDirectory=__REPO_ROOT__
+ExecStart=__NODE_BIN__ apps/scan/scripts/serve.mjs
 Environment=PORT=8081
 # Loopback only — Caddy terminates TLS and proxies /d/* here.
 Environment=HOST=127.0.0.1
 Restart=always
 RestartSec=3
+# OOM containment. MemoryHigh/MemoryMax below are tuned for a 3GB box --
+# raise them if this ever moves to a larger box.
 MemoryHigh=64M
 MemoryMax=128M
 NoNewPrivileges=true

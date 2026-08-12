@@ -47,6 +47,72 @@ const EnvSchema = z.object({
 
 export type AppConfig = z.infer<typeof EnvSchema>;
 
+/**
+ * A handful of these zod fields carry `.default(...)` fallbacks so local dev
+ * boots with zero setup. Every one of those defaults is a known, committed
+ * placeholder (PGPASSWORD's literal alone appears in five files in this
+ * repo), so in production a missing env var must throw here instead of
+ * silently booting against it — see packages/db/src/pool.ts's
+ * `requiredInProd` (same idiom, applied to the DB pool) and
+ * packages/db/src/seed.ts's `requireQrSecret` (same idiom, for the one
+ * secret whose failure mode is physical rather than a security bug).
+ *
+ * This checks the *raw* env, not the parsed config, because by the time
+ * EnvSchema.parse() has run, an absent var has already been replaced by its
+ * default — there is no way to tell "explicitly set to the dev value" apart
+ * from "unset" after the fact.
+ */
+function requireInProd(env: NodeJS.ProcessEnv, name: string, explanation: string): void {
+  const value = env[name];
+  if (value !== undefined && value !== "") return;
+  throw new Error(
+    `${name} is not set. Refusing to start in production with the development ` +
+      `default for ${name} -- ${explanation} Set ${name} in the environment ` +
+      `(see apps/api/.env.example and AGENTS.md section (c)).`,
+  );
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  return EnvSchema.parse(env);
+  const parsed = EnvSchema.parse(env);
+
+  if (parsed.NODE_ENV === "production") {
+    requireInProd(
+      env,
+      "PGPASSWORD",
+      "that literal is committed in five files in this repo, so a box that boots " +
+        "with it is running with a publicly known database password.",
+    );
+    requireInProd(
+      env,
+      "STRAYNET_HMAC_PEPPER",
+      "INVARIANT 3 requires this pepper to come from KMS/secret manager in " +
+        "production; the dev value is committed and public, which defeats the " +
+        "one-way phone_hmac guarantee it is supposed to provide.",
+    );
+    requireInProd(
+      env,
+      "STRAYNET_QR_SECRET",
+      "this HMAC key must match the exact value already burned into printed " +
+        "collar QR codes. A mismatched value makes every printed collar QR " +
+        "fail signature verification -- a physical, silent failure discovered " +
+        "only when a stranger scans a real tag, not at boot time and not in " +
+        "any dashboard.",
+    );
+    requireInProd(
+      env,
+      "STRAYNET_DEVICE_SECRET",
+      "this HMAC key attests anonymous device tokens that gate the INVARIANT 6/7 " +
+        "rate limits; the dev value is committed and public, so anyone can forge " +
+        "an attested device token and bypass those caps.",
+    );
+    requireInProd(
+      env,
+      "JWT_SECRET",
+      "the dev value is committed and public, so anyone who has read this repo " +
+        "can mint a valid feeder/admin access token against a production server " +
+        "still using it.",
+    );
+  }
+
+  return parsed;
 }

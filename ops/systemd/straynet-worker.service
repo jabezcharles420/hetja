@@ -1,16 +1,19 @@
 [Unit]
 Description=StrayNet Worker (job queue)
-After=network.target postgresql.service
-Wants=postgresql.service
+# The database is managed (Supabase), so there is no local postgresql.service
+# to order against — see AGENTS.md. Only the network needs to be up.
+After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/straynet
+WorkingDirectory=__REPO_ROOT__
 Environment=NODE_ENV=production
-EnvironmentFile=/root/straynet/apps/api/.env.production
-ExecStart=/usr/local/bin/node apps/worker/dist/index.js
+EnvironmentFile=__REPO_ROOT__/apps/api/.env.production
+ExecStart=__NODE_BIN__ apps/worker/dist/index.js
 Restart=always
 RestartSec=5
+# OOM containment. MemoryHigh/MemoryMax below are tuned for a 3GB box --
+# raise them if this ever moves to a larger box.
 MemoryHigh=250M
 MemoryMax=400M
 NoNewPrivileges=true

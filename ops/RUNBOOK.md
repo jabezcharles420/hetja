@@ -4,11 +4,16 @@ Phase-0 operating procedures for the StrayNet stack on the VPS (and the
 blueprint's production targets). Update as the platform moves to managed
 infra (Cloudflare R2, KMS, HA Postgres).
 
+**Authoritative database: managed Supabase.** `ops/supabase/*` is the source
+of truth for schema and hardening; there is no competing local-systemd
+Postgres backend to reconcile with it. See `AGENTS.md` section (b) — a fresh
+box needs no Postgres, PostGIS, or pgvector install at all.
+
 ## Services (local dev / pilot)
 
 | Service | How it runs | Port |
 |---|---|---|
-| PostgreSQL 15 + PostGIS + pgvector | systemd `postgresql` | 5432 |
+| PostgreSQL 16.14 + PostGIS + pgvector | managed Supabase (see `ops/supabase/`) | 5432 (pooler) |
 | StrayNet API (Fastify) | `pnpm --filter @straynet/api dev` (dev) / systemd unit (prod) | 8080 |
 | Worker (fanout/escalation/retention) | `pnpm --filter @straynet/worker` | — |
 | Scan landing (static) | static server / CDN | 80/443 |

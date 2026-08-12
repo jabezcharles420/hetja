@@ -6,7 +6,32 @@
 import { pool } from "./pool.js";
 import { generateSlug, signSlug } from "./slugs.js";
 
-const QR_SECRET = process.env.STRAYNET_QR_SECRET ?? "dev-qr-secret-change-me";
+/**
+ * In production this must be the exact secret already burned into printed
+ * collars, never a freshly generated one. Seeding (or re-seeding) with the
+ * wrong STRAYNET_QR_SECRET mints collars whose HMAC signatures will never
+ * verify -- a failure that is silent here and shows up only later, as a
+ * physical scan of a printed tag failing verification in the field. So this
+ * throws rather than falling back to the dev default once NODE_ENV=production.
+ */
+function requireQrSecret(): string {
+  const value = process.env.STRAYNET_QR_SECRET;
+  if (value) return value;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "STRAYNET_QR_SECRET is not set. Refusing to seed in production with the " +
+        "development default: seeding collars with the wrong QR secret mints " +
+        "HMAC signatures that will never verify, which is discovered only when " +
+        "someone scans a printed collar in the field. Set STRAYNET_QR_SECRET to " +
+        "the exact value already in use for this deployment -- it must be " +
+        "carried over from the previous deployment, never freshly generated " +
+        "(see AGENTS.md section (c)).",
+    );
+  }
+  return "dev-qr-secret-change-me";
+}
+
+const QR_SECRET = requireQrSecret();
 
 const SEED_DOGS = [
   { name: "Rosie", sex: "female", coat: "fawn", ward: "K-West" },

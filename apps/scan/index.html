@@ -75,10 +75,12 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js").catch(function(){});
 }
 </script>
-<!-- Absolute, not "./main.js": the collar URL is /d/<slug>, so a relative
-     path resolves to /d/main.js, which does not exist and falls through to
-     the SPA fallback -- the browser then gets HTML where it asked for a
-     script and the page stays a blank shell. -->
-<script src="/main.js" defer></script>
+<!-- Served under /d/ on purpose. A relative "./main.js" resolves to
+     /d/main.js only for /d/<slug> and breaks for any other depth, while a
+     root-absolute "/main.js" leaves this path prefix entirely and is routed
+     to the Next.js app by the reverse proxy, which 404s. Requesting
+     /d/main.js explicitly is correct at every depth and stays within the
+     single /d/* proxy route. -->
+<script src="/d/main.js" defer></script>
 </body>
 </html>

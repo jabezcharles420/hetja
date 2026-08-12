@@ -22,6 +22,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     let pathname = decodeURIComponent(url.pathname);
     if (pathname === "/") pathname = "/index.html";
+    // The app is mounted at /d/ behind the proxy: /d/main.js is the bundle,
+    // while /d/<slug> is a collar code with no file behind it and falls through
+    // to the shell below. Strip the prefix before resolving against dist/.
+    if (pathname.startsWith("/d/")) pathname = pathname.slice(2);
+    if (pathname === "/d" || pathname === "/") pathname = "/index.html";
     const file = normalize(join(ROOT, pathname));
     if (file !== ROOT && !file.startsWith(ROOT + sep)) {
       res.writeHead(403, { "content-type": "text/plain" });

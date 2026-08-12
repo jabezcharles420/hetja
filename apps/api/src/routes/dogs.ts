@@ -28,6 +28,26 @@ interface PhotoRow {
   photo_s3_key: string | null;
 }
 
+/**
+ * Render a pg DATE as YYYY-MM-DD.
+ *
+ * node-postgres returns DATE as a JS Date at local midnight, so string
+ * interpolation yields the full "Wed Aug 12 2026 00:00:00 GMT+0530 (India
+ * Standard Time)" form. toISOString() is not the fix either: local midnight in
+ * IST is the previous day in UTC, so it would report the wrong date. Use the
+ * local getters, which preserve the calendar date pg stored.
+ */
+function isoDate(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return String(value).slice(0, 10);
+}
+
 const notFound = (reply: FastifyReply) =>
   reply.status(404).send({ ok: false, error: { message: "not found", code: "NOT_FOUND" } });
 
@@ -85,7 +105,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         abcStatus: dog.abc_status ?? null,
         vaccineStatus:
           vaccine?.vaccine_name || vaccine?.vaccine_date
-            ? [vaccine.vaccine_name, vaccine.vaccine_date].filter(Boolean).join(" · ")
+            ? [vaccine.vaccine_name, isoDate(vaccine.vaccine_date)].filter(Boolean).join(" · ")
             : null,
         microStory: story?.paragraph ?? null,
         lastSeenAt: dog.last_seen_at ?? null,

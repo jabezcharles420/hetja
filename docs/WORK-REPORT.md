@@ -8,8 +8,8 @@
 ## 0. TL;DR
 
 **Hetja** (back-end codename *StrayNet*) — a production-grade civic-tech network for
-Mumbai's stray dogs — was designed, built, tested and readied for deployment on this
-VPS. **~100 automated tests green**, 5 parallel-agent build waves, 2 deep research
+Mumbai's stray dogs — was designed, built, tested and **deployed on this VPS**.
+**172 automated tests green**, 5 parallel-agent build waves, 2 deep research
 rounds, security hardening applied from the findings, and a full mobile-first
 frontend (Next.js 14 PWA) with a bespoke design system. Built with the opencode CLI
 as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitoring).
@@ -164,11 +164,27 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
 ```
 
 ## 6. Status of the outstanding items
-- [ ] First push to GitHub — **waiting on the `hetja` repo** (deploy key ready;
+- [x] **Deployed on the VPS (2026-08-12)**: `straynet-api` (:8080, healthz 200),
+      `straynet-worker` (active), `straynet-scan` (:8081, 200) as systemd services;
+      DB has 63 dogs (seed + test data). Production builds green for all apps
+      (Next.js build: 10 pages, 87.4 kB shared JS; scan: 7.3 kB gzipped).
+- [ ] **First push to GitHub** — waiting on the `hetja` repo (deploy key ready;
       add it to the repo's Deploy Keys with write access).
-- [x] Production build of the frontend — see final section below.
-- [x] Deploy on VPS — see final section below.
+- [x] Frontend visual pass — tokens + SSR verified; headless-Chrome screenshots
+      blocked in this container (design gate = 79 tests + token/SSR checks).
 
----
+## 7. Final test totals (2026-08-12)
+| Suite | Tests |
+|---|---|
+| @straynet/db | 8 |
+| @straynet/contracts | 11 |
+| @straynet/ledger | 5 |
+| @straynet/api (13 route files) | 69 |
+| @straynet/web (17 test files) | 79 |
+| **Total** | **172** |
 
-*Final build + deploy status appended on completion.*
+All suites green, 0 typecheck errors across api/worker/packages, security gate
+7/7, EXPLAIN gate 3/3, production builds passing.
+
+*— End of report. Full commit history in the local repo (25 commits) and the
+private backup (Hermes_aic).*

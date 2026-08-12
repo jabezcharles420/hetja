@@ -41,11 +41,13 @@ export function buildServer(config: AppConfig): FastifyInstance {
 
   void app.register(helmet);
   void app.register(cors, {
-    // Tighten from reflect-any-origin to the scan origin + dev hosts.
+    // Production: an exact allowlist from CORS_ORIGINS. Development reflects any
+    // origin so local hosts and phones on the LAN can hit the dev server.
     origin:
       config.NODE_ENV === "production"
-        ? [/\.straynet\.in$/, /\.pages\.dev$/]
+        ? config.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
         : true,
+    credentials: false,
   });
   app.decorate("config", config);
 
@@ -92,7 +94,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
-  app.listen({ host: "0.0.0.0", port: config.PORT }).then(() => {
-    app.log.info(`StrayNet API listening on :${config.PORT}`);
+  app.listen({ host: config.HOST, port: config.PORT }).then(() => {
+    app.log.info(`StrayNet API listening on ${config.HOST}:${config.PORT}`);
   });
 }

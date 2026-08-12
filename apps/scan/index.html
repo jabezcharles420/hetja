@@ -75,6 +75,10 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js").catch(function(){});
 }
 </script>
-<script src="./main.js" defer></script>
+<!-- Absolute, not "./main.js": the collar URL is /d/<slug>, so a relative
+     path resolves to /d/main.js, which does not exist and falls through to
+     the SPA fallback -- the browser then gets HTML where it asked for a
+     script and the page stays a blank shell. -->
+<script src="/main.js" defer></script>
 </body>
 </html>

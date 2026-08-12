@@ -2,14 +2,23 @@
  * StrayNet Feeder API client.
  *
  * Typed fetch wrapper around the @straynet/api HTTP surface:
- *   - base URL from NEXT_PUBLIC_API_URL (default http://localhost:8080)
+ *   - origin from NEXT_PUBLIC_API_URL (default http://localhost:8080); every
+ *     JSON endpoint is served under the /api/v1 prefix
  *   - Bearer access token attached from localStorage when present
  *   - unwraps the `{ok: true, data}` envelope; throws ApiError on
  *     `{ok: false, error}` responses and transport failures
  *   - on 401 the stored token is cleared (session expired / invalid)
  */
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
+/**
+ * Origin of the API, no path component. Asset URLs (dog photos) hang off this
+ * directly. NEXT_PUBLIC_API_URL is inlined at build time, so it has to be set
+ * before `next build` runs -- setting it only at runtime has no effect.
+ */
+export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
+
+/** Versioned base for JSON endpoints -- the API registers everything under /api/v1. */
+export const API_BASE = `${API_ORIGIN}/api/v1`;
 
 export const ACCESS_TOKEN_KEY = "straynet.accessToken";
 
@@ -203,7 +212,7 @@ export interface StreakData {
 
 export function dogPhotoUrl(dog: Pick<DogProfile, "photoKey">): string | null {
   if (!dog.photoKey) return null;
-  return `${API_BASE}/${dog.photoKey}`;
+  return `${API_ORIGIN}/${dog.photoKey}`;
 }
 
 export const api = {

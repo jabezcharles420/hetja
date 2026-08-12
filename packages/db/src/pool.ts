@@ -6,6 +6,19 @@ import pg from "pg";
 
 const { Pool } = pg;
 
+/**
+ * TLS. Supabase (and any managed Postgres) refuses unencrypted connections,
+ * while the local VPS cluster has no server certificate at all. Honour the
+ * standard PGSSLMODE so one build works against both: unset/`disable` keeps the
+ * plaintext loopback connection, `require` verifies against the system CA store.
+ */
+const ssl =
+  process.env.PGSSLMODE === "require" || process.env.PGSSLMODE === "verify-full"
+    ? { rejectUnauthorized: true }
+    : process.env.PGSSLMODE === "no-verify"
+      ? { rejectUnauthorized: false }
+      : undefined;
+
 export const pool = new Pool({
   host: process.env.PGHOST ?? "127.0.0.1",
   port: Number(process.env.PGPORT ?? 5432),
@@ -15,6 +28,7 @@ export const pool = new Pool({
   max: Number(process.env.PGPOOL_MAX ?? 10),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  ...(ssl ? { ssl } : {}),
 });
 
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(

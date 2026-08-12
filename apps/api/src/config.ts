@@ -8,6 +8,9 @@ import { z } from "zod";
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8080),
+  // Bind address. In production this is 127.0.0.1: Caddy terminates TLS and
+  // reverse-proxies to it, so the port must not be reachable from the internet.
+  HOST: z.string().default("0.0.0.0"),
   PGHOST: z.string().default("127.0.0.1"),
   PGPORT: z.coerce.number().int().default(5432),
   PGDATABASE: z.string().default("straynet"),
@@ -27,6 +30,12 @@ const EnvSchema = z.object({
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(14),
   // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
   TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),
+  // Comma-separated exact browser origins allowed in production. Exact origins
+  // rather than regexes: a suffix pattern like /\.hetja\.in$/ silently fails to
+  // match the apex (https://hetja.in) and matches evil-hetja.in lookalikes.
+  CORS_ORIGINS: z
+    .string()
+    .default("https://hetja.in,https://www.hetja.in"),
   // Object storage (S3-compatible). Dev default: local disk backend.
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("data/photos"),

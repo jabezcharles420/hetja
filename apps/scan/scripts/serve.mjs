@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../dist", import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
+const HOST = process.env.HOST ?? "0.0.0.0";
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -28,12 +29,18 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     let data;
+    let contentType = MIME[extname(file)] ?? "application/octet-stream";
     try {
       data = await readFile(file);
     } catch {
+      // SPA fallback. Collar URLs (/d/<slug>) have no file on disk, and the
+      // requested path has no extension -- deriving the type from it labelled
+      // the app shell application/octet-stream, so browsers downloaded the
+      // scan page instead of rendering it. The shell is always HTML.
       data = await readFile(join(ROOT, "index.html"));
+      contentType = MIME[".html"];
     }
-    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
+    res.writeHead(200, { "content-type": contentType });
     res.end(data);
   } catch {
     res.writeHead(500, { "content-type": "text/plain" });
@@ -41,6 +48,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`@straynet/scan → http://localhost:${PORT}/d/<slug>?s=<sig>`);
+server.listen(PORT, HOST, () => {
+  console.log(`@straynet/scan → http://${HOST}:${PORT}/d/<slug>?s=<sig>`);
 });

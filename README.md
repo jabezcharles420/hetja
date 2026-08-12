@@ -1,4 +1,4 @@
-# StrayNet
+# Hetja
 
 Cityscale QR-collar, PWA and geofenced SOS network for Mumbai's stray dogs.
 

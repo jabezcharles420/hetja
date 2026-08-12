@@ -66,7 +66,7 @@ describe("lib/offline-queue", () => {
     const a = await enqueueFeed({ dogSlug: "abc234567" });
     const b = await enqueueFeed({ dogSlug: "cde345678" });
 
-    fetchMock.mockResolvedValue(jsonResponse(200, { ok: true, data: { created: true } }));
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
 
     const sent = await flush();
 

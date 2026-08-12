@@ -45,10 +45,10 @@ describe("lib/api", () => {
     setAccessToken("tok-abc");
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { records: [] } }));
 
-    await api.getDogMedical("abc234567");
+    await api.getStreak();
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${API_BASE}/dogs/abc234567/medical`);
+    expect(url).toBe(`${API_BASE}/feeders/me/streak`);
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer tok-abc");
   });
 

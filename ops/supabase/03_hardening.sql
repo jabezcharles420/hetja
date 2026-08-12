@@ -117,8 +117,9 @@ BEGIN
     RETURN false;
   END IF;
 
-  -- Slugs are exactly 9 chars of [a-z2-7] (see apps/web/lib/collar.ts).
-  IF p_slug !~ '^[a-z2-7]{9}$' THEN
+  -- Slugs are 9 chars of the generator alphabet abcdefghijkmnopqrstuvwxyz23456789
+  -- (packages/db/src/slugs.ts): a-z minus the confusables l and o, digits 2-9.
+  IF p_slug !~ '^[a-km-z2-9]{9}$' THEN
     RETURN false;
   END IF;
 

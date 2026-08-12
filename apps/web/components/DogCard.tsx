@@ -8,7 +8,7 @@ export interface DogCardProps {
   records?: MedicalRecord[];
 }
 
-const STATUS_TONES: Record<DogProfile["status"], string> = {
+const STATUS_TONES: Record<NonNullable<DogProfile["status"]>, string> = {
   active: styles.verified,
   lost: styles.lost,
   adopted: styles.abcDone,

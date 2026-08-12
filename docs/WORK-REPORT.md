@@ -186,5 +186,5 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
 All suites green, 0 typecheck errors across api/worker/packages, security gate
 7/7, EXPLAIN gate 3/3, production builds passing.
 
-*— End of report. Full commit history in the local repo (25 commits) and the
+*— End of report. Full commit history in the local repo (24 commits) and the
 private backup (Hermes_aic).*

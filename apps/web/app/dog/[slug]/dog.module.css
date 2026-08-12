@@ -248,6 +248,17 @@
   border-top: 1px solid var(--h-cream-dark);
 }
 
+@media (max-width: 768px) {
+  /* Clear the 56px bottom nav (safe-area included there) on mobile. */
+  .actionBar {
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .page {
+    padding-bottom: calc(var(--h-s8) + 96px + 56px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .sos {
   flex: 1;
   min-height: 48px;

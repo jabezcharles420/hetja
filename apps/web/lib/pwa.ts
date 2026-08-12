@@ -57,7 +57,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 }
 
 export function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(display-mode: standalone)").matches;
 }
 

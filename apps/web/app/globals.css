@@ -389,6 +389,11 @@ input:focus-visible,
   margin-top: var(--h-s3);
 }
 
+.h-hero-entry {
+  margin-top: var(--h-s5);
+  max-width: 480px;
+}
+
 .h-paw-panel {
   background: var(--h-forest);
   border-radius: var(--h-r-lg);

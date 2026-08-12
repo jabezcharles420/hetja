@@ -1,8 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ScanEntry from "@/components/ScanEntry";
 
 function PawArt(): React.JSX.Element {
   return (
@@ -56,21 +53,6 @@ function Step({
 }
 
 export default function LandingPage(): React.JSX.Element {
-  const router = useRouter();
-  const [slug, setSlug] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = slug.trim().toLowerCase();
-    if (!/^[a-z2-7]{9}$/.test(trimmed)) {
-      setError("Enter the 9-character code from the dog's collar (letters a–z + digits 2–7).");
-      return;
-    }
-    setError(null);
-    router.push(`/dog/${trimmed}`);
-  };
-
   return (
     <>
       <section className="h-hero">
@@ -93,26 +75,15 @@ export default function LandingPage(): React.JSX.Element {
                 Become a feeder
               </Link>
             </div>
-            <form className="h-code-form" onSubmit={submit}>
-              <label className="h-code-hint" htmlFor="collar-code">
-                No QR reader? Type the collar code:
-              </label>
-              <input
+            <div className="h-hero-entry">
+              <ScanEntry
                 id="collar-code"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                label="Collar code"
+                hint="No QR reader? Type the collar code:"
                 placeholder="e.g. abc234567"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                inputMode="text"
-                aria-label="Collar code"
+                buttonLabel="View profile"
               />
-              <button type="submit" className="h-btn h-btn-ghost">
-                View profile
-              </button>
-            </form>
-            {error && <p className="h-code-error">{error}</p>}
+            </div>
           </div>
 
           <div className="h-hero-fade-up h-paw-panel" style={{ animationDelay: "120ms" }}>

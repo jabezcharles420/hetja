@@ -72,7 +72,7 @@ describe("landing page", () => {
     fireEvent.change(input, { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
     expect(push).not.toHaveBeenCalled();
-    expect(screen.getByText(/Enter the 9-character code/)).toBeTruthy();
+    expect(screen.getByText(/That code looks incomplete/)).toBeTruthy();
   });
 });
 

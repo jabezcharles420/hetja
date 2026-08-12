@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b3a2f" />
+    <title>Offline — Hetja</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --forest: #1b3a2f;
+        --amber: #f2a33c;
+        --cream: #faf6ee;
+        --ink: #1f2a25;
+        --ink-soft: #5c6b63;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--cream);
+        color: var(--forest);
+        font-family: "Nunito Sans", system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      main {
+        text-align: center;
+        max-width: 38ch;
+      }
+
+      .mark {
+        width: 88px;
+        height: 88px;
+        border-radius: 999px;
+        background: var(--amber);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        box-shadow: 0 12px 28px rgb(31 42 37 / 0.1);
+      }
+
+      h1 {
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 700;
+        font-size: clamp(26px, 7vw, 40px);
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+        margin: 0 0 12px;
+      }
+
+      p {
+        color: var(--ink-soft);
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 0 0 24px;
+      }
+
+      button {
+        background: var(--amber);
+        color: var(--ink);
+        border: none;
+        border-radius: 999px;
+        padding: 14px 28px;
+        min-height: 48px;
+        font-family: "Nunito Sans", system-ui, sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgb(31 42 37 / 0.06), 0 2px 8px rgb(31 42 37 / 0.06);
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      a {
+        color: var(--forest);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="mark" aria-hidden="true">
+        <svg width="44" height="44" viewBox="0 0 64 64" fill="#1f2a25" aria-hidden="true">
+          <ellipse cx="32" cy="42" rx="15" ry="11" />
+          <ellipse cx="15" cy="31" rx="5.5" ry="8" transform="rotate(-18 15 31)" />
+          <ellipse cx="27" cy="20" rx="6" ry="9" transform="rotate(-6 27 20)" />
+          <ellipse cx="38" cy="20" rx="6" ry="9" transform="rotate(6 38 20)" />
+          <ellipse cx="50" cy="31" rx="5.5" ry="8" transform="rotate(18 50 31)" />
+        </svg>
+      </span>
+      <h1>No signal — your queued feeds will sync when you&rsquo;re back.</h1>
+      <p>
+        Hetja keeps working from your saved shell even without a connection. Any
+        feeds you logged are safe and will upload the moment you&rsquo;re back.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

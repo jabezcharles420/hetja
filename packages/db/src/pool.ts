@@ -2,6 +2,7 @@
  * StrayNet DB pool — single pg Pool shared by the API and workers.
  * Connection settings come from the environment (see .env.example).
  */
+import { readFileSync } from "node:fs";
 import pg from "pg";
 
 const { Pool } = pg;
@@ -29,17 +30,68 @@ function requiredInProd(name: string, devDefault: string): string {
 }
 
 /**
- * TLS. Supabase (and any managed Postgres) refuses unencrypted connections,
- * while the local VPS cluster has no server certificate at all. Honour the
- * standard PGSSLMODE so one build works against both: unset/`disable` keeps the
- * plaintext loopback connection, `require` verifies against the system CA store.
+ * TLS, with libpq's PGSSLMODE semantics rather than an approximation of them.
+ *
+ * The previous mapping sent `require` to `rejectUnauthorized: true`, which is
+ * wrong in a way that only shows up against a managed provider: in libpq,
+ * `require` means "encrypt, do not verify the certificate", and `verify-ca` /
+ * `verify-full` are the modes that verify. Conflating them made Node stricter
+ * than psql, so `psql "...sslmode=require"` connected to Supabase happily while
+ * the app failed with SELF_SIGNED_CERT_IN_CHAIN.
+ *
+ * That error is not a misconfiguration. Supabase's pooler presents a
+ * certificate issued by "Supabase Intermediate 2021 CA" -- their own private CA,
+ * which is deliberately absent from Node's bundled trust store. Verifying it
+ * requires their CA certificate, downloadable from the dashboard under
+ * Settings -> Database -> SSL configuration.
+ *
+ *   disable / unset  no TLS. The local cluster has no server certificate.
+ *   require          encrypt, do not verify (libpq's meaning). Stops passive
+ *                    eavesdropping; does NOT stop an active MITM.
+ *   no-verify        alias of require.
+ *   verify-ca        encrypt and verify the chain against PGSSLROOTCERT.
+ *   verify-full      as verify-ca, and check the hostname too. Use this in
+ *                    production, with PGSSLROOTCERT pointing at Supabase's CA.
  */
-const ssl =
-  process.env.PGSSLMODE === "require" || process.env.PGSSLMODE === "verify-full"
-    ? { rejectUnauthorized: true }
-    : process.env.PGSSLMODE === "no-verify"
-      ? { rejectUnauthorized: false }
-      : undefined;
+function readRootCert(): string | undefined {
+  const path = process.env.PGSSLROOTCERT;
+  if (!path) return undefined;
+  try {
+    return readFileSync(path, "utf8");
+  } catch (err) {
+    throw new Error(
+      `PGSSLROOTCERT is set to ${path} but could not be read: ${(err as Error).message}. ` +
+        "Download the CA from the Supabase dashboard (Settings -> Database -> SSL " +
+        "configuration), or drop to PGSSLMODE=require to encrypt without verifying.",
+    );
+  }
+}
+
+function buildSsl(): pg.PoolConfig["ssl"] {
+  const mode = process.env.PGSSLMODE;
+  if (!mode || mode === "disable") return undefined;
+
+  if (mode === "verify-ca" || mode === "verify-full") {
+    const ca = readRootCert();
+    if (!ca) {
+      throw new Error(
+        `PGSSLMODE=${mode} requires PGSSLROOTCERT to point at a CA certificate. ` +
+          "Supabase's pooler is signed by their private CA, so the system trust " +
+          "store cannot validate it and verification would always fail.",
+      );
+    }
+    // checkServerIdentity is left at the default for verify-full (hostname is
+    // checked); verify-ca skips the hostname check but still validates the chain.
+    return mode === "verify-full"
+      ? { rejectUnauthorized: true, ca }
+      : { rejectUnauthorized: true, ca, checkServerIdentity: () => undefined };
+  }
+
+  // require / no-verify: encrypted, unverified. Matches libpq.
+  return { rejectUnauthorized: false };
+}
+
+const ssl = buildSsl();
 
 export const pool = new Pool({
   host: process.env.PGHOST ?? "127.0.0.1",

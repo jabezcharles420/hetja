@@ -102,6 +102,7 @@ CREATE TRIGGER medical_records_append_only
 --    on the API. Remote timing analysis against PostgREST to recover an HMAC is
 --    not a practical attack, but it is a real difference from the API path.
 -- --------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS private.verify_slug_sig(text, text);
 CREATE OR REPLACE FUNCTION private.verify_slug_sig(p_slug text, p_sig text)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -145,6 +146,7 @@ REVOKE ALL ON FUNCTION private.verify_slug_sig(text, text) FROM PUBLIC, anon, au
 -- --------------------------------------------------------------------------
 
 -- GET /api/v1/dogs/:slug?s=
+DROP FUNCTION IF EXISTS public.get_dog_profile(text, text);
 CREATE OR REPLACE FUNCTION public.get_dog_profile(p_slug text, p_sig text)
 RETURNS TABLE (
   slug           text,
@@ -201,6 +203,7 @@ END $$;
 
 -- GET /api/v1/dogs/:slug/medical -- verified records only, with the hash chain
 -- so the client can still check integrity.
+DROP FUNCTION IF EXISTS public.get_dog_medical(text, text);
 CREATE OR REPLACE FUNCTION public.get_dog_medical(p_slug text, p_sig text)
 RETURNS TABLE (
   record_type  text,
@@ -233,6 +236,7 @@ BEGIN
 END $$;
 
 -- GET /api/v1/dogs/:slug/stories -- moderated only.
+DROP FUNCTION IF EXISTS public.get_dog_stories(text, text);
 CREATE OR REPLACE FUNCTION public.get_dog_stories(p_slug text, p_sig text)
 RETURNS TABLE (
   id           uuid,
@@ -283,6 +287,7 @@ REVOKE ALL ON public.care_providers FROM anon, authenticated;
 -- 0008_care_providers.sql, after the schema this file's header assumes) --
 -- kept explicit so a hardening run against an older dump still locks it.
 
+DROP FUNCTION IF EXISTS public.get_nearby_care(double precision, double precision, double precision);
 CREATE OR REPLACE FUNCTION public.get_nearby_care(
   p_lat    double precision,
   p_lng    double precision,
@@ -300,6 +305,8 @@ RETURNS TABLE (
   hours_note        text,
   handles_wildlife  boolean,
   phone_verified_at timestamptz,
+  geo_precision     text,
+  locality          text,
   lat               double precision,
   lng               double precision,
   distance_m        double precision
@@ -322,13 +329,30 @@ BEGIN
     cp.id, cp.name, cp.kind::text, cp.cost_tier::text,
     cp.phone_e164, cp.alt_phone_e164, cp.has_ambulance, cp.is_24x7,
     cp.hours_note, cp.handles_wildlife, cp.phone_verified_at,
+    cp.geo_precision::text, cp.locality,
     extensions.ST_Y(cp.geo::extensions.geometry),
     extensions.ST_X(cp.geo::extensions.geometry),
-    extensions.ST_Distance(cp.geo, v_origin)
+    -- A distance is only reported when the coordinate is genuinely geocoded.
+    -- Most seeded rows are locality centroids, and several share one point, so a
+    -- computed distance would be fiction rendered as fact on an emergency
+    -- screen. Mirrors apps/api/src/routes/care.ts.
+    CASE WHEN cp.geo_precision = 'exact'
+         THEN extensions.ST_Distance(cp.geo, v_origin)
+         ELSE NULL END
   FROM care_providers cp
   WHERE cp.listed
     AND extensions.ST_DWithin(cp.geo, v_origin, v_radius_m)
-  ORDER BY extensions.ST_Distance(cp.geo, v_origin)
+  -- Genuinely geocoded rows first, by true distance. The rest are ranked by what
+  -- actually helps in an emergency rather than by an estimated proximity the
+  -- caller would read as measured.
+  ORDER BY
+    (cp.geo_precision = 'exact') DESC,
+    CASE WHEN cp.geo_precision = 'exact'
+         THEN extensions.ST_Distance(cp.geo, v_origin) END,
+    cp.has_ambulance DESC,
+    cp.cost_tier,
+    cp.is_24x7 DESC,
+    cp.name
   LIMIT 8;
 END $$;
 

@@ -1,0 +1,104 @@
+/* ---------------------------------------------------------------------------
+ * Hetja design tokens — the single source of truth.
+ *
+ * This file is consumed by BOTH surfaces:
+ *   - apps/web           (imported by app/globals.css)
+ *   - apps/scan          (inlined into index.html at build time; the hot path
+ *                         cannot afford a second stylesheet request)
+ *
+ * Direction: Swiss wayfinding, not editorial minimalism. The references are
+ * Otl Aicher's Munich 1972 signage and Vignelli's NYC subway diagram. A
+ * stranger navigating an unfamiliar system under stress is a signage problem:
+ * fixed vocabulary, one decision per surface, information ranked by
+ * consequence. Structure comes from division (hairlines) rather than elevation
+ * (cards and shadows).
+ *
+ * Replaces two divergent systems: apps/web's cream/forest/amber with
+ * Fraunces + Nunito Sans, and apps/scan's dark navy on system fonts.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* --- Colour -------------------------------------------------------------
+   * Six values, no more. Contrast ratios against #FFFFFF are measured, not
+   * estimated; WCAG 2.2 AA needs 4.5:1 for normal text and 3:1 for large.
+   */
+  --h-base: #ffffff;        /* briefed white                                */
+  --h-ink: #111111;         /* 18.9:1 — AAA at every size                   */
+  --h-ink-muted: #5a5a5a;   /*  7.0:1 — AAA normal text                     */
+  --h-rule: #e4e4e4;        /* hairlines only, never a box or a fill        */
+  --h-accent: #c8102e;      /*  6.2:1 — AA normal, AAA large. ONE colour.   */
+  --h-safe: #0f6b3f;        /*  6.4:1 — verified / vaccinated states        */
+
+  /* The accent is spent on exactly one element per screen. Per WCAG 2.2
+   * SC 1.4.1 urgency is never carried by colour alone: the primary action
+   * always pairs the accent fill with an icon AND an explicit verb, so it
+   * still reads as primary in greyscale or with the hue stripped out. */
+
+  /* --- Type ---------------------------------------------------------------
+   * Inter, self-hosted and subset. No external font request: the scan bundle
+   * is capped at 40 KB gzipped and a CDN round-trip on the hot path costs
+   * more than the glyphs do. Fallbacks are metric-adjacent so an unstyled
+   * first paint does not reflow badly.
+   */
+  --h-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    system-ui, sans-serif;
+
+  /* Six sizes. A signage system has a fixed vocabulary; more sizes would
+   * blur the hierarchy the whole design depends on. */
+  --h-t-plate: 32px;  /* the collar code — the signature element            */
+  --h-t-xl: 24px;     /* dog name                                          */
+  --h-t-lg: 17px;     /* primary action label                              */
+  --h-t-md: 15px;     /* body, list rows                                   */
+  --h-t-sm: 13px;     /* ward, meta                                        */
+  --h-t-xs: 11px;     /* eyebrow labels: FREE · AMBULANCE                  */
+
+  --h-w-regular: 400;
+  --h-w-medium: 500;
+  --h-w-semibold: 600;
+
+  /* Tabular figures for anything a person compares or reads aloud:
+   * distances, dates, and the collar plate. */
+  --h-num-tabular: "tnum" 1, "lnum" 1;
+
+  /* --- Space --------------------------------------------------------------
+   * 4px base, 8px rhythm. The gutter is 20px so a 48dp target plus gutters
+   * still fits a 320px viewport.
+   */
+  --h-s1: 4px;
+  --h-s2: 8px;
+  --h-s3: 12px;
+  --h-s4: 16px;
+  --h-s5: 24px;
+  --h-s6: 32px;
+  --h-s7: 48px;
+  --h-s8: 64px;
+  --h-gutter: 20px;
+
+  /* --- Geometry -----------------------------------------------------------
+   * Radii collapse from the old 8/16/24/pill scale to square. 2px exists
+   * only to stop a large accent fill reading as a printing error.
+   */
+  --h-radius: 0px;
+  --h-radius-fill: 2px;
+  --h-hairline: 1px;
+
+  /* Touch targets. Apple HIG says 44x44pt, Material 48x48dp, and WCAG 2.2
+   * SC 2.5.8 sets a 24x24 CSS px floor. 48px is the comfort standard; the
+   * WCAG number is a legal minimum, not a target. */
+  --h-target: 48px;
+  --h-target-min: 44px;
+
+  /* --- Motion -------------------------------------------------------------
+   * Only transform and opacity are ever animated. The blueprint is explicit
+   * that the citizen is standing on a Mumbai street in 35°C heat: animation
+   * on the critical path is latency the user pays for.
+   */
+  --h-dur: 160ms;
+  --h-ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --h-dur: 0ms;
+  }
+}

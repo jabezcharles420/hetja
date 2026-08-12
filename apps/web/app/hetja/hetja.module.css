@@ -1,0 +1,134 @@
+/*
+ * /hetja — a memorial, not a utility screen. This is the one page in the
+ * system that departs from the app's tight measure: a single centred column
+ * for long-form reading. No accent colour appears anywhere on this page —
+ * grief is not an alert. Ink and ink-muted only.
+ */
+
+.page {
+  max-width: 66ch;
+  margin: 0 auto;
+  padding: var(--h-s8) var(--h-gutter) var(--h-s8);
+}
+
+.fade {
+  animation: h-fade-up 500ms ease-out both;
+}
+
+@keyframes h-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- The word, set like a dictionary entry --- */
+
+.masthead {
+  text-align: center;
+  margin-bottom: var(--h-s7);
+}
+
+.word {
+  font-family: var(--h-font);
+  font-size: var(--h-t-plate);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.01em;
+  color: var(--h-ink);
+  margin: 0;
+}
+
+.ipa {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
+  letter-spacing: 0.04em;
+  margin: var(--h-s2) 0 0;
+}
+
+.definition {
+  color: var(--h-ink);
+  font-size: var(--h-t-xl);
+  font-style: italic;
+  margin: var(--h-s3) 0 0;
+}
+
+/* --- The empty plate ---
+ * Hetja never had a collar. Same hairlines, same height, same tracking as
+ * every other dog's plate in this product — no characters between the
+ * rules. Do not add a dash, an ellipsis or a placeholder here.
+ */
+
+.plate {
+  margin: 0 0 var(--h-s2);
+}
+
+.plateCaption {
+  text-align: center;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--h-s8);
+}
+
+/* --- Body --- */
+
+.heading {
+  font-size: var(--h-t-xl);
+  font-weight: var(--h-w-semibold);
+  color: var(--h-ink);
+  margin: var(--h-s8) 0 var(--h-s5);
+}
+
+.heading:first-of-type {
+  margin-top: 0;
+}
+
+.prose {
+  color: var(--h-ink);
+  font-size: var(--h-t-md);
+  line-height: 1.65;
+}
+
+.prose > p + p {
+  margin-top: var(--h-s4);
+}
+
+.prose strong {
+  color: var(--h-ink);
+  font-weight: var(--h-w-semibold);
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose a {
+  color: var(--h-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Each "Why…" facet is a piece of one argument, not a numbered step —
+ * divided by whitespace and a hairline, never a numeral. */
+.facet {
+  margin-top: var(--h-s6);
+  padding-top: var(--h-s6);
+  border-top: var(--h-hairline) solid var(--h-rule);
+}
+
+.facet:first-child {
+  margin-top: var(--h-s5);
+  padding-top: 0;
+  border-top: none;
+}
+
+.signoff {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  margin-top: var(--h-s7);
+  text-align: center;
+}

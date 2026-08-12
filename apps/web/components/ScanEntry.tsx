@@ -80,7 +80,7 @@ export default function ScanEntry({
               if (error) setError(null);
             }}
             placeholder={placeholder}
-            pattern="[a-z2-7]{9}"
+            pattern="[a-km-z2-9]{9}"
             maxLength={9}
             autoCapitalize="none"
             autoCorrect="off"

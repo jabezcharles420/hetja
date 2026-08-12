@@ -1,5 +1,5 @@
 /**
- * StrayNet Feeder API client.
+ * Hetja Feeder API client.
  *
  * Typed fetch wrapper around the @straynet/api HTTP surface:
  *   - origin from NEXT_PUBLIC_API_URL (default http://localhost:8080); every
@@ -101,7 +101,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (cause) {
-    throw new ApiError("Could not reach StrayNet — check your connection.", {
+    throw new ApiError("Could not reach Hetja — check your connection.", {
       status: 0,
       code: "NETWORK_ERROR",
       cause,

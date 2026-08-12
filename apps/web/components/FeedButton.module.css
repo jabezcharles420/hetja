@@ -1,28 +1,22 @@
 .button {
-  flex: 1;
-  min-height: 48px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: var(--h-s2);
+  min-height: var(--h-target);
   border: none;
-  border-radius: var(--h-r-pill);
-  background: var(--h-mint);
-  color: var(--h-forest);
-  font-family: var(--h-font-body);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 12px 20px;
+  background: transparent;
+  color: var(--h-ink-muted);
+  font-family: var(--h-font);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
+  padding: 0 var(--h-s2);
   cursor: pointer;
-  box-shadow: var(--h-shadow-sm);
-  transition: transform 200ms ease, box-shadow 200ms ease;
 }
 
 .button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--h-shadow-md);
+  color: var(--h-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .button:disabled {
@@ -30,19 +24,9 @@
   cursor: wait;
 }
 
-.buttonPaw {
-  flex: none;
-}
-
 .offlineBadge {
-  background: var(--h-forest);
-  color: var(--h-cream);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-radius: var(--h-r-pill);
-  padding: 2px 8px;
+  font-size: var(--h-t-xs);
+  color: var(--h-ink-muted);
 }
 
 .status {
@@ -52,13 +36,13 @@
   transform: translateX(-50%);
   z-index: 60;
   max-width: min(90vw, 420px);
-  background: var(--h-forest);
-  color: var(--h-cream);
-  border-radius: var(--h-r-pill);
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 600;
+  background: var(--h-base);
+  color: var(--h-ink);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  padding: var(--h-s2) var(--h-s4);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
   text-align: center;
-  box-shadow: var(--h-shadow-md);
   margin: 0;
 }

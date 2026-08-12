@@ -4,7 +4,7 @@
  * The static `public/sw.js` caches the app shell, serves cached dog profiles
  * offline, and wakes the tab to flush the feed queue on Background Sync.
  * `public/manifest.webmanifest` declares the standalone install experience
- * (StrayNet Feeder).
+ * (Hetja).
  */
 
 export const SW_PATH = "/sw.js";
@@ -23,13 +23,13 @@ export interface PwaManifest {
 
 export function getManifest(): PwaManifest {
   return {
-    name: "StrayNet Feeder",
-    short_name: "Feeder",
+    name: "Hetja",
+    short_name: "Hetja",
     description: "Feed logs, profiles and SOS for Mumbai's stray dogs.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a1a12",
-    theme_color: "#0b7a3b",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
     icons: [
       { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },

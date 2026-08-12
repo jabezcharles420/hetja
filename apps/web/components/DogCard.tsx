@@ -8,14 +8,6 @@ export interface DogCardProps {
   records?: MedicalRecord[];
 }
 
-const STATUS_TONES: Record<NonNullable<DogProfile["status"]>, string> = {
-  active: styles.verified,
-  lost: styles.lost,
-  adopted: styles.abcDone,
-  relocated: styles.abcDone,
-  deceased: styles.neutral,
-};
-
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -33,7 +25,7 @@ export default function DogCard({ dog, records = [] }: DogCardProps): React.JSX.
           <img className={styles.photo} src={photo} alt={`Recent photo of ${dog.name ?? "this dog"}`} />
         ) : (
           <div className={styles.photoPlaceholder}>
-            <PawIllustration size={96} className={styles.paw} />
+            <PawIllustration size={72} className={styles.paw} />
             <span className={styles.photoCaption}>
               This dog hasn&apos;t been photographed yet.
             </span>
@@ -42,23 +34,34 @@ export default function DogCard({ dog, records = [] }: DogCardProps): React.JSX.
       </div>
 
       <div className={styles.body}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.name}>{dog.name ?? "Unnamed stray"}</h1>
-          <span className={styles.wardPill}>Ward {dog.wardId}</span>
-        </div>
-        <p className={styles.slug}>#{dog.slug}</p>
+        <h1 className={styles.name}>{dog.name ?? "Unnamed stray"}</h1>
 
-        <div className={styles.statusRow}>
-          <span className={`${styles.pill} ${STATUS_TONES[dog.status]}`}>
-            {capitalize(dog.status)}
-          </span>
-          {hasAbc && <span className={`${styles.pill} ${styles.abcDone}`}>ABC done</span>}
-          {vaccine && (
-            <span className={`${styles.pill} ${styles.verified}`}>
-              Vaccinated · {vaccine.vaccine_name}
-            </span>
+        {/* The signature element: the collar code, set like a signage plate. */}
+        <p className={`h-plate ${styles.plate}`}>{dog.slug}</p>
+
+        {dog.wardId && <p className={styles.ward}>Ward {dog.wardId}</p>}
+
+        <ul className={styles.statusList}>
+          <li className={styles.statusRow}>
+            <span className={styles.statusLabel}>{capitalize(dog.status)}</span>
+          </li>
+          {hasAbc && (
+            <li className={styles.statusRow}>
+              <span className={styles.check} aria-hidden="true">
+                ✓
+              </span>
+              <span className={styles.statusLabel}>ABC done</span>
+            </li>
           )}
-        </div>
+          {vaccine && (
+            <li className={styles.statusRow}>
+              <span className={styles.check} aria-hidden="true">
+                ✓
+              </span>
+              <span className={styles.statusLabel}>{`Vaccinated · ${vaccine.vaccine_name}`}</span>
+            </li>
+          )}
+        </ul>
 
         {dog.microStory && (
           <div className={styles.storyCard}>

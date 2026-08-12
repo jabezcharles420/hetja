@@ -1,25 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Nunito_Sans } from "next/font/google";
 import { PwaBootstrap } from "@/components/PwaBootstrap";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { BottomNav } from "@/components/BottomNav";
-import { InstallBanner } from "@/components/InstallBanner";
+import { ChromeShell } from "@/components/ChromeShell";
 import "./globals.css";
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--h-font-display",
-  display: "swap",
-});
-
-const nunitoSans = Nunito_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600", "800"],
-  variable: "--h-font-body",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Hetja — Every street has a hero",
@@ -35,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1b3a2f",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -47,17 +29,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>): React.JSX.Element {
   return (
-    <html
-      lang="en"
-      className={`${fraunces.variable} ${nunitoSans.variable}`}
-    >
+    <html lang="en">
       <body>
         <PwaBootstrap />
-        <Header />
-        <main className="h-main">{children}</main>
-        <InstallBanner />
-        <BottomNav />
-        <Footer />
+        <ChromeShell>{children}</ChromeShell>
       </body>
     </html>
   );

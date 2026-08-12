@@ -12,6 +12,8 @@ const NAV_LINKS = [
   { href: "/me", label: "My streak" },
 ];
 
+const SOURCE_URL = "https://github.com/jabezcharles420/hetja";
+
 export default function Footer(): React.JSX.Element {
   return (
     <footer className="h-footer">
@@ -30,6 +32,17 @@ export default function Footer(): React.JSX.Element {
           ))}
         </nav>
         <p className="h-footer-tagline">Built by and for Mumbai</p>
+        <div className="h-footer-legal">
+          <Link href="/hetja">In memory of Hetja</Link>
+          <span aria-hidden="true">·</span>
+          <a href={SOURCE_URL} rel="noopener noreferrer">
+            Source
+          </a>
+          <span aria-hidden="true">·</span>
+          <a href={`${SOURCE_URL}/blob/main/LICENSE`} rel="noopener noreferrer">
+            AGPL-3.0
+          </a>
+        </div>
       </div>
     </footer>
   );

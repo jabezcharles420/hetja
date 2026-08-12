@@ -91,7 +91,7 @@ describe("DogPage", () => {
     expect(screen.getByLabelText("Loading profile")).toBeTruthy();
   });
 
-  it("renders the profile, verified medical strip and sticky action bar", async () => {
+  it("renders the profile, the collapsed full record, and one primary action", async () => {
     apiMock.getDog.mockResolvedValue(dog);
     apiMock.getDogMedical.mockResolvedValue({ records });
     apiMock.getDogStories.mockResolvedValue({ stories });
@@ -101,15 +101,18 @@ describe("DogPage", () => {
     await screen.findByRole("heading", { level: 1, name: "Bella" });
     expect(screen.getByText("Ward W-12")).toBeTruthy();
     expect(screen.getByText("Vaccinated · Rabies")).toBeTruthy();
+    expect(screen.getByText("Full record")).toBeTruthy();
     expect(screen.getByText(/Medical history/)).toBeTruthy();
     expect(screen.getByText("✓ verified")).toBeTruthy();
     expect(screen.getByText(/She waited for me every evening/)).toBeTruthy();
 
-    expect(screen.getByRole("button", { name: "Feed" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "SOS" })).toBeTruthy();
+    // One primary action (accent-filled, icon + explicit verb) and "Log a
+    // feed" demoted to a plain text link — never two buttons of equal weight.
+    expect(screen.getByRole("button", { name: /This dog needs help/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Log a feed" })).toBeTruthy();
   });
 
-  it("opens the SOS modal from the action bar", async () => {
+  it("opens the SOS modal from the primary action", async () => {
     apiMock.getDog.mockResolvedValue(dog);
     apiMock.getDogMedical.mockResolvedValue({ records });
     apiMock.getDogStories.mockResolvedValue({ stories });
@@ -117,7 +120,7 @@ describe("DogPage", () => {
     render(createElement(DogPage));
     await screen.findByRole("heading", { level: 1, name: "Bella" });
 
-    fireEvent.click(screen.getByRole("button", { name: "SOS" }));
+    fireEvent.click(screen.getByRole("button", { name: /This dog needs help/ }));
     expect(screen.getByRole("dialog", { name: "Report SOS" })).toBeTruthy();
   });
 

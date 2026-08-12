@@ -4,7 +4,7 @@
 }
 
 .groupTitle {
-  font-size: 24px;
+  font-size: var(--h-t-xl);
   margin: 0 0 var(--h-s4);
   display: flex;
   align-items: center;
@@ -13,11 +13,11 @@
 
 .groupIcon {
   flex: none;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--h-r-pill);
-  background: var(--h-amber-soft);
-  color: var(--h-forest);
+  width: 40px;
+  height: 40px;
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  color: var(--h-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -28,14 +28,14 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--h-s3);
 }
 
 .item {
-  background: var(--h-cream-dark);
-  border-radius: var(--h-r-md);
-  box-shadow: var(--h-shadow-sm);
-  overflow: hidden;
+  border-bottom: var(--h-hairline) solid var(--h-rule);
+}
+
+.item:first-child {
+  border-top: var(--h-hairline) solid var(--h-rule);
 }
 
 .questionWrap {
@@ -48,43 +48,41 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--h-s4);
-  padding: var(--h-s4) var(--h-s5);
+  padding: var(--h-s4) 0;
   background: transparent;
   border: none;
-  font-family: var(--h-font-body);
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--h-font);
+  font-size: var(--h-t-md);
+  font-weight: var(--h-w-semibold);
   color: var(--h-ink);
   text-align: left;
   cursor: pointer;
-  min-height: 48px;
+  min-height: var(--h-target);
 }
 
 .question:hover {
-  background: color-mix(in srgb, var(--h-amber-soft) 40%, transparent);
+  color: var(--h-ink-muted);
 }
 
 .toggle {
   flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--h-r-pill);
-  background: var(--h-forest);
-  color: var(--h-amber);
+  width: 24px;
+  height: 24px;
+  color: var(--h-ink-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--h-t-md);
+  font-weight: var(--h-w-semibold);
 }
 
 .answer {
-  padding: 0 var(--h-s5) var(--h-s4);
+  padding: 0 0 var(--h-s4);
 }
 
 .answer p {
-  color: var(--h-ink-soft);
-  font-size: 15px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-md);
   line-height: 1.7;
   margin: 0;
   max-width: 62ch;

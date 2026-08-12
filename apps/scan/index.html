@@ -3,78 +3,113 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0b1220" />
+<meta name="theme-color" content="#ffffff" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Hetja — Every street has a hero.</title>
-<meta name="description" content="Scan a collar. See the dog. Feed it, help it — Mumbai’s street heroes." />
+<title>Hetja</title>
+<meta name="description" content="Scan a collar to see this dog and get it help." />
 <link rel="icon" href="data:," />
 <style>
-:root{--bg:#0b1220;--card:#111b2e;--line:#1e2a44;--txt:#e8eefb;--mut:#8ea0c0;--acc:#38e1a0;--warn:#f4b740;--danger:#ff5d5d}
+/* Hetja scan panel — Swiss wayfinding on the tokens in
+   packages/design/tokens.css. Values below are copied by hand (not
+   @imported) because this stylesheet is inlined into the hot-path HTML —
+   the panel cannot afford a second stylesheet request. Keep every name and
+   value identical to that file when either changes.
+
+   Font: deliberately NOT self-hosting Inter here. A subset is still
+   15-25KB against this surface's 40KB TOTAL budget, and the target is
+   p95 TTI < 800ms on 4G. --h-font is the same token name apps/web uses,
+   but its value on this surface is only the system fallback chain already
+   declared in tokens.css — zero bytes, metrically close at these sizes. */
+:root{--h-base:#fff;--h-ink:#111;--h-ink-muted:#5a5a5a;--h-rule:#e4e4e4;--h-accent:#c8102e;--h-safe:#0f6b3f;--h-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;--h-t-plate:32px;--h-t-xl:24px;--h-t-lg:17px;--h-t-md:15px;--h-t-sm:13px;--h-t-xs:11px;--h-w-regular:400;--h-w-medium:500;--h-w-semibold:600;--h-num-tabular:"tnum" 1,"lnum" 1;--h-s1:4px;--h-s2:8px;--h-s3:12px;--h-s4:16px;--h-s5:24px;--h-s6:32px;--h-s7:48px;--h-s8:64px;--h-gutter:20px;--h-radius:0px;--h-radius-fill:2px;--h-hairline:1px;--h-target:48px;--h-target-min:44px;--h-dur:160ms;--h-ease:cubic-bezier(.2,0,.2,1)}
+@media (prefers-reduced-motion:reduce){:root{--h-dur:0ms}}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-body{max-width:480px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+html,body{background:var(--h-base);color:var(--h-ink)}
+body{font-family:var(--h-font);font-size:var(--h-t-md);font-weight:var(--h-w-regular);line-height:1.45;-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
 .hidden{display:none!important}
-.topbar{display:flex;align-items:center;gap:10px;padding:14px 0 6px}
-.brand{font-weight:700;letter-spacing:.4px}
-.tag{color:var(--mut);font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.net{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);flex:none}
-.net.on{color:var(--acc);border-color:var(--acc)}
-.net.off{color:var(--warn);border-color:var(--warn)}
-.hero{padding:10px 0 18px}
-.hero h1{font-size:20px;font-weight:650}
-.hero .sub{color:var(--mut);font-size:13px;margin-top:2px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
-.card.stale{border-color:var(--warn)}
-.photo{aspect-ratio:4/3;background:linear-gradient(135deg,#1c2a47,#0e1830);display:flex;align-items:center;justify-content:center}
+a{color:inherit}
+.topline{border-top:var(--h-hairline) solid var(--h-rule)}
+main{flex:1;display:flex;flex-direction:column;padding:0 var(--h-gutter) calc(var(--h-s6) + env(safe-area-inset-bottom))}
+.muted{color:var(--h-ink-muted);font-size:var(--h-t-sm)}
+#status{font-size:var(--h-t-lg);font-weight:var(--h-w-semibold);margin-top:var(--h-s5)}
+.banner{border-top:var(--h-hairline) solid var(--h-rule);border-bottom:var(--h-hairline) solid var(--h-rule);color:var(--h-ink-muted);font-size:var(--h-t-sm);padding:var(--h-s3) 0;margin:var(--h-s3) 0}
+.photo{aspect-ratio:4/3;background:var(--h-rule);overflow:hidden;margin-top:var(--h-s4)}
 .photo img{width:100%;height:100%;object-fit:cover;display:block}
-.placeholder{font-size:64px;font-weight:800;color:#2c3d63}
-.body{padding:14px 16px}
-.name-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-h2.name{font-size:22px}
-.chip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);text-transform:capitalize;flex:none}
-.chip.acc{color:var(--acc);border-color:var(--acc)}
-.chip.warn{color:var(--warn);border-color:var(--warn)}
-.meta{color:var(--mut);font-size:13px;margin-bottom:10px}
-.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
-.row dt{color:var(--mut);flex:none}
-.row dd{font-weight:550;text-align:right}
-.story{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:14px}
-.stale-note{background:rgba(244,183,64,.12);color:var(--warn);font-size:12px;padding:8px 12px;border-radius:10px;margin:0 0 12px}
-.banner{background:rgba(244,183,64,.14);border:1px solid var(--warn);color:var(--warn);font-size:12px;padding:8px 12px;border-radius:10px;margin:0 0 12px}
-.error{color:var(--danger)}
-.ctas{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
-.btn{flex:1;border:1px solid var(--line);background:var(--card);color:var(--txt);padding:12px 8px;border-radius:12px;font:inherit;font-weight:650;font-size:14px;cursor:pointer}
-.btn:disabled{opacity:.5}
-.btn.primary{background:var(--acc);border-color:var(--acc);color:#06231a}
-.btn.danger{color:var(--danger);border-color:var(--danger)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;width:calc(100% - 32px);max-width:440px;background:#16223a;border:1px solid var(--line);padding:10px 14px;border-radius:12px;font-size:13px;text-align:center;z-index:5}
+.photo .placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:600;color:var(--h-ink-muted)}
+.dog-name{font-size:var(--h-t-xl);font-weight:var(--h-w-semibold);margin-top:var(--h-s4)}
+.hr{border-top:var(--h-hairline) solid var(--h-rule);margin:var(--h-s3) 0}
+.plate{font-size:var(--h-t-plate);font-weight:var(--h-w-semibold);letter-spacing:.1em;font-feature-settings:var(--h-num-tabular);font-variant-numeric:tabular-nums;padding:var(--h-s2) 0}
+.ward{font-size:var(--h-t-sm);color:var(--h-ink-muted)}
+.status-block{margin-top:var(--h-s5)}
+.status-row{display:flex;align-items:center;gap:var(--h-s2);padding:var(--h-s1) 0;color:var(--h-ink-muted)}
+.status-row.ok{color:var(--h-safe)}
+.status-icon{width:14px;height:14px;flex:none;display:flex}
+.status-label{font-weight:var(--h-w-medium);color:var(--h-ink)}
+.status-row.ok .status-label{color:var(--h-safe)}
+.status-value{margin-left:auto;font-size:var(--h-t-sm)}
+.full-record{margin-top:var(--h-s5);border-top:var(--h-hairline) solid var(--h-rule);padding-top:var(--h-s3)}
+.full-record summary{font-size:var(--h-t-sm);color:var(--h-ink-muted);cursor:pointer}
+.fr-body{margin-top:var(--h-s2);font-size:var(--h-t-sm);color:var(--h-ink-muted)}
+.fr-row{display:flex;justify-content:space-between;padding:var(--h-s1) 0}
+.fr-story{margin-top:var(--h-s2)}
+.stale-note{color:var(--h-ink-muted);font-size:var(--h-t-xs);margin-top:var(--h-s3)}
+.spacer{flex:1;min-height:var(--h-s6)}
+.cta-zone{padding-top:var(--h-s4)}
+.primary-cta{width:100%;min-height:var(--h-target);background:var(--h-accent);color:#fff;border:none;border-radius:var(--h-radius-fill);font:inherit;font-size:var(--h-t-lg);font-weight:var(--h-w-semibold);display:flex;align-items:center;justify-content:center;gap:var(--h-s2);cursor:pointer}
+.primary-cta:disabled{opacity:.4;cursor:default}
+.log-feed-link{display:block;text-align:center;margin-top:var(--h-s3);color:var(--h-ink-muted);font-size:var(--h-t-md);text-decoration:underline;padding:var(--h-s2) 0}
+.source-link{display:block;text-align:center;margin-top:var(--h-s1);color:var(--h-ink-muted);font-size:var(--h-t-xs);text-decoration:none;padding:var(--h-s1) 0}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--h-ink);outline-offset:2px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 40px);max-width:440px;background:var(--h-ink);color:#fff;padding:var(--h-s3) var(--h-s4);font-size:var(--h-t-sm);text-align:center;z-index:10}
+.backdrop{position:fixed;inset:0;background:rgba(17,17,17,.45);opacity:0;transition:opacity var(--h-dur) var(--h-ease);z-index:15}
+.backdrop.open{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:480px;height:55vh;max-height:55dvh;background:var(--h-base);border-top:var(--h-hairline) solid var(--h-rule);transform:translateY(100%);transition:transform var(--h-dur) var(--h-ease);display:flex;flex-direction:column;z-index:20;padding:0 var(--h-gutter) calc(var(--h-s4) + env(safe-area-inset-bottom))}
+.sheet.open{transform:translateY(0)}
+.sheet-grab{width:36px;height:4px;background:var(--h-rule);margin:var(--h-s2) auto}
+.sheet-close{position:absolute;top:var(--h-s2);right:var(--h-s3);width:var(--h-target-min);height:var(--h-target-min);border:none;background:none;font-size:22px;line-height:1;color:var(--h-ink-muted);cursor:pointer}
+.sheet-body{flex:1;overflow-y:auto;padding-top:var(--h-s3)}
+.sheet-title{font-size:var(--h-t-lg);font-weight:var(--h-w-semibold);margin-bottom:var(--h-s3)}
+.sev-list{display:flex;flex-direction:column;gap:var(--h-s2)}
+.sev-btn{min-height:var(--h-target);border:var(--h-hairline) solid var(--h-rule);background:var(--h-base);font:inherit;font-size:var(--h-t-md);font-weight:var(--h-w-medium);text-align:left;padding:0 var(--h-s4);cursor:pointer}
+.sev-btn:active{background:var(--h-rule)}
+.sheet-status{color:var(--h-ink-muted);font-size:var(--h-t-sm);margin:var(--h-s2) 0}
+.care-row{border-top:var(--h-hairline) solid var(--h-rule);padding:var(--h-s3) 0}
+.care-row:first-child{border-top:none}
+.care-eyebrow{display:flex;justify-content:space-between;font-size:var(--h-t-xs);letter-spacing:.06em;color:var(--h-ink-muted);text-transform:uppercase}
+.care-dist{font-feature-settings:var(--h-num-tabular);font-variant-numeric:tabular-nums}
+.care-name{font-size:var(--h-t-md);font-weight:var(--h-w-semibold);margin:var(--h-s1) 0}
+.care-phone{font-size:var(--h-t-sm);color:var(--h-ink-muted);margin-bottom:var(--h-s2)}
+.care-actions{display:flex;gap:var(--h-s2)}
+.care-btn{flex:1;min-height:var(--h-target);display:flex;align-items:center;justify-content:center;border:var(--h-hairline) solid var(--h-ink);text-decoration:none;color:var(--h-ink);font-size:var(--h-t-md);font-weight:var(--h-w-medium)}
+.care-btn.disabled{color:var(--h-ink-muted);border-color:var(--h-rule)}
+.firstaid{margin-top:var(--h-s4);border-top:var(--h-hairline) solid var(--h-rule);padding-top:var(--h-s3);font-size:var(--h-t-sm);color:var(--h-ink-muted)}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <span class="brand">Hetja</span>
-  <span class="tag">No stray sleeps hungry.</span>
-  <span id="net" class="net on">online</span>
-</header>
+<div class="topline" aria-hidden="true"></div>
 <main>
-  <section class="hero">
-    <h1 id="status">Scanning&hellip;</h1>
-    <p class="sub" id="sub">Point your camera at the collar QR code.</p>
-  </section>
+  <div id="state" class="state">
+    <p id="status">Loading&hellip;</p>
+    <p id="sub" class="muted"></p>
+  </div>
   <div id="note"></div>
   <section id="profile" class="hidden" aria-live="polite"></section>
-  <nav class="ctas" aria-label="Actions">
-    <button id="cta-view" class="btn primary" type="button">View</button>
-    <button id="cta-feed" class="btn" type="button">Log Feed</button>
-    <button id="cta-sos" class="btn danger" type="button">Report Emergency</button>
-  </nav>
+  <div class="spacer" aria-hidden="true"></div>
+  <div class="cta-zone">
+    <button type="button" id="primary-cta" class="primary-cta" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><rect x="7" y="2" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="12" width="2" height="2" rx="1" fill="currentColor"/></svg>
+      <span>This dog needs help</span>
+    </button>
+    <a href="#" id="log-feed-link" class="log-feed-link">Log a feed</a>
+    <a href="https://github.com/jabezcharles420/hetja" class="source-link" target="_blank" rel="noopener">Source</a>
+  </div>
 </main>
 <div id="toast" class="toast hidden" role="status"></div>
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/service-worker.js").catch(function(){});
-}
-</script>
+<div id="sheet-backdrop" class="backdrop hidden"></div>
+<div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheet-h" aria-hidden="true">
+  <div class="sheet-grab" aria-hidden="true"></div>
+  <button type="button" id="sheet-close" class="sheet-close" aria-label="Close">&times;</button>
+  <div id="sheet-body" class="sheet-body"></div>
+</div>
 <!-- Served under /d/ on purpose. A relative "./main.js" resolves to
      /d/main.js only for /d/<slug> and breaks for any other depth, while a
      root-absolute "/main.js" leaves this path prefix entirely and is routed

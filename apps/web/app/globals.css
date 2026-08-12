@@ -1,47 +1,33 @@
-:root {
-  --h-forest: #1b3a2f;
-  --h-forest-soft: #2c5244;
-  --h-moss: #6b8f71;
-  --h-amber: #f2a33c;
-  --h-amber-soft: #ffe3b3;
-  --h-cream: #faf6ee;
-  --h-cream-dark: #efe7d8;
-  --h-ink: #1f2a25;
-  --h-ink-soft: #5c6b63;
-  --h-white: #ffffff;
-  --h-mint: #5fbf8e;
-  --h-coral: #e0664d;
-  --h-coral-soft: #fbe0d9;
+/* ---------------------------------------------------------------------------
+ * apps/web — global styles.
+ *
+ * Tokens come from ONE place: packages/design/tokens.css. This file imports
+ * them, consumes the custom properties, and never redefines a value or adds a
+ * colour of its own. If a token is missing here, that is a gap to report
+ * upstream, not something to invent locally.
+ *
+ * Direction: Swiss wayfinding (Aicher's Munich 1972 signage, Vignelli's NYC
+ * subway diagram), not editorial minimalism. Structure comes from division —
+ * hairline rules — rather than elevation. There are no cards with shadows and
+ * no rounded pill shapes left in this file; radii are 0 except the 2px used
+ * to soften a large accent fill.
+ * ------------------------------------------------------------------------- */
 
-  --h-font-display: "Fraunces", Georgia, serif;
-  --h-font-body: "Nunito Sans", system-ui, sans-serif;
+@import "../../../packages/design/tokens.css";
 
-  --h-s1: 4px;
-  --h-s2: 8px;
-  --h-s3: 12px;
-  --h-s4: 16px;
-  --h-s5: 24px;
-  --h-s6: 32px;
-  --h-s7: 48px;
-  --h-s8: 64px;
-
-  --h-r-sm: 8px;
-  --h-r-md: 16px;
-  --h-r-lg: 24px;
-  --h-r-pill: 999px;
-
-  --h-shadow-sm: 0 1px 2px rgb(31 42 37 / 0.06), 0 2px 8px rgb(31 42 37 / 0.06);
-  --h-shadow-md: 0 2px 4px rgb(31 42 37 / 0.06), 0 12px 28px rgb(31 42 37 / 0.1);
-  --h-shadow-lg: 0 4px 8px rgb(31 42 37 / 0.08), 0 24px 56px rgb(31 42 37 / 0.16);
-
-  --bg: var(--h-cream);
-  --surface: var(--h-cream-dark);
-  --border: var(--h-cream-dark);
-  --ink: var(--h-ink);
-  --muted: var(--h-ink-soft);
-  --accent: var(--h-amber);
-  --danger: var(--h-coral);
-  --flame: var(--h-amber);
+/* --- Self-hosted Inter -----------------------------------------------------
+ * Variable, subset to Latin + weights 400–600 (the three weights the type
+ * scale actually uses). No CDN request. See docs/design/HETJA-DESIGN.md for
+ * the exact byte size shipped.
+ */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-latin-400-600.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+    U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 * {
@@ -61,10 +47,11 @@ html {
 }
 
 body {
-  background: var(--h-cream);
+  background: var(--h-base);
   color: var(--h-ink);
-  font-family: var(--h-font-body);
-  font-size: 16px;
+  font-family: var(--h-font);
+  font-weight: var(--h-w-regular);
+  font-size: var(--h-t-md);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -76,8 +63,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--h-font-display);
-  font-weight: 600;
+  font-family: var(--h-font);
+  font-weight: var(--h-w-semibold);
   line-height: 1.1;
   color: var(--h-ink);
 }
@@ -91,53 +78,54 @@ a {
   text-decoration: none;
 }
 
+/* Visible keyboard focus on every control — never suppressed. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--h-amber-soft);
+  outline: 2px solid var(--h-ink);
   outline-offset: 2px;
-  border-radius: var(--h-r-sm);
 }
 
 .h-container {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 var(--h-s5);
+  padding: 0 var(--h-gutter);
 }
 
 .h-section {
   padding: var(--h-s8) 0;
 }
 
+/* --- Eyebrow / kicker label --------------------------------------------
+ * A signage label, not a coloured chip: uppercase, tracked, muted ink.
+ * Structure comes from type, not from a filled pill.
+ */
 .h-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--h-s2);
-  border-radius: var(--h-r-pill);
-  padding: var(--h-s2) var(--h-s4);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--h-t-xs);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--h-ink-muted);
   line-height: 1.4;
 }
 
 .h-pill-amber {
-  background: var(--h-amber-soft);
-  color: var(--h-forest);
+  color: var(--h-ink-muted);
 }
 
+/* --- Card -----------------------------------------------------------------
+ * A hairline border, not elevation. No radius, no shadow.
+ */
 .h-card {
-  background: var(--h-cream-dark);
-  border-radius: var(--h-r-md);
-  box-shadow: var(--h-shadow-md);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-
-.h-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--h-shadow-lg);
+  background: var(--h-base);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
 }
 
 .h-btn {
@@ -145,94 +133,86 @@ input:focus-visible,
   align-items: center;
   justify-content: center;
   gap: var(--h-s2);
-  border-radius: var(--h-r-pill);
-  padding: 14px 28px;
-  font-family: var(--h-font-body);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  min-height: 48px;
+  border-radius: var(--h-radius);
+  padding: 0 var(--h-s5);
+  font-family: var(--h-font);
+  font-size: var(--h-t-md);
+  font-weight: var(--h-w-semibold);
+  min-height: var(--h-target);
   cursor: pointer;
-  border: 2px solid transparent;
-  transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
-}
-
-.h-btn:hover {
-  transform: translateY(-2px);
-}
-
-.h-btn:active {
-  transform: translateY(0);
+  border: var(--h-hairline) solid transparent;
+  transition: transform var(--h-dur) var(--h-ease), opacity var(--h-dur) var(--h-ease);
 }
 
 .h-btn-primary {
-  background: var(--h-amber);
-  color: var(--h-ink);
-  box-shadow: var(--h-shadow-sm);
+  background: var(--h-accent);
+  color: var(--h-base);
+  border-radius: var(--h-radius-fill);
 }
 
 .h-btn-primary:hover {
-  background: var(--h-amber);
-  box-shadow: var(--h-shadow-md);
+  opacity: 0.88;
 }
 
 .h-btn-dark {
-  background: var(--h-forest);
-  color: var(--h-cream);
+  background: transparent;
+  color: var(--h-ink);
+  border-color: var(--h-ink);
 }
 
 .h-btn-dark:hover {
-  background: var(--h-forest-soft);
-  box-shadow: var(--h-shadow-md);
+  background: var(--h-ink);
+  color: var(--h-base);
 }
 
 .h-btn-ghost {
   background: transparent;
-  color: var(--h-ink);
-  border-color: var(--h-cream-dark);
+  color: var(--h-ink-muted);
+  border-color: var(--h-rule);
 }
 
 .h-btn-ghost:hover {
-  background: var(--h-cream-dark);
-  box-shadow: var(--h-shadow-md);
+  border-color: var(--h-ink);
+  color: var(--h-ink);
 }
 
 .h-logo {
   display: inline-flex;
   align-items: center;
   gap: var(--h-s3);
-  font-family: var(--h-font-display);
-  font-weight: 700;
-  font-size: 22px;
+  font-family: var(--h-font);
+  font-weight: var(--h-w-semibold);
+  font-size: var(--h-t-lg);
   line-height: 1;
   color: inherit;
 }
 
 .h-logo-mark {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   flex: none;
-  border-radius: var(--h-r-pill);
   display: block;
 }
 
 .h-logo-small {
-  font-size: 18px;
+  font-size: var(--h-t-sm);
 }
 
 .h-logo-small .h-logo-mark {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
 }
 
+/* --- Header -----------------------------------------------------------
+ * White, sticky, one hairline underneath. No fill, no shadow.
+ */
 .h-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--h-forest);
-  color: var(--h-cream);
-  box-shadow: var(--h-shadow-md);
+  background: var(--h-base);
+  color: var(--h-ink);
+  border-bottom: var(--h-hairline) solid var(--h-rule);
 }
 
 .h-header-inner {
@@ -240,34 +220,35 @@ input:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: var(--h-s4);
-  min-height: 68px;
+  min-height: 64px;
 }
 
 .h-header-nav {
   display: flex;
   align-items: center;
   gap: var(--h-s5);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
 }
 
 .h-header-nav a {
-  color: var(--h-cream);
-  opacity: 0.85;
-  transition: opacity 200ms ease;
+  color: var(--h-ink);
 }
 
 .h-header-nav a:hover {
-  opacity: 1;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
+/* --- Footer -------------------------------------------------------------
+ * White, one hairline above. Ink-muted body text, ink links.
+ */
 .h-footer {
-  background: var(--h-forest);
-  color: var(--h-cream);
+  background: var(--h-base);
+  color: var(--h-ink);
+  border-top: var(--h-hairline) solid var(--h-rule);
   padding: var(--h-s6) 0;
-  font-size: 13px;
+  font-size: var(--h-t-sm);
 }
 
 .h-footer-inner {
@@ -286,38 +267,58 @@ input:focus-visible,
 }
 
 .h-footer-links a {
-  color: var(--h-cream);
-  opacity: 0.75;
-  font-weight: 600;
+  color: var(--h-ink);
+  font-weight: var(--h-w-medium);
 }
 
 .h-footer-links a:hover {
-  opacity: 1;
   text-decoration: underline;
 }
 
 .h-footer-muted {
-  color: var(--h-moss);
+  color: var(--h-ink-muted);
   max-width: 52ch;
 }
 
 .h-footer-dot {
-  color: var(--h-moss);
-  opacity: 0.6;
+  color: var(--h-rule);
 }
 
 .h-footer-tagline {
-  color: var(--h-amber);
-  font-family: var(--h-font-display);
-  font-weight: 600;
-  font-size: 13px;
+  color: var(--h-ink-muted);
+  font-weight: var(--h-w-semibold);
+  font-size: var(--h-t-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+/* Quiet second row: memorial link, source link, licence. Deliberately
+ * smaller and stiller than the product nav above it. */
+.h-footer-legal {
+  display: flex;
+  align-items: center;
+  gap: var(--h-s3);
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: var(--h-t-xs);
+  color: var(--h-ink-muted);
+}
+
+.h-footer-legal a {
+  color: var(--h-ink-muted);
+}
+
+.h-footer-legal a:hover {
+  color: var(--h-ink);
+  text-decoration: underline;
+}
+
+/* --- Hero -----------------------------------------------------------------
+ * No gradient panel: a plain white section, divided from the next by a
+ * hairline instead of a colour change.
+ */
 .h-hero {
-  background: linear-gradient(180deg, var(--h-cream-dark) 0%, var(--h-cream) 100%);
-  overflow: hidden;
+  background: var(--h-base);
 }
 
 .h-hero-grid {
@@ -334,16 +335,16 @@ input:focus-visible,
 }
 
 .h-hero-title {
-  font-size: clamp(40px, 8vw, 64px);
-  line-height: 1.05;
+  font-size: var(--h-t-plate);
+  line-height: 1.1;
   margin: 0 0 var(--h-s4);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.01em;
 }
 
 .h-hero-sub {
-  color: var(--h-ink-soft);
-  font-size: 18px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-lg);
   max-width: 46ch;
   margin: 0 0 var(--h-s5);
 }
@@ -363,29 +364,30 @@ input:focus-visible,
 }
 
 .h-code-hint {
-  color: var(--h-ink-soft);
-  font-size: 14px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
 }
 
 .h-code-form input {
-  font-family: var(--h-font-body);
-  font-size: 15px;
-  padding: 12px 16px;
-  border-radius: var(--h-r-pill);
-  border: 2px solid var(--h-cream-dark);
-  background: var(--h-white);
+  font-family: var(--h-font);
+  font-size: var(--h-t-md);
+  padding: 0 var(--h-s4);
+  min-height: var(--h-target);
+  border-radius: var(--h-radius);
+  border: var(--h-hairline) solid var(--h-rule);
+  background: var(--h-base);
   color: var(--h-ink);
   min-width: 220px;
 }
 
 .h-code-form input::placeholder {
-  color: var(--h-ink-soft);
+  color: var(--h-ink-muted);
 }
 
 .h-code-error {
-  color: var(--h-coral);
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--h-accent);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-semibold);
   margin-top: var(--h-s3);
 }
 
@@ -394,49 +396,63 @@ input:focus-visible,
   max-width: 480px;
 }
 
+/* Decorative hero illustration panel: a hairline box, not a dark fill. */
 .h-paw-panel {
-  background: var(--h-forest);
-  border-radius: var(--h-r-lg);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
   padding: var(--h-s8) var(--h-s6);
-  box-shadow: var(--h-shadow-lg);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .h-paw-art {
-  width: 220px;
-  height: 220px;
+  width: 200px;
+  height: 200px;
   max-width: 100%;
+  color: var(--h-ink);
 }
 
+/* --- Stats strip ----------------------------------------------------------
+ * Divided by hairlines, not a dark band. Figures are tabular.
+ */
 .h-stats {
-  background: var(--h-forest-soft);
-  color: var(--h-cream);
+  background: var(--h-base);
+  color: var(--h-ink);
+  border-top: var(--h-hairline) solid var(--h-rule);
+  border-bottom: var(--h-hairline) solid var(--h-rule);
 }
 
 .h-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--h-s6);
   text-align: center;
   padding: var(--h-s7) 0;
 }
 
+.h-stats-row > div {
+  border-left: var(--h-hairline) solid var(--h-rule);
+}
+
+.h-stats-row > div:first-child {
+  border-left: none;
+}
+
 .h-stat-value {
-  font-family: var(--h-font-display);
-  font-size: 40px;
-  font-weight: 700;
-  color: var(--h-amber);
+  font-family: var(--h-font);
+  font-size: var(--h-t-plate);
+  font-weight: var(--h-w-semibold);
+  font-variant-numeric: var(--h-num-tabular);
+  color: var(--h-ink);
   line-height: 1;
+  margin: 0;
 }
 
 .h-stat-label {
   margin-top: var(--h-s2);
-  color: var(--h-cream);
-  opacity: 0.8;
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
+  font-weight: var(--h-w-semibold);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -448,53 +464,55 @@ input:focus-visible,
 }
 
 .h-how-title {
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: var(--h-t-xl);
   margin: var(--h-s4) 0 0;
 }
 
 .h-how-sub {
-  color: var(--h-ink-soft);
+  color: var(--h-ink-muted);
   margin-top: var(--h-s3);
 }
 
+/* --- Steps ------------------------------------------------------------- */
 .h-steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--h-s5);
+  gap: 0;
+  border-top: var(--h-hairline) solid var(--h-rule);
+  border-left: var(--h-hairline) solid var(--h-rule);
 }
 
 .h-step {
   padding: var(--h-s6);
+  border-right: var(--h-hairline) solid var(--h-rule);
+  border-bottom: var(--h-hairline) solid var(--h-rule);
 }
 
 .h-step-num {
-  font-family: var(--h-font-display);
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--h-forest);
-  background: var(--h-amber);
-  width: 40px;
-  height: 40px;
-  border-radius: var(--h-r-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-family: var(--h-font);
+  font-weight: var(--h-w-semibold);
+  font-size: var(--h-t-lg);
+  font-variant-numeric: var(--h-num-tabular);
+  color: var(--h-ink-muted);
+  display: block;
   margin-bottom: var(--h-s4);
 }
 
 .h-step-title {
-  font-size: 24px;
+  font-size: var(--h-t-xl);
   margin: 0 0 var(--h-s3);
 }
 
 .h-step-text {
-  color: var(--h-ink-soft);
-  font-size: 15px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-md);
 }
 
+/* --- Band (bottom CTA section) ------------------------------------------ */
 .h-band {
-  background: var(--h-forest);
-  color: var(--h-cream);
+  background: var(--h-base);
+  color: var(--h-ink);
+  border-top: var(--h-hairline) solid var(--h-rule);
 }
 
 .h-band-inner {
@@ -507,14 +525,14 @@ input:focus-visible,
 }
 
 .h-band-title {
-  font-size: clamp(28px, 5vw, 44px);
+  font-size: var(--h-t-xl);
   max-width: 22ch;
   margin: 0;
-  color: var(--h-cream);
+  color: var(--h-ink);
 }
 
 .h-band-sub {
-  color: var(--h-moss);
+  color: var(--h-ink-muted);
   max-width: 52ch;
 }
 
@@ -549,7 +567,17 @@ input:focus-visible,
 
   .h-stats-row {
     grid-template-columns: 1fr;
-    gap: var(--h-s5);
+  }
+
+  .h-stats-row > div {
+    border-left: none;
+    border-top: var(--h-hairline) solid var(--h-rule);
+    padding-top: var(--h-s5);
+  }
+
+  .h-stats-row > div:first-child {
+    border-top: none;
+    padding-top: 0;
   }
 }
 
@@ -582,9 +610,7 @@ input:focus-visible,
 a:active,
 button:active,
 [role="button"]:active,
-.h-btn:active,
-.h-card:active,
-.h-pill:active {
+.h-btn:active {
   transform: scale(0.98);
 }
 
@@ -593,6 +619,12 @@ button:active,
   .h-main {
     padding-bottom: calc(var(--h-s3) + 56px + env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* Surfaces that suppress the global chrome (see ChromeShell) don't reserve
+ * bottom-nav space — there is no bottom nav to clear. */
+.h-main-bare {
+  padding-bottom: 0 !important;
 }
 
 /* Defer below-fold rendering (no scroll jank, space reserved via intrinsic size). */
@@ -607,8 +639,8 @@ button:active,
 .h-skeleton {
   position: relative;
   overflow: hidden;
-  background: var(--h-cream-dark);
-  border-radius: var(--h-r-sm);
+  background: var(--h-rule);
+  border-radius: var(--h-radius);
 }
 
 .h-skeleton::after {
@@ -616,12 +648,7 @@ button:active,
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(250 246 238 / 0.55),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.7), transparent);
   animation: h-shimmer 1.6s ease-in-out infinite;
 }
 
@@ -629,6 +656,27 @@ button:active,
   to {
     transform: translateX(100%);
   }
+}
+
+/* --- Signage plate --------------------------------------------------------
+ * The collar code (and, on /hetja, its deliberate absence) is set like a
+ * signage plate: tabular figures, wide tracking, hairlines above and below.
+ * The one piece of type in the system allowed to be large.
+ */
+.h-plate {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--h-t-plate) * 1.3 + var(--h-s3) * 2);
+  margin: 0;
+  padding: var(--h-s3) 0;
+  border-top: var(--h-hairline) solid var(--h-rule);
+  border-bottom: var(--h-hairline) solid var(--h-rule);
+  font-family: var(--h-font);
+  font-size: var(--h-t-plate);
+  font-weight: var(--h-w-semibold);
+  font-variant-numeric: var(--h-num-tabular);
+  letter-spacing: 0.08em;
+  color: var(--h-ink);
 }
 
 /* Safe-area utilities (notch / home-indicator aware). */

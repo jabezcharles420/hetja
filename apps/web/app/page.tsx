@@ -7,18 +7,18 @@ function PawArt(): React.JSX.Element {
       className="h-paw-art"
       viewBox="0 0 200 200"
       role="img"
-      aria-label="A paw print glowing in amber"
+      aria-label="A paw print"
     >
-      <g fill="var(--h-amber)">
+      <g fill="currentColor">
         <circle cx="72" cy="82" r="16" />
         <circle cx="100" cy="60" r="18" />
         <circle cx="128" cy="82" r="16" />
         <path d="M62 124c0-22 16-34 38-34s38 12 38 34c0 21-15 32-38 32s-38-11-38-32Z" />
       </g>
-      <circle cx="36" cy="44" r="4" fill="var(--h-moss)" />
-      <circle cx="164" cy="40" r="4" fill="var(--h-moss)" />
-      <circle cx="176" cy="112" r="3" fill="var(--h-amber-soft)" />
-      <circle cx="24" cy="132" r="3" fill="var(--h-amber-soft)" />
+      <circle cx="36" cy="44" r="4" fill="var(--h-ink-muted)" />
+      <circle cx="164" cy="40" r="4" fill="var(--h-ink-muted)" />
+      <circle cx="176" cy="112" r="3" fill="var(--h-rule)" />
+      <circle cx="24" cy="132" r="3" fill="var(--h-rule)" />
     </svg>
   );
 }

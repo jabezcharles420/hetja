@@ -207,6 +207,16 @@ export default function AboutPage(): React.JSX.Element {
         </div>
       </section>
 
+      <section className={`${styles.section} h-container`}>
+        <div className={styles.head}>
+          <p className={styles.sub}>
+            This network exists because of one dog who did not survive a city
+            like the one we&rsquo;re trying to build.{" "}
+            <Link href="/hetja">Read why we built Hetja.</Link>
+          </p>
+        </div>
+      </section>
+
       <section className="h-band">
         <div className="h-container h-band-inner">
           <h2 className="h-band-title">Meet the dog on your street.</h2>

@@ -1,13 +1,13 @@
 {
-  "name": "StrayNet Feeder",
-  "short_name": "Feeder",
+  "name": "Hetja",
+  "short_name": "Hetja",
   "description": "Feed logs, profiles and SOS for Mumbai's stray dogs.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a1a12",
-  "theme_color": "#0b7a3b",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/icons/icon.svg",

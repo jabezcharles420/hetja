@@ -1,22 +1,22 @@
 .badge {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 12px;
+  gap: var(--h-s3);
   align-items: center;
-  background: #13271c;
-  border: 1px solid #24402f;
-  border-radius: 16px;
-  padding: 16px;
+  background: var(--h-base);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  padding: var(--h-s4);
 }
 
 .flame {
-  font-size: 2.2rem;
+  font-size: 2rem;
   line-height: 1;
 }
 
 .level-none {
-  filter: grayscale(0.9);
-  opacity: 0.6;
+  filter: grayscale(1);
+  opacity: 0.5;
 }
 
 .meta {
@@ -27,25 +27,27 @@
 
 .streak {
   margin: 0;
-  color: #f4f1de;
-  font-size: 1.1rem;
+  color: var(--h-ink);
+  font-size: var(--h-t-md);
+  font-variant-numeric: var(--h-num-tabular);
 }
 
 .streak strong {
-  color: #ffb347;
-  font-size: 1.4rem;
+  color: var(--h-ink);
+  font-size: var(--h-t-xl);
+  font-weight: var(--h-w-semibold);
 }
 
 .label {
   margin: 0;
-  color: #d8e6dd;
-  font-size: 0.9rem;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
 }
 
 .next {
   margin: 0;
-  color: #8fae9b;
-  font-size: 0.8rem;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
 }
 
 .badges {
@@ -53,15 +55,15 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 0;
+  gap: var(--h-s2);
+  margin: var(--h-s1) 0 0;
   padding: 0;
 }
 
 .badgePill {
-  background: #0b7a3b;
-  color: #f4f1de;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.8rem;
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  color: var(--h-ink-muted);
+  padding: 2px var(--h-s2);
+  font-size: var(--h-t-xs);
 }

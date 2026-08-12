@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100svh - 68px);
+  min-height: calc(100svh - 64px);
 }
 
 .hero {
@@ -11,7 +11,7 @@
   align-items: center;
   text-align: center;
   gap: var(--h-s4);
-  padding: var(--h-s7) var(--h-s5) var(--h-s6);
+  padding: var(--h-s7) var(--h-gutter) var(--h-s6);
 }
 
 .fadeUp {
@@ -19,36 +19,35 @@
 }
 
 .cameraCircle {
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
   flex: none;
-  border-radius: var(--h-r-pill);
-  background: var(--h-amber);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--h-shadow-md);
   margin-bottom: var(--h-s2);
 }
 
 .cameraArt {
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
 }
 
 .title {
-  font-family: var(--h-font-display);
-  font-size: clamp(30px, 7vw, 48px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-family: var(--h-font);
+  font-size: var(--h-t-plate);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   color: var(--h-ink);
   margin: var(--h-s3) 0 0;
   max-width: 18ch;
 }
 
 .sub {
-  color: var(--h-ink-soft);
-  font-size: 16px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-md);
   line-height: 1.6;
   margin: 0;
   max-width: 40ch;
@@ -60,10 +59,9 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: var(--h-s5) var(--h-s5)
+  padding: var(--h-s5) var(--h-gutter)
     calc(var(--h-s8) + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, transparent 0%, var(--h-cream-dark) 130%);
-  border-top: 1px solid var(--h-cream-dark);
+  border-top: var(--h-hairline) solid var(--h-rule);
 }
 
 .entryInner {
@@ -74,6 +72,6 @@
 
 @media (min-width: 769px) {
   .page {
-    min-height: calc(100vh - 68px);
+    min-height: calc(100vh - 64px);
   }
 }

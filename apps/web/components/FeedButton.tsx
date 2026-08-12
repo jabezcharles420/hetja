@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { enqueueFeed, blobToBase64, stripDataPrefix, captureGeo } from "@/lib/offline-queue";
-import PawIllustration from "./PawIllustration";
 import styles from "./FeedButton.module.css";
 
 export interface FeedButtonProps {
@@ -11,6 +10,12 @@ export interface FeedButtonProps {
 
 type FeedStatus = { kind: "busy" | "success" | "queued" | "error"; text: string } | null;
 
+/**
+ * "Log a feed" — deliberately a plain text link, not a button. Feeders are
+ * repeat users who already know to look for it; a stranger scanning a
+ * collar for the first time must not have to choose between this and the
+ * one primary action (§3.3).
+ */
 export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<FeedStatus>(null);
@@ -65,15 +70,14 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
     <>
       <button
         type="button"
-        className={`${styles.button} ${busy ? styles.busy : ""}`}
+        className={styles.button}
         disabled={busy}
         onClick={pickPhoto}
       >
-        <PawIllustration size={18} className={styles.buttonPaw} />
-        <span>{busy ? "Logging…" : "Feed"}</span>
+        {busy ? "Logging…" : "Log a feed"}
         {offline && (
           <span className={styles.offlineBadge} aria-label="Offline — feeds will queue locally">
-            Offline
+            (offline)
           </span>
         )}
       </button>

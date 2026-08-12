@@ -4,19 +4,18 @@
   right: 0;
   bottom: 0;
   z-index: 45;
-  background: var(--h-forest);
-  color: var(--h-cream);
-  box-shadow: var(--h-shadow-lg);
+  background: var(--h-base);
+  color: var(--h-ink);
+  border-top: var(--h-hairline) solid var(--h-rule);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .list {
   display: flex;
   align-items: center;
-  gap: var(--h-s2);
   list-style: none;
   margin: 0;
-  padding: var(--h-s2) var(--h-s4);
+  padding: 0 var(--h-s2);
   min-height: 56px;
 }
 
@@ -30,25 +29,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: var(--h-target);
   min-width: 88px;
-  padding: var(--h-s2) var(--h-s4);
-  border-radius: var(--h-r-pill);
-  color: var(--h-cream);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  transition: transform 120ms ease, background-color 120ms ease;
+  padding: 0 var(--h-s4);
+  border-radius: var(--h-radius);
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
 }
 
 .link:hover {
-  background: var(--h-forest-soft);
+  color: var(--h-ink);
 }
 
 .active,
 .active:hover {
-  background: var(--h-amber);
   color: var(--h-ink);
+  font-weight: var(--h-w-semibold);
+  border-top: 2px solid var(--h-ink);
 }
 
 @media (min-width: 769px) {

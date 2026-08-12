@@ -14,8 +14,8 @@ export default function Logo({ href, small }: LogoProps): React.JSX.Element {
         aria-hidden="true"
         focusable="false"
       >
-        <circle cx="24" cy="24" r="24" fill="var(--h-amber)" />
-        <g fill="var(--h-forest)">
+        <circle cx="24" cy="24" r="23" fill="none" stroke="var(--h-ink)" strokeWidth="2" />
+        <g fill="var(--h-ink)">
           <circle cx="16.5" cy="18" r="4" />
           <circle cx="24" cy="14.5" r="4.2" />
           <circle cx="31.5" cy="18" r="4" />

@@ -1,7 +1,12 @@
+/*
+ * The scanned dog profile — §3.3. One primary action in the bottom third,
+ * everything else quiet. See docs/design/HETJA-DESIGN.md for the rationale.
+ */
+
 .page {
   max-width: 560px;
   margin: 0 auto;
-  padding: var(--h-s4) var(--h-s4) calc(var(--h-s8) + 96px);
+  padding: var(--h-s4) var(--h-gutter) calc(var(--h-s8) + 160px);
   display: flex;
   flex-direction: column;
   gap: var(--h-s5);
@@ -11,22 +16,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--h-ink-soft);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
+  color: var(--h-ink-muted);
 }
 
 .backLink {
   display: inline-flex;
   align-items: center;
   gap: var(--h-s1);
-  color: var(--h-ink-soft);
-  transition: color 200ms ease;
+  min-height: var(--h-target-min);
+  color: var(--h-ink-muted);
 }
 
 .backLink:hover {
-  color: var(--h-forest);
-  text-decoration: none;
+  color: var(--h-ink);
+  text-decoration: underline;
 }
 
 /* ---- loading skeleton (shimmer) ---- */
@@ -37,30 +42,19 @@
   gap: var(--h-s4);
 }
 
-.skeletonPhoto,
-.skeletonLine {
-  background: linear-gradient(
-    100deg,
-    var(--h-cream-dark) 40%,
-    var(--h-amber-soft) 50%,
-    var(--h-cream-dark) 60%
-  );
-  background-size: 200% 100%;
-  animation: h-shimmer 1.4s ease-in-out infinite;
-}
-
+/* Sizing/shape only — the shimmer animation itself is the shared
+ * `.h-skeleton` utility (transform-only, applied alongside these classes). */
 .skeletonPhoto {
   aspect-ratio: 4 / 3;
-  border-radius: var(--h-r-lg);
 }
 
 .skeletonLine {
   height: 18px;
-  border-radius: var(--h-r-pill);
+  width: 60%;
 }
 
 .skeletonLineShort {
-  width: 55%;
+  width: 40%;
   height: 14px;
 }
 
@@ -70,78 +64,110 @@
 }
 
 .skeletonPills span {
-  height: 24px;
+  display: block;
+  height: 20px;
   width: 84px;
-  border-radius: var(--h-r-pill);
-  background: linear-gradient(
-    100deg,
-    var(--h-cream-dark) 40%,
-    var(--h-amber-soft) 50%,
-    var(--h-cream-dark) 60%
-  );
-  background-size: 200% 100%;
-  animation: h-shimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes h-shimmer {
-  0% {
-    background-position: 150% 0;
-  }
-  100% {
-    background-position: -50% 0;
-  }
 }
 
 /* ---- error card ---- */
 
 .errorCard {
-  background: var(--h-cream-dark);
-  border-radius: var(--h-r-lg);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
   padding: var(--h-s6);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: var(--h-s3);
-  box-shadow: var(--h-shadow-md);
 }
 
 .errorPaw {
-  color: var(--h-amber);
+  color: var(--h-ink-muted);
 }
 
 .errorTitle {
-  font-family: var(--h-font-display);
-  font-size: 24px;
+  font-size: var(--h-t-xl);
   color: var(--h-ink);
   margin: 0;
 }
 
 .errorText {
-  color: var(--h-ink-soft);
-  font-size: 14px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
 }
 
 .retry {
-  min-height: 48px;
-  border: none;
-  border-radius: var(--h-r-pill);
-  background: var(--h-forest);
-  color: var(--h-cream);
-  padding: 10px 24px;
-  font-size: 14px;
-  font-weight: 700;
+  min-height: var(--h-target);
+  border: var(--h-hairline) solid var(--h-ink);
+  border-radius: var(--h-radius);
+  background: transparent;
+  color: var(--h-ink);
+  padding: 0 var(--h-s5);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-semibold);
   cursor: pointer;
-  box-shadow: var(--h-shadow-sm);
 }
 
-/* ---- sections (medical strip + stories) ---- */
+.retry:hover {
+  background: var(--h-ink);
+  color: var(--h-base);
+}
+
+/* ---- deliberate void above the primary action ---- */
+
+.spacer {
+  min-height: var(--h-s7);
+}
+
+/* ---- Full record disclosure (medical history + stories) ----
+ * Collapsed by default and quiet: a text-only toggle, not a card. The
+ * content used to render unbounded and untruncated on every load; it now
+ * only exists once someone deliberately asks for it.
+ */
+
+.fullRecord {
+  border-top: var(--h-hairline) solid var(--h-rule);
+  padding-top: var(--h-s2);
+}
+
+.fullRecordSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--h-s2);
+  min-height: var(--h-target);
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+
+.fullRecordSummary::-webkit-details-marker {
+  display: none;
+}
+
+.fullRecordSummary::before {
+  content: "+";
+  display: inline-block;
+  width: 1em;
+}
+
+.fullRecord[open] > .fullRecordSummary::before {
+  content: "\2212";
+}
+
+.fullRecordSummary:hover {
+  color: var(--h-ink);
+}
 
 .section {
-  background: var(--h-cream-dark);
-  border-radius: var(--h-r-md);
-  padding: var(--h-s5);
-  box-shadow: var(--h-shadow-sm);
+  padding: var(--h-s5) 0;
+  border-top: var(--h-hairline) solid var(--h-rule);
+}
+
+.section:first-of-type {
+  border-top: none;
 }
 
 .sectionHead {
@@ -153,20 +179,16 @@
 }
 
 .sectionTitle {
-  font-family: var(--h-font-display);
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
   color: var(--h-ink);
   margin: 0;
 }
 
 .verifiedBadge {
-  background: var(--h-mint);
-  color: var(--h-forest);
-  border-radius: var(--h-r-pill);
-  padding: var(--h-s1) var(--h-s3);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--h-safe);
+  font-size: var(--h-t-xs);
+  font-weight: var(--h-w-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -177,38 +199,39 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--h-s3);
 }
 
 .record {
-  background: var(--h-white);
-  border-left: 3px solid var(--h-amber);
-  border-radius: var(--h-r-md);
-  padding: var(--h-s3) var(--h-s4);
-  font-size: 13px;
+  border-top: var(--h-hairline) solid var(--h-rule);
+  padding: var(--h-s3) 0;
+  font-size: var(--h-t-sm);
   color: var(--h-ink);
 }
 
+.record:first-child {
+  border-top: none;
+}
+
 .recordType {
-  font-weight: 800;
+  font-weight: var(--h-w-semibold);
   text-transform: capitalize;
 }
 
 .recordDetail {
-  color: var(--h-ink-soft);
-  font-weight: 600;
+  color: var(--h-ink-muted);
+  font-variant-numeric: var(--h-num-tabular);
 }
 
 .recordNote {
   margin: var(--h-s1) 0 0;
-  color: var(--h-ink-soft);
-  font-size: 13px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
 }
 
 .story {
   margin: 0;
   padding: 0 0 var(--h-s4) var(--h-s4);
-  border-left: 3px solid var(--h-amber);
+  border-left: 2px solid var(--h-rule);
 }
 
 .story:last-child {
@@ -217,19 +240,24 @@
 
 .storyText {
   color: var(--h-ink);
-  font-size: 15px;
+  font-size: var(--h-t-md);
   line-height: 1.6;
   font-style: italic;
   margin: 0;
 }
 
 .storyFooter {
-  color: var(--h-ink-soft);
-  font-size: 12px;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
   margin-top: var(--h-s2);
+  font-variant-numeric: var(--h-num-tabular);
 }
 
-/* ---- sticky bottom action bar (mobile) ---- */
+/* ---- fixed bottom-third action area ----
+ * One primary action, accent-filled, icon + explicit verb. "Log a feed" is
+ * a plain text link underneath it — feeders will find it; strangers must
+ * not have to choose between two buttons.
+ */
 
 .actionBar {
   position: fixed;
@@ -240,44 +268,37 @@
   max-width: 560px;
   z-index: 40;
   display: flex;
-  gap: var(--h-s3);
-  padding: var(--h-s3) var(--h-s4) calc(var(--h-s3) + env(safe-area-inset-bottom, 0px));
-  background: color-mix(in srgb, var(--h-cream) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--h-cream-dark);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--h-s2);
+  padding: var(--h-s4) var(--h-gutter) calc(var(--h-s4) + env(safe-area-inset-bottom, 0px));
+  background: var(--h-base);
+  border-top: var(--h-hairline) solid var(--h-rule);
 }
 
-@media (max-width: 768px) {
-  /* Clear the 56px bottom nav (safe-area included there) on mobile. */
-  .actionBar {
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .page {
-    padding-bottom: calc(var(--h-s8) + 96px + 56px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-.sos {
-  flex: 1;
-  min-height: 48px;
+.primaryAction {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--h-s2);
+  min-height: var(--h-target);
   border: none;
-  border-radius: var(--h-r-pill);
-  background: var(--h-coral);
-  color: var(--h-white);
-  font-family: var(--h-font-body);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 12px 20px;
+  border-radius: var(--h-radius-fill);
+  background: var(--h-accent);
+  color: var(--h-base);
+  font-family: var(--h-font);
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
   cursor: pointer;
-  box-shadow: var(--h-shadow-sm);
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: opacity var(--h-dur) var(--h-ease);
 }
 
-.sos:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--h-shadow-md);
+.primaryAction:hover {
+  opacity: 0.9;
+}
+
+.feedLinkRow {
+  display: flex;
+  justify-content: center;
 }

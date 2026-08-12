@@ -27,10 +27,10 @@ describe("FeedButton", () => {
     cleanup();
   });
 
-  it("shows a mint Feed button and logs a feed with success feedback", async () => {
+  it("shows the quiet 'Log a feed' text link and logs a feed with success feedback", async () => {
     enqueueFeedMock.mockResolvedValue({ offline: false, syncing: false, queued: {} });
     const { container } = render(<FeedButton dogSlug="abc234567" />);
-    expect(screen.getByRole("button", { name: "Feed" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Log a feed" })).toBeTruthy();
 
     pickPhoto(container);
 

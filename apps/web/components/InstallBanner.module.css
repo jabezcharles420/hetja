@@ -8,33 +8,32 @@
   align-items: center;
   gap: var(--h-s3);
   max-width: min(92vw, 420px);
-  background: var(--h-amber);
+  background: var(--h-base);
   color: var(--h-ink);
-  border-radius: var(--h-r-pill);
-  box-shadow: var(--h-shadow-lg);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
   padding: var(--h-s2) var(--h-s3) var(--h-s2) var(--h-s5);
-  font-family: var(--h-font-body);
+  font-family: var(--h-font);
 }
 
 .text {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
   line-height: 1.4;
 }
 
 .install {
   flex: none;
   min-height: 40px;
-  padding: var(--h-s2) var(--h-s4);
+  padding: 0 var(--h-s4);
   border: none;
-  border-radius: var(--h-r-pill);
-  background: var(--h-forest);
-  color: var(--h-cream);
-  font-family: var(--h-font-body);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  border-radius: var(--h-radius);
+  background: var(--h-ink);
+  color: var(--h-base);
+  font-family: var(--h-font);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-semibold);
   cursor: pointer;
 }
 
@@ -43,7 +42,7 @@
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: var(--h-r-pill);
+  border-radius: var(--h-radius);
   background: transparent;
   color: var(--h-ink);
   font-size: 20px;

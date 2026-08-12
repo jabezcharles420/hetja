@@ -1,6 +1,6 @@
 import { flushQueue } from "./flush";
 
-const CACHE = "scan-shell-v1";
+const CACHE = "scan-shell-v2";
 const API_PREFIX = "/api/v1";
 const SYNC_TAG = "log-feed";
 
@@ -37,6 +37,11 @@ scope.addEventListener("fetch", (ev: FetchEvent) => {
   ev.respondWith(shellFirst(req));
 });
 
+// INVARIANT: medical/vaccination fields travel through /api/v1/dogs/*, which
+// is covered by API_PREFIX above and therefore always network-first. A
+// cached vaccination status is only ever served when the network request
+// itself fails, and even then it is tagged X-StrayNet-Stale so the UI can
+// say so — it must never be presented as current.
 async function networkFirst(req: Request): Promise<Response> {
   const cache = await caches.open(CACHE);
   try {
@@ -82,7 +87,7 @@ scope.addEventListener("sync", (ev: Event) => {
     flushQueue()
       .then((n) => {
         if (n > 0) {
-          void scope.registration.showNotification("StrayNet", {
+          void scope.registration.showNotification("Hetja", {
             body: `${n} feed log${n === 1 ? "" : "s"} synced. Thank you!`,
           });
         }

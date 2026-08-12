@@ -1,61 +1,69 @@
 .page {
   max-width: 440px;
   margin: 0 auto;
-  padding: 32px 16px;
+  padding: var(--h-s7) var(--h-gutter);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--h-s4);
 }
 
 .topnav {
-  font-size: 0.9rem;
+  font-size: var(--h-t-sm);
+  color: var(--h-ink-muted);
 }
 
 .title {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: var(--h-t-plate);
+  font-weight: var(--h-w-semibold);
 }
 
 .subtitle {
-  margin: 0 0 8px;
-  color: var(--muted);
+  margin: 0 0 var(--h-s2);
+  color: var(--h-ink-muted);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
+  gap: var(--h-s3);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  padding: var(--h-s5);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 0.85rem;
+  gap: var(--h-s2);
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
 }
 
 .field input {
-  background: var(--bg);
-  color: var(--ink);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 1.05rem;
+  background: var(--h-base);
+  color: var(--h-ink);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  padding: 0 var(--h-s3);
+  min-height: var(--h-target);
+  font-size: var(--h-t-lg);
+  font-variant-numeric: var(--h-num-tabular);
+}
+
+.field input:focus {
+  border-color: var(--h-ink);
 }
 
 .cta {
-  background: var(--accent);
-  color: #0a1a12;
+  min-height: var(--h-target);
+  background: var(--h-accent);
+  color: var(--h-base);
   border: none;
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 1rem;
-  font-weight: 700;
+  border-radius: var(--h-radius-fill);
+  padding: 0 var(--h-s4);
+  font-size: var(--h-t-md);
+  font-weight: var(--h-w-semibold);
   cursor: pointer;
 }
 
@@ -65,21 +73,22 @@
 
 .status {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--ink);
+  font-size: var(--h-t-sm);
+  color: var(--h-ink);
 }
 
 .muted {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
 }
 
 .linkBtn {
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--h-ink-muted);
   text-decoration: underline;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--h-t-sm);
+  min-height: var(--h-target-min);
 }

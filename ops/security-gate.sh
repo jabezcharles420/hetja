@@ -25,8 +25,23 @@ check "no .env committed" \
 
 # Geo coarsening: no anonymous endpoint exposes >2 decimals (checked in
 # contracts tests, but grep the API for suspicious raw-point returns)
-check "no ST_X/ST_Y raw point in API routes" \
-  bash -c "! grep -rE 'ST_X\(|ST_Y\(' apps/api/src/routes/ 2>/dev/null"
+# INVARIANT 2: reading a coordinate is fine, RETURNING an uncoarsened one is
+# not. Any route touching ST_X/ST_Y must either coarsen it (coarsenToWard, or
+# round() in SQL) or declare why its coordinates are legitimately public:
+#   // SECURITY-GATE: public-coordinates -- <reason>
+#
+# The response-level form of this invariant is already asserted by
+# apps/api/src/routes/dogs.test.ts ("returns ward-level geo only (<=2 decimals)"),
+# which is the check that actually binds. This one catches a new route that
+# reads coordinates and forgets to coarsen them before returning.
+check "every route touching ST_X/ST_Y coarsens or justifies it" \
+  bash -c '
+    bad=""
+    for f in $(grep -rlE "ST_X\(|ST_Y\(" apps/api/src/routes/ 2>/dev/null | grep -v "\.test\."); do
+      grep -qE "coarsenToWard|round\(|SECURITY-GATE: public-coordinates" "$f" || bad="$bad $f"
+    done
+    [ -z "$bad" ] || { echo "    uncoarsened:$bad"; false; }
+  '
 
 # Ledger append-only: app_user revoke present in migration
 check "medical_records append-only REVOKE present" \

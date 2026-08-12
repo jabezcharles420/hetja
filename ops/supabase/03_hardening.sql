@@ -271,7 +271,72 @@ GRANT EXECUTE ON FUNCTION public.get_dog_medical(text, text) TO anon, authentica
 GRANT EXECUTE ON FUNCTION public.get_dog_stories(text, text) TO anon, authenticated;
 
 -- --------------------------------------------------------------------------
--- 7. Verification -- every one of these should hold after applying this file.
+-- 7. Care directory RPC (plan docs/PLAN-v2.md §2.3) -- public business
+--    listings, not dog/feeder data, so (unlike the three functions above)
+--    this needs NO signature check. Mirrors docs/queries/care_nearby.sql /
+--    apps/api/src/routes/care.ts's getNearbyCare().
+-- --------------------------------------------------------------------------
+ALTER TABLE public.care_providers ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.care_providers FROM anon, authenticated;
+-- Redundant with the dynamic DO-loop in section 2 once 01_schema.sql is
+-- regenerated to include this table (added by migration
+-- 0008_care_providers.sql, after the schema this file's header assumes) --
+-- kept explicit so a hardening run against an older dump still locks it.
+
+CREATE OR REPLACE FUNCTION public.get_nearby_care(
+  p_lat    double precision,
+  p_lng    double precision,
+  p_max_km double precision DEFAULT 5
+)
+RETURNS TABLE (
+  id                uuid,
+  name              text,
+  kind              text,
+  cost_tier         text,
+  phone_e164        text,
+  alt_phone_e164    text,
+  has_ambulance     boolean,
+  is_24x7           boolean,
+  hours_note        text,
+  handles_wildlife  boolean,
+  phone_verified_at timestamptz,
+  lat               double precision,
+  lng               double precision,
+  distance_m        double precision
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions, private
+AS $$
+DECLARE
+  v_origin   extensions.geography;
+  v_radius_m double precision;
+BEGIN
+  v_origin := extensions.ST_SetSRID(extensions.ST_MakePoint(p_lng, p_lat), 4326)::extensions.geography;
+  -- Same cap as the API (apps/api/src/routes/care.ts MAX_KM_CAP = 25).
+  v_radius_m := LEAST(GREATEST(COALESCE(p_max_km, 5), 0.001), 25) * 1000;
+
+  RETURN QUERY
+  SELECT
+    cp.id, cp.name, cp.kind::text, cp.cost_tier::text,
+    cp.phone_e164, cp.alt_phone_e164, cp.has_ambulance, cp.is_24x7,
+    cp.hours_note, cp.handles_wildlife, cp.phone_verified_at,
+    extensions.ST_Y(cp.geo::extensions.geometry),
+    extensions.ST_X(cp.geo::extensions.geometry),
+    extensions.ST_Distance(cp.geo, v_origin)
+  FROM care_providers cp
+  WHERE cp.listed
+    AND extensions.ST_DWithin(cp.geo, v_origin, v_radius_m)
+  ORDER BY extensions.ST_Distance(cp.geo, v_origin)
+  LIMIT 8;
+END $$;
+
+REVOKE ALL ON FUNCTION public.get_nearby_care(double precision, double precision, double precision) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_nearby_care(double precision, double precision, double precision) TO anon, authenticated;
+
+-- --------------------------------------------------------------------------
+-- 8. Verification -- every one of these should hold after applying this file.
 -- --------------------------------------------------------------------------
 -- Expect zero rows: any public table still missing RLS.
 --   SELECT tablename FROM pg_tables t

@@ -19,6 +19,7 @@ import { SLUG_REGEX, type SosSeverity } from "@straynet/contracts";
 import { query, withTx } from "@straynet/db";
 import { verifyDeviceToken } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { getNearbyCare } from "./care.js";
 
 // INVARIANT 7 — anonymous SOS is capped per attested device token.
 const SOS_DAILY_CAP = 2;
@@ -186,6 +187,11 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           }
         }
 
+        // SECURITY-GATE: public-coordinates -- read for internal use only. This
+        // exact position feeds the ST_DWithin fan-out radius and is never placed
+        // in a response body, so INVARIANT 2's coarsening requirement (which
+        // governs what an anonymous caller RECEIVES) does not apply. Coarsening
+        // here would silently widen the 2km responder radius.
         const dogRes = await client.query<DogRow>(
           `SELECT id, ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng
            FROM dogs WHERE slug = $1`,
@@ -246,7 +252,23 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       throw err;
     }
 
-    return { ok: true, data: result };
+    // Emergency-path improvement (plan §2.4): return a callable number
+    // in the same payload as the case id, so the reporter has something to
+    // act on immediately rather than waiting out the 8-min escalation timer.
+    // Existing response fields (created, caseId, tier) are left untouched.
+    // SECURITY-GATE: public-coordinates -- internal only. Used to rank nearby
+    // care providers by distance; the dog's own position is not echoed back.
+    // Only the resulting provider list (published clinic addresses) is returned.
+    const dogGeoRes = await query<{ lat: number | null; lng: number | null }>(
+      `SELECT ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng
+       FROM dogs WHERE slug = $1`,
+      [dogSlug],
+    );
+    const dogGeo = dogGeoRes.rows[0];
+    const nearbyCare =
+      dogGeo?.lat != null && dogGeo?.lng != null ? await getNearbyCare(dogGeo.lat, dogGeo.lng) : [];
+
+    return { ok: true, data: { ...result, nearbyCare } };
   });
 
   app.get("/api/v1/sos/cases/:id", async (req: FastifyRequest, reply: FastifyReply) => {

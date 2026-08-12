@@ -3,18 +3,19 @@ import { randomUUID } from "node:crypto";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
-import { query } from "@straynet/db";
+import { query, generateSlug } from "@straynet/db";
 
 const config = loadConfig();
 
-const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
-
+// Slugs come from the real generator in @straynet/db, not a local alphabet.
+// Eight test files each kept their own copy reading
+// "abcdefghijklmnopqrstuvwxyz234567" -- which includes the confusable `l` that
+// the generator never emits, and excludes 8/9 which it does. Those fixtures
+// produced slugs that cannot exist, so once slug validation was corrected about
+// one run in four failed on a random `l`. Using the generator keeps the tests
+// honest and removes the ninth copy of this alphabet.
 function randomSlug(): string {
-  let slug = "";
-  for (let i = 0; i < 9; i++) {
-    slug += SLUG_ALPHABET[Math.floor(Math.random() * SLUG_ALPHABET.length)];
-  }
-  return slug;
+  return generateSlug();
 }
 
 interface TestFixture {

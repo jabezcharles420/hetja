@@ -4,17 +4,32 @@ import { SLUG_REGEX, ScanInput, apiEnvelope, Dog } from "./schemas.js";
 const validSlug = "abcd2345x";
 
 describe("slug", () => {
-  it("matches /^[a-z2-7]{9}$/ for valid slugs (8 data + 1 check char)", () => {
+  it("matches /^[a-km-z2-9]{9}$/ for valid slugs (8 data + 1 check char)", () => {
     expect("abcd2345x").toMatch(SLUG_REGEX);
     expect("zzzz2222z").toMatch(SLUG_REGEX);
     expect("abcdefgh2").toMatch(SLUG_REGEX);
   });
 
-  it("rejects slugs outside /^[a-z2-7]{8}$/", () => {
+  it("accepts the digits 8 and 9, which the old regex wrongly refused", () => {
+    // Regression: the real Phase-0 collar c3di5esh8 was rejected outright, so a
+    // stranger scanning that dog's tag could not file an emergency report.
+    expect("c3di5esh8").toMatch(SLUG_REGEX);
+    expect("abcdefgh9").toMatch(SLUG_REGEX);
+  });
+
+  it("accepts every real Phase-0 collar", () => {
+    for (const slug of ["c3di5esh8", "md5wicnma", "jo23vpmg5", "5hreaphdq", "jtkkaece2"]) {
+      expect(slug).toMatch(SLUG_REGEX);
+    }
+  });
+
+  it("rejects wrong lengths, uppercase, and the omitted confusables", () => {
     expect("abc2345").not.toMatch(SLUG_REGEX);
     expect("abcde123").not.toMatch(SLUG_REGEX);
     expect("ABC23456").not.toMatch(SLUG_REGEX);
-    expect("abcdefgh9").not.toMatch(SLUG_REGEX);
+    expect("abcdefghl").not.toMatch(SLUG_REGEX); // `l` is not in the alphabet
+    expect("abcd23450").not.toMatch(SLUG_REGEX); // nor is `0`
+    expect("abcd23451").not.toMatch(SLUG_REGEX); // nor is `1`
   });
 
   it("rejects a Dog with a bad slug", () => {

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-export const SLUG_REGEX = /^[a-z2-7]{9}$/; // 8 data chars + 1 check char (blueprint v1.1)
+// 8 data chars + 1 check char. The alphabet is the generator's
+// (packages/db/src/slugs.ts): "abcdefghijkmnopqrstuvwxyz23456789" — a-z without
+// the confusable `l`, digits 2-9. This previously read /^[a-z2-7]{9}$/, which
+// rejected every slug containing an 8 — including the real Phase-0 collar
+// c3di5esh8, whose SOS reports were refused with a 400.
+export const SLUG_REGEX = /^[a-km-z2-9]{9}$/;
 
 export const DogStatus = z.enum(["active", "lost", "deceased", "adopted", "relocated"]);
 export type DogStatus = z.infer<typeof DogStatus>;
@@ -26,7 +31,7 @@ export const GeoPoint = z.object({
 export type GeoPoint = z.infer<typeof GeoPoint>;
 
 export const Dog = z.object({
-  slug: z.string().regex(SLUG_REGEX, { message: "slug must match /^[a-z2-7]{9}$/" }),
+  slug: z.string().regex(SLUG_REGEX, { message: "slug must match /^[a-km-z2-9]{9}$/" }),
   name: z.string().min(1).max(80).optional(),
   sex: z.enum(["male", "female", "unknown"]).optional(),
   approxAge: z.number().int().min(0).optional(),

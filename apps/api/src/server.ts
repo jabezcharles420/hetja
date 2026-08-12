@@ -1,13 +1,15 @@
 /**
  * StrayNet API — Fastify bootstrap with health endpoint, CORS, and
- * graceful shutdown. Routes are registered per module (auth, dogs, scans,
- * sos, medical, ledger, stories, moderation, trust, heatmap, territories).
+ * graceful shutdown. Routes are registered per module (auth, devices, dogs,
+ * scans, sos, medical, ledger, stories, moderation, trust, heatmap, care,
+ * territories, gamification).
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
+import deviceRoutes from "./routes/devices.js";
 import dogRoutes from "./routes/dogs.js";
 import scanRoutes from "./routes/scans.js";
 import sosRoutes from "./routes/sos.js";
@@ -17,6 +19,7 @@ import storyRoutes from "./routes/stories.js";
 import moderationRoutes from "./routes/moderation.js";
 import trustRoutes from "./routes/trust.js";
 import heatmapRoutes from "./routes/heatmap.js";
+import careRoutes from "./routes/care.js";
 import territoryRoutes from "./routes/territories.js";
 import gamificationRoutes from "./routes/gamification.js";
 
@@ -32,6 +35,26 @@ export function buildServer(config: AppConfig): FastifyInstance {
           "lat", "lng", "authorization", "token", "signature",
         ],
         censor: "[REDACTED]",
+      },
+      // Care directory (routes/care.ts) takes the reporter's lat/lng as GET
+      // query params. Key-based `redact` above only strips top-level fields
+      // of the *logged object*, not substrings inside another string field
+      // -- and Fastify's default request log embeds the raw query string in
+      // a single `url` field, so "lat"/"lng" in `redact.paths` never reaches
+      // it. Override the req serializer to drop the query string entirely
+      // from access logs instead (INVARIANT: reporter position is never
+      // logged at full precision, plan docs/PLAN-v2.md §2.3).
+      serializers: {
+        req(request) {
+          const [path] = request.url.split("?");
+          return {
+            method: request.method,
+            url: path,
+            hostname: request.hostname,
+            remoteAddress: request.ip,
+            remotePort: request.socket?.remotePort,
+          };
+        },
       },
     },
     // RESEARCH-2: trustProxy must be pinned to the real proxy, never `true`
@@ -63,6 +86,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   }));
 
   void app.register(authRoutes);
+  void app.register(deviceRoutes);
   void app.register(dogRoutes);
   void app.register(scanRoutes);
   void app.register(sosRoutes);
@@ -72,6 +96,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(moderationRoutes);
   void app.register(trustRoutes);
   void app.register(heatmapRoutes);
+  void app.register(careRoutes);
   void app.register(territoryRoutes);
   void app.register(gamificationRoutes);
 

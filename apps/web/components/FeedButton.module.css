@@ -1,27 +1,64 @@
-.wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.button {
+  flex: 1;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--h-s2);
+  border: none;
+  border-radius: var(--h-r-pill);
+  background: var(--h-mint);
+  color: var(--h-forest);
+  font-family: var(--h-font-body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  cursor: pointer;
+  box-shadow: var(--h-shadow-sm);
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
 
-.button {
-  background: #14a34a;
-  color: #0a1a12;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 20px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--h-shadow-md);
 }
 
 .button:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: wait;
 }
 
+.buttonPaw {
+  flex: none;
+}
+
+.offlineBadge {
+  background: var(--h-forest);
+  color: var(--h-cream);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: var(--h-r-pill);
+  padding: 2px 8px;
+}
+
 .status {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--h-s8) + var(--h-s7) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(90vw, 420px);
+  background: var(--h-forest);
+  color: var(--h-cream);
+  border-radius: var(--h-r-pill);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--h-shadow-md);
   margin: 0;
-  font-size: 0.85rem;
-  color: #d8e6dd;
 }

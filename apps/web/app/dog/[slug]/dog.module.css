@@ -1,52 +1,175 @@
 .page {
-  max-width: 520px;
+  max-width: 560px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: var(--h-s4) var(--h-s4) calc(var(--h-s8) + 96px);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--h-s5);
 }
 
 .topnav {
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-ink-soft);
 }
 
-.state {
-  color: var(--muted);
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--h-s1);
+  color: var(--h-ink-soft);
+  transition: color 200ms ease;
 }
 
-.error {
-  color: #ff8a5c;
+.backLink:hover {
+  color: var(--h-forest);
+  text-decoration: none;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+/* ---- loading skeleton (shimmer) ---- */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--h-s4);
 }
 
-.sos {
-  background: var(--danger);
-  color: #fff;
+.skeletonPhoto,
+.skeletonLine {
+  background: linear-gradient(
+    100deg,
+    var(--h-cream-dark) 40%,
+    var(--h-amber-soft) 50%,
+    var(--h-cream-dark) 60%
+  );
+  background-size: 200% 100%;
+  animation: h-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeletonPhoto {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--h-r-lg);
+}
+
+.skeletonLine {
+  height: 18px;
+  border-radius: var(--h-r-pill);
+}
+
+.skeletonLineShort {
+  width: 55%;
+  height: 14px;
+}
+
+.skeletonPills {
+  display: flex;
+  gap: var(--h-s2);
+}
+
+.skeletonPills span {
+  height: 24px;
+  width: 84px;
+  border-radius: var(--h-r-pill);
+  background: linear-gradient(
+    100deg,
+    var(--h-cream-dark) 40%,
+    var(--h-amber-soft) 50%,
+    var(--h-cream-dark) 60%
+  );
+  background-size: 200% 100%;
+  animation: h-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes h-shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+/* ---- error card ---- */
+
+.errorCard {
+  background: var(--h-cream-dark);
+  border-radius: var(--h-r-lg);
+  padding: var(--h-s6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--h-s3);
+  box-shadow: var(--h-shadow-md);
+}
+
+.errorPaw {
+  color: var(--h-amber);
+}
+
+.errorTitle {
+  font-family: var(--h-font-display);
+  font-size: 24px;
+  color: var(--h-ink);
+  margin: 0;
+}
+
+.errorText {
+  color: var(--h-ink-soft);
+  font-size: 14px;
+}
+
+.retry {
+  min-height: 48px;
   border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 1rem;
+  border-radius: var(--h-r-pill);
+  background: var(--h-forest);
+  color: var(--h-cream);
+  padding: 10px 24px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: var(--h-shadow-sm);
 }
+
+/* ---- sections (medical strip + stories) ---- */
 
 .section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  background: var(--h-cream-dark);
+  border-radius: var(--h-r-md);
+  padding: var(--h-s5);
+  box-shadow: var(--h-shadow-sm);
 }
 
-.section h2 {
-  margin: 0 0 10px;
-  font-size: 1.05rem;
-  color: var(--ink);
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--h-s3);
+  margin-bottom: var(--h-s4);
+}
+
+.sectionTitle {
+  font-family: var(--h-font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--h-ink);
+  margin: 0;
+}
+
+.verifiedBadge {
+  background: var(--h-mint);
+  color: var(--h-forest);
+  border-radius: var(--h-r-pill);
+  padding: var(--h-s1) var(--h-s3);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .records {
@@ -54,43 +177,96 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: var(--h-s3);
 }
 
 .record {
-  font-size: 0.9rem;
-  color: var(--ink);
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-}
-
-.record:first-child {
-  border-top: none;
-  padding-top: 0;
+  background: var(--h-white);
+  border-left: 3px solid var(--h-amber);
+  border-radius: var(--h-r-md);
+  padding: var(--h-s3) var(--h-s4);
+  font-size: 13px;
+  color: var(--h-ink);
 }
 
 .recordType {
-  font-weight: 600;
+  font-weight: 800;
   text-transform: capitalize;
 }
 
-.record p {
-  margin: 4px 0 0;
+.recordDetail {
+  color: var(--h-ink-soft);
+  font-weight: 600;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 0.8rem;
+.recordNote {
+  margin: var(--h-s1) 0 0;
+  color: var(--h-ink-soft);
+  font-size: 13px;
 }
 
 .story {
-  margin: 0 0 12px;
-  border-left: 3px solid var(--accent);
-  padding-left: 12px;
+  margin: 0;
+  padding: 0 0 var(--h-s4) var(--h-s4);
+  border-left: 3px solid var(--h-amber);
 }
 
-.story p {
-  margin: 0;
-  color: var(--ink);
+.story:last-child {
+  padding-bottom: 0;
+}
+
+.storyText {
+  color: var(--h-ink);
+  font-size: 15px;
+  line-height: 1.6;
   font-style: italic;
+  margin: 0;
+}
+
+.storyFooter {
+  color: var(--h-ink-soft);
+  font-size: 12px;
+  margin-top: var(--h-s2);
+}
+
+/* ---- sticky bottom action bar (mobile) ---- */
+
+.actionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 560px;
+  z-index: 40;
+  display: flex;
+  gap: var(--h-s3);
+  padding: var(--h-s3) var(--h-s4) calc(var(--h-s3) + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--h-cream) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--h-cream-dark);
+}
+
+.sos {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: var(--h-r-pill);
+  background: var(--h-coral);
+  color: var(--h-white);
+  font-family: var(--h-font-body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  cursor: pointer;
+  box-shadow: var(--h-shadow-sm);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.sos:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--h-shadow-md);
 }

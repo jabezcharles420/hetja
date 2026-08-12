@@ -89,6 +89,38 @@ shift.
   background_color #faf6ee, display standalone, icon = paw on amber (SVG).
 - Service worker stays: shell cache + network-first medical fetches.
 
+## Mobile-first (the app lives on phones — non-negotiable)
+- Design at 390px first, then scale up. Everything must work one-handed:
+  primary actions in the bottom 1/3 of the screen.
+- Touch: targets >= 48px, no hover-dependent features, press feedback
+  (scale .98) on every interactive element, `-webkit-tap-highlight-color`
+  transparent + custom states.
+- Smoothness: 60fps — only transform/opacity animations, `content-visibility`
+  for below-fold sections, no layout thrash, skeleton loaders everywhere.
+- Safe areas: `env(safe-area-inset-bottom)` on the sticky action bar and
+  bottom nav; `viewport-fit=cover`.
+- PWA: install prompt (beforeinstallprompt captured, shown after 2nd visit),
+  standalone display, iOS meta tags, offline shell + queued feed flow.
+- Bottom nav (mobile): Home · Scan · Me — 3 items, pill highlight, safe-area.
+- Pull-to-refresh-ish: revalidate profile on focus; queued feeds flush on
+  reconnect (Background Sync).
+
+## Complete package (pages every real product ships)
+- **/about** — the mission: what Hetja is (a coordination layer for the
+  feeders/NGOs/vets/BMC who already care), how the collar+scan works, the
+  ledger's tamper-evident promise, the phased rollout (pilot → wards →
+  Mumbai), who it's for. Warm, human, Fraunces-led.
+- **/how-it-works** — 3 steps expanded: scan → see → act, with visuals.
+- **/privacy** — DPDP-aligned: what's stored (phone_hmac — never the bare
+  number), geo coarsening tiers, who sees what (vet/BMC tiers), erasure
+  rights, contact for data requests.
+- **/faq** — feeders, vets, NGOs, citizens: what do I do if I find a collar?
+  Can I feed a dog that isn't mine? How do reports get answered?
+- **/contact** — mailto + NGO/partnerships note.
+- **/scan** — dedicated scan page: camera hint + code entry, works offline,
+  deep-links to /dog/[slug] with the HMAC sig.
+- Footer: nav + tagline + tiny "Built by and for Mumbai" line.
+
 ## Non-negotiables
 - WCAG AA contrast on all body text; focus rings visible.
 - No pure black anywhere. No centered-on-white default look.

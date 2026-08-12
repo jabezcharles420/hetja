@@ -14,7 +14,7 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 const createReportMock = (api as { createReport: ReturnType<typeof vi.fn> }).createReport;
 
@@ -72,7 +72,7 @@ describe("SosModal", () => {
   });
 
   it("reports the failure copy when the API throws", async () => {
-    createReportMock.mockRejectedValue(new Error("network down"));
+    createReportMock.mockRejectedValue(new ApiError("network down", { status: 0 }));
     render(<SosModal open dogSlug="abc234567" onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));

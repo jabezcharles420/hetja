@@ -1,0 +1,58 @@
+.banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: var(--h-s3);
+  max-width: min(92vw, 420px);
+  background: var(--h-amber);
+  color: var(--h-ink);
+  border-radius: var(--h-r-pill);
+  box-shadow: var(--h-shadow-lg);
+  padding: var(--h-s2) var(--h-s3) var(--h-s2) var(--h-s5);
+  font-family: var(--h-font-body);
+}
+
+.text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.install {
+  flex: none;
+  min-height: 40px;
+  padding: var(--h-s2) var(--h-s4);
+  border: none;
+  border-radius: var(--h-r-pill);
+  background: var(--h-forest);
+  color: var(--h-cream);
+  font-family: var(--h-font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.dismiss {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--h-r-pill);
+  background: transparent;
+  color: var(--h-ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (min-width: 769px) {
+  .banner {
+    display: none;
+  }
+}

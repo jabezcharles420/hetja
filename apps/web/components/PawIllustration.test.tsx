@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import PawIllustration from "./PawIllustration";
 
 describe("PawIllustration", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("renders a decorative inline SVG paw with the requested size", () => {
     const { container } = render(<PawIllustration size={40} />);
     const svg = container.querySelector("svg");

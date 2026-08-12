@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import DogCard from "./DogCard";
 import type { DogProfile, MedicalRecord } from "@/lib/api";
 
@@ -43,6 +43,10 @@ const records: MedicalRecord[] = [
 ];
 
 describe("DogCard", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("shows the Fraunces name, ward pill and verified status pills", () => {
     render(<DogCard dog={dog} records={records} />);
     expect(screen.getByRole("heading", { level: 1, name: "Bella" })).toBeTruthy();

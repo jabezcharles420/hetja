@@ -56,6 +56,8 @@ body {
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -297,6 +299,20 @@ input:focus-visible,
 .h-footer-muted {
   color: var(--h-moss);
   max-width: 52ch;
+}
+
+.h-footer-dot {
+  color: var(--h-moss);
+  opacity: 0.6;
+}
+
+.h-footer-tagline {
+  color: var(--h-amber);
+  font-family: var(--h-font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .h-hero {
@@ -544,4 +560,77 @@ input:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Mobile-first polish (design doc §Mobile-first, §Motion)
+ *
+ * 60fps discipline: only transform/opacity are ever animated. Layout-affecting
+ * properties are never transitioned, below-fold work is deferred with
+ * content-visibility, and the bottom nav reserves space on `main` so nothing
+ * hides behind it (no layout shift).
+ * ---------------------------------------------------------------------------
+ */
+
+/* Press feedback — every interactive element squishes on touch. */
+a:active,
+button:active,
+[role="button"]:active,
+.h-btn:active,
+.h-card:active,
+.h-pill:active {
+  transform: scale(0.98);
+}
+
+/* Reserve space for the fixed bottom nav so content/footer clear it. */
+@media (max-width: 768px) {
+  .h-main {
+    padding-bottom: calc(var(--h-s3) + 56px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Defer below-fold rendering (no scroll jank, space reserved via intrinsic size). */
+.h-stats,
+.h-band,
+.h-footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* Skeleton shimmer (transform-only, GPU friendly). */
+.h-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--h-cream-dark);
+  border-radius: var(--h-r-sm);
+}
+
+.h-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(250 246 238 / 0.55),
+    transparent
+  );
+  animation: h-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes h-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Safe-area utilities (notch / home-indicator aware). */
+.padding-safe-b {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pb-safe {
+  padding-bottom: calc(var(--h-s5) + env(safe-area-inset-bottom, 0px));
 }

@@ -1,0 +1,28 @@
+.header {
+  background: linear-gradient(180deg, var(--h-cream-dark) 0%, var(--h-cream) 100%);
+  padding: var(--h-s7) 0;
+  border-bottom: 1px solid var(--h-cream-dark);
+}
+
+.kicker {
+  margin-bottom: var(--h-s4);
+}
+
+.title {
+  font-family: var(--h-font-display);
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--h-ink);
+  margin: 0 0 var(--h-s4);
+  max-width: 22ch;
+}
+
+.intro {
+  color: var(--h-ink-soft);
+  font-size: 18px;
+  line-height: 1.65;
+  max-width: 60ch;
+  margin: 0;
+}

@@ -3,6 +3,8 @@ import { Fraunces, Nunito_Sans } from "next/font/google";
 import { PwaBootstrap } from "@/components/PwaBootstrap";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { BottomNav } from "@/components/BottomNav";
+import { InstallBanner } from "@/components/InstallBanner";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -52,7 +54,9 @@ export default function RootLayout({
       <body>
         <PwaBootstrap />
         <Header />
-        <main>{children}</main>
+        <main className="h-main">{children}</main>
+        <InstallBanner />
+        <BottomNav />
         <Footer />
       </body>
     </html>

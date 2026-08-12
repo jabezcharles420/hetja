@@ -5,7 +5,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/root/straynet
-ExecStart=/usr/local/bin/node apps/scan/scripts/serve.mjs --port 8081
+ExecStart=/usr/local/bin/node apps/scan/scripts/serve.mjs
+Environment=PORT=8081
 Restart=always
 RestartSec=3
 MemoryHigh=64M

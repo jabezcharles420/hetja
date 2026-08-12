@@ -12,7 +12,7 @@ jobs:
       postgres:
         image: postgis/postgis:16-3.4
         env:
-          POSTGRES_DB: straynet
+          POSTGRES_DB: straynet_test
           POSTGRES_USER: app_user
           POSTGRES_PASSWORD: straynet_dev_2026
         ports: ["5432:5432"]
@@ -22,7 +22,7 @@ jobs:
     env:
       PGHOST: 127.0.0.1
       PGPORT: 5432
-      PGDATABASE: straynet
+      PGDATABASE: straynet_test
       PGUSER: app_user
       PGPASSWORD: straynet_dev_2026
     steps:
@@ -37,7 +37,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Enable PostGIS + pgvector
         run: |
-          psql -h 127.0.0.1 -U app_user -d straynet -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          psql -h 127.0.0.1 -U app_user -d straynet_test -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
       - name: Apply migrations
         run: pnpm db:migrate
       - name: EXPLAIN gate (INVARIANT 12)

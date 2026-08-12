@@ -16,3 +16,7 @@ apps/*/data/
 **/dist/
 apps/scan/dist/
 *.local
+
+# Supabase data dumps hold real rows (feeders.phone_hmac, collar hmac_sig).
+# The schema and hardening SQL are safe to track; the data is not.
+ops/supabase/*_data.sql

@@ -1,0 +1,26 @@
+[Unit]
+Description=StrayNet Web (Next.js feeder PWA)
+After=network.target straynet-api.service
+Wants=straynet-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/straynet/apps/web
+Environment=NODE_ENV=production
+Environment=PORT=3100
+# Bind to loopback only — Caddy terminates TLS and reverse-proxies to it.
+# Exposing :3100 directly would serve the PWA over plain HTTP, which breaks
+# service-worker registration and geolocation (both need a secure context).
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/local/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3100
+Restart=always
+RestartSec=3
+# OOM containment (3GB box, Hermes agents compete for memory). Next.js needs
+# more headroom than the API; without its own unit it previously ran as a child
+# of a hermes-worker cgroup scope and was SIGKILLed whenever that scope was reaped.
+MemoryHigh=400M
+MemoryMax=650M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,67 @@
+{
+	# Let's Encrypt sends cert-expiry and account notices here.
+	email admin@hetja.in
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Canonical origin. www redirects here rather than serving in parallel: the
+# feeder access token lives in localStorage and service workers are scoped per
+# origin, so two live hostnames would mean two disconnected logins.
+hetja.in {
+	import common
+
+	# The API is served on this same origin because apps/scan hardcodes a
+	# same-origin /api/v1 prefix (src/api.ts, service-worker.ts). Keeping the
+	# web app here too means its API calls are same-origin, so no CORS
+	# preflight is involved at all.
+	handle /api/v1/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# QR collar landing — the URL etched on the collar:
+	#   https://hetja.in/d/<9-char-slug>?s=<hmac-sig>
+	handle /d/* {
+		reverse_proxy 127.0.0.1:8081
+	}
+
+	# Next.js feeder PWA (everything else).
+	handle {
+		reverse_proxy 127.0.0.1:3100
+	}
+}
+
+www.hetja.in {
+	import common
+	redir https://hetja.in{uri} permanent
+}
+
+# Dedicated API hostname for non-browser and third-party clients. Browser
+# traffic should prefer the same-origin path above.
+api.hetja.in {
+	import common
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Scan landing on its own hostname, mirroring the apex layout so a collar
+# printed with either form resolves.
+scan.hetja.in {
+	import common
+
+	handle /api/v1/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8081
+	}
+}

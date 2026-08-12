@@ -35,6 +35,29 @@ SET row_security = off;
 
 
 --
+-- Name: care_cost_tier; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.care_cost_tier AS ENUM (
+    'free',
+    'subsidised',
+    'paid'
+);
+
+
+--
+-- Name: care_kind; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.care_kind AS ENUM (
+    'ngo',
+    'govt',
+    'charity_hospital',
+    'private_clinic'
+);
+
+
+--
 -- Name: case_state; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -69,6 +92,16 @@ CREATE TYPE public.feeder_role AS ENUM (
     'vet',
     'bmc_officer',
     'admin'
+);
+
+
+--
+-- Name: geo_precision; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.geo_precision AS ENUM (
+    'exact',
+    'locality'
 );
 
 
@@ -112,6 +145,34 @@ CREATE TYPE public.severity_t AS ENUM (
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: care_providers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.care_providers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    kind public.care_kind NOT NULL,
+    cost_tier public.care_cost_tier NOT NULL,
+    phone_e164 text,
+    alt_phone_e164 text,
+    geo extensions.geography(Point,4326) NOT NULL,
+    ward_id text,
+    has_ambulance boolean DEFAULT false NOT NULL,
+    is_24x7 boolean DEFAULT false NOT NULL,
+    hours_note text,
+    handles_wildlife boolean DEFAULT false NOT NULL,
+    source text NOT NULL,
+    source_ref text,
+    vet_id uuid,
+    phone_verified_at timestamp with time zone,
+    listed boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    geo_precision public.geo_precision DEFAULT 'locality'::public.geo_precision NOT NULL,
+    locality text
+);
+
 
 --
 -- Name: collars; Type: TABLE; Schema: public; Owner: -
@@ -420,6 +481,14 @@ ALTER TABLE ONLY public.jobs ALTER COLUMN id SET DEFAULT nextval('public.jobs_id
 
 
 --
+-- Name: care_providers care_providers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.care_providers
+    ADD CONSTRAINT care_providers_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: collars collars_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -580,6 +649,20 @@ ALTER TABLE ONLY public.vets
 
 
 --
+-- Name: care_geo_gix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX care_geo_gix ON public.care_providers USING gist (geo) WHERE listed;
+
+
+--
+-- Name: care_providers_name_phone_uq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_providers_name_phone_uq ON public.care_providers USING btree (name, COALESCE(phone_e164, ''::text));
+
+
+--
 -- Name: dog_stories_dog_version_uix; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -661,6 +744,14 @@ CREATE INDEX sos_open_ix ON public.sos_cases USING btree (state, opened_at) WHER
 --
 
 CREATE UNIQUE INDEX vets_feeder_uix ON public.vets USING btree (feeder_id) WHERE (feeder_id IS NOT NULL);
+
+
+--
+-- Name: care_providers care_providers_vet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.care_providers
+    ADD CONSTRAINT care_providers_vet_id_fkey FOREIGN KEY (vet_id) REFERENCES public.vets(id);
 
 
 --

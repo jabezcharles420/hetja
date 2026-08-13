@@ -130,6 +130,10 @@ jobs:
           pnpm --filter @hetja/ledger build
           pnpm --filter @hetja/contracts build
           pnpm --filter @hetja/db build
+          # The size gate measures apps/scan/dist, which is gitignored -- build it
+          # here or the gate dies on a missing file rather than a real budget
+          # breach.
+          pnpm --filter @hetja/scan build
 
 
       - name: Install pgvector into the Postgres service container

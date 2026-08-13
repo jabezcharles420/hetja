@@ -10,7 +10,21 @@ const MAX_BYTES = 40 * 1024;
 
 let total = 0;
 for (const rel of FILES) {
-  const raw = readFileSync(join(ROOT, rel));
+  let raw;
+  try {
+    raw = readFileSync(join(ROOT, rel));
+  } catch (err) {
+    if (err?.code === "ENOENT") {
+      // dist/ is gitignored, so a clean checkout has nothing to measure. Say so
+      // instead of surfacing a bare ENOENT that reads like a broken gate.
+      console.error(
+        `size:gate cannot find ${rel} -- apps/scan has not been built.\n` +
+          "Run `pnpm --filter @hetja/scan build` first (CI does this in the Gate job).",
+      );
+      process.exit(2);
+    }
+    throw err;
+  }
   const gz = gzipSync(raw).byteLength;
   total += gz;
   console.log(`${String(gz).padStart(6)} B gz   ${String(raw.length).padStart(7)} B raw   ${rel}`);

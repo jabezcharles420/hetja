@@ -2,7 +2,7 @@
  * Hetja API — Fastify bootstrap with health endpoint, CORS, and
  * graceful shutdown. Routes are registered per module (auth, devices, dogs,
  * scans, sos, push, medical, ledger, stories, moderation, trust, heatmap,
- * care, territories, gamification).
+ * care, territories, gamification, metrics).
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
@@ -25,6 +25,7 @@ import heatmapRoutes from "./routes/heatmap.js";
 import careRoutes from "./routes/care.js";
 import territoryRoutes from "./routes/territories.js";
 import gamificationRoutes from "./routes/gamification.js";
+import metricsRoutes from "./routes/metrics.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -117,6 +118,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(careRoutes);
   void app.register(territoryRoutes);
   void app.register(gamificationRoutes);
+  void app.register(metricsRoutes);
 
   return app;
 }

@@ -4,6 +4,7 @@ import { loadConfig } from "../config.js";
 import { signSlug } from "../lib/hmac.js";
 import { query, generateSlug } from "@hetja/db";
 import { GENESIS_PREV_HASH, computeHash } from "@hetja/ledger";
+import { dogCache } from "./dogs.js";
 
 const config = loadConfig();
 
@@ -59,6 +60,9 @@ async function setupDog(): Promise<TestDog> {
 }
 
 beforeEach(async () => {
+  // The 5s dog-page cache (enhancement stack §M.1) is module-level state;
+  // tests create/update dogs per-case, so clear it or one test sees stale rows.
+  dogCache.clear();
   await setupDog();
 });
 

@@ -17,6 +17,13 @@ algorithm is adapted rather than installed, this file says so.
 | WCAG-AA contrast gate | WCAG 2.2 (no repo); formula per W3C relative luminance | n/a | `ops/contrast-gate.sh` | Parses `packages/design/tokens.css`; zero-dep implementation (no chroma.js needed for 6 tokens). |
 | `DEVICE_POW_DIFFICULTY` 14 → 18 | existing codebase; recommendation from enhancement-stack §B / HOW-IT-WORKS §9 | n/a | `apps/api/src/config.ts`, `apps/api/src/routes/devices.ts` | ~2^17 avg attempts (~0.5 s); test timeout raised accordingly. |
 
+## Wave 2 — Phase 1 (small deps, life-safety + ops)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `isaacs/node-lru-cache` | github.com/isaacs/node-lru-cache | BlueOak-1.0.0 | `apps/api/src/routes/care.ts`, `apps/api/src/routes/dogs.ts` | 60s TTL care-provider directory, 5s TTL dog pages. Deliberately NOT applied to the shared `getNearbyCare()` (SOS path always reads fresh). Errors and 404s never cached. |
+| `GoogleChrome/web-vitals` pattern | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/api/src/routes/metrics.ts`, `packages/db/migrations/0013_web_vitals.sql` | Anonymous `POST /api/v1/metrics/web-vitals` (slug-stripped paths only — server rejects anything carrying a real collar slug or `?s=` signature); feeder-authed aggregate GET. |
+
 ## Sources researched and evaluated (2026-08-13)
 
 Full evaluation of all researched projects — adopted, deferred, and rejected —

@@ -15,7 +15,7 @@ external build guide that lived outside the repo.
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check per device token |
-| 8 | medical_records append-only (REVOKE UPDATE/DELETE) | ✅ | `0001` REVOKE + tests asserting app_user cannot UPDATE/DELETE |
+| 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock |
 | 10 | Daily published anchor | ✅ (API) | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job |
 | 11 | DPDP erasure = PII delete, chain stays valid | 🔶 design | pseudonymous actor IDs in chain; runbook documents erasure |

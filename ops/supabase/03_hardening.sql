@@ -74,6 +74,10 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authen
 --    The VPS used REVOKE UPDATE, DELETE on app_user. That does not carry over
 --    (pg_dump --no-privileges drops it, and Supabase uses different roles), so
 --    enforce it with a trigger, which holds for every role including postgres.
+--    NOTE: this row-level trigger does NOT fire on TRUNCATE -- that needs its
+--    own statement-level trigger, added by migration 0012, which the pipeline
+--    applies here too. Without it this file left the ledger truncatable by any
+--    role, which was the same hole the VPS had via an un-revoked privilege.
 -- --------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION private.forbid_mutation()
 RETURNS trigger

@@ -23,6 +23,8 @@ algorithm is adapted rather than installed, this file says so.
 |---|---|---|---|---|
 | `isaacs/node-lru-cache` | github.com/isaacs/node-lru-cache | BlueOak-1.0.0 | `apps/api/src/routes/care.ts`, `apps/api/src/routes/dogs.ts` | 60s TTL care-provider directory, 5s TTL dog pages. Deliberately NOT applied to the shared `getNearbyCare()` (SOS path always reads fresh). Errors and 404s never cached. |
 | `GoogleChrome/web-vitals` pattern | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/api/src/routes/metrics.ts`, `packages/db/migrations/0013_web_vitals.sql` | Anonymous `POST /api/v1/metrics/web-vitals` (slug-stripped paths only — server rejects anything carrying a real collar slug or `?s=` signature); feeder-authed aggregate GET. |
+| `merkletreejs` — Merkle inclusion proofs over the ledger chain | github.com/merkletreejs/merkletreejs | MIT | `packages/ledger/src/merkle.ts` | Per-append Merkle root over the chain's canonical record hashes (leaf = `LedgerRecord.hash`, so tree and chain agree); O(log n) `verifyInclusion` for external auditors. Tree uses `duplicateOdd`; proofs are extracted from the library's layers because its own proof walk drops the self-duplicate for the last leaf of odd trees. |
+| `panva/jose` — signed chain head (Ed25519/EdDSA) | github.com/panva/jose | MIT | `packages/ledger/src/signing.ts` | Compact JWS over `{head, merkleRoot, recordCount}` with `sub: did:web:hetja.in:vets/<vetId>`; keygen + JWK export so the public half can later be served at a `did:web` JWKS endpoint (`jwks()` helper). |
 
 ## Sources researched and evaluated (2026-08-13)
 

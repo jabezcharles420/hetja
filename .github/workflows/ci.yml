@@ -79,20 +79,12 @@ jobs:
             psql -h 127.0.0.1 -d hetja_test \
               -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS $ext;"
           done
-      - name: Apply migrations
-        # As postgres, so tables are owned by postgres exactly as in
-        # production. The grant step above then gives app_user its
-        # production privilege set.
-        env:
-          PGUSER: postgres
-          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
-        run: pnpm db:migrate
-      - name: Create app_user and mirror production's privilege model
-        # Production has tables owned by postgres with app_user holding grants.
-        # If app_user owns them instead, 0001_init.sql's
-        # `REVOKE UPDATE, DELETE ON medical_records FROM app_user` strips the
-        # owner's own rights and the FK integrity check behind
-        # `DELETE FROM dogs` fails as that owner. Mirror production exactly.
+      - name: Create the app_user role
+        # Must precede migrations: 0001_init.sql ends with
+        # `REVOKE UPDATE, DELETE ON medical_records FROM app_user`, which errors
+        # with `role "app_user" does not exist` if the role is not there yet.
+        # The old config created it implicitly via POSTGRES_USER=app_user; now
+        # that the container runs as postgres, CI has to create it explicitly.
         env:
           PGUSER: postgres
           PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
@@ -105,10 +97,29 @@ jobs:
                END IF;
              END \$\$;"
           psql -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO app_user;"
+
+      - name: Apply migrations
+        # As postgres, so tables are owned by postgres exactly as in
+        # production. The grant step above then gives app_user its
+        # production privilege set.
+        env:
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        run: pnpm db:migrate
+      - name: Grant app_user production's privilege set
+        # After migrations, because the tables must exist to be granted on.
+        # Production has postgres-owned tables with app_user holding grants; that
+        # is load-bearing, because a NO ACTION foreign key's integrity check runs
+        # as the REFERENCING table's owner.
+        env:
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        run: |
+          set -euo pipefail
           psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;"
           psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
-          # INVARIANT 9: medical_records is append-only for the app role. Re-apply
-          # after the blanket GRANT above, which would otherwise hand DELETE back.
+          # INVARIANT 9: medical_records stays append-only for the app role.
+          # Re-applied after the blanket GRANT, which would hand DELETE back.
           psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
 
       - name: EXPLAIN gate (INVARIANT 12)

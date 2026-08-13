@@ -12,6 +12,40 @@
 # deployment, never freshly generated).
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# assemble_release: build a release directory locally, exactly matching what
+# .github/workflows/deploy.yml rsyncs. Needed because hetja-web and hetja-scan
+# run from /srv/hetja/current, not from this checkout -- see ops/deploy.sh for
+# why web/scan builds moved off this box in the first place.
+# ---------------------------------------------------------------------------
+assemble_release() {
+  local rel="/srv/hetja/releases/$(date -u +%Y%m%d%H%M%S)-bootstrap"
+  echo "==> assembling release $rel"
+  mkdir -p "$rel/web" "$rel/scan/dist" "$rel/scan/scripts"
+
+  # `output: standalone` deliberately omits .next/static and public/; the Next
+  # docs say to copy them in, and they must land inside the traced apps/web
+  # subtree so server.js resolves them relative to itself.
+  [ -d "$REPO_ROOT/apps/web/.next/standalone/apps/web/.next/static" ] || \
+    cp -r "$REPO_ROOT/apps/web/.next/static" "$REPO_ROOT/apps/web/.next/standalone/apps/web/.next/static"
+  [ -d "$REPO_ROOT/apps/web/.next/standalone/apps/web/public" ] || \
+    cp -r "$REPO_ROOT/apps/web/public" "$REPO_ROOT/apps/web/.next/standalone/apps/web/public"
+
+  cp -a "$REPO_ROOT/apps/web/.next/standalone/." "$rel/web/"
+  cp -a "$REPO_ROOT/apps/scan/dist/." "$rel/scan/dist/"
+  cp -a "$REPO_ROOT/apps/scan/scripts/serve.mjs" "$rel/scan/scripts/serve.mjs"
+  cp -a "$REPO_ROOT/ops/deploy-remote.sh" /srv/hetja/deploy-remote.sh
+  chmod +x /srv/hetja/deploy-remote.sh
+
+  # Refuse to point `current` at an incomplete release -- the same checks
+  # ops/deploy-remote.sh makes before a real deploy.
+  [ -f "$rel/web/apps/web/server.js" ] || { echo "FAILED: release has no web server.js"; exit 1; }
+  [ -f "$rel/scan/dist/index.html" ]   || { echo "FAILED: release has no scan index.html"; exit 1; }
+
+  ln -sfn "$rel" /srv/hetja/current
+  echo "    /srv/hetja/current -> $rel"
+}
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -72,6 +106,9 @@ for unit in ops/systemd/hetja-api.service ops/systemd/hetja-web.service \
     "$unit" > "/etc/systemd/system/${name}"
   log "installed /etc/systemd/system/${name}"
 done
+
+mkdir -p /srv/hetja/releases
+assemble_release
 
 systemctl daemon-reload
 systemctl enable --now hetja-api hetja-web hetja-worker hetja-scan

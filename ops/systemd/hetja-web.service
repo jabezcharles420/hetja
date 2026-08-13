@@ -5,14 +5,20 @@ Wants=hetja-api.service
 
 [Service]
 Type=simple
-WorkingDirectory=__REPO_ROOT__/apps/web
+# Runs from the release directory, not the git checkout. `next start` needs
+# the full node_modules and a build on the box; the standalone server.js is
+# self-contained and is built on a GitHub runner instead, because `next build`
+# on this 2GB VPS previously OOM-killed the running services.
+# /srv/hetja/current is a symlink to the active release, so a rollback is a
+# symlink flip plus a restart.
+WorkingDirectory=/srv/hetja/current/web/apps/web
 Environment=NODE_ENV=production
 Environment=PORT=3100
 # Bind to loopback only — Caddy terminates TLS and reverse-proxies to it.
 # Exposing :3100 directly would serve the PWA over plain HTTP, which breaks
 # service-worker registration and geolocation (both need a secure context).
 Environment=HOSTNAME=127.0.0.1
-ExecStart=__NODE_BIN__ node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3100
+ExecStart=__NODE_BIN__ server.js
 Restart=always
 RestartSec=3
 # OOM containment. MemoryHigh/MemoryMax below are tuned for a 3GB box, and

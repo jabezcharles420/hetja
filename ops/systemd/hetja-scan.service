@@ -4,8 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=__REPO_ROOT__
-ExecStart=__NODE_BIN__ apps/scan/scripts/serve.mjs
+# Serves the release's dist/. serve.mjs resolves ../dist relative to its
+# own path, so it picks up whichever release `current` points at.
+WorkingDirectory=/srv/hetja/current/scan
+ExecStart=__NODE_BIN__ scripts/serve.mjs
 Environment=PORT=8081
 # Loopback only — Caddy terminates TLS and proxies /d/* here.
 Environment=HOST=127.0.0.1

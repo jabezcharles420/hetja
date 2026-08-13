@@ -1,5 +1,5 @@
 /**
- * StrayNet care-directory seed (docs/PLAN-v2.md §2.2) — ~25 real Mumbai
+ * Hetja care-directory seed (docs/PLAN-v2.md §2.2) — ~25 real Mumbai
  * animal-welfare organisations, committed as reviewable data. Idempotent
  * against care_providers_name_phone_uq (migration 0008_care_providers.sql):
  * a conflicting row is never re-inserted, and the only columns touched on

@@ -1,5 +1,5 @@
 /**
- * StrayNet tamper-evident medical ledger — INVARIANT 9: every record hash is
+ * Hetja tamper-evident medical ledger — INVARIANT 9: every record hash is
  * SHA-256 over a LENGTH-PREFIXED concatenation, so field boundaries are
  * unambiguous and concatenation collisions are impossible.
  */

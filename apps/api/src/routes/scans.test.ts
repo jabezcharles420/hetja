@@ -38,7 +38,7 @@ afterEach(async () => {
 describe("POST /api/v1/scans", () => {
   it("creates a scan and replays idempotently for the same client_uuid", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
     const clientUuid = randomUUID();
     const payload = {
       clientUuid,
@@ -94,7 +94,7 @@ describe("POST /api/v1/scans", () => {
 
   it("applies LWW on dogs.last_seen_geo by captured_at", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
     const base = Date.now();
     const scans = [
       { capturedAt: new Date(base).toISOString(), lat: 19.1, lng: 72.9 },

@@ -45,7 +45,7 @@ Steps, in order:
 
 ### Two things that will silently ruin the migration
 
-**`STRAYNET_QR_SECRET` must be carried over, never regenerated.** It is the key
+**`HETJA_QR_SECRET` must be carried over, never regenerated.** It is the key
 that signs collar QR signatures. A fresh value does not error — it just makes
 every printed tag fail verification, discovered only when a stranger scans a real
 collar. `cutover.sh` reads it from `apps/api/.env.production` and refuses to

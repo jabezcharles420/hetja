@@ -1,5 +1,5 @@
 /**
- * StrayNet SOS — report + case state routes.
+ * Hetja SOS — report + case state routes.
  *
  * POST /api/v1/reports        — anon-attested (device token, INVARIANT 7 caps)
  *                                OR feeder-authed (Bearer access token). Opens a
@@ -146,7 +146,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           .status(401)
           .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
       }
-    } else if (!deviceToken || !verifyDeviceToken(deviceToken, app.config.STRAYNET_DEVICE_SECRET)) {
+    } else if (!deviceToken || !verifyDeviceToken(deviceToken, app.config.HETJA_DEVICE_SECRET)) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });

@@ -1,5 +1,5 @@
 /**
- * StrayNet GAMIFICATION (feeder quests / streaks / badges).
+ * Hetja GAMIFICATION (feeder quests / streaks / badges).
  *
  * Ships AFTER the trust engine / anti-abuse. Streaks and badges are DERIVED
  * from scans — there is no direct way for a client to grant itself a streak

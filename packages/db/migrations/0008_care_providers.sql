@@ -1,4 +1,4 @@
--- StrayNet · migration 0008_care_providers
+-- Hetja · migration 0008_care_providers
 -- Public directory of third-party animal-welfare care providers (NGOs, BMC/
 -- govt facilities, charity hospitals, private clinics) that Hetja merely
 -- LISTS -- this is deliberately a new table, not an extension of `vets`.

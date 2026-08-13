@@ -1,5 +1,5 @@
 /**
- * StrayNet slug generator — INVARIANT 1: slugs are random, never sequential.
+ * Hetja slug generator — INVARIANT 1: slugs are random, never sequential.
  * base32 (lowercase, no vowels/confusables) of 40 random bits + 1 check char.
  * Statistical property: no monotonic component (tested in slugs.test.ts).
  */

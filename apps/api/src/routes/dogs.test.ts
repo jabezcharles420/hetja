@@ -78,7 +78,7 @@ afterEach(async () => {
 describe("GET /api/v1/dogs/:slug (anon)", () => {
   it("returns ward-level geo only (<=2 decimals)", async () => {
     const app = buildServer(config);
-    const sig = signSlug(testDog!.slug, config.STRAYNET_QR_SECRET);
+    const sig = signSlug(testDog!.slug, config.HETJA_QR_SECRET);
     const res = await app.inject({
       method: "GET",
       url: `/api/v1/dogs/${testDog!.slug}?s=${sig}`,
@@ -105,7 +105,7 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
 
   it("404s on a tampered ?s= signature", async () => {
     const app = buildServer(config);
-    const goodSig = signSlug(testDog!.slug, config.STRAYNET_QR_SECRET);
+    const goodSig = signSlug(testDog!.slug, config.HETJA_QR_SECRET);
     const tampered = (goodSig[0] === "A" ? "B" : "A") + goodSig.slice(1);
     const res = await app.inject({
       method: "GET",
@@ -131,7 +131,7 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
   it("404s for an unknown slug even with a valid signature", async () => {
     const app = buildServer(config);
     const slug = randomSlug();
-    const sig = signSlug(slug, config.STRAYNET_QR_SECRET);
+    const sig = signSlug(slug, config.HETJA_QR_SECRET);
     const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${slug}?s=${sig}` });
     expect(res.statusCode).toBe(404);
 

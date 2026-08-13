@@ -2,7 +2,7 @@
   "name": "straynet",
   "private": true,
   "version": "1.1.0",
-  "description": "StrayNet — cityscale QR-collar, PWA and geofenced SOS network for Mumbai's stray dogs",
+  "description": "Hetja — cityscale QR-collar, PWA and geofenced SOS network for Mumbai's stray dogs",
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"

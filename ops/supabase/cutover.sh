@@ -78,13 +78,13 @@ say "03_hardening.sql (RLS, append-only trigger, signature-gated RPCs)"
 run -v ON_ERROR_STOP=1 -q -f "$REPO/ops/supabase/03_hardening.sql" | tail -3 || exit 1
 
 # --- the QR secret --------------------------------------------------------
-# Must match the API's STRAYNET_QR_SECRET byte for byte, or every collar
+# Must match the API's HETJA_QR_SECRET byte for byte, or every collar
 # signature check fails. Passed via a psql variable so it never lands in a file
 # or in shell history.
 say "seeding private.app_secrets.qr_secret"
-QR=$(grep '^STRAYNET_QR_SECRET=' "$REPO/apps/api/.env.production" | cut -d= -f2-)
+QR=$(grep '^HETJA_QR_SECRET=' "$REPO/apps/api/.env.production" | cut -d= -f2-)
 if [ -z "$QR" ]; then
-  echo "    FAILED: STRAYNET_QR_SECRET missing from apps/api/.env.production" >&2
+  echo "    FAILED: HETJA_QR_SECRET missing from apps/api/.env.production" >&2
   exit 1
 fi
 PGPASSWORD="$DB_PASSWORD" psql "$PG" -q -v qr="$QR" \

@@ -7,7 +7,7 @@
 
 ## 0. TL;DR
 
-**Hetja** (back-end codename *StrayNet*) — a production-grade civic-tech network for
+**Hetja** — a production-grade civic-tech network for
 Mumbai's stray dogs — was designed, built, tested and **deployed on this VPS**.
 **172 automated tests green**, 5 parallel-agent build waves, 2 deep research
 rounds, security hardening applied from the findings, and a full mobile-first
@@ -45,7 +45,7 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 
 ---
 
-## 2. The Hetja build (StrayNet)
+## 2. The Hetja build
 
 ### 2.1 Specs consumed
 - `StrayNet_Architecture_Blueprint_v1.1.pdf` (33 pp) + `Executive_Summary_v1.1.pdf`

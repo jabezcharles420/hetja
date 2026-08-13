@@ -1,5 +1,5 @@
 /**
- * StrayNet TRUST endpoints (feeder-authed).
+ * Hetja TRUST endpoints (feeder-authed).
  *
  * POST /api/v1/trust/events      — log a trust event (event_type from the
  *   TRUST_EVENTS catalog, delta derived from the catalog) with a reason.

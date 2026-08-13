@@ -1,5 +1,5 @@
 [Unit]
-Description=StrayNet Web (Next.js feeder PWA)
+Description=Hetja Web (Next.js feeder PWA)
 After=network.target straynet-api.service
 Wants=straynet-api.service
 

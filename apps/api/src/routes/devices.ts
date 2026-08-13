@@ -1,5 +1,5 @@
 /**
- * StrayNet anonymous device-token issuance — the missing "issue" half of
+ * Hetja anonymous device-token issuance — the missing "issue" half of
  * INVARIANT 6. lib/device.ts already implements issueDeviceToken/
  * verifyDeviceToken/createPoWChallenge/verifyPoW, but nothing outside a
  * test file ever called issueDeviceToken() -- every consumer (auth/verify,
@@ -15,7 +15,7 @@
  * POST /api/v1/devices/challenge -> { challenge, difficulty }
  *   Stateless, self-authenticating challenge, so no server-side store is
  *   needed to verify it later:
- *     challenge = "<powSeed>.<expiresAtMs>.<HMAC(STRAYNET_DEVICE_SECRET, powSeed|expiresAtMs)>"
+ *     challenge = "<powSeed>.<expiresAtMs>.<HMAC(HETJA_DEVICE_SECRET, powSeed|expiresAtMs)>"
  *   `powSeed` is device.ts's createPoWChallenge() (random bytes). The PoW
  *   itself is solved against the *entire* challenge string (not just
  *   powSeed) so a client can treat it as one opaque token -- no parsing
@@ -108,7 +108,7 @@ const DeviceTokenInput = z.object({
 
 export default async function deviceRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/devices/challenge", async (_req: FastifyRequest, _reply: FastifyReply) => {
-    const challenge = makeChallenge(app.config.STRAYNET_DEVICE_SECRET);
+    const challenge = makeChallenge(app.config.HETJA_DEVICE_SECRET);
     return { ok: true, data: { challenge, difficulty: app.config.DEVICE_POW_DIFFICULTY } };
   });
 
@@ -121,7 +121,7 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
     }
     const { challenge, nonce } = parsed.data;
 
-    const verified = verifyChallengeHmac(challenge, app.config.STRAYNET_DEVICE_SECRET);
+    const verified = verifyChallengeHmac(challenge, app.config.HETJA_DEVICE_SECRET);
     if (!verified) {
       return reply
         .status(401)
@@ -138,7 +138,7 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
         .send({ ok: false, error: { message: "proof of work invalid", code: "BAD_POW" } });
     }
 
-    const deviceToken = issueDeviceToken(app.config.STRAYNET_DEVICE_SECRET);
+    const deviceToken = issueDeviceToken(app.config.HETJA_DEVICE_SECRET);
     return { ok: true, data: { deviceToken } };
   });
 }

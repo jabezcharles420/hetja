@@ -18,7 +18,7 @@ const usedPhones: string[] = [];
 async function cleanupPhones(): Promise<void> {
   for (const phone of usedPhones) {
     clearOtp(phone);
-    await query(`DELETE FROM feeders WHERE phone_hmac = $1`, [phoneHmac(phone, config.STRAYNET_HMAC_PEPPER)]);
+    await query(`DELETE FROM feeders WHERE phone_hmac = $1`, [phoneHmac(phone, config.HETJA_HMAC_PEPPER)]);
   }
 }
 
@@ -43,7 +43,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
     expect(otpBody.ok).toBe(true);
     expect(otpBody.data.devCode).toMatch(/^\d{6}$/);
 
-    const deviceToken = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const deviceToken = issueDeviceToken(config.HETJA_DEVICE_SECRET);
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
@@ -87,7 +87,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
     const devCode = otpRes.json().data.devCode;
 
     const wrongCode = devCode === "000000" ? "111111" : "000000";
-    const deviceToken = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const deviceToken = issueDeviceToken(config.HETJA_DEVICE_SECRET);
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
@@ -136,7 +136,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
-      payload: { phone, code: devCode, deviceToken: issueDeviceToken(config.STRAYNET_DEVICE_SECRET), isMinor: false },
+      payload: { phone, code: devCode, deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET), isMinor: false },
     });
     expect(verifyRes.statusCode).toBe(400);
 

@@ -1,5 +1,5 @@
 /**
- * StrayNet CARE directory (public).
+ * Hetja CARE directory (public).
  *
  * GET /api/v1/care?lat=&lng=&kind=&max_km=5 — nearest LISTED care providers
  * (NGOs, govt facilities, charity hospitals, private clinics), ordered

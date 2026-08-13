@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy.sh — build + install + restart StrayNet services on the VPS.
+# deploy.sh — build + install + restart Hetja services on the VPS.
 # Safe to re-run. Installs the four systemd units from ops/systemd/ (see
 # AGENTS.md and ops/bootstrap.sh for a from-scratch setup on a new box).
 set -euo pipefail

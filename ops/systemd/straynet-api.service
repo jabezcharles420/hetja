@@ -1,5 +1,5 @@
 [Unit]
-Description=StrayNet API (Fastify)
+Description=Hetja API (Fastify)
 # The database is managed (Supabase), so there is no local postgresql.service
 # to order against — see AGENTS.md. Only the network needs to be up.
 After=network.target

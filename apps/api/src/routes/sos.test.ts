@@ -70,7 +70,7 @@ afterEach(async () => {
 describe("POST /api/v1/reports (anon-attested)", () => {
   it("opens a tier-1 case and enqueues the 8-min escalation (serious waits for validation)", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const res = await app.inject({
       method: "POST",
@@ -109,7 +109,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
   it("replays the same report idempotently without double-opening", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
     const payload = { dogSlug, severity: "minor", note: "replay dedupe", deviceToken: token };
 
     const first = await app.inject({ method: "POST", url: "/api/v1/reports", payload });
@@ -133,7 +133,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
   it("opens a critical case at tier 2 when no responder is eligible", async () => {
     await insertDog(LOC_B);
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const res = await app.inject({
       method: "POST",
@@ -153,7 +153,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
   it("caps anon reports at 2/day per device token (429)", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const first = await app.inject({
       method: "POST",
@@ -189,7 +189,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
   it("fans a critical report out immediately to eligible responders", async () => {
     const feederId = await insertEligibleFeeder("sos-test-feeder-critical", 70);
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const res = await app.inject({
       method: "POST",
@@ -234,7 +234,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
   it("accepts a feeder-authed report past the anon cap", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const first = await app.inject({
       method: "POST",
@@ -273,7 +273,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 describe("GET /api/v1/sos/cases/:id (feeder auth)", () => {
   it("returns case state to an authenticated feeder", async () => {
     const app = buildServer(config);
-    const token = issueDeviceToken(config.STRAYNET_DEVICE_SECRET);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
 
     const report = await app.inject({
       method: "POST",

@@ -148,7 +148,7 @@ describe("trust feed scan callback", () => {
     const res = await fixture.app.inject({
       method: "POST",
       url: "/api/v1/scans",
-      headers: { "x-device-token": issueDeviceToken(config.STRAYNET_DEVICE_SECRET) },
+      headers: { "x-device-token": issueDeviceToken(config.HETJA_DEVICE_SECRET) },
       payload: { clientUuid: randomUUID(), dogSlug: fixture.dogSlug, type: "feed", capturedAt: new Date().toISOString() },
     });
     expect(res.statusCode).toBe(200);

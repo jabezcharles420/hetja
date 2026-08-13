@@ -1,5 +1,5 @@
 /**
- * StrayNet worker — Postgres-backed job queue (no Redis, per spec).
+ * Hetja worker — Postgres-backed job queue (no Redis, per spec).
  * Polls the jobs table with SELECT ... FOR UPDATE SKIP LOCKED so multiple
  * worker instances never double-process. Handlers:
  *   validate_scan  → marks scan ai_validation/review_status (stub: calls AI)

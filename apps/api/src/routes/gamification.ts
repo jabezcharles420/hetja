@@ -1,5 +1,5 @@
 /**
- * StrayNet GAMIFICATION endpoints (feeder-authed).
+ * Hetja GAMIFICATION endpoints (feeder-authed).
  *
  * GET  /api/v1/feeders/me/streak            — current streak_days + the last
  *   feed's calendar day + a hint for the next earnable badge.

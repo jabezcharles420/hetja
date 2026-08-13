@@ -1,5 +1,5 @@
 /**
- * StrayNet micro-story MODERATION (admin only).
+ * Hetja micro-story MODERATION (admin only).
  *
  * GET  /api/v1/moderation/queue           — pending stories (moderated_at IS
  *   NULL), oldest first.

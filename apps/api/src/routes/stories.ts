@@ -1,5 +1,5 @@
 /**
- * StrayNet dog MICRO-STORIES.
+ * Hetja dog MICRO-STORIES.
  *
  * POST /api/v1/dogs/:slug/stories  — feeder-authed. The story is feeder-written
  *   ONLY (INVARIANT: never AI-generated). Versioning is per-dog: version =

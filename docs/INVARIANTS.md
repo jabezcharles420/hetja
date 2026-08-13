@@ -1,4 +1,4 @@
-# StrayNet Invariant Checklist — implementation status
+# Hetja Invariant Checklist — implementation status
 
 Every invariant from the blueprint v1.1 build guide, with where it lives and
 how it is verified. Updated as the build progresses.

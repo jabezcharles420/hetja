@@ -1,5 +1,5 @@
 /**
- * StrayNet medical ledger routes (INVARIANT 8/9/10).
+ * Hetja medical ledger routes (INVARIANT 8/9/10).
  *
  * POST /api/v1/medical_records — feeder self-report (is_verified=false) or
  *   vet write (is_verified=true, clinic signature verified against

@@ -55,7 +55,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
     const { s: sig } = req.query as { s?: string };
-    if (!sig || !verifySlugSig(slug, sig, app.config.STRAYNET_QR_SECRET)) {
+    if (!sig || !verifySlugSig(slug, sig, app.config.HETJA_QR_SECRET)) {
       return notFound(reply);
     }
 

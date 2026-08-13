@@ -1,5 +1,5 @@
 /**
- * StrayNet ledger trust endpoints (INVARIANT 10).
+ * Hetja ledger trust endpoints (INVARIANT 10).
  *
  * GET /api/v1/ledger/anchor        — latest published anchor (head hash + count)
  * GET /api/v1/ledger/verify?n=…    — recompute the head from the last n

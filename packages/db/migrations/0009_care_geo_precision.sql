@@ -1,4 +1,4 @@
--- StrayNet · migration 0009_care_geo_precision
+-- Hetja · migration 0009_care_geo_precision
 -- 0008_care_providers.sql seeded 25 real Mumbai orgs, but the seed's own
 -- header comment admits the coordinates are locality/ward-centroid
 -- ESTIMATES, not geocoded addresses ("none of these were geocoded from an

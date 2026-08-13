@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Hetja / StrayNet -- schema for Supabase
+-- Hetja -- schema for Supabase
 -- Generated from the VPS Postgres 16 dump; see ops/supabase/README.md.
 -- Apply BEFORE 02_data.sql, then 03_hardening.sql.
 -- ---------------------------------------------------------------------------

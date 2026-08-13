@@ -1,5 +1,5 @@
 [Unit]
-Description=StrayNet scan landing (static)
+Description=Hetja scan landing (static)
 After=network.target
 
 [Service]

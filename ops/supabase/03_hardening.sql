@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Hetja / StrayNet -- Supabase hardening. Apply AFTER 01_schema.sql + 02_data.sql.
+-- Hetja -- Supabase hardening. Apply AFTER 01_schema.sql + 02_data.sql.
 --
 -- Why this file exists
 -- -------------------
@@ -40,10 +40,10 @@ ALTER TABLE private.app_secrets ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON private.app_secrets FROM anon, authenticated;
 
 -- Seed the QR signing secret out of band -- it must match the API's
--- STRAYNET_QR_SECRET exactly, or every signature check fails:
+-- HETJA_QR_SECRET exactly, or every signature check fails:
 --
 --   INSERT INTO private.app_secrets (name, value)
---   VALUES ('qr_secret', '<STRAYNET_QR_SECRET>')
+--   VALUES ('qr_secret', '<HETJA_QR_SECRET>')
 --   ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;
 --
 -- Deliberately not committed here.

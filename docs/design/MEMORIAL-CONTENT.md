@@ -1,6 +1,7 @@
 # Memorial page — content and design brief
 
-The author's text, adapted only to rename StrayNet → Hetja. **Do not rewrite,
+The author's text, adapted only to rename the product's old working title to
+Hetja. **Do not rewrite,
 soften, punch up, or add sentiment.** This is a real person writing about a real
 dog that was poisoned. The words are already doing the work; the design's only
 job is to get out of their way and give them room. No stock photography, no

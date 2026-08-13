@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for a coding agent (or a human) bringing the StrayNet / Hetja
+Instructions for a coding agent (or a human) bringing the Hetja
 stack up on a fresh box. Follow the sections in order. Every step that can be
 verified has a command and an expected result next to it — if a check fails,
 stop and fix it before moving on.
@@ -55,9 +55,9 @@ Copy `apps/api/.env.example` → `apps/api/.env.production` and
 | `JWT_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
 | `JWT_ACCESS_TTL` | api | Literal, e.g. `15m`. |
 | `JWT_REFRESH_TTL` | api | Literal, e.g. `30d`. |
-| `STRAYNET_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. |
-| `STRAYNET_QR_SECRET` | api | **CARRY OVER — see warning below.** |
-| `STRAYNET_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
+| `HETJA_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. |
+| `HETJA_QR_SECRET` | api | **CARRY OVER — see warning below.** |
+| `HETJA_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
 | `DEVICE_POW_DIFFICULTY` | api | Literal, e.g. `14`. |
 | `TRUST_PROXY` | api | Literal — hop count to the real client through Caddy, usually `1`. |
 | `CORS_ORIGINS` | api | Literal — the production origins, comma-separated. |
@@ -68,12 +68,12 @@ Copy `apps/api/.env.example` → `apps/api/.env.production` and
 | `NEXT_PUBLIC_SUPABASE_URL` | web | Supabase dashboard → Project Settings → API → Project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | web | Supabase dashboard → Project Settings → API → `anon`/publishable key. Safe to ship to the browser; every table it can reach must be behind RLS. |
 
-**STRAYNET_QR_SECRET must be carried over from the previous deployment.**
+**HETJA_QR_SECRET must be carried over from the previous deployment.**
 This is not a normal secret rotation. It is the HMAC key baked into every
 QR code already printed and glued to a physical collar
 (`packages/db/src/seed.ts` signs each collar's slug with it, and the API
 verifies scans against it). Generating a fresh value the way you would for
-`JWT_SECRET` or `STRAYNET_HMAC_PEPPER` will not error, will not fail loudly,
+`JWT_SECRET` or `HETJA_HMAC_PEPPER` will not error, will not fail loudly,
 and will not show up in any test — it will simply make every collar printed
 before that moment fail signature verification the next time someone scans
 one. Copy the exact value from the previous box's `.env.production` (or from

@@ -1,6 +1,6 @@
-# StrayNet Ops Runbook
+# Hetja Ops Runbook
 
-Phase-0 operating procedures for the StrayNet stack on the VPS (and the
+Phase-0 operating procedures for the Hetja stack on the VPS (and the
 blueprint's production targets). Update as the platform moves to managed
 infra (Cloudflare R2, KMS, HA Postgres).
 
@@ -14,7 +14,7 @@ box needs no Postgres, PostGIS, or pgvector install at all.
 | Service | How it runs | Port |
 |---|---|---|
 | PostgreSQL 16.14 + PostGIS + pgvector | managed Supabase (see `ops/supabase/`) | 5432 (pooler) |
-| StrayNet API (Fastify) | `pnpm --filter @straynet/api dev` (dev) / systemd unit (prod) | 8080 |
+| Hetja API (Fastify) | `pnpm --filter @straynet/api dev` (dev) / systemd unit (prod) | 8080 |
 | Worker (fanout/escalation/retention) | `pnpm --filter @straynet/worker` | — |
 | Scan landing (static) | static server / CDN | 80/443 |
 

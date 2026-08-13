@@ -1,5 +1,5 @@
 /**
- * StrayNet API — Fastify bootstrap with health endpoint, CORS, and
+ * Hetja API — Fastify bootstrap with health endpoint, CORS, and
  * graceful shutdown. Routes are registered per module (auth, devices, dogs,
  * scans, sos, medical, ledger, stories, moderation, trust, heatmap, care,
  * territories, gamification).
@@ -76,12 +76,12 @@ export function buildServer(config: AppConfig): FastifyInstance {
 
   app.get("/healthz", async () => ({
     ok: true,
-    service: "straynet-api",
+    service: "hetja-api",
     time: new Date().toISOString(),
   }));
 
   app.get("/", async () => ({
-    service: "StrayNet API",
+    service: "Hetja API",
     docs: "/docs",
   }));
 
@@ -120,6 +120,6 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
   app.listen({ host: config.HOST, port: config.PORT }).then(() => {
-    app.log.info(`StrayNet API listening on ${config.HOST}:${config.PORT}`);
+    app.log.info(`Hetja API listening on ${config.HOST}:${config.PORT}`);
   });
 }

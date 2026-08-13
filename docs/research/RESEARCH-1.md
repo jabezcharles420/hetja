@@ -1,4 +1,4 @@
-# StrayNet — Research Note 1
+# Hetja — Research Note 1
 
 **Scope:** philosophy, real-world fit, data ethics/custody, volunteer retention.
 **Method:** repo walk-through (`README.md`, `packages/db/migrations/*.sql`, `docs/queries/*.sql`,
@@ -10,7 +10,7 @@ citizen-science retention literature). Research only — **no code was modified.
 
 ## 0. Executive summary
 
-StrayNet is best understood not as *an app about dogs* but as a **coordination and trust layer
+Hetja is best understood not as *an app about dogs* but as a **coordination and trust layer
 over an existing, mostly-informal ecosystem** — feeders who already know "their" dogs and
 territories, NGOs that already run ABC drives/OPDs/adoption (e.g. WSD's ~15,000 on-site
 treatments/yr), and BMC's ABC machinery (90,757 dogs surveyed in 2024; ~57 sterilised/day;
@@ -62,7 +62,7 @@ Ranked, action-ready recommendations are in §5.
   `trust_score`, `trust_events`, `verification_tier`, `streak_days`, `badges` are the
   governance mechanism for a system with no paid staff at the edge.
 
-So StrayNet = **identity + provenance + routing + trust for an ecosystem that already exists.**
+So Hetja = **identity + provenance + routing + trust for an ecosystem that already exists.**
 Design every feature against that test: *does this multiply the capacity of an existing feeder /
 NGO / vet / BMC actor?*
 
@@ -73,8 +73,8 @@ Every item below is a *missing loop* that the current schema sketches but no wor
 **M1 — BMC/NGO ABC-report integration and drive scheduling.**
 `dogs.abc_status` and `medical_records.abc_date` exist, but there is no inbound feed from BMC's
 ABC programme (434,529 dogs sterilised by Aug 2025; ₹23 cr for 33,671 over the next 3 years) and
-no ward-level "coverage gap" view. A one-way, signed import (BMC/NGO → StrayNet) plus a
-per-ward sterilisation/vaccination coverage report turns StrayNet into the shared dashboard the
+no ward-level "coverage gap" view. A one-way, signed import (BMC/NGO → Hetja) plus a
+per-ward sterilisation/vaccination coverage report turns Hetja into the shared dashboard the
 ABC system lacks. Source: [FPJ — ₹23 cr sterilisation plan](https://www.freepressjournal.in/mumbai/mumbai-bmc-plans-sterilisation-of-45000-stray-dogs-annually-allocates-23-crore-for-control-drive), [HT — 90,757 surveyed](https://www.hindustantimes.com/cities/mumbai-news/90757-stray-dogs-in-mumbai-birth-control-measures-to-be-expedited-maha-101765308162813.html).
 
 **M2 — Feeder onboarding + mentorship.**
@@ -87,7 +87,7 @@ territory. Source: [WSD — volunteer manager / on-site team model](https://www.
 **M3 — Adoption workflow.**
 `dog_status` includes `adopted` but there is no `adoptable` flag, no interest/screening checklist,
 no home-check, no post-adoption follow-up. Mumbai NGOs already run screened adoption (WSD:
-interviews, temperament tests, vaccinations before rehoming) — StrayNet should digitise that
+interviews, temperament tests, vaccinations before rehoming) — Hetja should digitise that
 funnel, not replace it. Source: [WSD adoption programme](https://www.wsdindia.org/).
 
 **M4 — Lost-dog alerts.**
@@ -128,7 +128,7 @@ that makes moderation and ABC coordination work at 100 K dogs. Source: [CSTP —
 | System | What to copy | Source |
 |---|---|---|
 | **iNaturalist** | Offline-first observation capture; community identification; "geoprivacy" tiers; badges used as a *secondary* layer, not the core | [iNaturalist](https://www.inaturalist.org/pages/about), [Seek gamification](https://en.wikipedia.org/wiki/INaturalist) |
-| **Shimla SMC QR+GPS collars** | Proof that an Indian municipality will adopt QR collars for ABC + rabies tagging — StrayNet is the natural software for these drives | [Times Now](https://www.timesnownews.com/india/first-of-its-kind-gps-enabled-collars-vaccination-drive-for-stray-dogs-in-himachal-pradeshs-shimla-article-152512787) |
+| **Shimla SMC QR+GPS collars** | Proof that an Indian municipality will adopt QR collars for ABC + rabies tagging — Hetja is the natural software for these drives | [Times Now](https://www.timesnownews.com/india/first-of-its-kind-gps-enabled-collars-vaccination-drive-for-stray-dogs-in-himachal-pradeshs-shimla-article-152512787) |
 | **Protect Paws / Pawsitivity (India)** | QR-coded reflective collars; the caregiver gets pinged on WhatsApp when someone scans — the proven Indian pattern | [Protect Paws](https://www.protectpaws.in/), [Pawsitivity](https://www.linkedin.com/posts/pawsitivity-save-our-street-animals_pawsitivity-animalwelfare-streetdogs-activity-7478149566031200256-uRAx) |
 | **Panchayat.me / civic WhatsApp bots** | One-tap photo+geo reporting *inside WhatsApp*; duplicate merging into threads | [Panchayat](https://panchayat.me/), [WhatsApp civic waste reporting (OSS)](https://github.com/vijitb/whatsapp-civic-waste-reporting) |
 | **Waze / WSD volunteer model** | Points accrue but the draw is the *collective* (traffic/territory coverage); a named volunteer manager exists per org | [WSD](https://www.wsdindia.org/) |
@@ -211,7 +211,7 @@ species. Sources: [Brookings — location data of vulnerable populations](https:
 Store exact points privately; expose only coarsened geometry by role. Model the three tiers
 directly on iNaturalist's proven design: *obscured* (true point moved to a random point inside a
 ~22 × 22 km box; you, the data owner, still see the true point), *private* (no location),
-and *trust-granted* (a project/role you trust can request the true point). StrayNet already
+and *trust-granted* (a project/role you trust can request the true point). Hetja already
 coarsens the public profile to ward (`coarsenToWard` in `contracts/geo.ts`) and the heatmap to
 200 m cells — extend to a per-role resolution matrix:
 
@@ -257,7 +257,7 @@ stats-by-feeder, no raw scan feed. Reconsider before adding anything a campaign 
 **E6 — Breach runbook (add to `ops/RUNBOOK.md`).**
 1. Severity triage by exposure class (points leaked? feeder identities? ledger integrity?).
 2. Within the DPDP-notified window, notify the Data Protection Board; template public statement.
-3. Rotate `STRAYNET_DEVICE_SECRET` and any HMAC peppers → force re-auth of all feeders.
+3. Rotate `HETJA_DEVICE_SECRET` and any HMAC peppers → force re-auth of all feeders.
 4. Re-coarsen: flip any exposed exact geometry to tier-0 (ward) until reviewed.
 5. Audit trail: all reads of full geometry are logged (E3), so scope the blast radius.
 6. Monthly PITR drill already exists (RUNBOOK) — add a "simulated leak" drill.
@@ -298,7 +298,7 @@ commitment that makes feeders trust the system enough to enable SOS. Source: [Et
 - **Duolingo's streak is the archetype but must be forgiveness-aware** for an outdoor, weather- and
   network-constrained activity. Source: [StriveCloud — Duolingo gamification](https://www.strivecloud.io/blog/gamification-examples-boost-user-retention-duolingo).
 
-### 4.2 Concrete retention mechanics for StrayNet
+### 4.2 Concrete retention mechanics for Hetja
 
 1. **Impact moments, not points.** Turn `dog_stories` + photo history into a per-feeder feed:
    "You logged the feed that caught Rosie's maggot wound in time" → healing photo → badge. This is
@@ -379,7 +379,7 @@ Each item: one-line rationale + primary source.
    ring and is cheap. Source: [Citizen Matters — displaced dogs in Mumbai](https://citizenmatters.in/how-to-deal-with-rabid-stray-dogs-in-your-area/).
 
 5. **R5 ABC/NGO handshake**
-   StrayNet becomes the shared dashboard the ABC system lacks. Rationale: 434,529 dogs already
+   Hetja becomes the shared dashboard the ABC system lacks. Rationale: 434,529 dogs already
    sterilised, ₹23 cr in flight — one signed import + per-ward coverage view makes the register
    the official complement to BMC's programme instead of a parallel silo. Source: [FPJ — ₹23 cr plan](https://www.freepressjournal.in/mumbai/mumbai-bmc-plans-sterilisation-of-45000-stray-dogs-annually-allocates-23-crore-for-control-drive).
 

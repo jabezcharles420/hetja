@@ -1,5 +1,5 @@
 /**
- * StrayNet HEATMAP endpoint (public).
+ * Hetja HEATMAP endpoint (public).
  *
  * GET /api/v1/heatmap?ward=<id>&days=7 — public hunger heatmap per the
  * canonical query (docs/queries/heatmap.sql). 200m ST_SnapToGrid cells;

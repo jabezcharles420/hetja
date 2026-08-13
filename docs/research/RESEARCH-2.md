@@ -1,4 +1,4 @@
-# StrayNet — Research Note 2
+# Hetja — Research Note 2
 
 **Scope:** operational hardening — Fastify production hardening, Postgres at 5M+ rows/yr,
 push reliability in India, CPU-only photo validation, and Phase-2 re-identification.

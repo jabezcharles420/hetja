@@ -232,11 +232,11 @@ shared token system:
 from the old forest green to white (`--h-base`), matching the rest of the
 system — a green status bar over a white app would be the one remaining trace
 of the old identity. `applicationName`/`appleWebApp.title` read "Hetja", not
-"StrayNet Feeder" — that was the working name and it had leaked into
+the old working-title label — that was the working name and it had leaked into
 user-visible strings (the home-screen label, the install banner, an error
-message). It's been swept from every string a user can see in `apps/web`;
-`@straynet/*` package names and `straynet-*` systemd units are a separate,
-repo-wide concern and were left alone.
+message). It was swept from every string a user can see in `apps/web` first;
+the `@hetja/*` package names and `hetja-*` systemd units were a separate,
+repo-wide concern, addressed later in the full rename.
 
 ## Accessibility — non-negotiable
 

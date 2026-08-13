@@ -1,5 +1,5 @@
 /**
- * StrayNet TRUST ENGINE (ships BEFORE gamification).
+ * Hetja TRUST ENGINE (ships BEFORE gamification).
  *
  * Feeder trust is a DERIVED value, never hand-maintained:
  *

@@ -67,7 +67,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
           .status(401)
           .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
       }
-    } else if (typeof deviceToken !== "string" || !verifyDeviceToken(deviceToken, app.config.STRAYNET_DEVICE_SECRET)) {
+    } else if (typeof deviceToken !== "string" || !verifyDeviceToken(deviceToken, app.config.HETJA_DEVICE_SECRET)) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });

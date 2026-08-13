@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ops/bootstrap.sh — bring the StrayNet / Hetja stack up on a fresh box,
+# ops/bootstrap.sh — bring the Hetja stack up on a fresh box,
 # unattended. Implements AGENTS.md sections (d) Bootstrap and (e) Verify as
 # one idempotent script: safe to re-run, and it exits non-zero the moment
 # anything is wrong so a coding agent (or CI) can tell success from failure
@@ -8,7 +8,7 @@
 # Usage: run as root from a fresh clone, after apps/api/.env.production and
 # apps/web/.env.production have been created from their .env.example
 # templates and filled in (see AGENTS.md section (c) — in particular,
-# STRAYNET_QR_SECRET must be the value carried over from the previous
+# HETJA_QR_SECRET must be the value carried over from the previous
 # deployment, never freshly generated).
 set -euo pipefail
 
@@ -42,7 +42,7 @@ NODE_BIN="$(command -v node)"
 
 for f in apps/api/.env.production apps/web/.env.production; do
   if [ ! -f "$f" ]; then
-    fail "$f is missing. Copy ${f%.production}.example to $f and fill it in — see AGENTS.md section (c). STRAYNET_QR_SECRET in particular must be carried over from the previous deployment, never freshly generated, or every printed collar QR silently stops verifying."
+    fail "$f is missing. Copy ${f%.production}.example to $f and fill it in — see AGENTS.md section (c). HETJA_QR_SECRET in particular must be carried over from the previous deployment, never freshly generated, or every printed collar QR silently stops verifying."
   fi
 done
 

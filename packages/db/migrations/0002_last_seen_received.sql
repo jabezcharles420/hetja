@@ -1,4 +1,4 @@
--- StrayNet · migration 0002
+-- Hetja · migration 0002
 -- LWW tie-break on dogs.last_seen_geo: remember the received_at of the scan
 -- that last won, so a captured_at tie is resolved deterministically
 -- (INVARIANT 4). Idempotent, so re-runs are safe.

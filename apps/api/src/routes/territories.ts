@@ -1,5 +1,5 @@
 /**
- * StrayNet TERRITORIES endpoints.
+ * Hetja TERRITORIES endpoints.
  *
  * GET  /api/v1/territories/:feederId — the feeder's sponsored geofences
  *   (is_primary first). The target feeder themselves, or any admin, may read.

@@ -1,4 +1,4 @@
-# StrayNet AI worker (apps/ai) — Python 3.11
+# Hetja AI worker (apps/ai) — Python 3.11
 # Phase 0: validation harness with a pluggable detector interface. The real
 # YOLO fine-tune (dog presence + food presence) plugs in here; the API never
 # blocks on inference (the worker consumes validate_scan jobs and writes
@@ -21,7 +21,7 @@ import psycopg2
 import psycopg2.extras
 
 PG_DSN = os.environ.get(
-    "STRAYNET_PG_DSN",
+    "HETJA_PG_DSN",
     "host=127.0.0.1 dbname=straynet user=app_user password=straynet_dev_2026",
 )
 

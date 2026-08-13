@@ -1,4 +1,4 @@
--- StrayNet · migration 0005_dog_stories_unique
+-- Hetja · migration 0005_dog_stories_unique
 -- Concurrency-safe micro-story versioning: a dog may have exactly one story
 -- per version (count+1 is computed under a per-dog row lock, and this unique
 -- index is the backstop against racing writers). The partial index keeps the

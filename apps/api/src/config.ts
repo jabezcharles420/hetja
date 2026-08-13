@@ -1,5 +1,5 @@
 /**
- * StrayNet API configuration — every secret/env is validated at boot via zod.
+ * Hetja API configuration — every secret/env is validated at boot via zod.
  * KMS-held pepper for phone HMAC lives OUTSIDE env files in production
  * (INVARIANT 3); dev fallbacks are clearly marked and never used in prod.
  */
@@ -18,14 +18,14 @@ const EnvSchema = z.object({
   PGPASSWORD: z.string().default("straynet_dev_2026"),
   // INVARIANT 3: phone_hmac pepper. Production MUST inject via KMS/secret
   // manager — never a committed env file.
-  STRAYNET_HMAC_PEPPER: z.string().min(16).default("dev-pepper-not-for-prod-0001"),
+  HETJA_HMAC_PEPPER: z.string().min(16).default("dev-pepper-not-for-prod-0001"),
   // HMAC key that signs QR slugs (matches the collar's laser-etched signature).
-  STRAYNET_QR_SECRET: z.string().min(16).default("dev-qr-secret-change-me"),
+  HETJA_QR_SECRET: z.string().min(16).default("dev-qr-secret-change-me"),
   JWT_SECRET: z.string().min(16).default("dev-jwt-secret-change-me"),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("30d"),
   // HMAC key that attests anonymous device tokens (INVARIANT 6 rate-limit subject).
-  STRAYNET_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
+  HETJA_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
   // Anonymous device-token proof-of-work difficulty (desktop fallback).
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(14),
   // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
@@ -40,7 +40,7 @@ const EnvSchema = z.object({
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("data/photos"),
   S3_ENDPOINT: z.string().default(""),
-  S3_BUCKET: z.string().default("straynet"),
+  S3_BUCKET: z.string().default("hetja"),
   S3_ACCESS_KEY: z.string().default(""),
   S3_SECRET_KEY: z.string().default(""),
 });
@@ -84,14 +84,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
     requireInProd(
       env,
-      "STRAYNET_HMAC_PEPPER",
+      "HETJA_HMAC_PEPPER",
       "INVARIANT 3 requires this pepper to come from KMS/secret manager in " +
         "production; the dev value is committed and public, which defeats the " +
         "one-way phone_hmac guarantee it is supposed to provide.",
     );
     requireInProd(
       env,
-      "STRAYNET_QR_SECRET",
+      "HETJA_QR_SECRET",
       "this HMAC key must match the exact value already burned into printed " +
         "collar QR codes. A mismatched value makes every printed collar QR " +
         "fail signature verification -- a physical, silent failure discovered " +
@@ -100,7 +100,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
     requireInProd(
       env,
-      "STRAYNET_DEVICE_SECRET",
+      "HETJA_DEVICE_SECRET",
       "this HMAC key attests anonymous device tokens that gate the INVARIANT 6/7 " +
         "rate limits; the dev value is committed and public, so anyone can forge " +
         "an attested device token and bypass those caps.",

@@ -1,5 +1,5 @@
 /**
- * StrayNet DB pool — single pg Pool shared by the API and workers.
+ * Hetja DB pool — single pg Pool shared by the API and workers.
  * Connection settings come from the environment (see .env.example).
  */
 import { readFileSync } from "node:fs";

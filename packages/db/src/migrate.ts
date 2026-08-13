@@ -1,5 +1,5 @@
 /**
- * StrayNet migration runner — applies packages/db/migrations/*.sql in filename
+ * Hetja migration runner — applies packages/db/migrations/*.sql in filename
  * order, records each in schema_migrations, and stops on any error
  * (ON_ERROR_STOP semantics). Safe to re-run: applied migrations are skipped.
  */

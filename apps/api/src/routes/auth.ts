@@ -21,7 +21,7 @@ async function upsertFeeder(
 ): Promise<FeederRow> {
   const res = await query<FeederRow>(
     `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor)
-     VALUES ($1, 'StrayNet Feeder', 'feeder', 30, $2, $3)
+     VALUES ($1, 'Hetja Feeder', 'feeder', 30, $2, $3)
      ON CONFLICT (phone_hmac) DO UPDATE SET phone_hmac = EXCLUDED.phone_hmac
      RETURNING id, display_name, role, trust_score, home_ward`,
     [phoneHmacVal, String(consentVersion), isMinor],
@@ -38,7 +38,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "phone must be a +91 e164 mobile number", code: "INVALID_PHONE" } });
     }
     const { phone } = parsed.data;
-    const { code, expiresAt } = issueOtp(phone, app.config.STRAYNET_HMAC_PEPPER);
+    const { code, expiresAt } = issueOtp(phone, app.config.HETJA_HMAC_PEPPER);
     return {
       ok: true,
       data: {
@@ -57,20 +57,20 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const { phone, code, deviceToken, consentVersion, isMinor } = parsed.data;
 
-    if (!verifyDeviceToken(deviceToken, app.config.STRAYNET_DEVICE_SECRET)) {
+    if (!verifyDeviceToken(deviceToken, app.config.HETJA_DEVICE_SECRET)) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "BAD_DEVICE_TOKEN" } });
     }
 
-    const result = verifyOtp(phone, code, app.config.STRAYNET_HMAC_PEPPER);
+    const result = verifyOtp(phone, code, app.config.HETJA_HMAC_PEPPER);
     if (result !== "ok") {
       const status = result === "too_many_attempts" ? 429 : 400;
       return reply.status(status).send({ ok: false, error: { message: result, code: result.toUpperCase() } });
     }
 
     const feeder = await upsertFeeder(
-      phoneHmac(phone, app.config.STRAYNET_HMAC_PEPPER),
+      phoneHmac(phone, app.config.HETJA_HMAC_PEPPER),
       consentVersion,
       isMinor,
     );

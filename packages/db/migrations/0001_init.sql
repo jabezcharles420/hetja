@@ -1,4 +1,4 @@
--- StrayNet · migration 0001_init
+-- Hetja · migration 0001_init
 -- Schema v1 per Architecture Blueprint v1.1. Every invariant from the build
 -- guide is encoded here (random slugs, phone_hmac, client_uuid UNIQUE,
 -- captured_at LWW, ledger chaining ON from the first migration, append-only

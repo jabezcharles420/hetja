@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import ScanEntry from "@/components/ScanEntry";
+import QrScanner from "@/components/QrScanner";
 import styles from "./scan.module.css";
 
 export const metadata: Metadata = {
   title: "Scan a collar — Hetja",
   description:
-    "Point your camera at a collar or type the 9-character code to meet the dog behind it.",
+    "Scan a collar's QR — in the app where your browser supports it, or with your phone's own camera app — or type the 9-character code, to meet the dog behind it.",
 };
 
 function CameraArt(): React.JSX.Element {
@@ -39,19 +39,21 @@ export default function ScanPage(): React.JSX.Element {
         </div>
         <h1 className={styles.title}>Meet the dog behind the collar.</h1>
         <p className={styles.sub}>
-          Point your camera at the QR on a dog&rsquo;s collar — or type the
-          9-character code below. It works even with no signal.
+          Scan the QR on a dog&rsquo;s collar to open their profile — or type
+          the 9-character code below. It works even with no signal.
         </p>
       </section>
 
-      <section className={styles.entry} aria-label="Enter a collar code">
+      <section className={styles.entry} aria-label="Scan or enter a collar code">
         <div className={styles.entryInner}>
-          <ScanEntry
-            id="scan-collar-code"
-            label="9-character collar code"
-            hint="No QR reader? Type the code printed on the collar."
-            placeholder="e.g. abc234567"
-            buttonLabel="View profile"
+          <QrScanner
+            entry={{
+              id: "scan-collar-code",
+              label: "9-character collar code",
+              hint: "No QR reader? Type the code printed on the collar.",
+              placeholder: "e.g. abc234567",
+              buttonLabel: "View profile",
+            }}
           />
         </div>
       </section>

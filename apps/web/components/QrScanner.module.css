@@ -1,0 +1,103 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--h-s5);
+  width: 100%;
+}
+
+.camera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--h-s3);
+}
+
+/* Deliberately ink-on-white, not the accent fill: the accent is reserved
+ * for the emergency "this dog needs help" action, and this button is an
+ * ordinary convenience, not a life-safety control. */
+.useCamera {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--h-target);
+  min-width: 200px;
+  padding: 0 var(--h-s5);
+  border: var(--h-hairline) solid var(--h-ink);
+  border-radius: var(--h-radius);
+  background: var(--h-base);
+  color: var(--h-ink);
+  font-family: var(--h-font);
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
+  cursor: pointer;
+}
+
+.useCamera:hover {
+  background: var(--h-ink);
+  color: var(--h-base);
+}
+
+.notice {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  line-height: 1.5;
+  text-align: center;
+  max-width: 40ch;
+  margin: 0;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--h-s3);
+  width: 100%;
+}
+
+.video {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background: var(--h-ink);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+}
+
+.status {
+  color: var(--h-ink);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
+  margin: 0;
+  text-align: center;
+}
+
+.mismatch {
+  color: var(--h-ink);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-semibold);
+  margin: 0;
+  text-align: center;
+}
+
+.cancel {
+  min-height: var(--h-target-min);
+  padding: 0 var(--h-s5);
+  border: var(--h-hairline) solid var(--h-rule);
+  border-radius: var(--h-radius);
+  background: var(--h-base);
+  color: var(--h-ink-muted);
+  font-family: var(--h-font);
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
+  cursor: pointer;
+}
+
+.cancel:hover {
+  color: var(--h-ink);
+}
+
+.entry {
+  border-top: var(--h-hairline) solid var(--h-rule);
+  padding-top: var(--h-s5);
+}

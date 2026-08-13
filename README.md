@@ -82,14 +82,17 @@ Rationale in [docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).
 
 ## Specification
 
-`StrayNet_BUILD_GUIDE.md` and Architecture Blueprint v1.1 are the source of
-truth for behaviour. Fourteen numbered invariants encode decisions that must not
-regress — random slugs, ward-level coordinates for anonymous reads, HMAC'd phone
-numbers, offline conflict resolution on `captured_at`, ledger chaining from the
-first migration. Several are enforced by CI gates rather than convention.
+Fifteen numbered invariants (fourteen from the original build guide, one
+added during implementation) encode decisions that must not regress —
+random slugs, ward-level coordinates for anonymous reads, HMAC'd phone
+numbers, offline conflict resolution on `captured_at`, ledger chaining from
+the first migration. Several are enforced by CI gates rather than
+convention. See [docs/INVARIANTS.md](docs/INVARIANTS.md) for the full list
+and the reasoning behind each one.
 
-The name "StrayNet" appears in package names and internal identifiers as a
-historical artefact of the working title. The product is Hetja.
+The product's original working title has been fully renamed out of the
+codebase -- package names, env vars, storage keys, systemd units, the repo
+path and the database all read Hetja now.
 
 ## Licence
 

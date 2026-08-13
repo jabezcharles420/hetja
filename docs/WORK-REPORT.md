@@ -47,10 +47,6 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 
 ## 2. The Hetja build
 
-### 2.1 Specs consumed
-- `StrayNet_Architecture_Blueprint_v1.1.pdf` (33 pp) + `Executive_Summary_v1.1.pdf`
-  + the step-by-step BUILD_GUIDE + roadmap/diagrams images.
-
 ### 2.2 Stack (per blueprint, adapted to the VPS)
 | Layer | Choice | Why |
 |---|---|---|

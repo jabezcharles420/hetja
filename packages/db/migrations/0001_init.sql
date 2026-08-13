@@ -1,6 +1,6 @@
 -- Hetja · migration 0001_init
--- Schema v1 per Architecture Blueprint v1.1. Every invariant from the build
--- guide is encoded here (random slugs, phone_hmac, client_uuid UNIQUE,
+-- Schema v1. Every invariant from docs/INVARIANTS.md is encoded here
+-- (random slugs, phone_hmac, client_uuid UNIQUE,
 -- captured_at LWW, ledger chaining ON from the first migration, append-only
 -- medical_records, jobs autovacuum tuning).
 

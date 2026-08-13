@@ -23,3 +23,8 @@ ops/supabase/*_data.sql
 
 # incremental tsc cache — regenerated on every build
 *.tsbuildinfo
+
+# Python virtualenv for apps/ai -- committed by mistake once, regenerate with
+# `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+apps/ai/.venv/
+apps/ai/__pycache__/

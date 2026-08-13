@@ -19,13 +19,29 @@
 # the checkout. An API-only commit could go green and never reach production.
 #
 #   1. sync $CHECKOUT_DIR to $HETJA_APP_SHA and rebuild api + worker
-#   2. flip the `current` symlink at $CURRENT_LINK to the new release
-#   3. restart the four units
-#   4. run the health-check ladder
-#   5. on any failure, repoint `current` back at the previous release AND reset
-#      the checkout to the previous SHA, rebuild, restart, and re-check — both
+#   2. apply pending migrations to the PRODUCTION database
+#   3. flip the `current` symlink at $CURRENT_LINK to the new release
+#   4. restart the four units
+#   5. run the health-check ladder
+#   6. on any failure, repoint `current` back at the previous release AND reset
+#      the checkout to the previous SHA, rebuild, restart, and re-check -- both
 #      halves roll back or neither does
-#   6. prune old release directories, keeping the last $KEEP
+#   7. prune old release directories, keeping the last $KEEP
+#
+# Step 2 exists because the pipeline's `migrate` job applies migrations to
+# SUPABASE only, while the live API reads the local PostgreSQL on this box
+# (PGHOST=127.0.0.1 in apps/api/.env.production). Without this step a new
+# migration lands in Supabase -- which currently serves nothing -- and never
+# reaches the database the application actually queries, so the API starts
+# failing against a schema missing the column its new code expects.
+#
+# NOTE ON ROLLBACK: code rolls back, schema does not. A migration that has been
+# applied stays applied even when the health ladder fails and the release is
+# reverted. This is survivable precisely because the destructive-change gate in
+# .github/workflows/deploy.yml blocks DROP/TRUNCATE/DELETE without an explicit
+# human approval marker, so what flows through here unattended is additive --
+# and additive changes are backward compatible with the code being rolled back
+# to. Anything destructive is a deliberate, reviewed act and needs its own plan.
 #
 # Idempotent: safe to re-run for the same release name (flips the symlink
 # to the same target, restarts, re-checks) or a different one.
@@ -153,6 +169,52 @@ sync_and_build_services() { # $1 = target sha
   log "api + worker built from ${sha}"
 }
 
+# Applies pending migrations to the production database on this box.
+#
+# Runs as the `postgres` DB role, not as app_user, because in PostgreSQL the
+# CREATING role owns what it creates. When app_user owns a table it holds full
+# rights on it implicitly, regardless of GRANTs -- so it could DROP
+# care_providers, and 0001_init.sql's `REVOKE UPDATE, DELETE ON medical_records`
+# would strip the owner's own rights and break the referential-integrity trigger
+# behind `DELETE FROM dogs`, which runs as the referencing table's owner. That is
+# the bug that produced 48 CI failures, and migrations 0008-0011 had already
+# drifted two tables into app_user ownership before this step existed.
+#
+# Connects over the UNIX SOCKET as root, mapped to the postgres role by the
+# `rootasdba` entry in pg_ident.conf. Two reasons over the alternatives:
+#   * peer auth as the postgres OS user cannot work -- /root is mode 700, so
+#     that user cannot read the migration files at all;
+#   * a password on the postgres role would be a new superuser credential
+#     living in a file, and root can already `su - postgres`, so the map grants
+#     no authority that did not already exist.
+apply_production_migrations() {
+  local prod_db env_file="$CHECKOUT_DIR/apps/api/.env.production"
+
+  # One source of truth for which database is production.
+  #
+  # The trailing `|| true` is load-bearing. This script runs under `set -e` with
+  # `pipefail`, so when grep finds no PGDATABASE line the pipeline returns 1, the
+  # command substitution inherits it, and the assignment's non-zero status kills
+  # the script SILENTLY -- no message, right after the build step, looking for
+  # all the world like a hang. Swallowing the status lets the explicit check
+  # below report the actual problem.
+  prod_db="$(grep -E '^PGDATABASE=' "$env_file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d "\"' \t\r" || true)"
+  [ -n "$prod_db" ] || fail "could not read PGDATABASE from $env_file -- refusing to guess which database is production"
+
+  # Fail early and legibly if the ident map is missing (e.g. a fresh box), rather
+  # than deep inside the migration runner.
+  if ! PGHOST=/var/run/postgresql PGUSER=postgres PGDATABASE="$prod_db" \
+       psql -tAc 'select 1' >/dev/null 2>&1; then
+    fail "cannot connect to '$prod_db' as the postgres role over the unix socket. Add to pg_ident.conf:  rootasdba  root  postgres   and change pg_hba.conf's 'local all postgres peer' to 'local all postgres peer map=rootasdba', then reload. See ops/RUNBOOK.md."
+  fi
+
+  log "applying migrations to production database '$prod_db' (as postgres)"
+  ( cd "$CHECKOUT_DIR" && env -u PGPORT -u PGPASSWORD \
+      PGHOST=/var/run/postgresql PGUSER=postgres PGDATABASE="$prod_db" PGSSLMODE=disable \
+      pnpm --filter @hetja/db migrate ) \
+    || fail "production migration failed against '$prod_db' -- NOT restarting into code that expects a schema the database does not have"
+}
+
 restart_units() {
   log "restarting: ${UNITS[*]}"
   systemctl restart "${UNITS[@]}"
@@ -190,7 +252,12 @@ run_health_checks() {
   check_html() { # desc, url -- wants 200 AND a text/html content-type
     local desc="$1" url="$2" got ct
     got="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" 2>/dev/null || echo 000)"
-    ct="$(curl -s -o /dev/null -D - --max-time 5 "$url" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2; exit}')"
+    # `|| true` for the same reason as prod_db above, and it matters more here:
+    # under `set -e` + `pipefail`, a failed curl makes this assignment non-zero
+    # and kills the script outright -- so a genuinely dead service would abort
+    # the deploy silently instead of being reported as FAIL and triggering the
+    # rollback this ladder exists to trigger.
+    ct="$(curl -s -o /dev/null -D - --max-time 5 "$url" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2; exit}' || true)"
     if [ "$got" = "200" ] && printf '%s' "$ct" | grep -qi 'text/html'; then
       printf 'OK    %-24s %-50s -> %s (%s)\n' "$desc" "$url" "$got" "$ct"
     else
@@ -241,6 +308,16 @@ main() {
     log "WARN: HETJA_APP_SHA unset -- api and worker will be RESTARTED but NOT"
     log "WARN: rebuilt, so they keep running whatever is already in"
     log "WARN: ${CHECKOUT_DIR}/apps/*/dist. Pass HETJA_APP_SHA to deploy them."
+  fi
+
+  # Migrations BEFORE the restart, so new code never meets an old schema. The
+  # reverse order would briefly run code against a database missing its columns.
+  # Skipped when HETJA_APP_SHA is unset, because then the checkout has not been
+  # synced and its migration files are of unknown vintage.
+  if [ -n "$APP_SHA" ]; then
+    apply_production_migrations
+  else
+    log "WARN: HETJA_APP_SHA unset -- production migrations NOT applied"
   fi
 
   point_current_at "$NEW_RELEASE"

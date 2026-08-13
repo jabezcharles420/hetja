@@ -91,3 +91,51 @@ inside hashed payloads.
   `escalate_sos` kind rows.
 - **CGNAT lockouts**: rate limits are per account/device token, never per IP
   (INVARIANT 6) — if a whole carrier pool is blocked, that's a bug.
+
+## Production migrations (applied automatically by the pipeline)
+
+`ops/deploy-remote.sh` applies pending migrations to the **live** database on the
+box before restarting the services. This closes a gap where the pipeline's
+`migrate` job targeted Supabase only, while the API reads the local PostgreSQL
+(`PGHOST=127.0.0.1` in `apps/api/.env.production`) — so a new migration reached
+Supabase, which currently serves nothing, and never reached the database the
+application actually queries.
+
+**Migrations run as the `postgres` role, never as `app_user`.** In PostgreSQL the
+creating role owns what it creates, and an owner holds full rights on its table
+regardless of GRANTs. When `app_user` owns a table it can `DROP` it, and
+`0001_init.sql`'s `REVOKE UPDATE, DELETE ON medical_records` strips the owner's
+own rights — which breaks the referential-integrity trigger behind
+`DELETE FROM dogs`, because such a trigger runs as the *referencing* table's
+owner. That is the bug behind 48 CI failures, and migrations 0008–0011 had
+already drifted `care_providers` and `schema_migrations` into `app_user`
+ownership before this step existed. Migration 0012 reassigns them.
+
+The connection goes over the **unix socket as root**, mapped to the `postgres`
+role. Peer auth as the `postgres` OS user cannot work — `/root` is mode `700`, so
+that user cannot read the migration files. A password on the `postgres` role
+would be a new superuser credential in a file, and root can already
+`su - postgres`, so the map grants nothing that did not already exist.
+
+Required once per box (`/etc/postgresql/16/main/`):
+
+```
+# pg_ident.conf
+rootasdba  root  postgres
+
+# pg_hba.conf — change the existing rule
+local   all   postgres   peer map=rootasdba
+```
+
+Then `SELECT pg_reload_conf();` — a reload, not a restart: an invalid file leaves
+the previous rules active. Verify with
+`PGHOST=/var/run/postgresql PGUSER=postgres psql -tAc 'select current_user'`
+as root. `deploy-remote.sh` fails with these instructions if it cannot connect.
+
+**Rollback: code rolls back, schema does not.** A migration stays applied even
+when the health ladder fails and the release reverts. That is survivable only
+because the destructive-change gate blocks `DROP`/`TRUNCATE`/`DELETE` without an
+explicit `-- MIGRATION-APPROVED:` marker, so what flows through unattended is
+additive — and additive changes are backward compatible with the code being
+rolled back to. Anything destructive needs its own plan and a backup checked
+first.

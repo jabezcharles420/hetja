@@ -319,11 +319,23 @@ Three gates are worth naming because they say no to real things:
   anonymous callers or adds a bare `phone`/`email` column.
 - **The 40 KB budget** on `apps/scan`.
 
-Rollback is automatic. If the health ladder fails, `current` flips back to the
-previous release *and* the checkout resets to the previous SHA and rebuilds —
-both halves or neither, because rolling back only the front end while leaving a
-broken API running produces a failed re-check for a reason that has nothing to
-do with the rollback.
+Migrations go to **two** databases: the pipeline applies them to Supabase, and
+`deploy-remote.sh` applies them to the live PostgreSQL on the box before
+restarting anything. The second half was missing at first, which was the more
+dangerous of the two deploy gaps — the API reads the local database, so a new
+migration reached the Supabase copy that currently serves nothing and never
+reached the one being queried. Migrations run as `postgres`, never as
+`app_user`, because the creating role owns what it creates and an owner's rights
+cannot be revoked; see [the runbook](../ops/RUNBOOK.md) for the mechanism.
+
+Rollback is automatic for code and **not** for schema. If the health ladder
+fails, `current` flips back to the previous release *and* the checkout resets to
+the previous SHA and rebuilds — both halves or neither, because rolling back
+only the front end while leaving a broken API running produces a failed re-check
+for a reason that has nothing to do with the rollback. An applied migration
+stays applied. That is safe only because the destructive gate keeps unattended
+changes additive, and additive changes are backward compatible with the code
+being rolled back to.
 
 ### Working locally
 

@@ -41,4 +41,14 @@ CREATE TABLE otp_codes (
 -- every prior table the app reads/writes. Without this grant the API's
 -- app_user connection can create the table (as this migration's owner) but
 -- can never query it at runtime.
-GRANT SELECT, INSERT, UPDATE, DELETE ON otp_codes TO app_user;
+-- Guarded on role existence so this migration applies to both targets:
+-- self-hosted Postgres (where app_user is the application's login role) and
+-- managed Supabase (where the app connects as postgres.<project-ref> and no
+-- app_user exists, making a grant to it impossible and meaningless).
+-- GRANT/REVOKE are utility commands, so plpgsql needs EXECUTE.
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON otp_codes TO app_user';
+  END IF;
+END $do$;

@@ -148,7 +148,21 @@ CREATE TABLE medical_records (
   hash_curr          TEXT NOT NULL UNIQUE,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-REVOKE UPDATE, DELETE ON medical_records FROM app_user;   -- append-only, enforced
+-- INVARIANT 9: medical_records is append-only.
+-- Guarded on role existence so this migration applies to both targets:
+-- self-hosted Postgres (where app_user is the application's login role) and
+-- managed Supabase (where the app connects as postgres.<project-ref> and no
+-- app_user exists, making a grant to it impossible and meaningless).
+-- GRANT/REVOKE are utility commands, so plpgsql needs EXECUTE.
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN
+    EXECUTE 'REVOKE UPDATE, DELETE ON medical_records FROM app_user';
+  END IF;
+END $do$;
+-- NOTE: on Supabase this is a no-op, so the invariant is enforced there by the
+-- BEFORE UPDATE OR DELETE trigger in ops/supabase/03_hardening.sql instead --
+-- which binds every role, not just app_user.
 
 CREATE TABLE ledger_anchors (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -28,8 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      # No `version:` here on purpose: pnpm/action-setup@v4 reads
+      # `packageManager` from package.json, and passing both makes it
+      # fail with "Multiple versions of pnpm specified".
       - uses: actions/setup-node@v4
         with:
           node-version: 20

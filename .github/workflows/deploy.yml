@@ -2,13 +2,20 @@
 #
 # Gate -> Migrate -> Deploy. Nothing in Migrate or Deploy runs unless Gate is
 # fully green, and Deploy never runs unless Migrate (including its destructive-
-# change check) passes. The VPS never builds anything: apps/web and
-# apps/scan are built here on the runner and shipped over rsync into a
-# timestamped release directory, with a `current` symlink flipped on the
-# box -- see ops/deploy-remote.sh for the server-side half, and
-# apps/web/next.config.mjs for why `output: 'standalone'` is required (the
-# box is a 2 GB VPS that `next build` previously OOM-killed alongside the
-# already-running services).
+# change check) passes.
+#
+# Builds are split by cost. apps/web and apps/scan are built HERE on the runner
+# and shipped over rsync into a timestamped release directory, with a `current`
+# symlink flipped on the box -- see apps/web/next.config.mjs for why
+# `output: 'standalone'` is required (the box is a 2 GB VPS that `next build`
+# previously OOM-killed alongside the already-running services). @hetja/api and
+# @hetja/worker are plain tsc, run from the git checkout at /root/hetja rather
+# than from a release directory, and are built ON THE BOX from this exact SHA --
+# see ops/deploy-remote.sh for that server-side half.
+#
+# Both halves matter: shipping only web and scan while restarting all four units
+# is a deploy that goes green with a stale API, which is what this pipeline
+# originally did.
 #
 # ---------------------------------------------------------------------------
 # Required GitHub Secrets (Settings -> Secrets and variables -> Actions):
@@ -447,14 +454,22 @@ jobs:
           rsync -az -e "$RSYNC_SSH" \
             apps/scan/scripts/serve.mjs "$REMOTE:${RELEASE_DIR}/scan/scripts/serve.mjs"
 
-          # Always ship the latest deploy-remote.sh alongside the release it
-          # is about to act on, rather than trusting whatever copy happens
-          # to already be on the box (the VPS git checkout is not part of
-          # this pipeline's build/deploy path -- see ops/deploy-remote.sh).
+          # Always ship the latest deploy-remote.sh alongside the release it is
+          # about to act on, rather than trusting whatever copy happens to
+          # already be on the box. This runs BEFORE the script resets that
+          # checkout, so it must come from the runner: a copy read out of the
+          # checkout would be the version from the PREVIOUS deploy.
           rsync -az -e "$RSYNC_SSH" \
             ops/deploy-remote.sh "$REMOTE:/srv/hetja/deploy-remote.sh"
 
-      - name: Flip symlink, restart units, health-check, auto-rollback
+      - name: Build api+worker on the box, flip symlink, restart, health-check
+        # HETJA_APP_SHA is what makes hetja-api and hetja-worker part of this
+        # deploy at all. They run from the git checkout at /root/hetja rather
+        # than from a release directory, so deploy-remote.sh resets that
+        # checkout to this exact commit and rebuilds them (plain tsc -- cheap,
+        # unlike next build, which stays on this runner). Without this variable
+        # the two units get restarted on stale dist/ and the deploy reports
+        # success while an API change never ships.
         env:
           SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
@@ -467,5 +482,28 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "PGHOST='$PGHOST' PGPORT='$PGPORT' PGDATABASE=postgres PGUSER='$PGUSER' PGPASSWORD='$PGPASSWORD' PGSSLMODE=require \
+            "HETJA_APP_SHA='$GITHUB_SHA' \
+             PGHOST='$PGHOST' PGPORT='$PGPORT' PGDATABASE=postgres PGUSER='$PGUSER' PGPASSWORD='$PGPASSWORD' PGSSLMODE=require \
              bash /srv/hetja/deploy-remote.sh '$RELEASE'"
+
+      - name: Verify api and worker are running the deployed commit
+        # The health ladder proves the API answers; it cannot prove the API is
+        # answering FROM THIS COMMIT. Comparing the checkout's HEAD to
+        # $GITHUB_SHA is what would have caught the original gap, so it is now
+        # an assertion rather than something noticed by hand months later.
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ON_BOX="$(ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            'git -C /root/hetja rev-parse HEAD')"
+          echo "checkout HEAD on box:  $ON_BOX"
+          echo "commit being deployed: $GITHUB_SHA"
+          if [ "$ON_BOX" != "$GITHUB_SHA" ]; then
+            echo "::error::api/worker checkout is at $ON_BOX, not the deployed $GITHUB_SHA" >&2
+            exit 1
+          fi
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            'systemctl is-active hetja-api hetja-worker hetja-web hetja-scan'

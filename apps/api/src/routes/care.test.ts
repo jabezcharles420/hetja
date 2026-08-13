@@ -27,6 +27,7 @@ import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { query } from "@hetja/db";
+import { careCache } from "./care.js";
 
 const config = loadConfig();
 
@@ -75,6 +76,10 @@ let app: FastifyInstance;
 const createdIds: string[] = [];
 
 beforeEach(async () => {
+  // The 60s care cache (enhancement stack §M.1) is module-level state; tests
+  // insert and delete providers per-case, so stale cache entries would make
+  // one test see another test's rows.
+  careCache.clear();
   app = buildServer(config);
   await app.ready();
 });

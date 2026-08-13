@@ -41,12 +41,24 @@
  * number beats none, but the user is told which it is."
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { LRUCache } from "lru-cache";
 import { z } from "zod";
 import { query } from "@hetja/db";
 
 const MAX_RESULTS = 8;
 const MAX_KM_CAP = 25;
 const DEFAULT_MAX_KM = 5;
+
+// In-process TTL cache (enhancement stack §M.1). The directory is curated
+// by humans and changes rarely, so a 60s read-through cache keeps every
+// GET /api/v1/care off the GiST distance query. Deliberately applied ONLY in
+// this GET handler — never inside getNearbyCare(), which sos.ts shares to
+// put a callable number in the SOS report response. SOS state must not be
+// served stale, so the SOS path always reads fresh rows.
+export const careCache = new LRUCache<string, NearbyCareProvider[]>({
+  max: 500,
+  ttl: 60_000,
+});
 
 const CareKind = z.enum(["ngo", "govt", "charity_hospital", "private_clinic"]);
 
@@ -201,7 +213,13 @@ export default async function careRoutes(app: FastifyInstance): Promise<void> {
     }
     const { lat, lng, kind, max_km } = parsed.data;
 
-    const providers = await getNearbyCare(lat, lng, max_km, kind);
+    // 60s read-through cache keyed on the full query. Only successful
+    // responses are stored — a 400 path above never reaches this line, so
+    // an error can never be served from cache.
+    const key = `${lat},${lng},${max_km},${kind ?? ""}`;
+    const cached = careCache.get(key);
+    const providers = cached ?? (await getNearbyCare(lat, lng, max_km, kind));
+    if (!cached) careCache.set(key, providers);
 
     return { ok: true, data: { providers } };
   });

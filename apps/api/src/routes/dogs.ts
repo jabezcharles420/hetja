@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { LRUCache } from "lru-cache";
 import { coarsenToWard, type DogStatus } from "@hetja/contracts";
 import { query } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
@@ -51,6 +52,32 @@ function isoDate(value: unknown): string | null {
 const notFound = (reply: FastifyReply) =>
   reply.status(404).send({ ok: false, error: { message: "not found", code: "NOT_FOUND" } });
 
+interface DogPagePayload {
+  slug: string;
+  name: string | null;
+  status: DogStatus;
+  wardId: string;
+  photoKey: string | null;
+  abcStatus: string | null;
+  vaccineStatus: string | null;
+  microStory: string | null;
+  lastSeenAt: string | null;
+  geo: { lat: number; lng: number } | null;
+}
+
+// In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
+// (identity, ABC/vaccine status, micro-story, latest photo) only changes
+// when a feeder updates the dog or a new scan lands — both slow compared to
+// a 5s TTL — so a short read-through cache absorbs the burst of scans that
+// follows every collar deployment without going stale enough to mislead.
+// Only SUCCESSFUL payloads are stored: signature failures and unknown-slug
+// 404s fall through to the database every time, and SOS state is never
+// cached (see sos.ts).
+export const dogCache = new LRUCache<string, DogPagePayload>({
+  max: 2000,
+  ttl: 5_000,
+});
+
 export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
@@ -58,6 +85,12 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
     if (!sig || !verifySlugSig(slug, sig, app.config.HETJA_QR_SECRET)) {
       return notFound(reply);
     }
+
+    // 5s read-through cache keyed on the slug (the payload is identical for
+    // any valid signature on the same slug). A signature failure above — and
+    // every 404 below — skips the cache entirely, so errors are never cached.
+    const cached = dogCache.get(slug);
+    if (cached) return { ok: true, data: cached };
 
     const dogRes = await query<DogRow>(
       `SELECT d.id, d.slug, d.name, d.status, d.ward_id, d.abc_status, d.last_seen_at,
@@ -94,23 +127,23 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
     const photo = photoRes.rows[0];
     const geo = dog.lat != null && dog.lng != null ? coarsenToWard(dog.lat, dog.lng) : undefined;
 
-    return {
-      ok: true,
-      data: {
-        slug: dog.slug,
-        name: dog.name ?? null,
-        status: dog.status as DogStatus,
-        wardId: dog.ward_id,
-        photoKey: photo?.photo_s3_key ?? null,
-        abcStatus: dog.abc_status ?? null,
-        vaccineStatus:
-          vaccine?.vaccine_name || vaccine?.vaccine_date
-            ? [vaccine.vaccine_name, isoDate(vaccine.vaccine_date)].filter(Boolean).join(" · ")
-            : null,
-        microStory: story?.paragraph ?? null,
-        lastSeenAt: dog.last_seen_at ?? null,
-        geo: geo ?? null,
-      },
+    const payload: DogPagePayload = {
+      slug: dog.slug,
+      name: dog.name ?? null,
+      status: dog.status as DogStatus,
+      wardId: dog.ward_id,
+      photoKey: photo?.photo_s3_key ?? null,
+      abcStatus: dog.abc_status ?? null,
+      vaccineStatus:
+        vaccine?.vaccine_name || vaccine?.vaccine_date
+          ? [vaccine.vaccine_name, isoDate(vaccine.vaccine_date)].filter(Boolean).join(" · ")
+          : null,
+      microStory: story?.paragraph ?? null,
+      lastSeenAt: dog.last_seen_at ?? null,
+      geo: geo ?? null,
     };
+    dogCache.set(slug, payload);
+
+    return { ok: true, data: payload };
   });
 }

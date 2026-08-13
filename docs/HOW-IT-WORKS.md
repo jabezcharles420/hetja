@@ -338,20 +338,62 @@ pnpm --filter @hetja/contracts build   # them through dist/, which is gitignored
 pnpm --filter @hetja/db build
 
 pnpm -r typecheck
-pnpm -r test
-./ops/security-gate.sh
+./ops/security-gate.sh                 # 7 checks, no database needed
+./ops/check-queries.sh
+pnpm --filter @hetja/scan size:gate    # the 40 KB budget
 
 git push                               # -> gates -> migrate -> deploy
 ```
 
-Run the gates locally before pushing. They are the same scripts CI runs, so a
-local failure is a CI failure you didn't have to wait for.
+Run the gates before pushing. They are the same scripts CI runs, so a local
+failure is a CI failure you didn't wait ten minutes to discover.
 
-The one thing that still needs the box is the database. Tests want a local
-PostgreSQL with PostGIS, pgvector and pgcrypto; `ops/bootstrap.sh` sets that up
-on a fresh machine, and [AGENTS.md](../AGENTS.md) is the instruction set for
-handing this repository to an agent on a new machine and having it come up
-without help.
+**The test suite needs a database, and that is the one thing that isn't
+one-command on a laptop.** `pnpm -r test` inserts real rows, so
+`apps/api/vitest.setup.ts` refuses to run against any database whose name
+doesn't end in `_test` — `medical_records` is append-only, so rows written
+there by a test can never be deleted again. It needs PostgreSQL with **PostGIS,
+pgvector and pgcrypto**, and a stock Homebrew PostgreSQL has only the last of
+those.
+
+Two ways to get one:
+
+```bash
+# Matches CI exactly (postgis/postgis:16-3.4 + pgvector). Needs a Docker daemon;
+# on macOS with Colima that means `colima start` first.
+docker run -d --name hetja-test -p 55432:5432 \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=hetja_dev_2026 \
+  -e POSTGRES_DB=hetja_test postgis/postgis:16-3.4
+docker exec hetja-test bash -c \
+  'apt-get update -qq && apt-get install -y -qq postgresql-16-pgvector'
+psql "postgresql://postgres:hetja_dev_2026@127.0.0.1:55432/hetja_test" \
+  -c 'CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;'
+
+# Or add the extensions to an existing local PostgreSQL:
+brew install postgis pgvector
+```
+
+Then apply migrations and run the suite:
+
+```bash
+export PGHOST=127.0.0.1 PGPORT=55432 PGDATABASE=hetja_test \
+       PGUSER=postgres PGPASSWORD=hetja_dev_2026
+pnpm --filter @hetja/db migrate
+pnpm -r test
+```
+
+One non-obvious thing if you build the database by hand: **migrations must be
+applied as a superuser, so `postgres` owns the tables**, exactly as in
+production. If `app_user` owns them instead, `0001_init.sql`'s
+`REVOKE UPDATE, DELETE ON medical_records FROM app_user` strips the owner's own
+rights, and the referential-integrity trigger behind `DELETE FROM dogs` then
+fails as that owner — 48 test failures with nothing obviously wrong. This cost a
+day in CI.
+
+`ops/bootstrap.sh` does all of the above on a **Linux** host, and
+[AGENTS.md](../AGENTS.md) is the instruction set for handing this repository to
+an agent on a new machine and having it come up unattended. Neither is written
+for macOS.
 
 ---
 

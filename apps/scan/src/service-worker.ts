@@ -40,7 +40,7 @@ scope.addEventListener("fetch", (ev: FetchEvent) => {
 // INVARIANT: medical/vaccination fields travel through /api/v1/dogs/*, which
 // is covered by API_PREFIX above and therefore always network-first. A
 // cached vaccination status is only ever served when the network request
-// itself fails, and even then it is tagged X-StrayNet-Stale so the UI can
+// itself fails, and even then it is tagged X-Hetja-Stale so the UI can
 // say so — it must never be presented as current.
 async function networkFirst(req: Request): Promise<Response> {
   const cache = await caches.open(CACHE);
@@ -52,7 +52,7 @@ async function networkFirst(req: Request): Promise<Response> {
     const cached = await cache.match(req);
     if (!cached) return Response.error();
     const headers = new Headers(cached.headers);
-    headers.set("X-StrayNet-Stale", "1");
+    headers.set("X-Hetja-Stale", "1");
     return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
   }
 }

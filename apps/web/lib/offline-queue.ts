@@ -15,7 +15,7 @@ import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
 import { api } from "./api";
 
-export const SYNC_TAG = "straynet-feed-flush";
+export const SYNC_TAG = "hetja-feed-flush";
 
 export interface EnqueueInput {
   dogSlug: string;

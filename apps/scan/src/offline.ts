@@ -2,7 +2,7 @@ import { queueScan, listQueued } from "./idb";
 import type { QueuedScan } from "./idb";
 import { flushQueue } from "./flush";
 
-const UUID_KEY = "straynet.clientUuid";
+const UUID_KEY = "hetja.clientUuid";
 const SYNC_TAG = "log-feed";
 const EVICT_WINDOW_MS = 7 * 24 * 3600 * 1000;
 const WARN_BEFORE_MS = 24 * 3600 * 1000;

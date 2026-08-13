@@ -20,7 +20,7 @@ export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:
 /** Versioned base for JSON endpoints -- the API registers everything under /api/v1. */
 export const API_BASE = `${API_ORIGIN}/api/v1`;
 
-export const ACCESS_TOKEN_KEY = "straynet.accessToken";
+export const ACCESS_TOKEN_KEY = "hetja.accessToken";
 
 export class ApiError extends Error {
   readonly status: number;

@@ -7,7 +7,7 @@ import { api, ApiError, setAccessToken } from "@/lib/api";
 import { uuid } from "@/lib/idb";
 import styles from "./login.module.css";
 
-const DEVICE_TOKEN_KEY = "straynet.deviceToken";
+const DEVICE_TOKEN_KEY = "hetja.deviceToken";
 const CONSENT_VERSION = 1;
 
 function getDeviceToken(): string {

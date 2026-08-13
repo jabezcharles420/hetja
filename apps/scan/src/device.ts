@@ -25,7 +25,7 @@
  * crash.
  */
 
-const TOKEN_KEY = "straynet.deviceToken.v1";
+const TOKEN_KEY = "hetja.deviceToken.v1";
 const SOLVE_TIMEOUT_MS = 12_000;
 const SOLVE_BATCH = 48;
 

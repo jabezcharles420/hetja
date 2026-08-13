@@ -8,7 +8,7 @@ export interface QueuedScan {
   queuedAt: string;
 }
 
-const DB_NAME = "straynet-scan";
+const DB_NAME = "hetja-scan";
 const DB_VERSION = 1;
 const STORE = "scan-queue";
 

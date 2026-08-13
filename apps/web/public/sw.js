@@ -6,12 +6,12 @@
  *     the scan flow and key pages open with no connection.
  *  2. Network-first for the API (dog profile, medical, stories): a fresh copy
  *     wins, but a previously cached copy is served offline and flagged with
- *     `X-StrayNet-Stale: 1`.
+ *     `X-Hetja-Stale: 1`.
  *  3. Network-first for navigations, falling back to the cached route, then
  *     the cached root, then the branded /offline.html page.
  *  4. Stale-while-revalidate for the static shell (/_next CSS/JS, images) so
  *     the shell is cached after the first visit.
- *  5. On a Background Sync `straynet-feed-flush` event, wake any open tab so
+ *  5. On a Background Sync `hetja-feed-flush` event, wake any open tab so
  *     it can replay the IndexedDB feed queue; a closed-tab flush falls back to
  *     the flush-on-open path in lib/offline-queue.ts. Sync registration and
  *     the flush logic live in the lib, not here.
@@ -20,7 +20,7 @@
 const CACHE = "hetja-shell-v1";
 const API_PREFIX = "/api/v1";
 const OFFLINE_URL = "/offline.html";
-const SYNC_TAG = "straynet-feed-flush";
+const SYNC_TAG = "hetja-feed-flush";
 
 const SHELL_URLS = ["/", "/scan", "/login", OFFLINE_URL, "/manifest.webmanifest"];
 
@@ -77,7 +77,7 @@ async function networkFirst(req) {
     const cached = await cache.match(req);
     if (!cached) return Response.error();
     const headers = new Headers(cached.headers);
-    headers.set("X-StrayNet-Stale", "1");
+    headers.set("X-Hetja-Stale", "1");
     return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
   }
 }
@@ -122,7 +122,7 @@ async function shellFirst(req) {
 async function wakeClientsToFlush() {
   const clients = await scope.clients.matchAll({ type: "window" });
   await Promise.all(
-    clients.map((client) => client.postMessage({ type: "STRAYNET_FLUSH" })),
+    clients.map((client) => client.postMessage({ type: "HETJA_FLUSH" })),
   );
 }
 

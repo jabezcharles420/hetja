@@ -20,7 +20,7 @@ export function PwaBootstrap(): React.JSX.Element | null {
     window.addEventListener("online", onOnline);
 
     const onMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "STRAYNET_FLUSH") {
+      if (event.data && event.data.type === "HETJA_FLUSH") {
         void flushOnOpen();
       }
     };

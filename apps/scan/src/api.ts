@@ -28,7 +28,7 @@ export interface ProfileResult {
 }
 
 const API_BASE = (() => {
-  const override = (globalThis as { __STRAYNET_API__?: string }).__STRAYNET_API__;
+  const override = (globalThis as { __HETJA_API__?: string }).__HETJA_API__;
   return override ?? "/api/v1";
 })();
 
@@ -36,7 +36,7 @@ export async function fetchDogProfile(slug: string, sig: string): Promise<Profil
   const url = `${API_BASE}/dogs/${encodeURIComponent(slug)}${sig ? `?s=${encodeURIComponent(sig)}` : ""}`;
   const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const stale = res.headers.get("X-StrayNet-Stale") === "1";
+  const stale = res.headers.get("X-Hetja-Stale") === "1";
   const body: unknown = await res.json();
   return { profile: normalizeProfile(extractData(body)), stale };
 }

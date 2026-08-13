@@ -84,18 +84,27 @@ jobs:
         image: postgis/postgis:16-3.4
         env:
           POSTGRES_DB: hetja_test
-          POSTGRES_USER: app_user
+          # Superuser: migrations must create postgres-owned tables, matching
+          # production. With app_user owning them, 0001_init.sql's REVOKE on
+          # medical_records strips the owner's own rights and the FK check
+          # behind `DELETE FROM dogs` fails as that owner (48 test failures).
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: hetja_dev_2026
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U app_user"
+          --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PGHOST: 127.0.0.1
       PGPORT: 5432
       PGDATABASE: hetja_test
+      # Default identity for the gates: app_user, exactly as production runs.
       PGUSER: app_user
       PGPASSWORD: hetja_dev_2026
+      # Used only by the extension, migrate and grant steps below.
+      PG_SUPERUSER_PASSWORD: hetja_dev_2026
+      # Password assigned to app_user when CI creates the role.
+      PGPASSWORD_APP: hetja_dev_2026
     steps:
       - uses: actions/checkout@v4
 
@@ -140,16 +149,46 @@ jobs:
             'apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector'
 
       - name: Enable PostGIS, pgvector and pgcrypto
+        env:
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
         run: |
           set -euo pipefail
           for ext in postgis vector pgcrypto; do
             echo "--> CREATE EXTENSION $ext"
-            psql -h 127.0.0.1 -U app_user -d hetja_test \
+            psql -h 127.0.0.1 -d hetja_test \
               -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS $ext;"
           done
 
       - name: Apply migrations
+        # Run as postgres so tables are owned by postgres, as in production.
+        env:
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
         run: pnpm --filter @hetja/db migrate
+
+      - name: Create app_user and mirror production's privilege model
+        # Production: tables owned by postgres, app_user holds grants. That is
+        # load-bearing -- a NO ACTION foreign key's integrity check runs as the
+        # REFERENCING table's owner, so if app_user owned medical_records the
+        # REVOKE in 0001_init.sql would break `DELETE FROM dogs` for app_user.
+        env:
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c \
+            "DO \$\$ BEGIN
+               IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN
+                 CREATE ROLE app_user LOGIN PASSWORD '${{ env.PGPASSWORD_APP }}';
+               END IF;
+             END \$\$;"
+          psql -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO app_user;"
+          psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;"
+          psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
+          # INVARIANT 9: medical_records stays append-only for the app role.
+          # Re-applied after the blanket GRANT, which would hand DELETE back.
+          psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
 
       - name: Typecheck (all packages)
         run: pnpm -r typecheck

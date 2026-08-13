@@ -36,6 +36,18 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace libraries
+        # @hetja/{ledger,contracts,db} expose `types: dist/index.d.ts` and dist/
+        # is gitignored, so on a clean checkout every consumer fails typecheck
+        # with "cannot find module ... or its corresponding type declarations".
+        # Build them before any gate that resolves those imports. Order matches
+        # ops/deploy.sh.
+        run: |
+          set -euo pipefail
+          pnpm --filter @hetja/ledger build
+          pnpm --filter @hetja/contracts build
+          pnpm --filter @hetja/db build
+
       - name: Install pgvector into the Postgres service container
         # postgis/postgis ships PostGIS + contrib but not pgvector, and no
         # official image carries both. 0001_init.sql needs VECTOR(768) for

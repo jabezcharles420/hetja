@@ -40,7 +40,7 @@ async function insertDog(geo = LOC_A): Promise<void> {
 
 async function insertEligibleFeeder(phoneHmac: string, trustScore: number): Promise<string> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor,
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor,
                           last_known_geo, last_seen_at, sos_opt_in)
      VALUES ($1, 'SOS Responder', 'feeder', $2, 'v1', FALSE,
              ST_SetSRID(ST_MakePoint(72.8214, 18.9767), 4326)::geography, now(), TRUE)
@@ -210,11 +210,13 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     expect(notifs.rows[0].feeder_id).toBe(feederId);
     expect(notifs.rows[0].channel).toBe("push");
 
-    const job = await query<{ kind: string }>(
-      `SELECT kind FROM jobs WHERE payload->>'caseId' = $1`,
+    const jobs = await query<{ kind: string }>(
+      `SELECT kind FROM jobs WHERE payload->>'caseId' = $1 ORDER BY kind`,
       [body.data.caseId],
     );
-    expect(job.rows[0].kind).toBe("escalate_sos");
+    // escalate_sos (every report) + send_sos_push (this fan-out had an
+    // eligible responder, so the worker has a Web Push to send -- plan §3.4).
+    expect(jobs.rows.map((j) => j.kind)).toEqual(["escalate_sos", "send_sos_push"]);
 
     await app.close();
   });
@@ -250,7 +252,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     expect(second.statusCode).toBe(200);
 
     const feederRes = await query<{ id: string }>(
-      `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor)
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
        VALUES ($1, 'Feeder Reporter', 'feeder', 40, 'v1', FALSE) RETURNING id`,
       [randomUUID()],
     );
@@ -283,7 +285,7 @@ describe("GET /api/v1/sos/cases/:id (feeder auth)", () => {
     const caseId = report.json().data.caseId;
 
     const feederRes = await query<{ id: string }>(
-      `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor)
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
        VALUES ($1, 'Case Viewer', 'feeder', 40, 'v1', FALSE) RETURNING id`,
       [randomUUID()],
     );
@@ -312,6 +314,171 @@ describe("GET /api/v1/sos/cases/:id (feeder auth)", () => {
     expect(res.statusCode).toBe(401);
     expect(res.json().ok).toBe(false);
 
+    await app.close();
+  });
+});
+
+describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
+  async function openCase(severity: "minor" | "serious" | "critical" = "minor"): Promise<string> {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity, note: "ack test", deviceToken: token },
+    });
+    await app.close();
+    return res.json().data.caseId;
+  }
+
+  async function makeFeeder(displayName: string): Promise<{ id: string; accessToken: string }> {
+    const res = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
+       VALUES ($1, $2, 'feeder', 40, 'v1', FALSE) RETURNING id`,
+      [randomUUID(), displayName],
+    );
+    const id = res.rows[0].id;
+    createdFeeders.push(id);
+    return { id, accessToken: signAccessToken(id, config.JWT_SECRET, config.JWT_ACCESS_TTL) };
+  }
+
+  it("first ack claims the case: sets acked_by and acked_at, and ack latency is computable from sos_cases alone", async () => {
+    const caseId = await openCase();
+    const feeder = await makeFeeder("Ack Responder");
+    const app = buildServer(config);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${feeder.accessToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.ok).toBe(true);
+    expect(body.data.ackedBy).toBe(feeder.id);
+    expect(body.data.ackedAt).toBeTruthy();
+
+    const row = await query<{ acked_by: string; acked_at: Date; opened_at: Date; state: string }>(
+      `SELECT acked_by, acked_at, opened_at, state FROM sos_cases WHERE id = $1`,
+      [caseId],
+    );
+    expect(row.rows[0].acked_by).toBe(feeder.id);
+    expect(row.rows[0].acked_at).toBeTruthy();
+    expect(row.rows[0].state).toBe("acked");
+    // The programme's headline metric (ack p50 < 5min / p90 < 8min) is a
+    // function of these two columns alone -- prove the subtraction works.
+    const latencyMs = row.rows[0].acked_at.getTime() - row.rows[0].opened_at.getTime();
+    expect(latencyMs).toBeGreaterThanOrEqual(0);
+
+    await app.close();
+  });
+
+  it("a second ack from a different feeder does not steal the case -- the first claimant still owns it", async () => {
+    const caseId = await openCase();
+    const first = await makeFeeder("First Claimant");
+    const second = await makeFeeder("Second Claimant");
+    const app = buildServer(config);
+
+    const firstAck = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${first.accessToken}` },
+    });
+    expect(firstAck.statusCode).toBe(200);
+
+    const secondAck = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${second.accessToken}` },
+    });
+    expect(secondAck.statusCode).toBe(409);
+    expect(secondAck.json().ok).toBe(false);
+    expect(secondAck.json().error.code).toBe("SOS_ALREADY_ACKED");
+
+    const row = await query<{ acked_by: string }>(`SELECT acked_by FROM sos_cases WHERE id = $1`, [caseId]);
+    expect(row.rows[0].acked_by).toBe(first.id);
+
+    await app.close();
+  });
+
+  it("stands down the losing responder's own notification without touching the claimant's", async () => {
+    const first = await insertEligibleFeeder("sos-ack-first", 70);
+    const second = await insertEligibleFeeder("sos-ack-second", 65);
+    const caseId = await openCase("critical");
+    const app = buildServer(config);
+    const firstToken = signAccessToken(first, config.JWT_SECRET, config.JWT_ACCESS_TTL);
+    const secondToken = signAccessToken(second, config.JWT_SECRET, config.JWT_ACCESS_TTL);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${firstToken}` },
+    });
+    const secondAck = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${secondToken}` },
+    });
+    expect(secondAck.statusCode).toBe(409);
+
+    const notifs = await query<{ feeder_id: string; stood_down: boolean }>(
+      `SELECT feeder_id, stood_down FROM sos_notifications WHERE case_id = $1`,
+      [caseId],
+    );
+    const firstNotif = notifs.rows.find((n) => n.feeder_id === first);
+    const secondNotif = notifs.rows.find((n) => n.feeder_id === second);
+    expect(firstNotif?.stood_down).toBe(false);
+    expect(secondNotif?.stood_down).toBe(true);
+
+    await app.close();
+  });
+
+  it("treats a retry from the same claimant as idempotent, not a steal against themselves", async () => {
+    const caseId = await openCase();
+    const feeder = await makeFeeder("Retry Claimant");
+    const app = buildServer(config);
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${feeder.accessToken}` },
+    });
+    expect(first.statusCode).toBe(200);
+
+    const retry = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${feeder.accessToken}` },
+    });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json().data.ackedBy).toBe(feeder.id);
+
+    const notifs = await query<{ stood_down: boolean }>(
+      `SELECT stood_down FROM sos_notifications WHERE case_id = $1 AND feeder_id = $2`,
+      [caseId, feeder.id],
+    );
+    expect(notifs.rows.every((n) => n.stood_down === false)).toBe(true);
+
+    await app.close();
+  });
+
+  it("404s for a case that does not exist", async () => {
+    const feeder = await makeFeeder("Nobody Home");
+    const app = buildServer(config);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${randomUUID()}/ack`,
+      headers: { authorization: `Bearer ${feeder.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("401s without feeder auth", async () => {
+    const caseId = await openCase();
+    const app = buildServer(config);
+    const res = await app.inject({ method: "POST", url: `/api/v1/sos/cases/${caseId}/ack` });
+    expect(res.statusCode).toBe(401);
     await app.close();
   });
 });

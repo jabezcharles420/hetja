@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { registerServiceWorker } from "@/lib/pwa";
+import { registerServiceWorker, maybeSubscribeAfterFeed } from "@/lib/pwa";
 import { flushOnOpen } from "@/lib/offline-queue";
 
 /**
  * Layout-level client bootstrap: registers the service worker (installs the
  * PWA + enables Background Sync) and flushes the offline feed queue on app
  * open / reconnect (the iOS fallback path).
+ *
+ * Also listens for the service worker's HETJA_FEED_LOGGED message
+ * (public/sw.js observing a successful POST /api/v1/scans) to ask for Web
+ * Push permission at the moment that earns it -- a feeder's first logged
+ * feed, never on page load (plan §3.3).
  */
 export function PwaBootstrap(): React.JSX.Element | null {
   useEffect(() => {
@@ -20,8 +25,12 @@ export function PwaBootstrap(): React.JSX.Element | null {
     window.addEventListener("online", onOnline);
 
     const onMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "HETJA_FLUSH") {
+      if (!event.data || typeof event.data !== "object") return;
+      if (event.data.type === "HETJA_FLUSH") {
         void flushOnOpen();
+      }
+      if (event.data.type === "HETJA_FEED_LOGGED") {
+        void maybeSubscribeAfterFeed();
       }
     };
     navigator.serviceWorker?.addEventListener("message", onMessage);

@@ -226,7 +226,19 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
 
         let tier = 1;
         if (severity === "critical") {
-          tier = (await dispatchFanout(client, caseId, dog.lat, dog.lng, severity)) ? 1 : 2;
+          const notified = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity);
+          tier = notified ? 1 : 2;
+          if (notified) {
+            // Web Push (plan §3.4): hand delivery off to the worker
+            // (web-push + VAPID) rather than blocking this request on it.
+            // The worker writes delivered_at on success and leaves it null
+            // on failure, so the sos_notifications receipt columns mean
+            // something.
+            await client.query(
+              `INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`,
+              [JSON.stringify({ caseId, dogId: dog.id })],
+            );
+          }
         }
 
         // 8-min escalation: worker's escalate_sos handler promotes unacked cases.
@@ -312,6 +324,99 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         resolvedAt: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
         resolution: row.resolution ?? null,
       },
+    };
+  });
+
+  /**
+   * POST /api/v1/sos/cases/:id/ack — first writer wins (plan §3.1).
+   *
+   * A conditional UPDATE (`WHERE acked_by IS NULL`) is the whole mechanism:
+   * only the first feeder to reach this row claims the case. Everyone
+   * else's UPDATE affects zero rows, and -- if that responder was one of
+   * the ones fanned out to -- their own sos_notifications row is marked
+   * stood_down so the receipt reflects reality; the claimant's row is never
+   * touched. A retry from the same claimant (e.g. a flaky-network resend)
+   * is treated as idempotent success, not a steal attempt against
+   * themselves.
+   *
+   * This is the piece that made the ack metric (p50 < 5min / p90 < 8min)
+   * uncomputable before: acked_by/acked_at were columns nothing ever wrote.
+   */
+  app.post("/api/v1/sos/cases/:id/ack", async (req: FastifyRequest, reply: FastifyReply) => {
+    const rawAuth = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
+    if (!rawAuth.startsWith("Bearer ")) {
+      return reply
+        .status(401)
+        .send({ ok: false, error: { message: "feeder auth required", code: "UNAUTHENTICATED" } });
+    }
+    let feederId: string;
+    try {
+      feederId = verifyAccessToken(rawAuth.slice(7), app.config.JWT_SECRET).sub;
+    } catch {
+      return reply
+        .status(401)
+        .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
+    }
+
+    const { id } = req.params as { id: string };
+
+    const outcome = await withTx(async (client) => {
+      const claim = await client.query<{ acked_at: Date }>(
+        `UPDATE sos_cases SET acked_by = $1, acked_at = now(), state = 'acked'
+         WHERE id = $2 AND acked_by IS NULL
+         RETURNING acked_at`,
+        [feederId, id],
+      );
+      const claimedRow = claim.rows[0];
+      if (claimedRow) {
+        await client.query(
+          `UPDATE sos_notifications SET acked_at = now() WHERE case_id = $1 AND feeder_id = $2`,
+          [id, feederId],
+        );
+        return { status: "claimed" as const, ackedAt: claimedRow.acked_at };
+      }
+
+      const existing = await client.query<{ acked_by: string | null; acked_at: Date | null }>(
+        `SELECT acked_by, acked_at FROM sos_cases WHERE id = $1`,
+        [id],
+      );
+      const existingRow = existing.rows[0];
+      if (!existingRow) {
+        return { status: "not_found" as const };
+      }
+      if (existingRow.acked_by === feederId) {
+        // Same responder retrying -- idempotent success, not a steal
+        // attempt against their own claim.
+        return { status: "claimed" as const, ackedAt: existingRow.acked_at as Date };
+      }
+
+      // Someone else already owns this case. Stand this responder's own
+      // notification down (a no-op if they were never fanned out to); the
+      // claimant's row above is never touched.
+      await client.query(
+        `UPDATE sos_notifications SET stood_down = TRUE WHERE case_id = $1 AND feeder_id = $2`,
+        [id, feederId],
+      );
+      return { status: "already_claimed" as const };
+    });
+
+    if (outcome.status === "not_found") {
+      return reply
+        .status(404)
+        .send({ ok: false, error: { message: "case not found", code: "NOT_FOUND" } });
+    }
+    if (outcome.status === "already_claimed") {
+      return reply
+        .status(409)
+        .send({
+          ok: false,
+          error: { message: "case already claimed by another responder", code: "SOS_ALREADY_ACKED" },
+        });
+    }
+
+    return {
+      ok: true,
+      data: { id, ackedBy: feederId, ackedAt: new Date(outcome.ackedAt).toISOString() },
     };
   });
 }

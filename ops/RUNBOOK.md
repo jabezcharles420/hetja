@@ -41,6 +41,41 @@ publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
    `scans`, `medical_records`; run `ledger:verify` against the restored chain.
 3. Record RTO (target < 4 h).
 
+## Web Push (SOS responder notifications)
+
+Feeders subscribe via `POST /api/v1/push/subscribe` after their first logged
+feed -- never on page load. An unprompted permission dialog on first visit is
+the thing users reflexively deny, and once denied it is hard to recover; see
+`apps/web/lib/pwa.ts`'s `maybeSubscribeAfterFeed`. The worker
+(`apps/worker`) sends VAPID-signed pushes via `web-push` on the
+`send_sos_push` job and writes `sos_notifications.delivered_at` on success;
+on a 404/410 from the push service (the endpoint is dead) it deletes the
+stale `push_subscriptions` row instead of retrying it forever. On any other
+failure `delivered_at` stays null -- an honest "not delivered", not an error.
+
+**The gap, stated plainly: a responder who has not granted Web Push
+permission is not reached. There is no SMS fallback in Phase 0.** iOS
+requires Add-to-Home-Screen before Web Push works at all on that platform --
+Apple only fires push events for an installed home-screen web app, never for
+a Safari tab left open. This is the build guide's stated reason the native
+shell (`apps/shell/`, currently an empty `.gitkeep`) is a non-deferrable
+Phase-1 item, not optional polish. Until it ships: an iOS responder who has
+not installed the PWA to their home screen, or an Android/desktop responder
+who denied or never saw the permission prompt, receives nothing when fanned
+out to for a case. `sos_notifications.channel` still correctly says
+`'push'` for that row and `delivered_at` correctly stays null -- the data is
+not lying, but no one is being paged either.
+
+The 8-minute escalation job (unacked case → tier 2, notify BMC officers +
+nearest vets) is the only other safety net today, and even that tier's
+`sms`/`bmc` notification rows are logged, not sent -- no SMS provider is
+wired up in Phase 0 (see the plan's email-OTP section for why phone/SMS
+integration was dropped in favor of email rather than built out). **Do not
+tell responders or pilot staff "you'll be paged" without qualifying it with
+"if you've enabled notifications, and, on iPhone, installed the app to your
+home screen first."** This is a life-safety limitation; it is documented
+here on purpose, not smoothed over.
+
 ## DPDP erasure (INVARIANT 11)
 
 Erasure = DELETE the PII row (e.g. feeders.phone_hmac) while the ledger chain

@@ -95,3 +95,45 @@ scope.addEventListener("sync", (ev: Event) => {
       .catch(() => undefined),
   );
 });
+
+// Web Push (plan §3.4). Neither listener existed before -- a push arriving
+// at this service worker had nothing to display it and no click behavior.
+// Payload is JSON: { title, body, caseId, url }; `url` may point at a case
+// page that does not exist yet, but the click handling below is correct
+// today regardless.
+interface SosPushPayload {
+  title?: string;
+  body?: string;
+  caseId?: string;
+  url?: string;
+}
+
+scope.addEventListener("push", (ev: PushEvent) => {
+  let data: SosPushPayload = {};
+  try {
+    data = ev.data ? (ev.data.json() as SosPushPayload) : {};
+  } catch {
+    data = {};
+  }
+  const title = data.title ?? "Hetja SOS";
+  ev.waitUntil(
+    scope.registration.showNotification(title, {
+      body: data.body ?? "A nearby dog needs help.",
+      tag: data.caseId ? `sos-${data.caseId}` : undefined,
+      data: { url: data.url ?? BASE },
+    }),
+  );
+});
+
+scope.addEventListener("notificationclick", (ev: NotificationEvent) => {
+  ev.notification.close();
+  const targetUrl: string = (ev.notification.data && ev.notification.data.url) || BASE;
+  ev.waitUntil(
+    scope.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.includes(targetUrl) && "focus" in c) return (c as WindowClient).focus();
+      }
+      return scope.clients.openWindow(targetUrl);
+    }),
+  );
+});

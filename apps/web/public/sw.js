@@ -15,6 +15,13 @@
  *     it can replay the IndexedDB feed queue; a closed-tab flush falls back to
  *     the flush-on-open path in lib/offline-queue.ts. Sync registration and
  *     the flush logic live in the lib, not here.
+ *  6. Observes POST /api/v1/scans (feed logging) and signals open tabs on
+ *     success so PwaBootstrap can ask for Web Push permission at the moment
+ *     that earns it -- a feeder's first logged feed, never on page load
+ *     (plan §3.3). The request itself passes straight through unchanged.
+ *  7. Web Push: shows an incoming push and deep-links to the case on click
+ *     (plan §3.4). Neither existed before this file -- there was no `push`
+ *     or `notificationclick` listener at all.
  */
 
 const CACHE = "hetja-shell-v1";
@@ -46,9 +53,19 @@ scope.addEventListener("activate", (event) => {
 
 scope.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== scope.location.origin) return;
+
+  // A successful feed log is the earned moment to ask for Web Push
+  // permission (plan §3.3) -- observed here so it fires for the
+  // offline-queue's replayed POST too, not just a live submit from an open
+  // tab. The request itself is untouched either way.
+  if (req.method === "POST" && url.pathname === `${API_PREFIX}/scans`) {
+    event.respondWith(passThroughAndSignalFeedLogged(req));
+    return;
+  }
+
+  if (req.method !== "GET") return;
 
   // Dog profile + medical (+ stories) fetches: fresh when online, stale cache offline.
   if (url.pathname.startsWith(API_PREFIX)) {
@@ -118,18 +135,62 @@ async function shellFirst(req) {
   return (await fresh) ?? Response.error();
 }
 
+/** Passes a feed-log POST straight through; signals open tabs only on success. */
+async function passThroughAndSignalFeedLogged(req) {
+  const res = await fetch(req);
+  if (res.ok) void notifyClients({ type: "HETJA_FEED_LOGGED" });
+  return res;
+}
+
 /** Wake open tabs so they can replay the feed queue. */
 async function wakeClientsToFlush() {
+  await notifyClients({ type: "HETJA_FLUSH" });
+}
+
+async function notifyClients(message) {
   const clients = await scope.clients.matchAll({ type: "window" });
-  await Promise.all(
-    clients.map((client) => client.postMessage({ type: "HETJA_FLUSH" })),
-  );
+  await Promise.all(clients.map((client) => client.postMessage(message)));
 }
 
 scope.addEventListener("sync", (event) => {
   if (event.tag !== SYNC_TAG) return;
   event.waitUntil(
     wakeClientsToFlush().catch(() => undefined),
+  );
+});
+
+/**
+ * Web Push (plan §3.4). Payload is JSON: { title, body, caseId, url }. The
+ * `url` may point at a case page that does not exist yet -- the click
+ * behavior below is correct today regardless, and needs no further
+ * service-worker change once that page ships.
+ */
+scope.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = data.title || "Hetja SOS";
+  const options = {
+    body: data.body || "A nearby dog needs help.",
+    tag: data.caseId ? `sos-${data.caseId}` : undefined,
+    data: { url: data.url || "/" },
+  };
+  event.waitUntil(scope.registration.showNotification(title, options));
+});
+
+scope.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    scope.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+      }
+      return scope.clients.openWindow(targetUrl);
+    }),
   );
 });
 

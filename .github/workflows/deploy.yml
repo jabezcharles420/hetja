@@ -111,10 +111,30 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Enable PostGIS + pgvector + pgcrypto
+      - name: Install pgvector into the Postgres service container
+        # postgis/postgis ships PostGIS + contrib but not pgvector, and no
+        # official image carries both. 0001_init.sql needs VECTOR(768) for
+        # dogs.cv_embedding, so pull it from PGDG (already configured in the
+        # image) rather than maintaining a custom image for CI.
         run: |
-          psql -h 127.0.0.1 -U app_user -d hetja_test -c \
-            "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          set -euo pipefail
+          CID=$(docker ps --filter "ancestor=postgis/postgis:16-3.4" --format '{{.ID}}' | head -1)
+          if [ -z "$CID" ]; then
+            echo "::error::could not find the postgres service container"
+            docker ps
+            exit 1
+          fi
+          docker exec "$CID" bash -c \
+            'apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector'
+
+      - name: Enable PostGIS, pgvector and pgcrypto
+        run: |
+          set -euo pipefail
+          for ext in postgis vector pgcrypto; do
+            echo "--> CREATE EXTENSION $ext"
+            psql -h 127.0.0.1 -U app_user -d hetja_test \
+              -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS $ext;"
+          done
 
       - name: Apply migrations
         run: pnpm --filter @hetja/db migrate

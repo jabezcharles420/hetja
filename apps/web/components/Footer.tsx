@@ -14,9 +14,21 @@ const NAV_LINKS = [
 
 const SOURCE_URL = "https://github.com/jabezcharles420/hetja";
 
-export default function Footer(): React.JSX.Element {
+export default function Footer({
+  clearBottomNav = false,
+}: {
+  /**
+   * Reserve height for the fixed mobile bottom nav. The footer is the last
+   * element in the document, so when the nav is present it overlays the footer's
+   * final line — `In memory of Hetja`. Set by ChromeShell, which is the only
+   * component that knows whether the nav rendered.
+   */
+  clearBottomNav?: boolean;
+} = {}): React.JSX.Element {
   return (
-    <footer className="h-footer">
+    <footer
+      className={`h-footer${clearBottomNav ? " h-footer-clear-nav" : ""}`}
+    >
       <div className="h-container h-footer-inner">
         <Logo href="/" small />
         <p className="h-footer-muted">

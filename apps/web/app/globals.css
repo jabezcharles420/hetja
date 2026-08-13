@@ -601,8 +601,8 @@ summary:focus-visible,
  *
  * 60fps discipline: only transform/opacity are ever animated. Layout-affecting
  * properties are never transitioned, below-fold work is deferred with
- * content-visibility, and the bottom nav reserves space on `main` so nothing
- * hides behind it (no layout shift).
+ * content-visibility, and the footer reserves the bottom nav's height so
+ * nothing hides behind it (no layout shift).
  * ---------------------------------------------------------------------------
  */
 
@@ -614,17 +614,27 @@ button:active,
   transform: scale(0.98);
 }
 
-/* Reserve space for the fixed bottom nav so content/footer clear it. */
+/* Reserve space for the fixed bottom nav.
+ *
+ * This has to sit on the FOOTER, not on `main`. ChromeShell renders
+ * `<main>`, then `<BottomNav>`, then `<Footer>` as siblings, so the footer is
+ * the last thing in the document — padding on `main` pushes content off the
+ * nav but leaves the footer underneath it. The casualty was the final line,
+ * `In memory of Hetja`, which sat exactly under the 56px bar on every mobile
+ * page: the one link on the site that should never be the one you can't reach.
+ *
+ * Height mirrors BottomNav.module.css — `.list` is min-height 56px and `.nav`
+ * adds env(safe-area-inset-bottom) — plus --h-s3 so the text clears the
+ * hairline rather than touching it.
+ *
+ * Applied via a class rather than to `.h-footer` unconditionally, because the
+ * footer also renders on /dog/ routes, which suppress the bottom nav
+ * (isBareRoute in ChromeShell). Padding there would be a dead 56px gap under
+ * the memorial line with no nav to justify it. */
 @media (max-width: 768px) {
-  .h-main {
+  .h-footer-clear-nav {
     padding-bottom: calc(var(--h-s3) + 56px + env(safe-area-inset-bottom, 0px));
   }
-}
-
-/* Surfaces that suppress the global chrome (see ChromeShell) don't reserve
- * bottom-nav space — there is no bottom nav to clear. */
-.h-main-bare {
-  padding-bottom: 0 !important;
 }
 
 /* Defer below-fold rendering (no scroll jank, space reserved via intrinsic size). */

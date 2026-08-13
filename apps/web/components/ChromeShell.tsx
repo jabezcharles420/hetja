@@ -16,6 +16,11 @@ import { InstallBanner } from "./InstallBanner";
  * Footer is deliberately excluded from the suppression — it sits below all
  * page content and never competes with the primary action in the bottom
  * third of the viewport.
+ *
+ * That reasoning holds for page content and NOT for the fixed bottom nav,
+ * which is what caused a real bug: being last in the document, the footer is
+ * precisely what the nav overlays, so it is the footer — not `main` — that has
+ * to reserve the nav's height. Hence clearBottomNav below.
  */
 function isBareRoute(pathname: string): boolean {
   return pathname.startsWith("/dog/");
@@ -32,10 +37,13 @@ export function ChromeShell({
   return (
     <>
       {!bare && <Header />}
-      <main className={bare ? "h-main h-main-bare" : "h-main"}>{children}</main>
+      <main className="h-main">{children}</main>
       {!bare && <InstallBanner />}
       {!bare && <BottomNav />}
-      <Footer />
+      {/* The footer clears the bottom nav only where the nav actually renders —
+       * it is the last element in the document, so it is what the fixed nav
+       * covers. See the .h-footer-clear-nav rule in globals.css. */}
+      <Footer clearBottomNav={!bare} />
     </>
   );
 }

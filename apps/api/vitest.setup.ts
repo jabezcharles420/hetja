@@ -13,7 +13,7 @@
  *
  * Set ALLOW_TESTS_ON_REAL_DB=1 to override deliberately.
  */
-const db = process.env.PGDATABASE ?? "straynet";
+const db = process.env.PGDATABASE ?? "hetja";
 const allowed = /(^|_)test$|^test_/.test(db);
 
 if (!allowed && process.env.ALLOW_TESTS_ON_REAL_DB !== "1") {
@@ -25,10 +25,10 @@ if (!allowed && process.env.ALLOW_TESTS_ON_REAL_DB !== "1") {
       "This suite writes rows it cannot fully clean up, so it must not touch a",
       'live database. Use a disposable one whose name ends in "_test":',
       "",
-      "  createdb straynet_test",
-      '  psql -d straynet_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;"',
-      "  PGDATABASE=straynet_test pnpm --filter @hetja/db migrate",
-      "  PGDATABASE=straynet_test pnpm --filter @hetja/api test",
+      "  createdb hetja_test",
+      '  psql -d hetja_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;"',
+      "  PGDATABASE=hetja_test pnpm --filter @hetja/db migrate",
+      "  PGDATABASE=hetja_test pnpm --filter @hetja/api test",
       "",
       "Override with ALLOW_TESTS_ON_REAL_DB=1 only if you mean it.",
       "",

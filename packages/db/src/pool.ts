@@ -96,9 +96,9 @@ const ssl = buildSsl();
 export const pool = new Pool({
   host: process.env.PGHOST ?? "127.0.0.1",
   port: Number(process.env.PGPORT ?? 5432),
-  database: requiredInProd("PGDATABASE", "straynet"),
+  database: requiredInProd("PGDATABASE", "hetja"),
   user: requiredInProd("PGUSER", "app_user"),
-  password: requiredInProd("PGPASSWORD", "straynet_dev_2026"),
+  password: requiredInProd("PGPASSWORD", "8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e"),
   max: Number(process.env.PGPOOL_MAX ?? 10),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

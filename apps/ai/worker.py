@@ -22,7 +22,7 @@ import psycopg2.extras
 
 PG_DSN = os.environ.get(
     "HETJA_PG_DSN",
-    "host=127.0.0.1 dbname=straynet user=app_user password=straynet_dev_2026",
+    "host=127.0.0.1 dbname=hetja user=app_user password=8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e",
 )
 
 POLL_S = 5

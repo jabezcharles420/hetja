@@ -126,7 +126,7 @@ you need one and don't have a printed collar handy, `pnpm --filter
   (`pnpm --filter @hetja/web build`) and then restart.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.**
   This is a deliberate guard against a stray `pnpm -r test` truncating a real
-  database. Point `PGDATABASE` at something like `straynet_test` before
+  database. Point `PGDATABASE` at something like `hetja_test` before
   running tests; the suite will refuse to start otherwise.
 - **No public IP / behind NAT?** See `ops/caddy/HOSTING.md` — it documents
   running Caddy behind a Cloudflare Tunnel (`ops/caddy/setup-tunnel.sh`) so

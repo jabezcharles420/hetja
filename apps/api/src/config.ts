@@ -13,9 +13,9 @@ const EnvSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   PGHOST: z.string().default("127.0.0.1"),
   PGPORT: z.coerce.number().int().default(5432),
-  PGDATABASE: z.string().default("straynet"),
+  PGDATABASE: z.string().default("hetja"),
   PGUSER: z.string().default("app_user"),
-  PGPASSWORD: z.string().default("straynet_dev_2026"),
+  PGPASSWORD: z.string().default("8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e"),
   // INVARIANT 3: phone_hmac pepper. Production MUST inject via KMS/secret
   // manager — never a committed env file.
   HETJA_HMAC_PEPPER: z.string().min(16).default("dev-pepper-not-for-prod-0001"),

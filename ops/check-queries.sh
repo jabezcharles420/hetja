@@ -5,8 +5,8 @@
 # parameter types), prepared then EXPLAIN EXECUTE'd. Exit 1 on any failure.
 set -u
 cd "$(dirname "$0")/.."
-PGHOST=${PGHOST:-127.0.0.1} PGPORT=${PGPORT:-5432} PGDATABASE=${PGDATABASE:-straynet}
-PGUSER=${PGUSER:-app_user} PGPASSWORD=${PGPASSWORD:-straynet_dev_2026}
+PGHOST=${PGHOST:-127.0.0.1} PGPORT=${PGPORT:-5432} PGDATABASE=${PGDATABASE:-hetja}
+PGUSER=${PGUSER:-app_user} PGPASSWORD=${PGPASSWORD:-8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e}
 
 sample_args() {  # per-query sample parameters (count must match $n)
   case "$1" in

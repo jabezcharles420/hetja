@@ -29,7 +29,7 @@ beforeAll(async () => {
   vetSigningPriv = kp.privateKey.export({ type: "pkcs8", format: "pem" });
   vetSigningPub = kp.publicKey.export({ type: "spki", format: "pem" });
   const vf = await query(
-    `INSERT INTO feeders (phone_hmac, display_name, role, consent_version)
+    `INSERT INTO feeders (identity_hmac, display_name, role, consent_version)
      VALUES ($1, 'Test Clinic Vet', 'vet', 'v1.0') RETURNING id`,
     [`hmac-test-vet-${randomUUID()}`],
   );
@@ -43,7 +43,7 @@ beforeAll(async () => {
 
   // plain feeder
   const ff = await query(
-    `INSERT INTO feeders (phone_hmac, display_name, role, consent_version)
+    `INSERT INTO feeders (identity_hmac, display_name, role, consent_version)
      VALUES ($1, 'Test Feeder', 'feeder', 'v1.0') RETURNING id`,
     [`hmac-test-feeder-${randomUUID()}`],
   );

@@ -1,14 +1,18 @@
 /**
- * HMAC helpers — INVARIANT 3 (never store bare phones; only HMACs of them)
- * and QR slug signing/verification.
+ * HMAC helpers — INVARIANT 3 (never store bare contact info; only HMACs of
+ * it) and QR slug signing/verification.
  *
- * phoneHmac(e164, pepper) = HMAC-SHA256(key=pepper, msg=e164) as hex.
- * The pepper lives OUTSIDE env files in production (KMS/secret manager).
+ * identityHmac(identity, pepper) = HMAC-SHA256(key=pepper, msg=identity) as
+ * hex. `identity` is whatever channel we verify a feeder through (an email
+ * address, as of the phone -> email OTP migration; the function itself is
+ * channel-agnostic and its algorithm is unchanged from when it hashed
+ * phone numbers). The pepper lives OUTSIDE env files in production
+ * (KMS/secret manager).
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export function phoneHmac(e164: string, pepper: string): string {
-  return createHmac("sha256", pepper).update(e164).digest("hex");
+export function identityHmac(identity: string, pepper: string): string {
+  return createHmac("sha256", pepper).update(identity).digest("hex");
 }
 
 /** HMAC signature for a QR slug — base64url (matches collar HMAC-signed QR). */

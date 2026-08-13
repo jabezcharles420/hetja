@@ -1,7 +1,8 @@
 /**
  * Hetja API configuration — every secret/env is validated at boot via zod.
- * KMS-held pepper for phone HMAC lives OUTSIDE env files in production
- * (INVARIANT 3); dev fallbacks are clearly marked and never used in prod.
+ * KMS-held pepper for identity HMAC (email, since the phone -> email OTP
+ * migration) lives OUTSIDE env files in production (INVARIANT 3); dev
+ * fallbacks are clearly marked and never used in prod.
  */
 import { z } from "zod";
 
@@ -16,8 +17,9 @@ const EnvSchema = z.object({
   PGDATABASE: z.string().default("hetja"),
   PGUSER: z.string().default("app_user"),
   PGPASSWORD: z.string().default("8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e"),
-  // INVARIANT 3: phone_hmac pepper. Production MUST inject via KMS/secret
-  // manager — never a committed env file.
+  // INVARIANT 3: identity_hmac pepper (was phone_hmac's before the email OTP
+  // migration; same key, same algorithm). Production MUST inject via
+  // KMS/secret manager — never a committed env file.
   HETJA_HMAC_PEPPER: z.string().min(16).default("dev-pepper-not-for-prod-0001"),
   // HMAC key that signs QR slugs (matches the collar's laser-etched signature).
   HETJA_QR_SECRET: z.string().min(16).default("dev-qr-secret-change-me"),
@@ -43,6 +45,20 @@ const EnvSchema = z.object({
   S3_BUCKET: z.string().default("hetja"),
   S3_ACCESS_KEY: z.string().default(""),
   S3_SECRET_KEY: z.string().default(""),
+  // Brevo SMTP relay (free tier, 300/day) — the actual delivery mechanism for
+  // OTP emails. No defaults on host/user/pass: unlike the other secrets in
+  // this file, there is no dev value that would even connect anywhere, and a
+  // committed placeholder here would invite the exact bug this migration
+  // fixes (silently minting a code and delivering it to nobody). Development
+  // and test never call the mailer at all — see apps/api/src/routes/auth.ts.
+  BREVO_SMTP_HOST: z.string().default(""),
+  BREVO_SMTP_PORT: z.coerce.number().int().positive().default(587),
+  BREVO_SMTP_USER: z.string().default(""),
+  BREVO_SMTP_PASS: z.string().default(""),
+  // hetja.in has SPF/DKIM/DMARC configured; sending from a domain without
+  // that (a personal Gmail address, for instance) gets silently dropped by
+  // receiving providers rather than bouncing.
+  MAIL_FROM: z.string().default("no-reply@hetja.in"),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
@@ -87,7 +103,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "HETJA_HMAC_PEPPER",
       "INVARIANT 3 requires this pepper to come from KMS/secret manager in " +
         "production; the dev value is committed and public, which defeats the " +
-        "one-way phone_hmac guarantee it is supposed to provide.",
+        "one-way identity_hmac guarantee it is supposed to provide.",
     );
     requireInProd(
       env,
@@ -111,6 +127,30 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "the dev value is committed and public, so anyone who has read this repo " +
         "can mint a valid feeder/admin access token against a production server " +
         "still using it.",
+    );
+    // The exact bug this whole migration exists to fix: phone OTP minted a
+    // code and returned it to nobody in production because there was no SMS
+    // plumbing at all. Refuse to boot without real SMTP config rather than
+    // repeat that mistake with email -- a silently-undelivered OTP is a
+    // production incident nobody would notice until a feeder complained.
+    requireInProd(
+      env,
+      "BREVO_SMTP_HOST",
+      "email OTP delivery has no working default -- without a real SMTP host " +
+        "the server would boot successfully and mint codes it can never " +
+        "deliver, exactly like the undelivered phone OTP this replaces.",
+    );
+    requireInProd(
+      env,
+      "BREVO_SMTP_USER",
+      "the SMTP host is set but authentication would fail without this, " +
+        "which surfaces only when the first OTP email silently fails to send.",
+    );
+    requireInProd(
+      env,
+      "BREVO_SMTP_PASS",
+      "the SMTP host is set but authentication would fail without this, " +
+        "which surfaces only when the first OTP email silently fails to send.",
     );
   }
 

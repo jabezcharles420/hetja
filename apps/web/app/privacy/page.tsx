@@ -5,13 +5,13 @@ import styles from "@/components/Content.module.css";
 export const metadata: Metadata = {
   title: "Privacy — Hetja",
   description:
-    "How Hetja handles your data under the Digital Personal Data Protection Act: hashed phone numbers, coarsened location, clear access tiers, and erasure rights.",
+    "How Hetja handles your data under the Digital Personal Data Protection Act: hashed email addresses, coarsened location, clear access tiers, and erasure rights.",
 };
 
 const STORED_POINTS = [
   {
-    title: "Your phone number, hashed",
-    text: "We never store your bare number. We store a one-way hash (phone_hmac) built with a per-app salt, so your number can't be read back from our database.",
+    title: "Your email address, hashed",
+    text: "We never store your bare email address. We store a one-way hash (identity_hmac) built with a per-app secret, so your address can't be read back from our database.",
   },
   {
     title: "Your acts, as a log",
@@ -53,7 +53,7 @@ const ACCESS_TIERS = [
     name: "Feeders",
     scope: "Read · their own log",
     pill: styles.tierScopeCoral,
-    text: "You can always see your own feed history, streaks, and trust score. Other feeders are shown only by first name and ward — never a phone number.",
+    text: "You can always see your own feed history, streaks, and trust score. Other feeders are shown only by first name and ward — never an email address.",
   },
   {
     name: "Vets",
@@ -72,7 +72,7 @@ const ACCESS_TIERS = [
 const RIGHTS = [
   {
     title: "Access",
-    text: "Ask us and we'll show you exactly what we hold about you — it's usually just your hashed number and your act log.",
+    text: "Ask us and we'll show you exactly what we hold about you — it's usually just your hashed email address and your act log.",
   },
   {
     title: "Correction",
@@ -80,7 +80,7 @@ const RIGHTS = [
   },
   {
     title: "Erasure",
-    text: "Request deletion and we remove your personal data — your hashed number, your act log, your feed history — within 30 days.",
+    text: "Request deletion and we remove your personal data — your hashed email address, your act log, your feed history — within 30 days.",
   },
   {
     title: "Consent",

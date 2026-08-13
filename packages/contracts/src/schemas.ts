@@ -138,15 +138,24 @@ export const HeatmapCell = z.object({
 });
 export type HeatmapCell = z.infer<typeof HeatmapCell>;
 
-export const INDIA_MOBILE_REGEX = /^\+91[6-9]\d{9}$/;
+// Email OTP login (replaces phone OTP — see docs/INVARIANTS.md #3). zod v4
+// (this package's version, distinct from apps/api's own zod@^3.23 — the two
+// never share a runtime instance, so the version split is safe) moved email
+// validation off `z.string().email()` (deprecated, still present for compat)
+// onto the top-level `z.email()`, which is what this uses. 254 is RFC 5321's
+// practical max length for a full email address; there is no generic
+// fallback validator needed here the way INDIA_MOBILE_REGEX was the only
+// phone shape this ever had to accept — `z.email()` already covers the
+// general case.
+export const EmailAddress = z.email({ message: "must be a valid email address" }).max(254);
 
 export const AuthOtpRequest = z.object({
-  phone: z.string().regex(INDIA_MOBILE_REGEX, { message: "phone must be a +91 e164 mobile number" }),
+  email: EmailAddress,
 });
 export type AuthOtpRequest = z.infer<typeof AuthOtpRequest>;
 
 export const AuthOtpVerify = z.object({
-  phone: z.string().regex(INDIA_MOBILE_REGEX),
+  email: EmailAddress,
   code: z.string().regex(/^\d{6}$/),
   deviceToken: z.string().min(1).max(256),
   consentVersion: z.number().int().min(1),

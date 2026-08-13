@@ -42,7 +42,7 @@ function bearerToken(feederId: string): string {
 
 async function insertFeeder(role: string): Promise<string> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version)
      VALUES ($1, 'TerritoryTest', $2, 30, 'v1.0') RETURNING id`,
     [`territory-test-${randomUUID()}`, role],
   );

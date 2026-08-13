@@ -26,8 +26,8 @@ function getDeviceToken(): string {
 export default function LoginPage(): React.JSX.Element {
   const router = useRouter();
 
-  const [step, setStep] = useState<"phone" | "code">("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | undefined>();
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
@@ -39,11 +39,11 @@ export default function LoginPage(): React.JSX.Element {
     setBusy(true);
     setStatus("Sending code…");
     try {
-      const res = await api.requestOtp(phone.trim());
+      const res = await api.requestOtp(email.trim());
       setDevCode(res.devCode);
       setExpiresAt(res.expiresAt);
       setStep("code");
-      setStatus(res.devCode ? `Dev build — your code is ${res.devCode}` : "Code sent to your phone.");
+      setStatus(res.devCode ? `Dev build — your code is ${res.devCode}` : "Code sent to your email.");
     } catch (err) {
       setStatus(err instanceof ApiError ? err.message : "Could not send the code.");
     } finally {
@@ -57,7 +57,7 @@ export default function LoginPage(): React.JSX.Element {
     setStatus("Verifying…");
     try {
       const res = await api.verifyOtp({
-        phone: phone.trim(),
+        email: email.trim(),
         code: code.trim(),
         deviceToken: getDeviceToken(),
         consentVersion: CONSENT_VERSION,
@@ -79,18 +79,19 @@ export default function LoginPage(): React.JSX.Element {
       </nav>
 
       <h1 className={styles.title}>Feeder sign-in</h1>
-      <p className={styles.subtitle}>Phone-based OTP — no password needed.</p>
+      <p className={styles.subtitle}>Email-based OTP — no password needed.</p>
 
-      {step === "phone" ? (
+      {step === "email" ? (
         <form className={styles.form} onSubmit={(e) => void requestCode(e)}>
           <label className={styles.field}>
-            <span>Mobile number</span>
+            <span>Email address</span>
             <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-              inputMode="tel"
-              autoComplete="tel"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
             />
           </label>
           {status && <p className={styles.status}>{status}</p>}
@@ -118,8 +119,8 @@ export default function LoginPage(): React.JSX.Element {
           <button type="submit" className={styles.cta} disabled={busy}>
             {busy ? "Verifying…" : "Verify"}
           </button>
-          <button type="button" className={styles.linkBtn} onClick={() => setStep("phone")}>
-            Change number
+          <button type="button" className={styles.linkBtn} onClick={() => setStep("email")}>
+            Change email
           </button>
         </form>
       )}

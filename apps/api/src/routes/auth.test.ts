@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { phoneHmac } from "../lib/hmac.js";
+import { identityHmac } from "../lib/hmac.js";
 import { verifyAccessToken, verifyRefreshToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
 import { clearOtp } from "../lib/otp.js";
@@ -9,34 +9,35 @@ import { query } from "@hetja/db";
 
 const config = loadConfig();
 
-function randomPhone(): string {
-  return `+91${Math.floor(Math.random() * 4) + 6}${String(Math.floor(Math.random() * 1e8)).padStart(9, "0")}`;
+function randomEmail(): string {
+  return `feeder-${Math.random().toString(36).slice(2)}@example.com`;
 }
 
-const usedPhones: string[] = [];
+const usedEmails: string[] = [];
 
-async function cleanupPhones(): Promise<void> {
-  for (const phone of usedPhones) {
-    clearOtp(phone);
-    await query(`DELETE FROM feeders WHERE phone_hmac = $1`, [phoneHmac(phone, config.HETJA_HMAC_PEPPER)]);
+async function cleanupEmails(): Promise<void> {
+  for (const email of usedEmails) {
+    const idHmac = identityHmac(email, config.HETJA_HMAC_PEPPER);
+    await clearOtp(idHmac);
+    await query(`DELETE FROM feeders WHERE identity_hmac = $1`, [idHmac]);
   }
 }
 
 afterEach(async () => {
-  await cleanupPhones();
-  usedPhones.length = 0;
+  await cleanupEmails();
+  usedEmails.length = 0;
 });
 
 describe("POST /api/v1/auth/otp + verify", () => {
   it("issues a dev-mode OTP and verifies it into JWTs + feeder", async () => {
     const app = buildServer(config);
-    const phone = randomPhone();
-    usedPhones.push(phone);
+    const email = randomEmail();
+    usedEmails.push(email);
 
     const otpRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/otp",
-      payload: { phone },
+      payload: { email },
     });
     expect(otpRes.statusCode).toBe(200);
     const otpBody = otpRes.json();
@@ -48,7 +49,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
       method: "POST",
       url: "/api/v1/auth/verify",
       payload: {
-        phone,
+        email,
         code: otpBody.data.devCode,
         deviceToken,
         consentVersion: 2,
@@ -76,13 +77,13 @@ describe("POST /api/v1/auth/otp + verify", () => {
 
   it("fails verify with a wrong code", async () => {
     const app = buildServer(config);
-    const phone = randomPhone();
-    usedPhones.push(phone);
+    const email = randomEmail();
+    usedEmails.push(email);
 
     const otpRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/otp",
-      payload: { phone },
+      payload: { email },
     });
     const devCode = otpRes.json().data.devCode;
 
@@ -91,7 +92,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
-      payload: { phone, code: wrongCode, deviceToken, consentVersion: 1, isMinor: false },
+      payload: { email, code: wrongCode, deviceToken, consentVersion: 1, isMinor: false },
     });
     expect(verifyRes.statusCode).toBe(400);
     expect(verifyRes.json().ok).toBe(false);
@@ -101,20 +102,20 @@ describe("POST /api/v1/auth/otp + verify", () => {
 
   it("rejects verify with a bad device token", async () => {
     const app = buildServer(config);
-    const phone = randomPhone();
-    usedPhones.push(phone);
+    const email = randomEmail();
+    usedEmails.push(email);
 
     const otpRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/otp",
-      payload: { phone },
+      payload: { email },
     });
     const devCode = otpRes.json().data.devCode;
 
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
-      payload: { phone, code: devCode, deviceToken: "not-an-attested-token", consentVersion: 1, isMinor: false },
+      payload: { email, code: devCode, deviceToken: "not-an-attested-token", consentVersion: 1, isMinor: false },
     });
     expect(verifyRes.statusCode).toBe(401);
 
@@ -123,23 +124,58 @@ describe("POST /api/v1/auth/otp + verify", () => {
 
   it("requires consentVersion at signup (DPDP)", async () => {
     const app = buildServer(config);
-    const phone = randomPhone();
-    usedPhones.push(phone);
+    const email = randomEmail();
+    usedEmails.push(email);
 
     const otpRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/otp",
-      payload: { phone },
+      payload: { email },
     });
     const devCode = otpRes.json().data.devCode;
 
     const verifyRes = await app.inject({
       method: "POST",
       url: "/api/v1/auth/verify",
-      payload: { phone, code: devCode, deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET), isMinor: false },
+      payload: { email, code: devCode, deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET), isMinor: false },
     });
     expect(verifyRes.statusCode).toBe(400);
 
     await app.close();
+  });
+
+  it("survives a restart of the OTP store (Postgres-backed, not in-memory)", async () => {
+    // The old in-memory Map lost every pending code the instant the process
+    // that issued it exited. Simulate that boundary here: close the server
+    // (and with it, any in-process state) after requesting a code, then
+    // verify against a *new* server instance built from a fresh config.
+    const email = randomEmail();
+    usedEmails.push(email);
+
+    const issuer = buildServer(config);
+    const otpRes = await issuer.inject({
+      method: "POST",
+      url: "/api/v1/auth/otp",
+      payload: { email },
+    });
+    const devCode = otpRes.json().data.devCode;
+    await issuer.close();
+
+    const verifier = buildServer(loadConfig());
+    const verifyRes = await verifier.inject({
+      method: "POST",
+      url: "/api/v1/auth/verify",
+      payload: {
+        email,
+        code: devCode,
+        deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET),
+        consentVersion: 1,
+        isMinor: false,
+      },
+    });
+    expect(verifyRes.statusCode).toBe(200);
+    expect(verifyRes.json().ok).toBe(true);
+
+    await verifier.close();
   });
 });

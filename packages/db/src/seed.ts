@@ -65,9 +65,9 @@ export async function seed(): Promise<{ dogs: number; collars: number; feeders: 
   }
 
   const feeder = await pool.query(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version)
      VALUES ($1,'Phase0 Lead Feeder','feeder',60,'v1.0')
-     ON CONFLICT (phone_hmac) DO NOTHING RETURNING id`,
+     ON CONFLICT (identity_hmac) DO NOTHING RETURNING id`,
     ["hmac-seed-feeder-0001"],
   );
 

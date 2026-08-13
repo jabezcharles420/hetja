@@ -37,7 +37,7 @@ interface Fixture {
 
 async function insertFeeder(verificationTier = "provisional"): Promise<string> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, verification_tier, consent_version)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, verification_tier, consent_version)
      VALUES ($1, 'TrustTest', 'feeder', 30, $2, 'v1.0')
      RETURNING id`,
     [`trust-test-${randomUUID()}`, verificationTier],

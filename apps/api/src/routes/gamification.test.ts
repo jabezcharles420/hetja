@@ -43,7 +43,7 @@ async function insertFeeder(
   badges: string[] = [],
 ): Promise<string> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, streak_days, last_feed_date, badges)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, streak_days, last_feed_date, badges)
      VALUES ($1, 'GamTest', 'feeder', 30, 'v1.0', $2, $3, $4)
      RETURNING id`,
     [`gam-test-${randomUUID()}`, streakDays, lastFeedDate, badges],

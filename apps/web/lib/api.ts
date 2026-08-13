@@ -231,12 +231,12 @@ export const api = {
   getDogStories: (slug: string) =>
     request<{ stories: Story[] }>(`/dogs/${encodeURIComponent(slug)}/stories`, { auth: false }),
 
-  /** Request an OTP for a +91 e164 phone. Dev builds echo devCode. */
-  requestOtp: (phone: string) =>
-    request<OtpRequestResult>(`/auth/otp`, { method: "POST", body: { phone }, auth: false }),
+  /** Request an OTP for an email address. Dev builds echo devCode. */
+  requestOtp: (email: string) =>
+    request<OtpRequestResult>(`/auth/otp`, { method: "POST", body: { email }, auth: false }),
 
   /** Verify the OTP and exchange it for JWT access/refresh tokens. */
-  verifyOtp: (input: { phone: string; code: string; deviceToken: string; consentVersion: number; isMinor: boolean }) =>
+  verifyOtp: (input: { email: string; code: string; deviceToken: string; consentVersion: number; isMinor: boolean }) =>
     request<VerifyResult>(`/auth/verify`, { method: "POST", body: input, auth: false }),
 
   /** POST a feed scan. Idempotent on the server by clientUuid. */

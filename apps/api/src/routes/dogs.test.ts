@@ -37,9 +37,9 @@ async function setupDog(): Promise<TestDog> {
   const id = dogRes.rows[0].id;
 
   const feederRes = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
      VALUES ($1, 'Story Author', 'feeder', 50, 'v1', FALSE)
-     ON CONFLICT (phone_hmac) DO UPDATE SET phone_hmac = EXCLUDED.phone_hmac
+     ON CONFLICT (identity_hmac) DO UPDATE SET identity_hmac = EXCLUDED.identity_hmac
      RETURNING id`,
     ["test-story-author-feeder"],
   );

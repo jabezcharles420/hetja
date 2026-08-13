@@ -108,11 +108,11 @@ describe("lib/api", () => {
       jsonResponse(200, { ok: true, data: { expiresAt: "2026-08-12T10:00:00.000Z", devCode: "123456" } }),
     );
 
-    const res = await api.requestOtp("+919876543210");
+    const res = await api.requestOtp("feeder@example.com");
 
     expect(res.devCode).toBe("123456");
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body as string)).toEqual({ phone: "+919876543210" });
+    expect(JSON.parse(init.body as string)).toEqual({ email: "feeder@example.com" });
   });
 });

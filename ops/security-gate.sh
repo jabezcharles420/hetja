@@ -9,9 +9,16 @@ check() {  # check <desc> <cmd...>
   if "$@" >/dev/null 2>&1; then echo "PASS: $desc"; else echo "FAIL: $desc"; fail=1; fi
 }
 
-# No phone column anywhere (only phone_hmac) — INVARIANT 3
-check "no bare 'phone' column in migrations" \
-  bash -c "! grep -riE 'CREATE TABLE.*phone\b|\bphone\s+(TEXT|VARCHAR)' packages/db/migrations/ 2>/dev/null"
+# No bare contact-info column anywhere (only identity_hmac) — INVARIANT 3.
+# This used to check only "phone", which gave zero protection against a bare
+# `email TEXT` column landing in a migration once login moved from phone OTP
+# to email OTP -- the invariant's actual intent has always been "never store
+# bare contact info, only its HMAC", not "phone" specifically. Widened to
+# cover both; "identity_hmac"/"phone_hmac" survive because \b does not match
+# between "phone"/"email" and the following "_" (underscore counts as a word
+# character, so there is no boundary there).
+check "no bare 'phone' or 'email' column in migrations" \
+  bash -c "! grep -riE 'CREATE TABLE.*(phone|email)\b|\b(phone|email)\s+(TEXT|VARCHAR)' packages/db/migrations/ 2>/dev/null"
 
 # No secret-looking strings committed (API keys, private keys)
 check "no private keys in repo" \

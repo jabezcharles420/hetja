@@ -10,7 +10,7 @@ external build guide that lived outside the repo.
 |---|---|---|---|
 | 1 | Slugs random, non-sequential, base32 | ✅ | `packages/db/src/slugs.ts` + tests (500-gen uniqueness, check char) |
 | 2 | Anonymous geo: ward / ≥500m cells, ≤2 decimals | ✅ | `packages/contracts/src/geo.ts` + tests; `dogs.ts` route test |
-| 3 | phone_hmac only (HMAC-SHA256 pepper), never bare phone | ✅ | `lib/hmac.ts`; schema has no phone column; security-gate grep |
+| 3 | identity_hmac only (HMAC-SHA256 pepper), never bare contact info | ✅ | `lib/hmac.ts`; schema has no phone/email column; security-gate grep |
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
@@ -43,12 +43,17 @@ spec PDFs directly. Migrated here so it survives independently of them.
    point for a dog a feeder cares for is also, functionally, a precise
    location for that feeder; there is no reading of "anonymous" that survives
    exact coordinates being public.
-3. **Phone numbers are HMAC'd, never hashed bare.** A plain SHA-256 of a
-   10-digit Indian mobile number is a ~4×10⁹-entry keyspace — small enough to
-   brute-force in seconds on commodity hardware, which makes a bare hash
-   equivalent to storing the number in the clear. HMAC with a pepper held
-   outside the database (KMS/secret manager, never a committed env file)
-   is what actually makes it one-way.
+3. **Contact info is HMAC'd, never hashed bare.** This was written when the
+   identity channel was a 10-digit Indian mobile number: a plain SHA-256 of
+   one is a ~4×10⁹-entry keyspace — small enough to brute-force in seconds on
+   commodity hardware, which makes a bare hash equivalent to storing the
+   number in the clear. HMAC with a pepper held outside the database
+   (KMS/secret manager, never a committed env file) is what actually makes
+   it one-way. The reasoning carries over unchanged now that the identity
+   channel is email (`feeders.phone_hmac` was renamed to `identity_hmac` in
+   migration `0010_identity_email.sql` rather than adding a parallel
+   column) — an email address is just as recoverable from a bare hash as a
+   phone number was; the fix is the same HMAC, over a different string.
 4. **Offline conflict resolution uses `captured_at`, never `received_at`.**
    A feeder's phone can be offline for hours; if the server resolved
    `last_seen_geo` by the order photos arrive rather than the order they were

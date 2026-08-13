@@ -17,6 +17,10 @@
     "@hetja/db": "workspace:*",
     "@hetja/ledger": "workspace:^",
     "fastify": "^5.0.0",
+    "nodemailer": "^9.0.5",
     "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1"
   }
 }

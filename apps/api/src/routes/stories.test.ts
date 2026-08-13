@@ -32,7 +32,7 @@ const createdFeeders: string[] = [];
 
 async function insertFeeder(role: "feeder" | "admin", trustScore: number): Promise<{ id: string; token: string }> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (phone_hmac, display_name, role, trust_score, consent_version, is_minor)
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
      VALUES ($1, $2, $3, $4, 'v1', FALSE) RETURNING id`,
     [randomUUID(), role === "admin" ? "Test Admin" : "Test Feeder", role, trustScore],
   );

@@ -1,7 +1,7 @@
 [Unit]
 Description=Hetja Web (Next.js feeder PWA)
-After=network.target straynet-api.service
-Wants=straynet-api.service
+After=network.target hetja-api.service
+Wants=hetja-api.service
 
 [Service]
 Type=simple

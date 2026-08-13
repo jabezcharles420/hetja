@@ -110,7 +110,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/healthz          
 curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/api/v1/heatmap?ward=A"   # 200
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/d/<slug>                  # 200, text/html
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/d/main.js                 # 200, text/javascript
-systemctl is-active straynet-api straynet-web straynet-worker straynet-scan              # active x4
+systemctl is-active hetja-api hetja-web hetja-worker hetja-scan              # active x4
 ```
 
 Replace `<slug>` with a real 9-character collar slug from the database. If
@@ -120,7 +120,7 @@ you need one and don't have a printed collar handy, `pnpm --filter
 ## f. Gotchas
 
 - **`NEXT_PUBLIC_*` is inlined at build time, not read at runtime.** Editing
-  `apps/web/.env.production` and running `systemctl restart straynet-web`
+  `apps/web/.env.production` and running `systemctl restart hetja-web`
   does nothing — Next.js already baked the old values into the JS bundle at
   `pnpm --filter @hetja/web build` time. You must rebuild
   (`pnpm --filter @hetja/web build`) and then restart.

@@ -24,13 +24,13 @@ pnpm --filter @hetja/web build
 # separate Supabase migration step against the project, not by this script).
 
 echo "==> install units"
-for unit in straynet-api.service straynet-web.service straynet-worker.service straynet-scan.service; do
+for unit in hetja-api.service hetja-web.service hetja-worker.service hetja-scan.service; do
   sed -e "s#__REPO_ROOT__#${REPO_ROOT}#g" -e "s#__NODE_BIN__#${NODE_BIN}#g" \
     "ops/systemd/${unit}" > "/etc/systemd/system/${unit}"
 done
 systemctl daemon-reload
-systemctl enable --now straynet-api straynet-web straynet-worker straynet-scan 2>/dev/null || \
-  systemctl restart straynet-api straynet-web straynet-worker straynet-scan
+systemctl enable --now hetja-api hetja-web hetja-worker hetja-scan 2>/dev/null || \
+  systemctl restart hetja-api hetja-web hetja-worker hetja-scan
 
 echo "==> health"
 sleep 2

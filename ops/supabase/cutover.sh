@@ -168,12 +168,12 @@ for k, v in (("PGHOST", host), ("PGPORT", port), ("PGUSER", user),
 io.open(p, "w", encoding="utf8").write(s)
 print("    env rewritten (backup alongside)")
 PY
-  systemctl restart straynet-api straynet-worker
+  systemctl restart hetja-api hetja-worker
   sleep 5
   printf '    healthz: '; curl -s -o /dev/null -w '%{http_code}\n' --max-time 20 http://127.0.0.1:8080/healthz
   printf '    care:    '; curl -s -o /dev/null -w '%{http_code}\n' --max-time 20 "http://127.0.0.1:8080/api/v1/care?lat=19.076&lng=72.8777"
   echo
-  echo "    Rollback: restore the .bak file and restart straynet-api."
+  echo "    Rollback: restore the .bak file and restart hetja-api."
 else
   say "not repointed"
   echo "    The API is still on its current database. Re-run with --repoint when"

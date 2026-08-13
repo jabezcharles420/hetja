@@ -76,7 +76,7 @@ No A/AAAA records are needed — Cloudflare creates proxied CNAMEs for the tunne
 ### 2. On the VPS
 
 ```sh
-sudo /root/straynet/ops/caddy/setup-tunnel.sh <TUNNEL_TOKEN>
+sudo /root/hetja/ops/caddy/setup-tunnel.sh <TUNNEL_TOKEN>
 ```
 
 Idempotent: it re-installs the service if run again.
@@ -101,16 +101,16 @@ token rather than IP (INVARIANT 6).
 restarting the service alone does nothing:
 
 ```sh
-pnpm --filter @hetja/web build && systemctl restart straynet-web
+pnpm --filter @hetja/web build && systemctl restart hetja-web
 ```
 
 ## Services
 
 | Unit | Port | Bound to |
 |---|---|---|
-| `straynet-web` | 3100 | 127.0.0.1 |
-| `straynet-api` | 8080 | 127.0.0.1 |
-| `straynet-scan` | 8081 | 127.0.0.1 |
+| `hetja-web` | 3100 | 127.0.0.1 |
+| `hetja-api` | 8080 | 127.0.0.1 |
+| `hetja-scan` | 8081 | 127.0.0.1 |
 | `caddy` | 80 | all interfaces (unreachable from outside) |
 | `cloudflared` | — | outbound only |
 

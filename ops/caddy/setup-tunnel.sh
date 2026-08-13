@@ -60,10 +60,10 @@ Then confirm the proxy hop count. Fastify's trustProxy is currently 1, but with
 cloudflared AND Caddy in front there are two hops, so the client IP may be read
 one position off:
 
-  journalctl -u straynet-api -n 20 | grep remoteAddress
+  journalctl -u hetja-api -n 20 | grep remoteAddress
 
 If remoteAddress shows 127.0.0.1 rather than a real client IP, set TRUST_PROXY=2
-in apps/api/.env.production and restart straynet-api. This only affects log
+in apps/api/.env.production and restart hetja-api. This only affects log
 accuracy and IP-derived heuristics -- rate limits are keyed on account/device
 token, never IP (INVARIANT 6).
 NOTE

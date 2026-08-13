@@ -64,8 +64,8 @@ done
 # ---------------------------------------------------------------------------
 log "rendering systemd units (__REPO_ROOT__=$REPO_ROOT, __NODE_BIN__=$NODE_BIN)"
 
-for unit in ops/systemd/straynet-api.service ops/systemd/straynet-web.service \
-            ops/systemd/straynet-worker.service ops/systemd/straynet-scan.service; do
+for unit in ops/systemd/hetja-api.service ops/systemd/hetja-web.service \
+            ops/systemd/hetja-worker.service ops/systemd/hetja-scan.service; do
   [ -f "$unit" ] || fail "missing unit template: $unit"
   name="$(basename "$unit")"
   sed -e "s#__REPO_ROOT__#${REPO_ROOT}#g" -e "s#__NODE_BIN__#${NODE_BIN}#g" \
@@ -74,7 +74,7 @@ for unit in ops/systemd/straynet-api.service ops/systemd/straynet-web.service \
 done
 
 systemctl daemon-reload
-systemctl enable --now straynet-api straynet-web straynet-worker straynet-scan
+systemctl enable --now hetja-api hetja-web hetja-worker hetja-scan
 
 if [ -f ops/caddy/Caddyfile ]; then
   systemctl enable --now caddy 2>/dev/null || \
@@ -142,7 +142,7 @@ else
   log "WARN: no seeded dog found — skipping /d/<slug> and /d/main.js checks. Run 'pnpm --filter @hetja/db seed' and re-run this script to exercise them."
 fi
 
-for svc in straynet-api straynet-web straynet-worker straynet-scan; do
+for svc in hetja-api hetja-web hetja-worker hetja-scan; do
   if systemctl is-active --quiet "$svc"; then
     printf 'OK    %-22s active\n' "$svc"
   else

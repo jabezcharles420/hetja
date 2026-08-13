@@ -154,18 +154,18 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 
 ## 5. How to run it
 ```bash
-cd /root/straynet
+cd /root/hetja
 pnpm install
 pnpm --filter @hetja/db migrate && pnpm --filter @hetja/db seed
 pnpm --filter @hetja/api dev        # API on :8080
 pnpm --filter @hetja/worker dev     # job queue
 cd apps/web && pnpm dev --port 3100    # Hetja frontend
-# Production: bash ops/deploy.sh (systemd: straynet-api/worker/scan)
+# Production: bash ops/deploy.sh (systemd: hetja-api/worker/scan)
 ```
 
 ## 6. Status of the outstanding items
-- [x] **Deployed on the VPS (2026-08-12)**: `straynet-api` (:8080, healthz 200),
-      `straynet-worker` (active), `straynet-scan` (:8081, 200) as systemd services;
+- [x] **Deployed on the VPS (2026-08-12)**: `hetja-api` (:8080, healthz 200),
+      `hetja-worker` (active), `hetja-scan` (:8081, 200) as systemd services;
       DB has 63 dogs (seed + test data). Production builds green for all apps
       (Next.js build: 10 pages, 87.4 kB shared JS; scan: 7.3 kB gzipped).
 - [ ] **First push to GitHub** — waiting on the `hetja` repo (deploy key ready;

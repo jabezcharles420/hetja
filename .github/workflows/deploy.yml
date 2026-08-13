@@ -305,7 +305,13 @@ jobs:
           fail=0
           while IFS= read -r f; do
             [ -n "$f" ] || continue
-            if grep -iE '\b(DROP|TRUNCATE|DELETE)\b' "$f" | grep -v '^--' >/dev/null; then
+            # Destructive STATEMENTS only -- not the mere appearance of the words.
+            # `GRANT ... DELETE`, `ON DELETE CASCADE`, `DROP DEFAULT`,
+            # `DROP NOT NULL` and a `deleted_at` column are all ordinary DDL
+            # and must not trip this, or the approval marker becomes noise.
+            # SQL comments are stripped before matching.
+            if sed -e 's/--.*$//' "$f" \
+                 | grep -iqE '\b(DROP[[:space:]]+(TABLE|COLUMN|SCHEMA|DATABASE|VIEW|MATERIALIZED|INDEX|CONSTRAINT|TYPE|FUNCTION|TRIGGER|EXTENSION|SEQUENCE)|TRUNCATE|DELETE[[:space:]]+FROM)\b'; then
               if grep -qE -- '-- MIGRATION-APPROVED:[[:space:]]*\S' "$f"; then
                 echo "OK (approved): $f"
                 grep -nE -- '-- MIGRATION-APPROVED:' "$f"

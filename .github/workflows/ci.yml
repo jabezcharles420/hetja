@@ -130,3 +130,7 @@ jobs:
         run: pnpm -r test
       - name: Security gate
         run: bash ops/security-gate.sh
+      - name: Contrast gate (WCAG-AA on design tokens)
+        run: bash ops/contrast-gate.sh
+      - name: Caddy cache-policy gate (life-safety no-store on /d/*)
+        run: bash ops/check-caddy-cache.sh

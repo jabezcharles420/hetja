@@ -7,6 +7,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import compress from "@fastify/compress";
+import etag from "@fastify/etag";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import deviceRoutes from "./routes/devices.js";
@@ -64,6 +66,20 @@ export function buildServer(config: AppConfig): FastifyInstance {
   });
 
   void app.register(helmet);
+  // Brotli/gzip on the wire (Caddy also compresses at the edge; this covers
+  // direct clients and the api.hetja.in origin). Enhancement stack §M.3.
+  void app.register(compress);
+  // ETag + conditional GET for cacheable routes. SOS state and dog pages are
+  // explicitly excluded in the onSend hook below — never ETag a life-safety
+  // state endpoint (a stale 304 for a case that just got acked is worse than
+  // no cache at all). Enhancement stack §M.3.
+  void app.register(etag, { weak: false });
+  app.addHook("onSend", async (request, reply) => {
+    if (request.url.startsWith("/api/v1/sos") || request.url.startsWith("/api/v1/dogs")) {
+      reply.removeHeader("etag");
+      reply.header("Cache-Control", "no-store");
+    }
+  });
   void app.register(cors, {
     // Production: an exact allowlist from CORS_ORIGINS. Development reflects any
     // origin so local hosts and phones on the LAN can hit the dev server.

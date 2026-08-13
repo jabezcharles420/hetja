@@ -60,45 +60,50 @@ afterEach(async () => {
 });
 
 describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
-  it("issues a challenge, mints a token from a solved PoW, and that token is accepted by POST /api/v1/reports", async () => {
-    const app = buildServer(config);
+  it(
+    "issues a challenge, mints a token from a solved PoW, and that token is accepted by POST /api/v1/reports",
+    async () => {
+        // DEVICE_POW_DIFFICULTY defaults to 18 (enhancement stack Phase 0 #6):
+        // ~2^17 average attempts, but the tail is heavy — an unlucky draw can
+        // take 10-30s with the naive solver, so this test gets a real timeout.
+        const app = buildServer(config);
 
-    const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
-    expect(challengeRes.statusCode).toBe(200);
-    const challengeBody = challengeRes.json();
-    expect(challengeBody.ok).toBe(true);
-    const { challenge, difficulty } = challengeBody.data as { challenge: string; difficulty: number };
-    expect(typeof challenge).toBe("string");
-    expect(difficulty).toBe(config.DEVICE_POW_DIFFICULTY);
+      const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
+      expect(challengeRes.statusCode).toBe(200);
+      const challengeBody = challengeRes.json();
+      expect(challengeBody.ok).toBe(true);
+      const { challenge, difficulty } = challengeBody.data as { challenge: string; difficulty: number };
+      expect(typeof challenge).toBe("string");
+      expect(difficulty).toBe(config.DEVICE_POW_DIFFICULTY);
 
-    const solution = solvePoW(challenge, difficulty);
-    expect(solution).not.toBeNull();
+      const solution = solvePoW(challenge, difficulty);
+      expect(solution).not.toBeNull();
 
-    const tokenRes = await app.inject({
-      method: "POST",
-      url: "/api/v1/devices/token",
-      payload: { challenge, nonce: solution!.nonce },
-    });
-    expect(tokenRes.statusCode).toBe(200);
-    const tokenBody = tokenRes.json();
-    expect(tokenBody.ok).toBe(true);
-    const deviceToken: string = tokenBody.data.deviceToken;
-    expect(typeof deviceToken).toBe("string");
-    expect(deviceToken.length).toBeGreaterThan(0);
+      const tokenRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/devices/token",
+        payload: { challenge, nonce: solution!.nonce },
+      });
+      expect(tokenRes.statusCode).toBe(200);
+      const tokenBody = tokenRes.json();
+      expect(tokenBody.ok).toBe(true);
+      const deviceToken: string = tokenBody.data.deviceToken;
+      expect(typeof deviceToken).toBe("string");
+      expect(deviceToken.length).toBeGreaterThan(0);
 
-    // The actual contract this task exists to fix: a token minted purely
-    // through the HTTP endpoints above -- never issueDeviceToken() called
-    // directly -- must be accepted by an anonymous write.
-    const reportRes = await app.inject({
-      method: "POST",
-      url: "/api/v1/reports",
-      payload: { dogSlug, severity: "minor", deviceToken },
-    });
-    expect(reportRes.statusCode).toBe(200);
-    const reportBody = reportRes.json();
-    expect(reportBody.ok).toBe(true);
-    expect(reportBody.data.created).toBe(true);
-  });
+      // The actual contract this task exists to fix: a token minted purely
+      // through the HTTP endpoints above -- never issueDeviceToken() called
+      // directly -- must be accepted by an anonymous write.
+      const reportRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/reports",
+        payload: { dogSlug, severity: "minor", deviceToken },
+      });
+      expect(reportRes.statusCode).toBe(200);
+      const reportBody = reportRes.json();
+      expect(reportBody.ok).toBe(true);
+      expect(reportBody.data.created).toBe(true);
+  }, 60_000);
 
   it("rejects a tampered challenge (HMAC no longer matches its own fields)", async () => {
     const app = buildServer(config);

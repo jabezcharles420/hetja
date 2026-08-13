@@ -13,21 +13,12 @@ import styles from "./QrScanner.module.css";
  * file uses.
  */
 declare global {
-  interface DetectedBarcode {
-    readonly rawValue: string;
-    readonly format: string;
-  }
-
-  interface BarcodeDetectorOptions {
-    formats?: string[];
-  }
-
+  // TS 7's lib.dom already ships the native `BarcodeDetector`,
+  // `DetectedBarcode` and `BarcodeDetectorOptions` types, so only the
+  // instance abstraction used across the native API and the polyfill is
+  // declared here.
   interface BarcodeDetectorInstance {
     detect(image: CanvasImageSource): Promise<DetectedBarcode[]>;
-  }
-
-  interface Window {
-    BarcodeDetector?: new (options?: BarcodeDetectorOptions) => BarcodeDetectorInstance;
   }
 }
 
@@ -130,9 +121,31 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
   // markup on first client paint (a hydration mismatch); the effect runs
   // once hydration is done.
   useEffect(() => {
-    const hasDetector = typeof window !== "undefined" && typeof window.BarcodeDetector !== "undefined";
     const hasCamera = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
-    setPhase(hasDetector && hasCamera ? "idle" : "unsupported");
+    let cancelled = false;
+    (async () => {
+      let hasDetector = typeof window !== "undefined" && typeof window.BarcodeDetector !== "undefined";
+      if (!hasDetector) {
+        // Enhancement stack Phase 0 #3 (Sec-ant/barcode-detector): lazy-load
+        // the ~3 KB JS + ~13 KB WASM polyfill behind a dynamic import so iOS
+        // Safari / Firefox get QR scanning without paying for it up front.
+        try {
+          const { BarcodeDetector: Polyfill } = await import("barcode-detector");
+          if (typeof window !== "undefined") {
+            (window as unknown as {
+              BarcodeDetector?: new (options?: BarcodeDetectorOptions) => BarcodeDetectorInstance;
+            }).BarcodeDetector = Polyfill as never;
+          }
+          hasDetector = true;
+        } catch {
+          hasDetector = false;
+        }
+      }
+      if (!cancelled) setPhase(hasDetector && hasCamera ? "idle" : "unsupported");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const stopCamera = useCallback(() => {

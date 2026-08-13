@@ -26,17 +26,32 @@
 http://hetja.in {
 	import common
 
-	# The API sits on this same origin because apps/scan hardcodes a same-origin
-	# /api/v1 prefix (src/api.ts, service-worker.ts). It also means the web
-	# app's calls are same-origin, so no CORS preflight is involved at all.
+	# Cache-Control policy (enhancement stack §M.4). Cloudflare Cache Rules on
+	# the dashboard are the edge half; these headers are the origin half of the
+	# same contract. /d/* and the API catch-all are no-store — SOS state
+	# changes underneath and a stale collar page is a life-safety bug, not a
+	# perf regression. Guarded by ops/check-caddy-cache.sh in CI. Order
+	# matters: more specific handles first (care* before the API catch-all).
+	handle /api/v1/care* {
+		header Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080
+	}
 	handle /api/v1/* {
+		header Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8080
 	}
 
 	# QR collar landing -- the URL etched on the collar:
 	#   https://hetja.in/d/<9-char-slug>?s=<hmac-sig>
 	handle /d/* {
+		header Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8081
+	}
+
+	# Next.js static assets: content-addressed, immutable for a year.
+	handle /_next/static/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy 127.0.0.1:3100
 	}
 
 	# Next.js feeder PWA (everything else).
@@ -54,5 +69,12 @@ http://www.hetja.in {
 # traffic should prefer the same-origin path above.
 http://api.hetja.in {
 	import common
-	reverse_proxy 127.0.0.1:8080
+	handle /api/v1/care* {
+		header Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle /api/v1/* {
+		header Cache-Control "no-store"
+		reverse_proxy 127.0.0.1:8080
+	}
 }

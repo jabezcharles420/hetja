@@ -2,6 +2,35 @@ import type { DogProfile } from "./api";
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
+/* ---------------------------------------------------------------------------
+ * Web Speech (Phase 0 of the enhancement stack, §E.7 / §M.9).
+ * Zero-dependency native speechSynthesis: closes the illiterate-user gap on
+ * the scan page. Honesty rule: the Listen button only exists when the
+ * browser actually supports speechSynthesis.
+ * ------------------------------------------------------------------------- */
+const SPEECH_SUPPORTED = typeof window !== "undefined" && "speechSynthesis" in window;
+
+function stopSpeech(): void {
+  if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
+}
+
+function speakDog(p: DogProfile): void {
+  if (!SPEECH_SUPPORTED) return;
+  const bits = [
+    `This dog is named ${p.name}.`,
+    p.sex ? `${p.sex}.` : "",
+    p.approxAge !== undefined ? `Around ${p.approxAge} years old.` : "",
+    p.vaccine ? `Vaccination: ${p.vaccine}.` : "",
+    p.abcStatus ? `Sterilisation: ${p.abcStatus}.` : "",
+    p.microStory ?? "",
+    "If this dog is hurt, press the red button to alert nearby responders.",
+  ].filter(Boolean);
+  const utterance = new SpeechSynthesisUtterance(bits.join(" "));
+  utterance.lang = "en-IN";
+  utterance.rate = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
 const CHECK_SVG =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -18,12 +47,17 @@ export function renderProfile(p: DogProfile, stale: boolean): void {
   const app = $("#profile");
   app.classList.remove("hidden");
   app.innerHTML = buildCard(p, stale);
+  if (SPEECH_SUPPORTED) {
+    stopSpeech();
+    app.querySelector<HTMLButtonElement>(".listen")?.addEventListener("click", () => speakDog(p));
+  }
   if (stale) {
     setNote("You're offline — showing a saved profile. Vaccination and ABC status may be outdated.");
   }
 }
 
 export function renderError(message: string): void {
+  if (SPEECH_SUPPORTED) stopSpeech();
   $("#state").classList.remove("hidden");
   const app = $("#profile");
   app.classList.add("hidden");
@@ -65,6 +99,7 @@ function buildCard(p: DogProfile, stale: boolean): string {
   return `
     <div class="photo">${photoMarkup(p)}</div>
     <h1 class="dog-name">${escapeHtml(p.name)}</h1>
+    ${SPEECH_SUPPORTED ? `<button type="button" class="listen" aria-label="Listen to this dog's profile">Listen</button>` : ""}
     <div class="hr"></div>
     <div class="plate">${escapeHtml(p.slug)}</div>
     <div class="hr"></div>

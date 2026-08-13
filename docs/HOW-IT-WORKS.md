@@ -422,7 +422,7 @@ for macOS.
 - Most `care_providers` coordinates are locality estimates, not geocoded
   points. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
   incoming government vet database is meant to close.
-- `DEVICE_POW_DIFFICULTY` is 14 (~16k hashes). 18–20 is the right range.
+- `DEVICE_POW_DIFFICULTY` is 18 (~2^17 avg hashes, ~0.5 s on the naive solver; heavy tail on unlucky draws). Raised from 14 on 2026-08-13 (enhancement stack Phase 0 #6); 18–20 is the right range, 20 is the ceiling for the current solver budget.
 - The git history still contains the old working title in commit messages.
   Rewriting it invalidates every SHA, so it happens once, last.
 

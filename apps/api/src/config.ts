@@ -29,7 +29,7 @@ const EnvSchema = z.object({
   // HMAC key that attests anonymous device tokens (INVARIANT 6 rate-limit subject).
   HETJA_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
   // Anonymous device-token proof-of-work difficulty (desktop fallback).
-  DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(14),
+  DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(18),
   // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
   TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),
   // Comma-separated exact browser origins allowed in production. Exact origins

@@ -43,6 +43,13 @@
  *   invisible to a real user filing a report, but 16-64x more expensive to
  *   a scripted minter than the current default.
  *
+ * - As of 2026-08-13 (enhancement stack Phase 0 #6) the shipped default IS
+ *   18 bits and the production .env.production carries DEVICE_POW_DIFFICULTY=18.
+ *   The desktop-web fallback solver (solvePoW, maxIterations 20_000_000)
+ *   handles 18 bits in well under a second; 20 bits is the ceiling before
+ *   low-end devices start to notice. Do not raise past 20 without revisiting
+ *   the solver budget and the mobile attestation path.
+ *
  * - Replay is bounded, not solved, by this stateless design. There is
  *   deliberately no server-side store of spent challenges/nonces here, so
  *   a solved (challenge, nonce) pair stays valid for whoever holds it until

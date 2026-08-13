@@ -17,6 +17,13 @@ algorithm is adapted rather than installed, this file says so.
 | WCAG-AA contrast gate | WCAG 2.2 (no repo); formula per W3C relative luminance | n/a | `ops/contrast-gate.sh` | Parses `packages/design/tokens.css`; zero-dep implementation (no chroma.js needed for 6 tokens). |
 | `DEVICE_POW_DIFFICULTY` 14 → 18 | existing codebase; recommendation from enhancement-stack §B / HOW-IT-WORKS §9 | n/a | `apps/api/src/config.ts`, `apps/api/src/routes/devices.ts` | ~2^17 avg attempts (~0.5 s); test timeout raised accordingly. |
 
+## Wave 2 — Phase 1 (enhancement stack §D.1, picks 15 + 16)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `merkletreejs` — Merkle inclusion proofs over the ledger chain | github.com/merkletreejs/merkletreejs | MIT | `packages/ledger/src/merkle.ts` | Per-append Merkle root over the chain's canonical record hashes (leaf = `LedgerRecord.hash`, so tree and chain agree); O(log n) `verifyInclusion` for external auditors. Tree uses `duplicateOdd`; proofs are extracted from the library's layers because its own proof walk drops the self-duplicate for the last leaf of odd trees. |
+| `panva/jose` — signed chain head (Ed25519/EdDSA) | github.com/panva/jose | MIT | `packages/ledger/src/signing.ts` | Compact JWS over `{head, merkleRoot, recordCount}` with `sub: did:web:hetja.in:vets/<vetId>`; keygen + JWK export so the public half can later be served at a `did:web` JWKS endpoint (`jwks()` helper). |
+
 ## Sources researched and evaluated (2026-08-13)
 
 Full evaluation of all researched projects — adopted, deferred, and rejected —

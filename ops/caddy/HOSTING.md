@@ -101,7 +101,7 @@ token rather than IP (INVARIANT 6).
 restarting the service alone does nothing:
 
 ```sh
-pnpm --filter @straynet/web build && systemctl restart straynet-web
+pnpm --filter @hetja/web build && systemctl restart straynet-web
 ```
 
 ## Services

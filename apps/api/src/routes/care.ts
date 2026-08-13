@@ -42,7 +42,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 const MAX_RESULTS = 8;
 const MAX_KM_CAP = 25;

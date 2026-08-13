@@ -5,7 +5,7 @@ import { phoneHmac } from "../lib/hmac.js";
 import { verifyAccessToken, verifyRefreshToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
 import { clearOtp } from "../lib/otp.js";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 const config = loadConfig();
 

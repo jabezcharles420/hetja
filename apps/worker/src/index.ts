@@ -7,7 +7,7 @@
  *   retention      → raw-photo 7-day TTL + thumbnail rotation
  *   anchor_ledger  → daily ledger head publication (INVARIANT 10)
  */
-import { pool, query, withTx } from "@straynet/db";
+import { pool, query, withTx } from "@hetja/db";
 import type { PoolClient } from "pg";
 
 const BATCH = 10;

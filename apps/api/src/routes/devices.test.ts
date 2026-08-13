@@ -17,11 +17,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { solvePoW, verifyPoW } from "../lib/device.js";
-import { query, generateSlug } from "@straynet/db";
+import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
 
-// Slugs come from the real generator in @straynet/db, not a local alphabet.
+// Slugs come from the real generator in @hetja/db, not a local alphabet.
 // Eight test files each kept their own copy reading
 // "abcdefghijklmnopqrstuvwxyz234567" -- which includes the confusable `l` that
 // the generator never emits, and excludes 8/9 which it does. Those fixtures

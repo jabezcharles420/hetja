@@ -11,7 +11,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { query, withTx } from "@straynet/db";
+import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 const DEFAULT_ALERT_RADIUS_M = 2000;

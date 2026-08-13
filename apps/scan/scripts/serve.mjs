@@ -54,5 +54,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`@straynet/scan → http://${HOST}:${PORT}/d/<slug>?s=<sig>`);
+  console.log(`@hetja/scan → http://${HOST}:${PORT}/d/<slug>?s=<sig>`);
 });

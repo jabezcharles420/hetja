@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { AuthOtpRequest, AuthOtpVerify, type FeederRole } from "@straynet/contracts";
-import { query } from "@straynet/db";
+import { AuthOtpRequest, AuthOtpVerify, type FeederRole } from "@hetja/contracts";
+import { query } from "@hetja/db";
 import { phoneHmac } from "../lib/hmac.js";
 import { signAccessToken, signRefreshToken } from "../lib/jwt.js";
 import { verifyDeviceToken } from "../lib/device.js";

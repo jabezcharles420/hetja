@@ -23,7 +23,7 @@
  *
  * All day/month/hour boundaries use Asia/Kolkata (the platform is Mumbai).
  */
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 const KOLKATA_TZ = "Asia/Kolkata";
 

@@ -3,8 +3,8 @@ import { generateKeyPairSync, sign, randomUUID } from "node:crypto";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
-import { query } from "@straynet/db";
-import { canonicalPayload } from "@straynet/ledger";
+import { query } from "@hetja/db";
+import { canonicalPayload } from "@hetja/ledger";
 import type { FastifyInstance } from "fastify";
 
 const config = loadConfig();

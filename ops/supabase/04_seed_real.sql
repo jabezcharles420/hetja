@@ -53,4 +53,4 @@ COMMIT;
 --     identical ARV vaccination rows on Rosie, one pair per test run)
 --   * vets — all 18 were "Test Clinic"
 --   * scans — the single real one is a feed log with no lasting value
---   * care_providers — seeded from code instead: `pnpm --filter @straynet/db seed:care`
+--   * care_providers — seeded from code instead: `pnpm --filter @hetja/db seed:care`

@@ -22,7 +22,7 @@
  * trust_event 'auto_paused' is written. The pause is observable via
  * applyVerificationGate()/getFeederTrust().
  */
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 export const TRUST_BASELINE = 30;
 export const TRUST_MIN = 0;

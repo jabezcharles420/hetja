@@ -96,7 +96,7 @@ echo "    done"
 say "seeding care_providers"
 ( cd "$REPO" && PGHOST="$HOST" PGPORT="$PORT" PGUSER="postgres.$PROJECT_REF" \
     PGDATABASE=postgres PGPASSWORD="$DB_PASSWORD" PGSSLMODE=require \
-    pnpm --filter @straynet/db seed:care 2>&1 | tail -3 )
+    pnpm --filter @hetja/db seed:care 2>&1 | tail -3 )
 
 # --- verification --------------------------------------------------------
 say "row counts"

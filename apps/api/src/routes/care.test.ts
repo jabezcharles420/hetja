@@ -26,7 +26,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 const config = loadConfig();
 

@@ -11,7 +11,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { withTx } from "@straynet/db";
+import { withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import {
   TRUST_EVENTS,

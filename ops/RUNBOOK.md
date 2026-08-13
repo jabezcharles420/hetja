@@ -14,8 +14,8 @@ box needs no Postgres, PostGIS, or pgvector install at all.
 | Service | How it runs | Port |
 |---|---|---|
 | PostgreSQL 16.14 + PostGIS + pgvector | managed Supabase (see `ops/supabase/`) | 5432 (pooler) |
-| Hetja API (Fastify) | `pnpm --filter @straynet/api dev` (dev) / systemd unit (prod) | 8080 |
-| Worker (fanout/escalation/retention) | `pnpm --filter @straynet/worker` | — |
+| Hetja API (Fastify) | `pnpm --filter @hetja/api dev` (dev) / systemd unit (prod) | 8080 |
+| Worker (fanout/escalation/retention) | `pnpm --filter @hetja/worker` | — |
 | Scan landing (static) | static server / CDN | 80/443 |
 
 ## SLOs (from the blueprint)
@@ -31,7 +31,7 @@ backlog age, push delivery-receipt rate.
 ## Daily ledger anchor
 
 The ledger head must be published daily (INVARIANT 10). Add a cron:
-`pnpm --filter @straynet/ledger anchor` → writes `ledger_anchors` row +
+`pnpm --filter @hetja/ledger anchor` → writes `ledger_anchors` row +
 publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
 
 ## PITR restore drill (monthly)

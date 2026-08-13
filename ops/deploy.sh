@@ -11,13 +11,13 @@ echo "==> pnpm install"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 echo "==> build packages + apps"
-pnpm --filter @straynet/ledger build
-pnpm --filter @straynet/contracts build
-pnpm --filter @straynet/db build
-pnpm --filter @straynet/api build
-pnpm --filter @straynet/worker build
-pnpm --filter @straynet/scan build
-pnpm --filter @straynet/web build
+pnpm --filter @hetja/ledger build
+pnpm --filter @hetja/contracts build
+pnpm --filter @hetja/db build
+pnpm --filter @hetja/api build
+pnpm --filter @hetja/worker build
+pnpm --filter @hetja/scan build
+pnpm --filter @hetja/web build
 
 # Migrations are no longer applied from here: the database is managed
 # Supabase, and schema changes live in ops/supabase/ (applied by hand or by a

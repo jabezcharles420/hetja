@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ScanInput } from "@straynet/contracts";
-import { query, withTx } from "@straynet/db";
+import { ScanInput } from "@hetja/contracts";
+import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { verifyDeviceToken } from "../lib/device.js";
 import { logTrustEvent, recomputeScore, type TxClient } from "../lib/trust.js";

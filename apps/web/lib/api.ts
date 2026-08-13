@@ -1,7 +1,7 @@
 /**
  * Hetja Feeder API client.
  *
- * Typed fetch wrapper around the @straynet/api HTTP surface:
+ * Typed fetch wrapper around the @hetja/api HTTP surface:
  *   - origin from NEXT_PUBLIC_API_URL (default http://localhost:8080); every
  *     JSON endpoint is served under the /api/v1 prefix
  *   - Bearer access token attached from localStorage when present
@@ -128,7 +128,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Domain types (mirror @straynet/api response shapes)
+// Domain types (mirror @hetja/api response shapes)
 // ---------------------------------------------------------------------------
 
 export type DogStatus = "active" | "lost" | "deceased" | "adopted" | "relocated";

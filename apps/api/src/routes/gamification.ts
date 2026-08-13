@@ -9,7 +9,7 @@
  *   idempotent — repeated calls never double-award.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { withTx } from "@straynet/db";
+import { withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { evaluateBadges, GamificationError, getStreakView } from "../lib/gamification.js";
 

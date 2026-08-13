@@ -56,7 +56,7 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 |---|---|---|
 | API | Node 22 + **Fastify 5** + TypeScript strict | p95 < 150 ms target, zero-framework hot path |
 | DB | **PostgreSQL 16 + PostGIS + pgvector** | geo queries, embeddings later |
-| Ledger | Custom hash-chain package (@straynet/ledger) | INVARIANT 9/10 tamper-evidence |
+| Ledger | Custom hash-chain package (@hetja/ledger) | INVARIANT 9/10 tamper-evidence |
 | Frontend | **Next.js 14 App Router** PWA (Hetja) | mobile-first feeder app |
 | Scan hot path | Vanilla TS static landing, **7.3 KB gzipped** | < 40 KB budget (18 %) |
 | Queue | Postgres `jobs` table, `SKIP LOCKED` | no Redis (blueprint rule) |
@@ -145,20 +145,20 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 
 | Suite | Tests |
 |---|---|
-| @straynet/db (slugs, migration) | 8 |
-| @straynet/contracts (schemas, geo) | 11 |
-| @straynet/ledger (chain, anchor) | 5 |
-| @straynet/api (auth/dogs/scans/sos/medical/ledger/trust/stories/heatmap/territories/gamification) | 69 |
-| @straynet/web (Hetja frontend) | 63+ |
+| @hetja/db (slugs, migration) | 8 |
+| @hetja/contracts (schemas, geo) | 11 |
+| @hetja/ledger (chain, anchor) | 5 |
+| @hetja/api (auth/dogs/scans/sos/medical/ledger/trust/stories/heatmap/territories/gamification) | 69 |
+| @hetja/web (Hetja frontend) | 63+ |
 | **Total** | **~155** |
 
 ## 5. How to run it
 ```bash
 cd /root/straynet
 pnpm install
-pnpm --filter @straynet/db migrate && pnpm --filter @straynet/db seed
-pnpm --filter @straynet/api dev        # API on :8080
-pnpm --filter @straynet/worker dev     # job queue
+pnpm --filter @hetja/db migrate && pnpm --filter @hetja/db seed
+pnpm --filter @hetja/api dev        # API on :8080
+pnpm --filter @hetja/worker dev     # job queue
 cd apps/web && pnpm dev --port 3100    # Hetja frontend
 # Production: bash ops/deploy.sh (systemd: straynet-api/worker/scan)
 ```
@@ -176,11 +176,11 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
 ## 7. Final test totals (2026-08-12)
 | Suite | Tests |
 |---|---|
-| @straynet/db | 8 |
-| @straynet/contracts | 11 |
-| @straynet/ledger | 5 |
-| @straynet/api (13 route files) | 69 |
-| @straynet/web (17 test files) | 79 |
+| @hetja/db | 8 |
+| @hetja/contracts | 11 |
+| @hetja/ledger | 5 |
+| @hetja/api (13 route files) | 69 |
+| @hetja/web (17 test files) | 79 |
 | **Total** | **172** |
 
 All suites green, 0 typecheck errors across api/worker/packages, security gate

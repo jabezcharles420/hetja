@@ -15,8 +15,8 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { SLUG_REGEX, type SosSeverity } from "@straynet/contracts";
-import { query, withTx } from "@straynet/db";
+import { SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
+import { query, withTx } from "@hetja/db";
 import { verifyDeviceToken } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { getNearbyCare } from "./care.js";

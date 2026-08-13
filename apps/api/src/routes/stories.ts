@@ -11,8 +11,8 @@
  *   (moderated_at IS NOT NULL), newest first, max 3 (micro = short).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { StoryInput } from "@straynet/contracts";
-import { query, withTx } from "@straynet/db";
+import { StoryInput } from "@hetja/contracts";
+import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 interface DogIdRow {

@@ -15,9 +15,9 @@ import {
   GENESIS_PREV_HASH,
   canonicalPayload,
   computeHash,
-} from "@straynet/ledger";
-import { MedicalRecordInput } from "@straynet/contracts";
-import { pool, query } from "@straynet/db";
+} from "@hetja/ledger";
+import { MedicalRecordInput } from "@hetja/contracts";
+import { pool, query } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 const CHAIN_LOCK_KEY = 420_001; // arbitrary, stable advisory lock for the chain

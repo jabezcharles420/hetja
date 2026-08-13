@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 import type { FastifyInstance } from "fastify";
 
 const config = loadConfig();

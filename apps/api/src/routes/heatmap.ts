@@ -11,7 +11,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 
 const CELL_SIZE_M = 200;
 const K_ANON_MIN_ACTIVE_DOGS = 3;

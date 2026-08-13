@@ -54,7 +54,7 @@ log "prerequisites OK (node $NODE_MAJOR at $NODE_BIN)"
 log "pnpm install --frozen-lockfile"
 pnpm install --frozen-lockfile
 
-for pkg in @straynet/ledger @straynet/contracts @straynet/db @straynet/api @straynet/worker @straynet/scan @straynet/web; do
+for pkg in @hetja/ledger @hetja/contracts @hetja/db @hetja/api @hetja/worker @hetja/scan @hetja/web; do
   log "build $pkg"
   pnpm --filter "$pkg" build
 done
@@ -139,7 +139,7 @@ if [ -n "$SLUG" ]; then
   check_status_and_type "scan dog page" "http://127.0.0.1:8081/d/${SLUG}" 200 "text/html"
   check_status_and_type "scan bundle"   "http://127.0.0.1:8081/d/main.js" 200 "text/javascript"
 else
-  log "WARN: no seeded dog found — skipping /d/<slug> and /d/main.js checks. Run 'pnpm --filter @straynet/db seed' and re-run this script to exercise them."
+  log "WARN: no seeded dog found — skipping /d/<slug> and /d/main.js checks. Run 'pnpm --filter @hetja/db seed' and re-run this script to exercise them."
 fi
 
 for svc in straynet-api straynet-web straynet-worker straynet-scan; do

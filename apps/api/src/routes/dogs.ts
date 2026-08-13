@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { coarsenToWard, type DogStatus } from "@straynet/contracts";
-import { query } from "@straynet/db";
+import { coarsenToWard, type DogStatus } from "@hetja/contracts";
+import { query } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
 
 interface DogRow {

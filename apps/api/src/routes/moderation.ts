@@ -12,7 +12,7 @@
  *   feeders.trust_score is decremented (clamped at 0).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { query, withTx } from "@straynet/db";
+import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 const TRUST_PENALTY = 5;

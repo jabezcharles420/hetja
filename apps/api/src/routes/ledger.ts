@@ -7,8 +7,8 @@
  *   Tamper-evidence anyone can run.
  */
 import type { FastifyInstance } from "fastify";
-import { recomputeHead, type LedgerRecord } from "@straynet/ledger";
-import { query } from "@straynet/db";
+import { recomputeHead, type LedgerRecord } from "@hetja/ledger";
+import { query } from "@hetja/db";
 
 export default async function ledgerRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/ledger/anchor", async () => {

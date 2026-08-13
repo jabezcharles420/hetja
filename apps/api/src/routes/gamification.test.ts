@@ -13,13 +13,13 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { query, generateSlug } from "@straynet/db";
+import { query, generateSlug } from "@hetja/db";
 import { signAccessToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
 import { addDays, dateInKolkata } from "../lib/gamification.js";
 
 const config = loadConfig();
-// Slugs come from the real generator in @straynet/db, not a local alphabet.
+// Slugs come from the real generator in @hetja/db, not a local alphabet.
 // Eight test files each kept their own copy reading
 // "abcdefghijklmnopqrstuvwxyz234567" -- which includes the confusable `l` that
 // the generator never emits, and excludes 8/9 which it does. Those fixtures

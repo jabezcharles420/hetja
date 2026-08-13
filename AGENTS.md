@@ -89,9 +89,9 @@ order, and is safe to re-run:
    table above (not part of the script — bootstrap will refuse to continue
    without them).
 3. `pnpm install --frozen-lockfile`.
-4. Build in dependency order: `@straynet/ledger` → `@straynet/contracts` →
-   `@straynet/db` → `@straynet/api` → `@straynet/worker` → `@straynet/scan`
-   → `@straynet/web`.
+4. Build in dependency order: `@hetja/ledger` → `@hetja/contracts` →
+   `@hetja/db` → `@hetja/api` → `@hetja/worker` → `@hetja/scan`
+   → `@hetja/web`.
 5. Render the four systemd units from `ops/systemd/*.service`, substituting
    the real repo path and `node` binary, install them to
    `/etc/systemd/system/`, `systemctl daemon-reload`, and
@@ -115,15 +115,15 @@ systemctl is-active straynet-api straynet-web straynet-worker straynet-scan     
 
 Replace `<slug>` with a real 9-character collar slug from the database. If
 you need one and don't have a printed collar handy, `pnpm --filter
-@straynet/db seed` creates five.
+@hetja/db seed` creates five.
 
 ## f. Gotchas
 
 - **`NEXT_PUBLIC_*` is inlined at build time, not read at runtime.** Editing
   `apps/web/.env.production` and running `systemctl restart straynet-web`
   does nothing — Next.js already baked the old values into the JS bundle at
-  `pnpm --filter @straynet/web build` time. You must rebuild
-  (`pnpm --filter @straynet/web build`) and then restart.
+  `pnpm --filter @hetja/web build` time. You must rebuild
+  (`pnpm --filter @hetja/web build`) and then restart.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.**
   This is a deliberate guard against a stray `pnpm -r test` truncating a real
   database. Point `PGDATABASE` at something like `straynet_test` before

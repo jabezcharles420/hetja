@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { query } from "@straynet/db";
+import { query } from "@hetja/db";
 import { signAccessToken } from "../lib/jwt.js";
 
 const config = loadConfig();

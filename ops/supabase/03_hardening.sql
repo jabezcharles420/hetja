@@ -9,7 +9,7 @@
 --   1. INVARIANT 1/QR gate -- a dog profile is only readable with a valid
 --      HMAC signature (?s=), so random 9-char slugs cannot be enumerated.
 --   2. Privacy -- coordinates are coarsened to 2 decimals (~1.1km) before
---      leaving the server (coarsenToWard in @straynet/contracts).
+--      leaving the server (coarsenToWard in @hetja/contracts).
 --   3. INVARIANT 9 -- medical_records is append-only, enforced by
 --      `REVOKE UPDATE, DELETE ... FROM app_user`.
 --

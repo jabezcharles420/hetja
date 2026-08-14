@@ -23,7 +23,7 @@
     "lru-cache": "^11.5.2",
     "libphonenumber-js": "^1.13.10",
     "nodemailer": "^9.0.5",
-    "zod": "^3.23.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1"

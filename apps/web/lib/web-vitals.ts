@@ -10,11 +10,37 @@
 import { API_ORIGIN } from "@/lib/api";
 import type { MetricType } from "web-vitals";
 
-/** Reduced-alphabet 9-char collar slug as a final path segment. */
-const SLUG_SEGMENT = /\/[a-km-z2-9]{9}\/?$/;
+/**
+ * A collar slug, anchored to the route prefixes where dog pages actually live
+ * (`/d/<slug>` on apps/scan, `/dog/<slug>` on apps/web).
+ *
+ * The previous pattern was `/\/[a-km-z2-9]{9}\/?$/` — any trailing nine-character
+ * segment in the reduced alphabet, with no prefix. That is not a slug test, it is
+ * a length test, and ordinary route names collide with it: `/dashboard` is nine
+ * in-alphabet characters, so its telemetry was reported as `/:slug` and silently
+ * merged into the dog-page bucket. `/gamification` and `/territories` contain
+ * nine-character runs too. The effect was mislabelled metrics -- LCP for a
+ * dashboard attributed to the collar page, which is the one page whose
+ * performance actually matters -- so the measurement that exists to keep us
+ * honest about performance was quietly lying.
+ *
+ * Anchoring on the prefix rather than adding an INVARIANT 1 check-character test
+ * is deliberate: the check-character validator lives in `@hetja/db`
+ * (`isValidSlug`), which is a server package that pulls in a Postgres client, and
+ * duplicating the alphabet arithmetic into the browser bundle is a second copy of
+ * a rule that must not drift. The prefix is where slugs are, and it cannot
+ * false-positive on a route name.
+ *
+ * The `(?:\/$|(?=\/|$))` tail consumes a trailing slash when the slug ends the
+ * path (so `/d/<slug>/` normalises to `/d/:slug`, not `/d/:slug/`, and the two do
+ * not become separate rows in the metrics table) while only *looking* at a slash
+ * that is followed by more path, leaving `/d/<slug>/photos` as
+ * `/d/:slug/photos`.
+ */
+const DOG_SLUG_PATH = /^(\/(?:d|dog|dogs))\/[a-km-z2-9]{9}(?:\/$|(?=\/|$))/;
 
 export function slugStrippedPath(pathname: string): string {
-  return pathname.replace(SLUG_SEGMENT, "/:slug");
+  return pathname.replace(DOG_SLUG_PATH, "$1/:slug");
 }
 
 export function vitalsPayload(

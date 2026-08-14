@@ -13,7 +13,7 @@
 
 import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 
 export const SYNC_TAG = "hetja-feed-flush";
 
@@ -77,16 +77,59 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
 }
 
 /**
- * Replays the whole queue against POST /api/v1/scans (FIFO). Returns the
- * number of scans acknowledged (created or deduped). Records are removed only
- * on success — a network/API failure leaves them queued for the next flush.
+ * Is this failure worth retrying, or will it fail identically forever?
+ *
+ * The queue used to re-queue on *any* thrown error, which made it a poison-pill
+ * loop rather than a retry queue. That was not hypothetical:
+ *
+ *   - INVARIANT 4 clamps `capturedAt` clock skew to ±15 minutes
+ *     (`packages/contracts` schemas). So **every feed queued offline for longer
+ *     than fifteen minutes became a permanent 400** — which is precisely the
+ *     case the offline queue exists to serve, a feeder out of signal for an
+ *     afternoon. It then retried on every app open, forever.
+ *   - `DOG_NOT_FOUND` (the collar was retired between queueing and syncing) is
+ *     permanent in the same way.
+ *   - `INVALID_PHOTO`, added when the API started rejecting undecodable images
+ *     server-side, joins the same set.
+ *
+ * A stuck head-of-queue item is worse than a lost one here, because `flush` is
+ * FIFO: one permanently-400ing record does not block the others (each is tried
+ * independently) but it does mean every future flush re-uploads its photo bytes
+ * over Mumbai 4G, forever, to be rejected again.
+ *
+ * Retry only what can plausibly change: transport failures, server faults,
+ * throttling, and auth (the feeder may simply log in again — dropping a real
+ * feed because an access token expired would destroy data the queue was built to
+ * protect).
  */
-export async function flush(): Promise<number> {
+function isRetryable(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return true; // unknown failure: assume transient
+  const s = err.status;
+  if (s === 0) return true; // never reached the network
+  if (s >= 500) return true; // server-side fault
+  if (s === 401) return true; // token expired; a later login can fix it
+  if (s === 408 || s === 425 || s === 429) return true; // timeout / too early / throttled
+  return false; // every other 4xx is a statement about the request itself
+}
+
+/**
+ * Replays the whole queue against POST /api/v1/scans (FIFO). Returns the number
+ * of scans acknowledged (created or deduped).
+ *
+ * Records are removed on success, and also on a permanently-failing response —
+ * see `isRetryable`. A permanent drop is reported through `onDrop` rather than
+ * happening silently: the caller is the only layer that can tell the feeder
+ * their feed did not count, and INVARIANT 14's reasoning ("a flag nobody looks
+ * at is a silent rejection with extra steps") applies here too.
+ */
+export async function flush(
+  onDrop?: (item: QueuedScan, err: ApiError) => void,
+): Promise<number> {
   const items = await listQueued();
   let sent = 0;
   for (const item of items) {
     try {
-      const result = await api.createScan({
+      await api.createScan({
         clientUuid: item.clientUuid,
         dogSlug: item.dogSlug,
         type: "feed",
@@ -98,8 +141,10 @@ export async function flush(): Promise<number> {
       // Either way the record is handled and must not be re-queued.
       await removeQueued(item.id);
       sent++;
-    } catch {
-      // keep queued — retried on the next flush
+    } catch (err) {
+      if (isRetryable(err)) continue; // keep queued — retried on the next flush
+      await removeQueued(item.id);
+      if (err instanceof ApiError) onDrop?.(item, err);
     }
   }
   return sent;

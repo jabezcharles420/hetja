@@ -41,6 +41,43 @@ describe("web-vitals client (§M.16)", () => {
     it("leaves non-dog paths untouched", () => {
       expect(slugStrippedPath("/privacy")).toBe("/privacy");
     });
+
+    // Regression: the pattern used to be any trailing 9-char run in the reduced
+    // alphabet, with no route prefix -- a length test masquerading as a slug
+    // test. Every name below is 9+ in-alphabet characters, so each was rewritten
+    // to "/:slug" and its telemetry merged into the dog-page bucket. Mislabelled
+    // metrics are worse than missing ones: they make the collar page's measured
+    // LCP -- the number the whole 40 KB budget exists to defend -- untrue.
+    it.each([
+      "/dashboard",
+      "/leaderboard",
+      "/gamification",
+      "/territories",
+      "/moderation",
+      "/how-it-works",
+      "/about",
+    ])("leaves the ordinary route %s alone", (route) => {
+      expect(slugStrippedPath(route)).toBe(route);
+    });
+
+    it("strips a slug that has more path after it", () => {
+      expect(slugStrippedPath("/dog/c3di5esh8/photos")).toBe("/dog/:slug/photos");
+    });
+
+    it("does not strip a 9-char run that is not in a dog route position", () => {
+      // Same characters, wrong place: this is not a dog page, so it must not be
+      // *labelled* as one.
+      //
+      // Note the deliberate coupling with the server. routes/metrics.ts rejects a
+      // slug-shaped segment anywhere in the path if it passes the INVARIANT 1
+      // check character, so if a route like this ever carried a REAL slug the
+      // beacon would 400 and that telemetry would be dropped rather than
+      // recorded against a dog. Failing closed is the right direction for a
+      // privacy guard -- but it does mean that adding a new route which embeds a
+      // collar slug requires extending DOG_SLUG_PATH above at the same time, or
+      // the page silently reports nothing. There is no such route today.
+      expect(slugStrippedPath("/stories/c3di5esh8")).toBe("/stories/c3di5esh8");
+    });
   });
 
   describe("vitalsPayload", () => {

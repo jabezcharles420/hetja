@@ -8,17 +8,25 @@
  *   2. COARSEN — photo GPS is a *silent* data channel: the capture may have
  *      been taken somewhere other than where the feeder is standing, so it
  *      is truncated to ward (≤2 decimals) via @hetja/contracts'
- *      `coarsenToWard` before it feeds ward-level sighting data (INVARIANT 2).
- *      The feeder's own device location is a separate, consented channel
- *      (captureGeo, browser prompt) and stays precise.
+ *      `coarsenToWard`. The feeder's own device location is a separate,
+ *      consented channel (captureGeo, browser prompt) and stays precise.
+ *      The two are NOT interchangeable and the coarse one is not the
+ *      preferred one: `FeedButton` takes the consented fix when there is one
+ *      and only falls back to this value when there is not, because what the
+ *      scan route stores becomes the centre of the SOS responder fan-out.
+ *      See the precedence comment in components/FeedButton.tsx.
  *   3. COMPRESS + STRIP — compressorjs re-encodes through a fresh <canvas>.
  *      `retainExif: false` means the output carries no EXIF/GPS at all.
  *      Verified against the library source: the ONLY code path that
  *      re-inserts EXIF (src/index.js) is guarded by `options.retainExif`,
  *      and `strict: false` guarantees we never fall back to the original
  *      file. We additionally re-read the compressed output with exifr and
- *      refuse to upload if any GPS or orientation survived — the browser-side
- *      strip is the primary defense (apps/api writes bytes as they arrive).
+ *      refuse to upload if any GPS or orientation survived.
+ *
+ * This is the first line of defence, not the only one: it runs in the browser,
+ * so it protects an honest client and nothing else. `apps/api/src/lib/exif-strip.ts`
+ * re-does the strip server-side on bytes as they arrive and rejects anything it
+ * cannot parse as a JPEG/WebP/PNG, which is the half an attacker is subject to.
  */
 import { coarsenToWard } from "@hetja/contracts";
 

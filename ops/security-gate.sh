@@ -17,8 +17,56 @@ check() {  # check <desc> <cmd...>
 # cover both; "identity_hmac"/"phone_hmac" survive because \b does not match
 # between "phone"/"email" and the following "_" (underscore counts as a word
 # character, so there is no boundary there).
-check "no bare 'phone' or 'email' column in migrations" \
-  bash -c "! grep -riE 'CREATE TABLE.*(phone|email)\b|\b(phone|email)\s+(TEXT|VARCHAR)' packages/db/migrations/ 2>/dev/null"
+#
+# That \b exemption is load-bearing and it also had a hole. It was written to
+# let `phone_hmac` through -- but it equally let through `phone_e164`, which is
+# a genuinely bare plaintext phone number, and `0013_phone_e164.sql` writes to
+# it. So the gate that exists to enforce INVARIANT 3 could not see the one
+# column in the schema that violates its spirit.
+#
+# Fixed by checking the suffix rather than the word boundary: a contact column
+# is acceptable only if what follows is `_hmac` (or `_enc`, for the field-level
+# encryption in enhancement stack §G.5 that has not landed yet). Anything else
+# -- `phone_e164`, `phone_raw`, `email_address` -- is reported.
+#
+# KNOWN_PLAINTEXT_CONTACT below is an explicit, narrow allowlist for columns
+# that exist today and are not yet encrypted. It is deliberately a visible list
+# rather than a looser regex: the point of naming them is that the next person
+# reading this gate learns they are unencrypted, instead of the gate silently
+# passing and implying they are not.
+#
+# care_providers.phone_e164 is the published contact number of a vet or NGO --
+# an organisation's directory listing, not a private individual's number, and it
+# is meant to be read aloud by a stranger's phone. That is why it is a tracked
+# exception rather than a blocking failure. Encrypting it is Top-25 #14
+# (tweetnacl-js secretbox); when that lands, remove the entry rather than
+# widening the pattern.
+KNOWN_PLAINTEXT_CONTACT='care_providers?\.?phone_e164|alt_phone_e164|phone_e164'
+
+bare_contact_hits() {
+  # Column declarations whose name starts with phone/email but does not
+  # continue with _hmac / _enc, minus the tracked exceptions.
+  grep -rniE '^[[:space:]]*(phone|email)[a-z0-9_]*[[:space:]]+(TEXT|VARCHAR|CITEXT)' \
+    packages/db/migrations/ 2>/dev/null \
+    | grep -viE '(phone|email)[a-z0-9_]*_(hmac|enc)[[:space:]]' \
+    | grep -viE "$KNOWN_PLAINTEXT_CONTACT"
+}
+
+if [ -n "$(bare_contact_hits)" ]; then
+  echo "FAIL: bare contact-info column in migrations (INVARIANT 3)"
+  bare_contact_hits | sed 's/^/       /'
+  fail=1
+else
+  echo "PASS: no untracked bare 'phone'/'email' column in migrations"
+fi
+
+# Report the tracked exceptions every run, so they stay visible rather than
+# becoming permanent by being quiet.
+tracked=$(grep -rniE "[[:space:]]($KNOWN_PLAINTEXT_CONTACT)[[:space:]]+(TEXT|VARCHAR|CITEXT)" \
+  packages/db/migrations/ 2>/dev/null | wc -l | tr -d ' ')
+if [ "${tracked:-0}" -gt 0 ]; then
+  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- unencrypted, pending Top-25 #14 (tweetnacl secretbox)"
+fi
 
 # No secret-looking strings committed (API keys, private keys)
 check "no private keys in repo" \

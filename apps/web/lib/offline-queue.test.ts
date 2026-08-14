@@ -109,14 +109,39 @@ describe("lib/offline-queue", () => {
     expect(body).toMatchObject({ dogSlug: "abc234567", geo: { lat: 19.07, lng: 72.88 } });
   });
 
-  it("treats an API error envelope as a failure and keeps the record", async () => {
+  // This test used to assert the opposite — that a 400 keeps the record queued —
+  // which is what made the queue a poison-pill loop rather than a retry queue.
+  // INVARIANT 4 clamps `capturedAt` skew to ±15 minutes, so every feed queued
+  // offline for longer than that becomes a permanent 400: exactly the case the
+  // offline queue exists to serve. It then re-uploaded its photo bytes over
+  // Mumbai 4G on every app open, forever, to be rejected again every time.
+  it("drops a permanently-rejected record instead of retrying it forever", async () => {
     await enqueueFeed({ dogSlug: "abc234567" });
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { ok: false, error: { message: "invalid scan payload", code: "INVALID_SCAN" } }),
     );
 
-    expect(await flush()).toBe(0);
+    const dropped: { code?: string; status: number }[] = [];
+    expect(await flush((_item, err) => dropped.push({ code: err.code, status: err.status }))).toBe(0);
+    expect(idbMock.store.size).toBe(0);
+    // Dropped, but not silently: the caller is the only layer that can tell the
+    // feeder their feed did not count.
+    expect(dropped).toEqual([{ code: "INVALID_SCAN", status: 400 }]);
+  });
+
+  it.each([
+    ["a server fault", 500, "INTERNAL"],
+    ["throttling", 429, "RATE_LIMITED"],
+    ["an expired session", 401, "UNAUTHENTICATED"],
+  ])("keeps the record queued on %s, which can still succeed later", async (_label, status, code) => {
+    await enqueueFeed({ dogSlug: "abc234567" });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(status, { ok: false, error: { message: "nope", code } }));
+
+    const dropped: unknown[] = [];
+    expect(await flush(() => dropped.push(1))).toBe(0);
     expect(idbMock.store.size).toBe(1);
+    expect(dropped).toEqual([]);
   });
 });

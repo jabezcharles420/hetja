@@ -11,9 +11,12 @@
     "test": "vitest run",
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
-    "seed:care": "tsx src/seed-care.ts"
+    "seed:care": "tsx src/seed-care.ts",
+    "import:care": "tsx src/import-care-verified.ts",
+    "geocode:care": "GEOCODE=1 tsx src/import-care-verified.ts"
   },
   "dependencies": {
+    "libphonenumber-js": "^1.13.10",
     "pg": "^8.23.0"
   },
   "devDependencies": {

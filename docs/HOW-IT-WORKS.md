@@ -427,9 +427,12 @@ for macOS.
 - The first-aid instruction card is behind `FIRST_AID_ENABLED=false` until a
   practising vet signs off the wording. Bad first-aid advice given to a
   frightened stranger can kill a dog faster than doing nothing.
-- ~30 `care_providers` phone numbers are unverified.
+- 93 `care_providers` are listed (25 curated + 68 imported from the maintainer's
+  2026-08 verified Mumbai CSV); 43 carry phone numbers, none claimed verified
+  (`phone_verified_at` stays NULL — the honesty rule in migration 0008).
 - Most `care_providers` coordinates are locality estimates, not geocoded
-  points. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
+  points (12 exact-geocoded as of the 2026-08-14 import).
+  See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
   incoming government vet database is meant to close.
 - `DEVICE_POW_DIFFICULTY` is 18 (~2^17 avg hashes, ~0.5 s on the altcha-lib client solver; heavy tail on unlucky draws). Raised from 14 on 2026-08-13 (enhancement stack Phase 0 #6); 18–20 is the right range, 20 is the ceiling for the current solver budget. Device challenges are ALTCHA v2 (HMAC-signed, single-use) since 2026-08-14.
 - The git history still contains the old working title in commit messages.

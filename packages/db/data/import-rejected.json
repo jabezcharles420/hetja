@@ -1,0 +1,6512 @@
+[
+  {
+    "row": 20,
+    "name": "Animal Birth Control ABC Clinic Spay/Neuter",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 21,
+    "name": "Animal Birth Control of Tucson, Inc",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 22,
+    "name": "Animal Welfare Charitable",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 23,
+    "name": "Apna Home Charitable Trust For Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 24,
+    "name": "Apna Home for Animal Welfare Charitable",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 25,
+    "name": "Bai Sakarbai Dinshaw Petit Hospital for Animals (BSPCA)",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 26,
+    "name": "But thanks to Foothill Animal Hospital's Vet Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 27,
+    "name": "Contact Our West Des Moines, Iowa Animal Hospital",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 28,
+    "name": "Contact Southwind Animal Hospital in Southeast Memphis",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 29,
+    "name": "Contact Western Animal Hospital",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 30,
+    "name": "Dale Mabry Animal Hospital Client Resources",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 31,
+    "name": "Emergency Veterinary Care in Mason, OH",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 32,
+    "name": "Emergency Veterinary Care in Miami, FL",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 33,
+    "name": "Goodwill Animal Shelter",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 34,
+    "name": "Life Care Charitable",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 35,
+    "name": "Long Beach Animal Hospital",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 36,
+    "name": "Low Cost Animal Hospitals of Central Florida",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 37,
+    "name": "Low Cost Animal Medical Center",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 38,
+    "name": "Low-Cost Veterinary Services for Dogs & Cats",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 39,
+    "name": "Morris County NJ Veterinary Emergency Care",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 40,
+    "name": "Mumbai Gets A Small Animal Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 41,
+    "name": "Network for Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 42,
+    "name": "Network for Animals Charitable",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 43,
+    "name": "New Client Information For Dale Mabry Animal Hospital",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 44,
+    "name": "New York State Animal Population Control Grant Program",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 45,
+    "name": "New York State Animal Population Control Program",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 46,
+    "name": "Over 40+ small animal veterinarians from across Mumbai ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 48,
+    "name": "Pet Refuge ABC Clinic, 12692 Sandy Dr, Granger, IN ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 49,
+    "name": "Privacy Policy for Dale Mabry Animal Hospital",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 50,
+    "name": "Ratan Tata launches Tata Trusts Small Animal Hospital in ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 51,
+    "name": "Second Chance Sheridan Cat Rescue Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 52,
+    "name": "Small Animal Hospital Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 53,
+    "name": "Small Animal Hospital of Tata",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 54,
+    "name": "Small Animal Hospital, Mumbai",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 55,
+    "name": "Small Animal Hospital,Mahalaxmi, Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 56,
+    "name": "TATA Trusts Small Animal Hospital in Mahalaxmi,Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 57,
+    "name": "Tata Trusts Small Animal hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 58,
+    "name": "Tata Trusts opens Small Animal Hospital in Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 59,
+    "name": "The Bombay Society for the Prevention of Cruelty to ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 60,
+    "name": "The Tata Trust's Small Animal Hospital is now open! For ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 61,
+    "name": "Three Counties Animal Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 62,
+    "name": "Utkarsh Animal Hospital in Ambernath,Thane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 63,
+    "name": "Utkarsh Animal Hospital.",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 64,
+    "name": "Veterinarian & Animal Hospital in Del Mar, CA",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 65,
+    "name": "Veterinarians and Animal Hospital in Granger, IN",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 66,
+    "name": "Welcome to Harris Parkway Animal Hospital in Fort Worth, TX",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 67,
+    "name": "Welcome to Jax Vets Affordable Animal Hospital",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 68,
+    "name": "Welcome to Small Animal Hospital Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 70,
+    "name": "Animal Welfare Board Of India (AWBI) Contact No.",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 71,
+    "name": "Animal Welfare Board of India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 72,
+    "name": "Animal Welfare Board of India — Regional Office, Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 73,
+    "name": "Denver County Animal Services / Colorado CO",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 76,
+    "name": "Meet India's youngest Animal Welfare Officer",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 78,
+    "name": "Police Department manages the Benbrook Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 79,
+    "name": "Police department also utilizes the Animal Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 80,
+    "name": "RTI - Animal Welfare Board of India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 81,
+    "name": "Senior Mumbai Police Inspector @sudhirkudalkar ...",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 82,
+    "name": "To, The Secretary, Animal Welfare Board of India (AWBI) ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 83,
+    "name": "Urgent help needed for dog in Khar cruelty case",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 84,
+    "name": "Animal Husbandry",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 85,
+    "name": "Animal Welfare Organization Animal Husbandry",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 86,
+    "name": "Department of Animal Husbandry and Dairying",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 91,
+    "name": "Khar Veterinary Dispensary in Khar West, Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 92,
+    "name": "Khar Veterinary Dispensary in Khar West,Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 93,
+    "name": "Maharashtra Animal Husbandry and Dairying Department ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 94,
+    "name": "Ministry of Animal Husbandry",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 95,
+    "name": "Naresh Kadyan vs Animal Welfare Board Of India on 28 ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 96,
+    "name": "RTI | Department of Animal Husbandry & Dairying ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 97,
+    "name": "To, The Secretary, Animal Welfare Board of India (AWBI ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 98,
+    "name": "46 Bombay Veterinary College Images and Stock Photos",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 99,
+    "name": "Bachelor of Veterinary Science and Animal Husbandry",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 102,
+    "name": "Bombay Veterinary College from Parel, Mumbai, India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 103,
+    "name": "Bombay Veterinary College in Parel,Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 105,
+    "name": "Bombay Veterinary College, Mumbai Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 106,
+    "name": "Government Veterinary Doctors in Andheri West, Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 110,
+    "name": "Photo by Mumbai Veterinary College",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 111,
+    "name": "Photo by Mumbai Veterinary College (@ ...",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 112,
+    "name": "Photo by Mumbai Veterinary College ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 113,
+    "name": "Public Veterinary Hospitals Near me in Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 115,
+    "name": "department of animal nutrition",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 116,
+    "name": "#animalwelfare #pune #csr #animalcare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 117,
+    "name": "'These animals are my life'",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 118,
+    "name": "- Dog, Cat, Pet Adoption, Animal Shelter in Buffalo - SPCA",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 119,
+    "name": "24-hour Emergency Vet & Specialty Care | MedVet Cincinnati",
+    "reason": "search-title-pipe"
+  },
+  {
+    "row": 120,
+    "name": "24/7 Cat Rescue & Adoption Support",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 121,
+    "name": "24/7 Emergency Care for Exotic Pets",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 122,
+    "name": "24/7 Vet Care Cincinnati",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 123,
+    "name": "320-763-9955 - Contact The Animal Doctor Alexandria MN",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 124,
+    "name": "7567075680 *Arham Animal Ambulances* *Cities of Gujarat ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 125,
+    "name": "7567075680 Arham Animal Ambulances Cities of Gujarat ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 126,
+    "name": "A - Youth Organization in Defense of Animals Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 127,
+    "name": "A Day at Karuna Society for Animals and Nature",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 130,
+    "name": "A Friends' Fund, Inc., into A Friends' Foundation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 131,
+    "name": "A Greener World, which split from the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 132,
+    "name": "A closer look at the technologies used by Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 133,
+    "name": "A month on from the India Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 134,
+    "name": "A second chance can change everything. At Karuna Animal ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 135,
+    "name": "A small act of compassion can change an animal's world ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 136,
+    "name": "ABANDONED CASE RESCUED ! Maggie is a 3 year old ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 137,
+    "name": "ABC Animal Clinic and Hospital Fort Worth, TX 76104",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 138,
+    "name": "ABC Animal Clinic is a veterinary office",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 139,
+    "name": "ABC Animal and Bird Clinic",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 140,
+    "name": "ABC and Rescue Center or the",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 141,
+    "name": "ALEXANDRIA'S ANIMAL DOCTOR",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 142,
+    "name": "AMTM gets many calls everyday to rescue animals from all ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 143,
+    "name": "ANIMAL BIRTH CONTROL CLINIC, LLC Company Profile",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 144,
+    "name": "ANIMAL CRIME CONTROL For More Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 145,
+    "name": "ANIMAL PROTECTORS OF ALLEGHENY VALLEY",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 146,
+    "name": "API through Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 148,
+    "name": "AWBP Trust Represents Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 149,
+    "name": "AYSG India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 150,
+    "name": "AYSG India's post",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 151,
+    "name": "AYSGIndia, Animal First aid, Parasdham, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 152,
+    "name": "About GiveIndia",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 153,
+    "name": "About Hello Mumbai",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 154,
+    "name": "About Our Clinics",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 155,
+    "name": "About Us. Best Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 156,
+    "name": "Access numbers to call India from USA or any other country",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 157,
+    "name": "Address. Blue Cross Animal",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 158,
+    "name": "Aditi Sharma, Author at Animal Charity Evaluators",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 159,
+    "name": "Administration and Board of Trustees",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 160,
+    "name": "Adopt a Dog or Cat",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 161,
+    "name": "Adopt a pet from Best Friends Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 162,
+    "name": "Adopt a pet from an animal shelter or rescue group",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 163,
+    "name": "Adopt an Animal from Animal Care and Control",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 164,
+    "name": "Adopt dogs and cats in Houston",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 165,
+    "name": "Adoptable Cats at the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 166,
+    "name": "Adoptable Pets at A New Beginning Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 167,
+    "name": "Adoptable Pets at Save The Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 168,
+    "name": "Adoptable Pets at Saving Paws",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 169,
+    "name": "Adoptable Pets at Sheridan Dog & Cat",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 170,
+    "name": "Adoptable Pets at Town of Greece Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 171,
+    "name": "Adoption & Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 172,
+    "name": "Adoption Agencies in Wichita Kansas",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 173,
+    "name": "Adoption Agency Contact",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 174,
+    "name": "Adoption Agency Information & Rates",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 175,
+    "name": "Adoption Application",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 176,
+    "name": "Adoption Fee",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 177,
+    "name": "Adoption Fees Waived at the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 178,
+    "name": "Adoption Fees Waived at the Animal Shelter During Home ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 179,
+    "name": "Adoption Hotline 24/7, No Obligation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 180,
+    "name": "Adoption Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 181,
+    "name": "Adoption Program",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 182,
+    "name": "Adoption in Wichita, KS",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 183,
+    "name": "Adoptions",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 184,
+    "name": "Adoptions 9",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 185,
+    "name": "Adoptions of Indiana",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 186,
+    "name": "Affordable animal clinic for stray cat in Michigan?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 187,
+    "name": "Ahimsa Haven Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 188,
+    "name": "Ahimsa Integrated & Animal Welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 189,
+    "name": "Alameda County Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 190,
+    "name": "Alexandria Animal Shelter",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 191,
+    "name": "Alexandria Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 192,
+    "name": "Alexandria&#39;s Animal Doctor",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 193,
+    "name": "Alexandria's Animal Doctor 902 Highway 29 N, Alexandria",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 194,
+    "name": "Alexandria's Animal Doctor, 902 State Highway 29 N, ...",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 195,
+    "name": "Alexandria's Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 196,
+    "name": "All 4 Animals Rescue Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 197,
+    "name": "All About Them Foundation' is a registered",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 198,
+    "name": "All American City Veterinary Hospital Roseville, California",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 199,
+    "name": "All American Veterinary Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 200,
+    "name": "All Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 201,
+    "name": "All The Dogs Alabama",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 202,
+    "name": "All donations to Verona Street Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 203,
+    "name": "All of these companies have businesses in Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 204,
+    "name": "All-Star Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 205,
+    "name": "Alldogs Offroad Coop. Contact Us",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 206,
+    "name": "Almost Home Canine Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 207,
+    "name": "Amarillo Healthcare Services",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 208,
+    "name": "Amazon Cares",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 210,
+    "name": "American Adoptions",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 211,
+    "name": "American Adoptions' Office Locations",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 212,
+    "name": "American Cat Society Inc Animal Birth Control For Broward",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 213,
+    "name": "American Veterinary Medical Association",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 214,
+    "name": "An Animal",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 215,
+    "name": "An Animal Welfare",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 216,
+    "name": "An appeal from our animals to save their home!  These ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 217,
+    "name": "Anderson Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 218,
+    "name": "Andhra Pradesh Type of Organization Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 219,
+    "name": "Angel of Mercy Animal Critical Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 220,
+    "name": "Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 221,
+    "name": "Animal & Bird Clinic of MV (@abcofmv) · Mission Viejo, CA",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 222,
+    "name": "Animal Abuse Registry · NYC311",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 223,
+    "name": "Animal Activist Support Line",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 224,
+    "name": "Animal Adoption, Animal Control, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 225,
+    "name": "Animal Aid Unlimited",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 226,
+    "name": "Animal Aid Unlimited Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 227,
+    "name": "Animal Ambulance",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 228,
+    "name": "Animal Ambulances Across India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 230,
+    "name": "Animal Apna Home",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 231,
+    "name": "Animal Birth Control (ABC) is not about removing dogs ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 232,
+    "name": "Animal Birth Control Clinic makes high",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 233,
+    "name": "Animal Birth Control Inc",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 234,
+    "name": "Animal Birth Control LLC",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 235,
+    "name": "Animal Birth Control Programme",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 236,
+    "name": "Animal Birth Control Rules 2023 Overview",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 237,
+    "name": "Animal Birth Control, Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 238,
+    "name": "Animal Birth Control, LLC",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 239,
+    "name": "Animal Care &",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 240,
+    "name": "Animal Care & Control / City of Evansville",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 241,
+    "name": "Animal Care Center",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 242,
+    "name": "Animal Care Centers of NYC (ACC) Address",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 243,
+    "name": "Animal Care Centers of NYC Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 244,
+    "name": "Animal Care Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 245,
+    "name": "Animal Care and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 246,
+    "name": "Animal Care/Control Agency",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 247,
+    "name": "Animal Center & SPCA, DoverFaithful Friends Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 248,
+    "name": "Animal Charity Evaluators recommended the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 249,
+    "name": "Animal Control & Service Areas",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 250,
+    "name": "Animal Control - Alexandria, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 251,
+    "name": "Animal Control / Huntington County, Indiana",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 252,
+    "name": "Animal Control Agencies",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 253,
+    "name": "Animal Control Department",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 254,
+    "name": "Animal Control Division",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 255,
+    "name": "Animal Control Officers / Field Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 256,
+    "name": "Animal Control Service",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 257,
+    "name": "Animal Control Unit",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 258,
+    "name": "Animal Control and",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 259,
+    "name": "Animal Control and Shelter offered by Regional ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 260,
+    "name": "Animal Control and the Wichita Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 261,
+    "name": "Animal Control, please contact West Valley Humane",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 262,
+    "name": "Animal Control/Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 263,
+    "name": "Animal Defenders International",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 264,
+    "name": "Animal Emergency Info",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 265,
+    "name": "Animal Feed",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 266,
+    "name": "Animal Foundation Launches QR Code Virtual Adoption ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 267,
+    "name": "Animal Health",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 268,
+    "name": "Animal Health &",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 269,
+    "name": "Animal Health & Welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 270,
+    "name": "Animal Health Division",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 271,
+    "name": "Animal Health and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 272,
+    "name": "Animal Help",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 273,
+    "name": "Animal Help Now",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 274,
+    "name": "Animal Industries Division",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 275,
+    "name": "Animal Kingdom Welfare Foundation ...",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 276,
+    "name": "Animal Matter To Me",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 277,
+    "name": "Animal Matter To Me (AMTM) exists for one simple reason",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 278,
+    "name": "Animal Matter To Me (AMTM) exists for one simple reason ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 279,
+    "name": "Animal Medical Center in Indianapolis, IN",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 280,
+    "name": "Animal Population Control Program",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 281,
+    "name": "Animal Protection",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 282,
+    "name": "Animal Protection Agencies",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 283,
+    "name": "Animal Protection Network of Columbus Ohio",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 284,
+    "name": "Animal Protection and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 285,
+    "name": "Animal Rescue",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 286,
+    "name": "Animal Rescue and Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 287,
+    "name": "Animal Rescue with Rohin We Need Your Help To",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 288,
+    "name": "Animal Rights &",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 289,
+    "name": "Animal Rights and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 290,
+    "name": "Animal Rights and Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 291,
+    "name": "Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 292,
+    "name": "Animal Services & Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 293,
+    "name": "Animal Services Department",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 294,
+    "name": "Animal Services FAQ",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 295,
+    "name": "Animal Services Hours of Operation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 296,
+    "name": "Animal Services Stats",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 297,
+    "name": "Animal Services Tipline",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 298,
+    "name": "Animal Shelter / Hendricks County, Indiana",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 299,
+    "name": "Animal Shelter and Pet Adoption Forms",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 300,
+    "name": "Animal Shelters & Rescues near Buffalo, NY",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 301,
+    "name": "Animal Shelters in Kochi",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 302,
+    "name": "Animal Welfare",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 303,
+    "name": "Animal Welfare And Protection",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 304,
+    "name": "Animal Welfare Complaint Form with North Carolina DOJ",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 305,
+    "name": "Animal Welfare Contact",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 306,
+    "name": "Animal Welfare Department",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 307,
+    "name": "Animal Welfare Division",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 308,
+    "name": "Animal Welfare Information Center",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 309,
+    "name": "Animal Welfare Institute Email Format",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 310,
+    "name": "Animal Welfare Institute Scholarship",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 311,
+    "name": "Animal Welfare League of Arlington",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 312,
+    "name": "Animal Welfare League of Arlington Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 313,
+    "name": "Animal Welfare Society of Southeastern Michigan",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 314,
+    "name": "Animal Welfare.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 315,
+    "name": "Animal activist support line and resources",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 316,
+    "name": "Animal and Bird Clinic",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 317,
+    "name": "Animal and Bird Health Care Center",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 318,
+    "name": "Animal and Bird Hospital (@abhdelmar) · Del Mar, CA",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 319,
+    "name": "Animal and Bird Hospital of Del Mar Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 320,
+    "name": "Animal and Bird Medical Center",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 321,
+    "name": "Animal charity Humane",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 322,
+    "name": "Animal charity Humane Society International India to ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 323,
+    "name": "Animal kingdom Welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 324,
+    "name": "Animal protection and care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 325,
+    "name": "Animal shelters in Navi Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 326,
+    "name": "Animal welfare group",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 327,
+    "name": "AnimalRescue, MumbaiVets,",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 328,
+    "name": "Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 329,
+    "name": "Animals Animals Company Overview, Contact Details & ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 330,
+    "name": "Animals Available for Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 331,
+    "name": "Animals Love, Treatment, Veterinary, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 332,
+    "name": "Animals Matter To Me (AMTM)",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 333,
+    "name": "Animals Matter® FAQs",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 334,
+    "name": "Animals NGOs in Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 335,
+    "name": "Animals Water Bowl Project (AWBP) Trust",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 336,
+    "name": "Animals, formerly recognized as the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 337,
+    "name": "Animals. You can visit awionline.orgcontact Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 338,
+    "name": "Antisemitism in the Animal Rights Movement",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 340,
+    "name": "Application for Dog license",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 341,
+    "name": "Are Some Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 342,
+    "name": "Arham Alwayscare Animal Ambulance",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 343,
+    "name": "Arham Animal Ambulance is now in Mulund  Treating ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 344,
+    "name": "Arham Animal Ambulance is one of India's largest free ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 345,
+    "name": "Arkansas Paws in Prison",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 346,
+    "name": "Arlington Life Shelter",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 347,
+    "name": "Assisi Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 348,
+    "name": "At Buddies and Pals Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 349,
+    "name": "At Karuna Animal Shelter, we believe every ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 350,
+    "name": "At New Beginnings Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 351,
+    "name": "At Raksha Animal",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 352,
+    "name": "At Save The Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 353,
+    "name": "At Shri Mumbai Jivdaya Mandli, every act of compassion ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 354,
+    "name": "At a press conference organised by PAL Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 355,
+    "name": "At our animal shelter, we believe every wag, purr, and ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 356,
+    "name": "At the Lakewood Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 357,
+    "name": "At-Risk Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 358,
+    "name": "Audubon Society of Portland, the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 359,
+    "name": "Austin Animal Center Photos",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 360,
+    "name": "Austin Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 361,
+    "name": "BARC Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 362,
+    "name": "BARC Animal Shelter and Adoptions",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 363,
+    "name": "BVSPCA DC Animal Control & Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 364,
+    "name": "Bai Sakarbai Dinshaw Petit Hospital for Animals ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 365,
+    "name": "Bai Sakarbai Dinshaw Petit Hospital for Animals in Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 366,
+    "name": "Bai Sakerbai Dinshaw Petit Pet Crematorium in Parel,Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 367,
+    "name": "Bangalore, In-kind donations for shelters,",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 368,
+    "name": "Barking Dog Security",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 369,
+    "name": "Because Animals Matter",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 370,
+    "name": "Become a Rescue Partner Become a",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 371,
+    "name": "Behind every shelter animal is a dedicated team helping ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 372,
+    "name": "Best Friends Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 373,
+    "name": "Between Animal-Kind International and the Uganda",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 374,
+    "name": "Big Cat Rescue in Florida and the ADI Wildlife",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 375,
+    "name": "Bird and Animal Helpline",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 376,
+    "name": "Bites, Report Animal Cruelty, Request an Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 377,
+    "name": "Blue Cross India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 378,
+    "name": "Blue Cross Pune is recognized by the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 379,
+    "name": "Blue Cross of India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 380,
+    "name": "Blue Cross of India Email ID Format",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 381,
+    "name": "Blue Cross of India are  Animal Welfare , Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 382,
+    "name": "Bmc dumps those dogs in that area where the",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 383,
+    "name": "Bombay Society For The Prevention Of Cruelty To Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 384,
+    "name": "Bombay Society for Prevention of Cruelty to Animals (BSPCA)",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 385,
+    "name": "Border Tails",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 386,
+    "name": "Boston Animal Care and Control",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 387,
+    "name": "Bros. Curtain Call Is Latest Victory For Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 388,
+    "name": "Broward county animal care information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 389,
+    "name": "Brownsville Animal Regulation Care Center",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 390,
+    "name": "Buddy Dog Humane",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 391,
+    "name": "Buddy's Second Chance Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 392,
+    "name": "Buffalo City - Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 393,
+    "name": "Buffalo Underdogs",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 394,
+    "name": "Bureau of Animal Health and",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 395,
+    "name": "Business Address India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 396,
+    "name": "But when you support A New Beginning Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 397,
+    "name": "C 2 5 2 3 2ND FLOOR SECTOR 2 VASHI NAVI MUMBAI ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 398,
+    "name": "C GENTLE CARE AGENCY Facility Profile",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 399,
+    "name": "CART will activate large and small animal shelters.",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 400,
+    "name": "CDN, Adobe Typekit How do I contact Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 401,
+    "name": "CFA Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 402,
+    "name": "CFA. Animal",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 403,
+    "name": "CITIZENS FOR ANIMAL PROTECTION (CAP) Foundation",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 404,
+    "name": "CITIZENS FOR ANIMAL PROTECTION (CAP) Foundation ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 405,
+    "name": "CONTACT INFO Karuna Animal",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 406,
+    "name": "CONTACT INFO. Karuna Animal",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 407,
+    "name": "CalAnimals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 408,
+    "name": "California Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 409,
+    "name": "Call Allen Hill Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 410,
+    "name": "Call Centers India Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 411,
+    "name": "Call IDA's Animal Activist Helpline!",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 412,
+    "name": "Call us now. 7225888800. Vatika Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 413,
+    "name": "Call your local Roto- Rooter. Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 414,
+    "name": "CallIndia",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 415,
+    "name": "CallIndia.com 24/7 Customer Service",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 416,
+    "name": "Care Center Veterinarians",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 417,
+    "name": "Care Center. He began his career as an Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 418,
+    "name": "Careers",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 419,
+    "name": "Caregiver Resources",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 420,
+    "name": "Caregiver Support",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 421,
+    "name": "Caregiver Support Line",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 422,
+    "name": "Carolina law. The NC Department of Justice Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 423,
+    "name": "Cat Care and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 424,
+    "name": "Cat Emergency? offers 24 hr emergency cat care",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 425,
+    "name": "Cat rehabilitation center, Animal welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 426,
+    "name": "Ccare Contacts, Email Format & Decision Makers",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 427,
+    "name": "Cedar Rapids is pleased to announce the FHFF Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 428,
+    "name": "Celebrate \"Clear the Shelters\" with Operation Kindness",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 429,
+    "name": "Celebrate “Clear the Shelters” with ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 430,
+    "name": "Center Point The Bar, Sector 19E, Vashi, Navi Mumbai ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 431,
+    "name": "Center does for those regulated under the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 432,
+    "name": "Center for Zoo Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 433,
+    "name": "Center for Zoo Animal Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 434,
+    "name": "Center, Animal Aid USA, It's Meow or Never Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 435,
+    "name": "Centre Point Hospitality",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 436,
+    "name": "Centre Point Hotel Navi Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 437,
+    "name": "Centre Point Navi Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 438,
+    "name": "Centre Point Navi Mumbai Hotel",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 439,
+    "name": "Centre Point Navi Mumbai, Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 440,
+    "name": "Centre for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 441,
+    "name": "Chance Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 442,
+    "name": "Charity Navigator - Rating for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 443,
+    "name": "Charlies Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 444,
+    "name": "Charlotte Animal Shelter Hours",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 445,
+    "name": "Cheatham County Paws, Humane",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 446,
+    "name": "Check Out Our Non-Stop Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 447,
+    "name": "Check if California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 448,
+    "name": "Check out if Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 449,
+    "name": "Check out if California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 450,
+    "name": "Chester County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 451,
+    "name": "Child Foster Care and Adoptive Services",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 452,
+    "name": "Child in Need of Care/Foster Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 453,
+    "name": "Choosing to adopt from our County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 454,
+    "name": "Christine Townend, Darjeeling Goodwill Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 455,
+    "name": "Cincinnati 24 Hour Emergency Vet Hospital",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 456,
+    "name": "Cincinnati Animal Medical Clinic",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 457,
+    "name": "Citizens Committee for the Lakewood Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 458,
+    "name": "Citizens For Animal Protection Photos",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 459,
+    "name": "Citizens can also call Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 460,
+    "name": "Citizens for Animal Protection (@cap4pets) · Houston, TX",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 461,
+    "name": "City and County of San Francisco Animal Care and Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 462,
+    "name": "City of Buffalo Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 463,
+    "name": "City of Buffalo Animal Shelter",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 464,
+    "name": "City of Calistoga call Petaluma Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 465,
+    "name": "City of Fort Worth Animal Shelter Photos",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 466,
+    "name": "City of Mobile Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 467,
+    "name": "City of San Antonio Animal Care Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 468,
+    "name": "City takes impounded animals to the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 469,
+    "name": "City's operating budget. Verona Street Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 470,
+    "name": "Clark County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 471,
+    "name": "Cleveland Animal Care & Control",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 472,
+    "name": "Click to rescue",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 473,
+    "name": "Click to see if California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 474,
+    "name": "Colesworthey Grant founded the first Indian",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 475,
+    "name": "Commission, The Friends of the New Haven Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 476,
+    "name": "Common Animal Control Issues",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 477,
+    "name": "Community Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 478,
+    "name": "Community Care Grant investment from Banfield",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 479,
+    "name": "Community Resource, Pet Boarding, and Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 480,
+    "name": "Companies in India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 481,
+    "name": "Company Details of Jivdaya Abhiyan Malad",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 482,
+    "name": "Compare Similar Companies to Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 483,
+    "name": "Compare insights from companies similar to Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 484,
+    "name": "Concern for Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 485,
+    "name": "Consumer Services The Veterinary Division Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 486,
+    "name": "Consumer Services, Veterinary Division, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 487,
+    "name": "Contact Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 488,
+    "name": "Contact Animals Matter",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 489,
+    "name": "Contact Citizens for Animal Protection CAP Houston Pet ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 490,
+    "name": "Contact Details of",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 491,
+    "name": "Contact Frontier Veterinary Hospital in White Settlement",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 492,
+    "name": "Contact India Call Center for Call Centers Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 493,
+    "name": "Contact PAWS • The Philippine Animal Welfare Society, Inc",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 494,
+    "name": "Contact Sanjay Gandhi Animal Care Centre",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 495,
+    "name": "Contact Shelters Shelters Register a",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 496,
+    "name": "Contact The Animal Medical Center of Fort Oglethorpe",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 497,
+    "name": "Contact Us ADDRESS Homeward Trails Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 498,
+    "name": "Contact Us All Dogs Unleashed",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 499,
+    "name": "Contact Veterinary Services Chapel Hill",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 500,
+    "name": "Contact Western Veterinary Hospital in San Angelo",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 501,
+    "name": "Contact Wildlife Rescue League",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 502,
+    "name": "Contact animal control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 503,
+    "name": "Contact details Mailing Address Saving Paws",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 504,
+    "name": "Contact information for animal rights activist",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 505,
+    "name": "Contact the Division of Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 506,
+    "name": "Contracts with the City of Lake Dallas for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 507,
+    "name": "Control Agency or the Peninsula Regional Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 508,
+    "name": "Control Animals are housed at Tri-City Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 509,
+    "name": "Control What technology does California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 510,
+    "name": "Core Activities Of Shri Mumbai Jivdaya Mandli",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 511,
+    "name": "County Animal Department consists of the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 512,
+    "name": "County Department of Animal Regulation and",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 513,
+    "name": "County of Los Angeles Department of Animal Care and ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 514,
+    "name": "Craziest Animal Rescue We've EVER Seen!",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 515,
+    "name": "Customer Care of India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 516,
+    "name": "Customer Support India",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 517,
+    "name": "Cuyahoga Animal Warden",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 518,
+    "name": "Cuyahoga County Dog Tags at the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 519,
+    "name": "DIG DEFENCE Large Animal Dig Barrier (10",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 520,
+    "name": "DOG ADOPTION MUMBAI",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 521,
+    "name": "Dallas Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 522,
+    "name": "Darjeeling Goodwill Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 523,
+    "name": "Data collected by Best Friends Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 524,
+    "name": "Delaware Division of Public Health Office of Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 525,
+    "name": "Denver Animal Protection",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 526,
+    "name": "Denver Animal Shelter",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 527,
+    "name": "Department of Animal Science",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 528,
+    "name": "Department of Public Health, the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 529,
+    "name": "Detroit Animal Care and Control",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 530,
+    "name": "Detroit before Almost Home Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 531,
+    "name": "Dharamsala Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 532,
+    "name": "Dharamsala Animal Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 533,
+    "name": "Dharamsala Animal Rescue on Instagram",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 535,
+    "name": "Did you know you can help our animals every time ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 536,
+    "name": "Digital Advocacy Manager at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 537,
+    "name": "Digital Engagement Manager at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 538,
+    "name": "Division of Animal Care & Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 539,
+    "name": "Division of Animal Health",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 540,
+    "name": "Division of Animal and Food Industry Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 541,
+    "name": "Does Animal Friends of Austin County have a new number?",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 542,
+    "name": "Dog & Cat Adoption in Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 543,
+    "name": "Dog Adoption in mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 544,
+    "name": "Dog Playcare in Austin, TX for Pets",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 545,
+    "name": "Dog Services",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 546,
+    "name": "Dog racing is inhumane and archaic",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 547,
+    "name": "Dog, Cat & Pet Resources, Rescue & Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 548,
+    "name": "Dog, Cat, Pet Adoption, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 549,
+    "name": "Doggie Daycare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 550,
+    "name": "Doggy Has Soul",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 551,
+    "name": "Dogs & Puppies for Adoption in Portland, ME",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 552,
+    "name": "Dogs & puppies.",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 553,
+    "name": "Dogs At Play",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 554,
+    "name": "Dombivli, Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 555,
+    "name": "Donate Supplies to Your Local Shelter With Chewy's Wish ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 556,
+    "name": "Donate to the Putnam County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 557,
+    "name": "Donation Form and Account Details",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 558,
+    "name": "Donations to Almost Home Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 559,
+    "name": "Doris Day Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 560,
+    "name": "Downey Animal Shelter",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 561,
+    "name": "Draft Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 562,
+    "name": "DuPage County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 563,
+    "name": "Durham County Animal Protection",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 564,
+    "name": "EASEL Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 565,
+    "name": "EASEL Animal Rescue League, Rocky Mountain Lab",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 566,
+    "name": "Each of the pets at the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 567,
+    "name": "EaseMyTrip Contact details",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 568,
+    "name": "East County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 569,
+    "name": "Educational Programs Promoting Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 570,
+    "name": "Effingham County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 571,
+    "name": "El Paso County 8 Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 572,
+    "name": "Emergency & Urgent Veterinary Care in Fort Oglethorpe",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 573,
+    "name": "Emergency Shelters",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 574,
+    "name": "Emergency Veterinary Care in Hattiesburg",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 575,
+    "name": "Enter Shelter or",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 576,
+    "name": "Equine Program and Senior Advisor at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 577,
+    "name": "Established in 2007, Almost Home Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 578,
+    "name": "Every Release Day at Raksha Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 579,
+    "name": "Every paw deserves a chance to heal.  At Raksha Animal ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 580,
+    "name": "Every street dog deserves love, care, and protection. ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 581,
+    "name": "Everyone at New Beginnings Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 582,
+    "name": "Explore Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 583,
+    "name": "FA, is India's largest Non-Governmental Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 584,
+    "name": "FAQ - ANIMAL BIRTH CONTROL, LLC",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 585,
+    "name": "FAQ - Who do I contact regarding animal concerns?",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 586,
+    "name": "FOX6, Wisconsin Humane Society pet telethon now over",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 587,
+    "name": "FUNDING OPPORTUNITY for Indian Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 588,
+    "name": "Family Caregiver Resources",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 589,
+    "name": "Family Caregiver Support",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 590,
+    "name": "Family Paws",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 591,
+    "name": "Fayette County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 592,
+    "name": "Final Victory Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 593,
+    "name": "Find Important Animal Contacts",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 594,
+    "name": "Find more employees from Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 595,
+    "name": "First Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 596,
+    "name": "Flower City Critters Small Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 597,
+    "name": "Food Animal Concerns",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 598,
+    "name": "For All Partners With TikTok to Launch its Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 599,
+    "name": "For Animal",
+    "reason": "snippet-start"
+  },
+  {
+    "row": 600,
+    "name": "For more than 85 years, St. Hubert's Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 601,
+    "name": "For the past decade, Kalimpong Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 602,
+    "name": "Former retreat acquired by Humane Society",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 603,
+    "name": "Foster / Adopt a Pet and Rescues",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 604,
+    "name": "Foster Care & Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 605,
+    "name": "Foster Care & Adoptions",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 606,
+    "name": "Foster Dogs and Cats in Need",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 607,
+    "name": "Foundation of Greater Washington. Feline",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 608,
+    "name": "Foundation to Support Animal Protection",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 609,
+    "name": "Founder of Underdog Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 610,
+    "name": "Franklin County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 611,
+    "name": "Free Pet Rescue Service",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 612,
+    "name": "Free animal advocacy support from In Defense of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 613,
+    "name": "Frequently Asked Questions Regarding Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 614,
+    "name": "Fresno cCARE Cancer Center",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 615,
+    "name": "Friend of Paws",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 616,
+    "name": "Friends Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 617,
+    "name": "Friends Of The Franklin County Regional Dog",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 618,
+    "name": "Friends of Chicago Animal Care and Control",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 619,
+    "name": "Friends of Paws",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 620,
+    "name": "Friends of Paws Foundation",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 621,
+    "name": "Friends of Southern Ocean County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 622,
+    "name": "Friends of the Attleboro Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 623,
+    "name": "Friends of the New Haven Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 624,
+    "name": "Friends of the New Haven Animal Shelter",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 625,
+    "name": "From July 1, 2013, forward, Ames Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 626,
+    "name": "From The Robin I. Kroogman New Haven Animal Shelter",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 627,
+    "name": "Funding Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 628,
+    "name": "Funding for Indian Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 629,
+    "name": "Fur Angels Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 630,
+    "name": "Furry Friends Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 631,
+    "name": "General Overview of Small Animal Practice in India, and ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 632,
+    "name": "German Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 633,
+    "name": "Get medical care for a pet",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 634,
+    "name": "Get notified immidiatlly once Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 635,
+    "name": "Get notified immidiatlly once California Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 636,
+    "name": "Get notified when Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 637,
+    "name": "Ghana suggests. In the UK, the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 638,
+    "name": "Give (@give_india) • Instagram photos and videos",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 639,
+    "name": "Give Foundation, India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 642,
+    "name": "GiveIndia Customer Service Phone Number +91 773 871 ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 643,
+    "name": "GiveIndia is registered as Give",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 645,
+    "name": "Glad to inaugurate SuperPets, Mumbai's state",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 646,
+    "name": "Godly service extended to dogs. I wish the KARUNA",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 647,
+    "name": "Goodwill Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 648,
+    "name": "Government Helpline numbers for all over in India",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 649,
+    "name": "Grateful Dog",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 650,
+    "name": "Great Lakes Bay Animal Society",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 651,
+    "name": "HAWS Waukesha adoption, long",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 652,
+    "name": "HUMANE WORLD FOR ANIMALS INDIA FOUNDATION",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 653,
+    "name": "Happy Tails Pet",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 654,
+    "name": "Happy Trails Farm Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 655,
+    "name": "Harris County Animal Control Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 656,
+    "name": "Harris County Animal Services / Texas TX",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 657,
+    "name": "Harvest Hills Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 658,
+    "name": "Health Home Care Coordination",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 659,
+    "name": "Heaven After Hell Animal Rescue",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 660,
+    "name": "Hello Mumbai News",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 661,
+    "name": "Help Animals India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 662,
+    "name": "Help Animals Matter to Me (AMTM) finish the 17",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 663,
+    "name": "Help Austin Humane Society By Donating Food & Items",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 664,
+    "name": "Help an animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 665,
+    "name": "Help for Wild Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 666,
+    "name": "Help in Suffering Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 667,
+    "name": "Helping Hands For Animals Lancaster PA, 17602",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 668,
+    "name": "Helping Hands For Animals, New Danville Pike, Lancaster ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 669,
+    "name": "Helping Hands for Animals / Aap",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 670,
+    "name": "Helping Hands for Animals, Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 671,
+    "name": "Helping Hands for AnimalsAnimal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 672,
+    "name": "Helping Hands for the Plymouth Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 673,
+    "name": "Helping a Stray or Lost Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 674,
+    "name": "Here Today Adopted Tomorrow Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 675,
+    "name": "Here at the El Paso County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 676,
+    "name": "Hillside Clinic",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 677,
+    "name": "History & Vision of Houston Animal Shelter CAP",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 678,
+    "name": "Holistic Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 679,
+    "name": "Home To Home Animal Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 680,
+    "name": "Home is administrating a diminutive Hospital and",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 681,
+    "name": "Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 682,
+    "name": "Hospital and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 683,
+    "name": "Houston Humane Society",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 684,
+    "name": "Houston's BARC Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 685,
+    "name": "Houston, at Best Friends Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 686,
+    "name": "How do I contact Care.com customer service?",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 687,
+    "name": "How many employees does Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 688,
+    "name": "How to Help with the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 689,
+    "name": "How to Support Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 690,
+    "name": "How to adopt a pet from The Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 691,
+    "name": "Humane Commission, Friends of the New Haven Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 692,
+    "name": "Humane Network aka Options Veterinary Care",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 693,
+    "name": "Humane Rescue Alliance",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 694,
+    "name": "Humane Society International India Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 695,
+    "name": "Humane Society International — India (Mumbai)",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 696,
+    "name": "Humane Society Wildlife Land",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 697,
+    "name": "Humane Society of Charlotte",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 698,
+    "name": "Humane Society of Forsyth County",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 699,
+    "name": "Humane Society of Forsyth County, GA",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 700,
+    "name": "Humane Society of Harrisburg",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 701,
+    "name": "Humane Society of Harrisburg Area",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 702,
+    "name": "Humane Society of Lebanon County",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 703,
+    "name": "Humane Society of Sonoma County",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 704,
+    "name": "Humane Society of the Pikes Peak Region",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 705,
+    "name": "Humane Society-sounding name, the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 706,
+    "name": "Humane World for Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 707,
+    "name": "Humane World for Animals Company Overview, Contact ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 708,
+    "name": "Humane World for Animals India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 709,
+    "name": "Humane World for Animals formerly called the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 710,
+    "name": "Humane World for Animals. Some ways that The Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 711,
+    "name": "Humboldt County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 712,
+    "name": "I Rescued Puppies From Texas & Discovered A Shocking Truth",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 713,
+    "name": "I am here to raise funds for our trust. Help Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 714,
+    "name": "IAmA Former Animal Handler for Ringling Brothers Circus ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 715,
+    "name": "IAmA Former Animal Handler for Ringling Brothers Circus AMA",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 716,
+    "name": "ICT SOS, Kansas Humane Society, Lexi's LAMB",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 717,
+    "name": "IDA Animal Activist Support Line",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 718,
+    "name": "IDA India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 719,
+    "name": "IDA India Celebrates 30 Years of Serving Animals in Need",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 720,
+    "name": "IDA Launches Animal Activist Helpline ...",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 721,
+    "name": "IDA Launches Animal Activist Helpline!",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 722,
+    "name": "IDA's Animal Activist Helpline",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 723,
+    "name": "If you have animal services needs, make sure ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 724,
+    "name": "Illinois Adoption Agency & Counseling Service",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 725,
+    "name": "Image. We are YODA an animal-welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 728,
+    "name": "In Defense Of Animals India (@IDA_India) / Posts / X",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 731,
+    "name": "Include the Putnam County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 732,
+    "name": "Index of contact profiles from Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 733,
+    "name": "India Animal Welfare Funding Circle",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 734,
+    "name": "India Animal Welfare Funding Circle Launched",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 735,
+    "name": "India How do I contact Utkarsh Global",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 736,
+    "name": "India Toll Free Numbers",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 737,
+    "name": "India Weeks for the Animals Inspiration",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 738,
+    "name": "India customer service phone number?",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 739,
+    "name": "India is a statutory advisory body on Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 740,
+    "name": "India to start Dharamsala Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 741,
+    "name": "India's Expert on Dogs",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 742,
+    "name": "India, involving People for Animals Public Policy",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 743,
+    "name": "India, wildlife conservation",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 744,
+    "name": "India. In association with the Gujarat",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 745,
+    "name": "Indian",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 746,
+    "name": "Indian Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 747,
+    "name": "Indian Business Contact Numbers List",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 748,
+    "name": "Indian Dental Association on Instagram",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 749,
+    "name": "Indian Herpetological",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 750,
+    "name": "Indian Institute of Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 751,
+    "name": "Indian Toll Free Customer Care Numbers",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 752,
+    "name": "Indian charities more actively, GIVE",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 753,
+    "name": "Indiana",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 754,
+    "name": "Indiana Attorney General Customer Service Phone Number 1",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 755,
+    "name": "Indiana Coalition Against Domestic Violence",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 756,
+    "name": "Indianapolis Rat Control, Removal and Rodent Exterminator",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 757,
+    "name": "Indianapolis animal shelter helps find forever homes for ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 758,
+    "name": "Injured Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 759,
+    "name": "Injured or Sick Animal · NYC311",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 760,
+    "name": "Instagram Contact Information Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 761,
+    "name": "Institute CorpThe Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 762,
+    "name": "International Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 763,
+    "name": "International Fun for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 764,
+    "name": "International Fund for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 765,
+    "name": "International Fund for Animal Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 766,
+    "name": "International calls to India 2.1¢/min",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 767,
+    "name": "Is Animal Aid Unlimited legit?",
+    "reason": "article-title"
+  },
+  {
+    "row": 768,
+    "name": "Is California Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 769,
+    "name": "Is Your Shelter Putting Out the 'Unwelcome' Mat for Animals?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 770,
+    "name": "Is dog racing a sport or animal cruelty?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 771,
+    "name": "Is it too late to add Clare County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 772,
+    "name": "Is the Brook Park Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 773,
+    "name": "Is the Lakewood Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 774,
+    "name": "It lobbied for the Philippine Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 775,
+    "name": "Jax's Labrador Retriever Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 776,
+    "name": "Jessica Thompson, Trustees of the Sterling Higley",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 777,
+    "name": "Join Save The Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 778,
+    "name": "Just like Huntington Cabell Wayne Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 779,
+    "name": "Just like Paris Animal Welfare",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 780,
+    "name": "Just like Saving Paws",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 781,
+    "name": "Just like Uintah Animal Control and",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 782,
+    "name": "K-9 and All Creatures Trust",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 783,
+    "name": "KANNAN ANIMAL WELFARE Official",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 784,
+    "name": "KARTAVYA. Join The Praana Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 785,
+    "name": "KVAFSU-CUPA Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 786,
+    "name": "Kannan Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 787,
+    "name": "Kansas (Domestic) Adoption Agencies",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 788,
+    "name": "Kansas Humane Society",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 789,
+    "name": "Kansas Humane Society Company Overview, Contact ...",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 790,
+    "name": "Kansas Humane Society Company Overview, Contact Details ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 791,
+    "name": "Karen's Animal Rescue Uganda, Karen's",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 792,
+    "name": "Karma Animal Charity",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 793,
+    "name": "Karma Foundation Programs & Reviews",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 794,
+    "name": "Karma Foundation will not be responsible for any fraud ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 797,
+    "name": "Karuna Animal Rescue & Sanctuary is a 501(c)(3) non",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 799,
+    "name": "Karuna Animal Welfare Association of Karnataka",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 800,
+    "name": "Karuna Animal Welfare on Instagram",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 801,
+    "name": "Karuna Rescue Humboldt County, CA",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 802,
+    "name": "Karuna Sanctuary Inc",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 803,
+    "name": "Karuna Society",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 804,
+    "name": "Karuna Society For Animals & Nature",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 805,
+    "name": "Karuna Society for Animals and Nature",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 807,
+    "name": "Kentuckiana Veterinary Outreach",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 808,
+    "name": "Kentuckiana veterinary outreach services available",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 809,
+    "name": "King George Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 810,
+    "name": "Kroger account ,you can search for Wag Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 811,
+    "name": "Kroger and everyone that has chosen Wag Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 812,
+    "name": "Kutchery Road, Darjeeling, and the Kalimpong Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 813,
+    "name": "LOCAL ANIMAL SHELTER SUPPORT INC Technology Stack",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 814,
+    "name": "LaDonna, Happy Tails",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 815,
+    "name": "Labrador rescued by Bhoori Foundation in Patna",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 816,
+    "name": "Lakeland Animal Shelter",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 817,
+    "name": "Lakewood Animal Safety and",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 818,
+    "name": "Landmark for Animal Welfare in India! People for Animals ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 819,
+    "name": "Language in the 1985 amendments to the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 820,
+    "name": "Largest Animals Shelter in New Delhi",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 821,
+    "name": "Last Hope K9",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 822,
+    "name": "Lawrence County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 823,
+    "name": "League, King George Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 824,
+    "name": "List Of Mumbai Bird",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 825,
+    "name": "List of Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 826,
+    "name": "Little Victories Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 827,
+    "name": "Local Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 828,
+    "name": "Local Animal Control Agencies",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 829,
+    "name": "Local Animal Control Contact Information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 830,
+    "name": "Local Animal Welfare Organisations",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 831,
+    "name": "Local Shelters & Animal Organizations",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 832,
+    "name": "Los Angeles rescue organizations A Purposeful",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 833,
+    "name": "Louisiana (Domestic) Adoption Agencies",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 834,
+    "name": "Louisiana Foster Care Support Organization",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 835,
+    "name": "Louisiana Foster Care Support Organizations",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 836,
+    "name": "Louisiana foster care systems",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 837,
+    "name": "MAA - Mumbai Animal Association",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 838,
+    "name": "MAILING ADDRESS New Beginnings Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 839,
+    "name": "MVC - Department of Animal Nutrition",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 840,
+    "name": "Madison-jefferson County Humane Society, Humane",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 841,
+    "name": "Maharashtra Animal & Fishery Sci. University (MAFSU), ...",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 842,
+    "name": "Maharashtra Animal & Fishery Science Unviersity, Nagpur",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 843,
+    "name": "Maharashtra Animal & Fishery Sciences University",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 844,
+    "name": "Maharashtra Animal & Fishery Sciences University, Nagpur",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 845,
+    "name": "Maharashtra Animal & Fishery Sciences University, Nagpur ...",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 846,
+    "name": "Maharashtra Animal and Fishery Sciences University",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 847,
+    "name": "Maharashtra Animal and Fishery Sciences University ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 848,
+    "name": "Maharashtra to Build Modern Shelter Home for Stray Dogs ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 849,
+    "name": "Maharashtra, 400052, India How do I contact Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 850,
+    "name": "Mailing Address Saving Paws",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 851,
+    "name": "Mailing Address The Animal Health",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 852,
+    "name": "Maine Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 853,
+    "name": "Make a Service Request to Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 854,
+    "name": "Manahawkin Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 855,
+    "name": "Manatee County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 856,
+    "name": "Manatee County Animal Welfare contact information",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 857,
+    "name": "Map & Hours for Pet Adoptions at Houston ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 858,
+    "name": "Map & Hours for Pet Adoptions at Houston Animal Shelter CAP",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 859,
+    "name": "Masked Content at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 860,
+    "name": "Masked Content at California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 861,
+    "name": "May I surrender it to the Lakewood Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 862,
+    "name": "Medfield Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 863,
+    "name": "Media Contact Numbers for India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 864,
+    "name": "Medical Care of",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 865,
+    "name": "Merrimack River Feline Rescue",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 866,
+    "name": "Metro Nashville Animal Care and Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 867,
+    "name": "Metro Nashville Animal Control Services Photos",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 868,
+    "name": "Miami Veterinary Specialists",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 869,
+    "name": "Milam County Animal Welfare Resources",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 870,
+    "name": "Miscellaneous Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 871,
+    "name": "Mityana dog scam",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 872,
+    "name": "Mobile App Development Company in navi mumbai. Website ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 873,
+    "name": "Mobile County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 874,
+    "name": "Mohawk Hudson Humane Society",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 875,
+    "name": "Momence, Illinois. River Valley Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 876,
+    "name": "Most Common Email Formats at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 877,
+    "name": "Most animal feeders in India work alone. They wake up ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 878,
+    "name": "Mt. Pleasant Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 879,
+    "name": "Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 880,
+    "name": "Mumbai 400001 - Update location. This",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 881,
+    "name": "Mumbai Educational",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 882,
+    "name": "Mumbai Gets its First Mobile Pet Cremation Service",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 883,
+    "name": "Mumbai Media Contacts List",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 884,
+    "name": "Mumbai News",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 885,
+    "name": "Mumbai Phone Number",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 886,
+    "name": "Mumbai and offer services of Adoption, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 887,
+    "name": "Mumbai based",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 888,
+    "name": "Mumbai through trusted",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 889,
+    "name": "Mumbai, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 890,
+    "name": "Mumbai, wildlife rehabilitation India,",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 891,
+    "name": "Mumbai, wildlife rescue Maharashtra, animal welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 892,
+    "name": "Mumbai-based animal welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 893,
+    "name": "My rescue organization Hurricane Pets",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 894,
+    "name": "NAWB raises concerns over animal cruelty by an",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 895,
+    "name": "NEW PHONE NUMBER FOR ANIMAL CONTROL ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 896,
+    "name": "NEW PHONE NUMBER FOR ANIMAL CONTROL‼ The ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 897,
+    "name": "NGO BPO Call Center Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 898,
+    "name": "NGO support, rescued animals, Patna",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 899,
+    "name": "NGO. This is because the",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 900,
+    "name": "Napa County Animal Welfare FAQs",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 901,
+    "name": "Napa County call the Napa County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 902,
+    "name": "National Veterinary Links",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 903,
+    "name": "Navi Mumbai Centre",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 904,
+    "name": "Navi Mumbai Company Contact List",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 905,
+    "name": "Navi Mumbai Unit",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 906,
+    "name": "Need Help Helping Animals? Contact Us!",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 907,
+    "name": "Need help finding free government hospitals to spay a ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 908,
+    "name": "New Animal Activist Online Support Group",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 909,
+    "name": "New England Old English Sheepdog",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 910,
+    "name": "Newborn Adoption Agency",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 911,
+    "name": "Ngo, AnimalWelfare, AnimalRescue, MumbaiVets,",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 912,
+    "name": "No Kill Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 913,
+    "name": "Non-Governmental Organizations (NGOs) in the United ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 914,
+    "name": "Non-Governmental Organizations (NGOs) in the United States",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 915,
+    "name": "North Shore Animal League America",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 916,
+    "name": "North Shore Animal League, the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 917,
+    "name": "North Utah Valley Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 918,
+    "name": "Northern Utah. A New Beginning Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 919,
+    "name": "Not for profit ALL BREED Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 920,
+    "name": "OUR SHELTER NEEDS YOUR HELP Thank you everyone for ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 921,
+    "name": "Oakland Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 922,
+    "name": "Of Ringling Brothers Circus A Victory For Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 923,
+    "name": "On 6th July 2026, Universal Animal Welfare",
+    "reason": "snippet-start"
+  },
+  {
+    "row": 924,
+    "name": "Open Arms Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 925,
+    "name": "Operation Kindness joins Clear the Shelters",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 926,
+    "name": "Orange County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 927,
+    "name": "Oregon Dog Rescue",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 928,
+    "name": "Organisations in India who work for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 929,
+    "name": "Organizational Members of the Ohio Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 930,
+    "name": "Our Dogs",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 931,
+    "name": "Our grantee, Karuna Society for Animals and Nature's ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 932,
+    "name": "Our partner IDA India goes above and beyond to help dogs ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 933,
+    "name": "Our team of Animal Protection Officers,",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 934,
+    "name": "Over 1,000 pets adopted in April at The Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 935,
+    "name": "Overview of Dog Racing Laws",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 936,
+    "name": "PAWS Chicago",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 937,
+    "name": "PAWS Community Center; operated by City of White Settlement",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 938,
+    "name": "PETA India Customer Care No.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 939,
+    "name": "PETA, American Humane, ASPCA, Best Friends Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 940,
+    "name": "PFA Feeder Care Assistance",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 941,
+    "name": "PFA Units All Over India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 942,
+    "name": "PROTECTING THE ANIMALS OF WHITE SETTLEMENT",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 943,
+    "name": "Palam , New Delhi -110045 9454949072 Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 944,
+    "name": "Paris Animal Welfare",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 945,
+    "name": "Park 2. New Delhi -110045 9454949072 Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 946,
+    "name": "Partner Shelters & NGOs",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 947,
+    "name": "Paw life Collab Humanity In Action Feeding Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 948,
+    "name": "Paw-sitive News Alert: Arham Animal Ambulance is now in ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 949,
+    "name": "PawTalk - Animal Communication, Grooming and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 950,
+    "name": "Paws",
+    "reason": "too-short"
+  },
+  {
+    "row": 951,
+    "name": "Paws And Claws Rescue Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 952,
+    "name": "Paws Saving Paws Donation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 953,
+    "name": "Pawsitive Adoptions, Fosters, and Volunteer Heroes",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 954,
+    "name": "Pawsitive Connections Dog Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 955,
+    "name": "Pawsitive Hope",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 956,
+    "name": "Pawsitive Place Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 957,
+    "name": "Pawsitive Restorations Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 958,
+    "name": "Peninsula Regional Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 959,
+    "name": "People For Animals Public Policy Foundation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 960,
+    "name": "People for Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 961,
+    "name": "People for Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 962,
+    "name": "People for Animals (PFA) Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 963,
+    "name": "People for Animals (PFA) on Instagram",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 964,
+    "name": "People for Animals Public Policy",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 965,
+    "name": "People for the Ethical Treatment of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 966,
+    "name": "Pet Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 967,
+    "name": "Pet Adoption & Humane Programs @ Houston ...",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 968,
+    "name": "Pet Adoption Services in Kalyan",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 969,
+    "name": "Pet Animal Welfare",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 970,
+    "name": "Pet Burials Services in Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 971,
+    "name": "Pet Consultation In Andheri West, Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 972,
+    "name": "Pet Refuge Animal Birth Control Clinic",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 973,
+    "name": "Pet Urgent Care in Cincinnati, OH",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 974,
+    "name": "Pet Urgent Care in San Antonio, TX",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 975,
+    "name": "Peta India",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 976,
+    "name": "Pets For Adoption In Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 977,
+    "name": "Pets For Adoption In Navi Mumbai",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 978,
+    "name": "Pets Now Urgent Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 979,
+    "name": "Pets at Friends of Southern Ocean County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 980,
+    "name": "Pets at shelters and rescues near Almost Home",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 981,
+    "name": "Pets at shelters and rescues near Helping Hand Pet",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 982,
+    "name": "Pets at shelters and rescues near Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 983,
+    "name": "Pets for adoption from City of Fort Worth Animal Shelter",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 984,
+    "name": "Pets for adoption from Huntington Cabell",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 985,
+    "name": "Pets for adoption from Paris Animal Welfare Society",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 986,
+    "name": "Pets for adoption from Paws Saving Paws",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 987,
+    "name": "Pets for adoption from Saving Paws Rescue, Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 988,
+    "name": "Pets for adoption from Second Chance Sheridan Cat Rescue",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 989,
+    "name": "Philippine Animal Welfare Society",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 990,
+    "name": "Phoenix, Arizona Veterinary Hospital",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 991,
+    "name": "Phone Number 2 Name Animal",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 992,
+    "name": "Plant & Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 993,
+    "name": "Please donate to Furry Friends Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 994,
+    "name": "Plumbers needed to help animal shelter",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 995,
+    "name": "Pocatello Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 996,
+    "name": "Pocatello Animal Services Department",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 997,
+    "name": "Polk Co. Animal Rescue 🐾",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 998,
+    "name": "Portland-area network of shelters called the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1000,
+    "name": "Prevention of Cruelty (Animal Birth Control) Rules, 2023",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1001,
+    "name": "Pro see the full address information for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1002,
+    "name": "Program in 2008, the small dog area at the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1003,
+    "name": "Programs. The Los Angeles County Animal Care",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1004,
+    "name": "Protection Of Animals In Wakefield",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1005,
+    "name": "Provides Update on Large-Scale Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1006,
+    "name": "Public Animal and Bird Rescue",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1007,
+    "name": "Public Veterinary Hospitals List in Andheri West, Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1008,
+    "name": "Pure Animal Lovers PAL",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1009,
+    "name": "Pure Animal Lovers PAL Welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1010,
+    "name": "Putnam County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1011,
+    "name": "Quad Cities area. We are in the Best Friends Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1012,
+    "name": "Quad City Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1013,
+    "name": "Quincy Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1014,
+    "name": "RGV Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1015,
+    "name": "Rachel Carson joined the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1019,
+    "name": "Raksha Foundation Financials",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1020,
+    "name": "Rating for Help Animals India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1021,
+    "name": "Rating for The Feline Foundation of Greater Washington Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1022,
+    "name": "Re-home Your Pet With Austin Humane Society",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1023,
+    "name": "Read Customer Service Reviews of www.giveindia.org",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1024,
+    "name": "Received from the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1025,
+    "name": "Record-Breaking Dog Population at San Diego Humane",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1026,
+    "name": "Red Bank Veterinary Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1027,
+    "name": "Red Paws",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1028,
+    "name": "Redemption Road Rescue Rehab Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1029,
+    "name": "Regional Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1030,
+    "name": "Regional Animal Services of King County",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1031,
+    "name": "Registered with Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1032,
+    "name": "Related information from LA Animal Services.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1033,
+    "name": "Report Animal Abuse or Neglect",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1034,
+    "name": "Report Cruelty to Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1035,
+    "name": "Report an Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1036,
+    "name": "Report an Animal Emergency or Cruelty",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1037,
+    "name": "Rescue",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1038,
+    "name": "Rescue Paws is a fraudulent company and needs to be ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1039,
+    "name": "Rescue Squad",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1040,
+    "name": "Rescue and save Animals all over india",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1041,
+    "name": "Rescuing Animals from Plumbing",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1042,
+    "name": "Rescuing dogs. Finding forever homes. Woof Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1043,
+    "name": "Resqink Association for Wildlife Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1044,
+    "name": "Reviews, Clinic Address, Map of Karuna",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1045,
+    "name": "Reviews, Photos, Maps , FAQs top Animal",
+    "reason": "label-prefix"
+  },
+  {
+    "row": 1046,
+    "name": "Rhode Island Animal Medical Center and Four Paws Pet ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1047,
+    "name": "Ringling Bros. Curtain Call Is Latest Victory For Animal ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1048,
+    "name": "Riverside County Animal Control - Riverside",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1049,
+    "name": "Rochester Animal Services > New York",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1050,
+    "name": "Rroaming Paws",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1051,
+    "name": "Rushville Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1052,
+    "name": "SAN JOSE ANIMAL CARE CENTER",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1053,
+    "name": "SAPL merged with the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1054,
+    "name": "SF Animal Care & Control",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1055,
+    "name": "SPCA International is pleased to honor PAWS with a",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1056,
+    "name": "Saginaw Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1057,
+    "name": "Saginaw TX Animal Services Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1058,
+    "name": "Saginaw Texas Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1059,
+    "name": "Saint Paul Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1060,
+    "name": "Same love, same care, just a new number! Call us at 022",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1061,
+    "name": "San Bernardino County Animal Care Contracted",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1062,
+    "name": "San Diego Humane Society",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1063,
+    "name": "San Diego Humane Society Provides Update on Julian",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1064,
+    "name": "Sanctuary Nature Foundation is an",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1065,
+    "name": "Sandy Paws",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1066,
+    "name": "Sanjay Gandhi Animal Care Centre",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1067,
+    "name": "Sanjay Gandhi Animal Care Centre Company Profile",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1068,
+    "name": "Santa Paula Animal Rescue Center",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1069,
+    "name": "Saratoga County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1070,
+    "name": "Sarvoham Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1071,
+    "name": "Save Life Save Animals Organisation (@LifeSlsa) / Posts ...",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 1072,
+    "name": "Save The Animals Foundation",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1073,
+    "name": "Save The Animals Rescue Team, II",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1074,
+    "name": "Save the Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1075,
+    "name": "Saving Paws",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1076,
+    "name": "Saving Paws Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1077,
+    "name": "Saving Paws Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1078,
+    "name": "Saving Paws Animal Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1079,
+    "name": "Saving Paws Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1080,
+    "name": "Saving Paws Rescue, Az",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1081,
+    "name": "Saving Tails Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1082,
+    "name": "Savita Mahajan Where is Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1084,
+    "name": "Scales Tails Conservation",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 1085,
+    "name": "Schwarzman Animal Medical Center",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1086,
+    "name": "Seattle Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1087,
+    "name": "Seattle Animal Shelter",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1088,
+    "name": "Second Chance Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1089,
+    "name": "Second Chance Sheridan Cat Rescue",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1090,
+    "name": "See more from Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1091,
+    "name": "See more from BARC Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1092,
+    "name": "See more from Dombivli Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1093,
+    "name": "See more from GiveIndia",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1094,
+    "name": "See more from Karuna Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1095,
+    "name": "See more from Napa County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1096,
+    "name": "See more from Praana Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1097,
+    "name": "See what the market has to say on Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1098,
+    "name": "Senior Policy Associate at Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1099,
+    "name": "Service Request Details · NYC311",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1100,
+    "name": "Seward Park to join the Seattle Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1101,
+    "name": "Shelter Animals Count",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1102,
+    "name": "Shelter Pets. Its website snarks at the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1103,
+    "name": "Shelter Resources And Contacts List",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1104,
+    "name": "Shelter and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 1105,
+    "name": "Shelters",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1106,
+    "name": "Sheridan Dog & Cat",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1107,
+    "name": "Shining Light Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1108,
+    "name": "Shipping Companies in Mumbai List",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1109,
+    "name": "Shipping Company in Navi Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1110,
+    "name": "Shree Karuna Foundation",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1112,
+    "name": "Shri Mumbai Jivdaya Mandli is dedicated to protecting ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1113,
+    "name": "Shri Mumbai Jivdaya Mandli, The Bombay ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1114,
+    "name": "Shri Mumbai Jivdaya Mandli, The Bombay Humanitarian ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1115,
+    "name": "Shri Mumbai Jivdaya Mandli, The Bombay Humanitarian League",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1116,
+    "name": "Siddharth Agarwal, Foundation Lead, Upadhyaya",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1117,
+    "name": "Similarly, the Friends of the Verona Street Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1118,
+    "name": "Since 1946, the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1119,
+    "name": "Since 1978, The Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1120,
+    "name": "Since being rescued by our partner, Furever",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1121,
+    "name": "Since founding Dharamsala Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1122,
+    "name": "Small Animal Clinic, Diagnostics Imaging & Surgical Center",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1123,
+    "name": "Small rescue group, big impact for Wyoming's cats",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1124,
+    "name": "Social Services Foster Care & Adoption",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1125,
+    "name": "Soi Dog",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1126,
+    "name": "Some of Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1127,
+    "name": "Some of the popular technologies that Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1128,
+    "name": "Sonoma County Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1129,
+    "name": "South Carolina Animal Care and Control Association",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1130,
+    "name": "South Utah Valley Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1131,
+    "name": "Southern Ocean County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1132,
+    "name": "Specialties. Every year, Animal Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1133,
+    "name": "Sponsored by Best Friends Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1134,
+    "name": "St Mary's Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1135,
+    "name": "St Mary's Animal Welfare League, Altus Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1136,
+    "name": "St. Hubert's Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1137,
+    "name": "Stan Wayman's LIFE photo essay and the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1138,
+    "name": "Standard Operating Procedures issued by the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1139,
+    "name": "State Board, Representative of a recognised Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1140,
+    "name": "Stay is Total Days in Care of All Animals In the",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1141,
+    "name": "Staying at Arlington Life Shelter",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1142,
+    "name": "Sterlization l Rescues l Treatment l",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1143,
+    "name": "Story County Animal Control &",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1144,
+    "name": "Stray Dog Population in India 2026",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1145,
+    "name": "Stray Dog Support",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1146,
+    "name": "Stray Dog Support (@straydogsupport) · Kewaskum, WI",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 1147,
+    "name": "Stray Dog Support Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1148,
+    "name": "Stray Dogs and Cats at Austin Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1149,
+    "name": "Stray Dogs and Cats at Austin Humane Society",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1150,
+    "name": "Stray Happy Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1151,
+    "name": "Stray Relief And Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1152,
+    "name": "Strengthening the Future of Animal Sheltering Data",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1153,
+    "name": "Submit Applications for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1154,
+    "name": "Sunny Paws",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1155,
+    "name": "Support Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1156,
+    "name": "Support Hotline at 702-760- PETS. The Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1157,
+    "name": "Support Kannan Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1158,
+    "name": "Support organisations like Kannan Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1159,
+    "name": "Support the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1160,
+    "name": "Support the Huntington Cabell Wayne Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1161,
+    "name": "Supporting Animal Aid Unlimited",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1162,
+    "name": "Supportive Steps for Navigating Open Adoption Alone",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1163,
+    "name": "Supreme Court Refuses To Entertain NGO's Plea To Clarify ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1164,
+    "name": "Supreme Court Refuses to Entertain NGO's Plea Seeking ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1165,
+    "name": "Survivor Tails Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1168,
+    "name": "Tails & Ferals at 707.258.2287, or We Care Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1169,
+    "name": "Take care of stray dogs and volunteer, volunteer or donate",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1170,
+    "name": "Tata Trusts",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1171,
+    "name": "Technical Rescue Services",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1172,
+    "name": "Terra Anima Trust, Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1173,
+    "name": "Texas area, primarily from the Collin County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1174,
+    "name": "The Advanced Veterinary Care",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1175,
+    "name": "The Almost Home Animal",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1176,
+    "name": "The Animal Birth Control (Dogs) Rules, 2023",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1177,
+    "name": "The Animal Legal Defense Fund Responds to Ringling ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1178,
+    "name": "The Animal Legal Defense Fund Responds to Ringling Bros ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1179,
+    "name": "The Animal Medical Center",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1180,
+    "name": "The Animal Medical Center NYC (@amcny) · New York, NY",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 1181,
+    "name": "The Anubis-Tiger Foundation is a registered",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1184,
+    "name": "The Bai Sakarbai Dinshaw Petit Hospital for Animals",
+    "reason": "duplicate-of-earlier-row"
+  },
+  {
+    "row": 1185,
+    "name": "The Berlin Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1186,
+    "name": "The Blue Cross is recognised by the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1188,
+    "name": "The Brougher Companion Animal",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1189,
+    "name": "The Brownsville Animal Regulation Care Center",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1190,
+    "name": "The California Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1191,
+    "name": "The Cat Fanciers Association Foundation Inc",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1192,
+    "name": "The Cat Fanciers' Association Foundation, Inc. (The CFA ...",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1193,
+    "name": "The Center for Animal Health & Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1194,
+    "name": "The Citizens Committee for the Lakewood Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1195,
+    "name": "The City of Buffalo Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1196,
+    "name": "The Feline Foundation on Instagram",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1197,
+    "name": "The Fresno Animal Center is offering fee",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1198,
+    "name": "The Global Race to End Dog Racing",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1199,
+    "name": "The Grateful Dog",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1200,
+    "name": "The Growing Problem of Fake AI Images of Shelter Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1201,
+    "name": "The Helping Hands for the Plymouth Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1202,
+    "name": "The Humane Society for help. But, The Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1203,
+    "name": "The Humane Society of Charlotte",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1204,
+    "name": "The Humboldt County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1205,
+    "name": "The Indian Animal",
+    "reason": "ambiguous-stopword-start"
+  },
+  {
+    "row": 1206,
+    "name": "The Indian Dental Association is happy to ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1207,
+    "name": "The Jefferson ProtectionAnimal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1208,
+    "name": "The Lakewood Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1209,
+    "name": "The Lakewood Animal Safety and",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1210,
+    "name": "The Marion County Dog",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1211,
+    "name": "The Michelle Koppang Compassionate Care Fund for ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1212,
+    "name": "The New Haven Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1213,
+    "name": "The Newport Beach Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1214,
+    "name": "The Paris Animal Welfare",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1215,
+    "name": "The Philippine Animal Welfare Society",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1216,
+    "name": "The Robin I. Kroogman New Haven Animal Shelter",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1217,
+    "name": "The Seattle Veterinary Outreach Mobile Team",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1218,
+    "name": "The Times of India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1219,
+    "name": "The Veterinary Resource Center at the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1224,
+    "name": "The canines at Cincinnati Animal CARE Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1225,
+    "name": "The mission of Paws and Claws Cat",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1226,
+    "name": "The mission of the Quad City Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1227,
+    "name": "The phone number for the Animal Control",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1228,
+    "name": "The proceeds from the Support Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1229,
+    "name": "The shelter was incorporated in 1966 as the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1230,
+    "name": "Therapeutic Adoption and Foster Care Columbus OH",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1231,
+    "name": "They stay safe with us at Vatika Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1232,
+    "name": "This August, the @RichardsonAnimalShelter is helping ...",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 1233,
+    "name": "This complaint is a request to form an Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1234,
+    "name": "This is for the ATTENTION of our clients, rescuers, pet ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1235,
+    "name": "This page, Approved Shelter and",
+    "reason": "truncated-title"
+  },
+  {
+    "row": 1236,
+    "name": "Thornberry Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1237,
+    "name": "Times of India Mumbai Maharashtra Contact No.",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1238,
+    "name": "Tinte Foundation Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1239,
+    "name": "Today I visited Second Chance Sheridan Cat Rescue ...",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1240,
+    "name": "Today marks two incredible years of Praana Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1241,
+    "name": "Today, California Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1242,
+    "name": "Today, the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1243,
+    "name": "Toll Free Number India",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1244,
+    "name": "Tom Last year, Kalimpong Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1245,
+    "name": "Top Shelters and best NGOs for Dog",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1246,
+    "name": "Tri Valley Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1247,
+    "name": "Tri-City Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1248,
+    "name": "Tri-Valley Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1249,
+    "name": "Trusted Mumbai Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1250,
+    "name": "Trusted Veterinarians in Alexandria, Minnesota",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1251,
+    "name": "Trustees And Executives of Shri Mumbai Jivdaya Mandli",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1252,
+    "name": "Uintah Animal Control and Shelter SSD on Reels",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1253,
+    "name": "Uintah Animal Control and Shelter Special Service District",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1254,
+    "name": "Under no circumstances are animals from the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1255,
+    "name": "United States Animal",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1256,
+    "name": "Universal Animal Welfare",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1257,
+    "name": "Universal Animal Welfare Society",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1258,
+    "name": "Universities Federation for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1259,
+    "name": "Updates from Northeast Kansas Animal Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1260,
+    "name": "Upon request by an Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1261,
+    "name": "Use Nextdoor.com to Save Animals in Your Community",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1262,
+    "name": "VA Caregiver Support Line",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1263,
+    "name": "VA Caregiver Support Program Home",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1264,
+    "name": "VA Caregiver Support Program Teams Locator",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1266,
+    "name": "Vegan & Animal Activist Support Line",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1267,
+    "name": "Verified Animal Ambulance Numbers Delhi NCR Please Save ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1268,
+    "name": "Veterinary",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1269,
+    "name": "Veterinary Doctors List",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1270,
+    "name": "Veterinary Dry Injections",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1271,
+    "name": "Veterinary Hospital",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1272,
+    "name": "Veterinary Hospitals Across India",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1273,
+    "name": "Veterinary Partner",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1274,
+    "name": "Veterinary Public Health",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1275,
+    "name": "Veterinary Public Health Division",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1276,
+    "name": "Veterinary Radiology in Wichita, KS",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1277,
+    "name": "Veterinary Services",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1278,
+    "name": "Veterinary Services Company Search & Contact Data",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1279,
+    "name": "View Email Formats for Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1280,
+    "name": "View Email Formats for California Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1281,
+    "name": "View the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1282,
+    "name": "View the list of Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1283,
+    "name": "Village Pet Care Launches as New Pet Care Services ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1284,
+    "name": "Village camp by Kalimpong Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1285,
+    "name": "Visakha SPCA India, Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1286,
+    "name": "Visakha Society for Protection and Care of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1287,
+    "name": "Visakha Society for Protection and Care of Animals ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1288,
+    "name": "Visit the Animal Protection",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1289,
+    "name": "Volunteers at the Humboldt County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1290,
+    "name": "WSD is a Mumbai based animal welfare ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1291,
+    "name": "Wags 2 Wishes Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1292,
+    "name": "Wake County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1293,
+    "name": "Wake County Animal Services Wake County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1294,
+    "name": "We Save Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1295,
+    "name": "We are an Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1296,
+    "name": "We have 2 Wildlife Ambulances with Emergency",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1297,
+    "name": "We need your support in proving hundreds of animals in ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1298,
+    "name": "We partner with South Utah Valley Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1299,
+    "name": "We urgently need help from an animal welfare",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1300,
+    "name": "We work closely with Southern Ocean County Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1301,
+    "name": "Weekdays, Weekends  ---  Dog Walking Team - Walk",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1302,
+    "name": "Welcome To Karma Foundation",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1303,
+    "name": "Welcome to Advanced Care Veterinary Hospital",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1304,
+    "name": "Welcome to The Feline Foundation of Greater Washington, Inc.",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1305,
+    "name": "Welcome to the California Veterinary Medical Board",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1306,
+    "name": "Welcome to the Division of Animal Health",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1307,
+    "name": "Welcome to the Paris Animal Welfare",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1308,
+    "name": "Welfare of Stray Dogs (WSD)",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1309,
+    "name": "Welfare of Stray Dogs, a city-based animal welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1310,
+    "name": "West, Mumbai. Call Now Plant & Animals Welfare",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1311,
+    "name": "Western Riverside County/City Animal Shelter",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1312,
+    "name": "What To Do When You Find a Wild Animal in Philly",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1313,
+    "name": "What are email contacts for pet rescue groups?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1314,
+    "name": "What are the hours for the Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1315,
+    "name": "What does Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1316,
+    "name": "What industry does Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1317,
+    "name": "What industry does California Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1318,
+    "name": "When making a donation, please call the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1319,
+    "name": "White Settlement Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1320,
+    "name": "Whitley County Humane Society Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1321,
+    "name": "Who do I call to report animal neglect?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1322,
+    "name": "Why Collecting Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1323,
+    "name": "Why Join Our Shelters and Rescues Network?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1324,
+    "name": "Wildlife SOS Celebrates 30 Years Of Saving India's Wildlife!",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1325,
+    "name": "Wildlife Welfare Association",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1326,
+    "name": "Wildlife Welfare Association (WWA) (@wwa_india) / Posts / X",
+    "reason": "platform-handle"
+  },
+  {
+    "row": 1327,
+    "name": "Winnebago County Animal Services",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1328,
+    "name": "Winston from A New Beginning Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1329,
+    "name": "Worcester Animal",
+    "reason": "foreign-provenance"
+  },
+  {
+    "row": 1330,
+    "name": "Work With Us at Vatika Animal",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1331,
+    "name": "Work With Us at Vatika Animal Sanctuary 🐾 We're looking ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1332,
+    "name": "World Animal Protection India — Mumbai",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1333,
+    "name": "World For All (WFA)",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1334,
+    "name": "World For All Animal Care",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1335,
+    "name": "World For All Animal Care And Adoptions",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1336,
+    "name": "World For All Partners With TikTok to Launch its Animal ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1337,
+    "name": "World Stray Animals Day 🐾 Every Dog Deserves Safety ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1338,
+    "name": "World for All/ Save the Helpless Animals of Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1339,
+    "name": "World for All/Save the Helpless Animals of Mumbai",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1340,
+    "name": "World for Animals, formerly called the Humane",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1341,
+    "name": "YODA Mumbai",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1342,
+    "name": "YODA is a Mumbai-based",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1343,
+    "name": "YODA — Youth Organization for Development and Awareness",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1344,
+    "name": "Yes, the city of Lakewood has an Animal Safety and",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1345,
+    "name": "Yoda Animal",
+    "reason": "foreign-geography"
+  },
+  {
+    "row": 1346,
+    "name": "Yoda Animal Shelter, Chikuwadi Rd, off Marve Road, Malad ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1347,
+    "name": "Yoda Youth Organization In Defence Of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1348,
+    "name": "Yolo County Animal Shelter",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1349,
+    "name": "York City Animal Control, York, PA 17403, US",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1350,
+    "name": "You can license your Jersey City dog at the",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1351,
+    "name": "You may call the Animal",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1352,
+    "name": "Youth Organization in Defence of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1353,
+    "name": "Youth Organization in Defence of Animals (YODA) ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1354,
+    "name": "Youth Organization in Defence of Animals (YODA) on ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1355,
+    "name": "Youth Organization in Defense of Animals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1356,
+    "name": "Youth Organsiation In Defence Of Animals (Yoda) in Khar ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1357,
+    "name": "[PDF] STATE ANIMAL HEALTH OFFICIALS",
+    "reason": "file-artifact"
+  },
+  {
+    "row": 1358,
+    "name": "[PDF] Shelter Resources And Contacts List",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1359,
+    "name": "adoption & foster care programs in Santa Monica, ca",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1360,
+    "name": "adoption & foster parenting programs in Santa Monica, ca",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1361,
+    "name": "animal ambulance number for sick cat?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1362,
+    "name": "animal welfare programs in Austin, tx",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1363,
+    "name": "animal welfare programs in Reno, nv",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1364,
+    "name": "any cheap animal doctors that can treat stray cat?",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1365,
+    "name": "cCARE at Saint Agnes",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1366,
+    "name": "harvest hills animal shelter Open by appointment only",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1367,
+    "name": "harvest hills animal shelter Open by appointment only ...",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1368,
+    "name": "peopleforanimals",
+    "reason": "junk-marker"
+  },
+  {
+    "row": 1369,
+    "name": "reliable animal removal service needed",
+    "reason": "no-phone-not-govt"
+  },
+  {
+    "row": 1370,
+    "name": "temporary shelter programs in Rochester, ny",
+    "reason": "sentence-fragment"
+  },
+  {
+    "row": 1371,
+    "name": "‼️ WE ARE AT CAPACITY ‼️ Fresno Animal Center is ...",
+    "reason": "sentence-fragment"
+  }
+]

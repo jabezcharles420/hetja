@@ -44,6 +44,55 @@ If you later get a card-free S3-compatible option (Backblaze B2's 10 GB free
 tier does not require a card at time of writing — verify before relying on it),
 switching is two lines in `/root/.backup-env` and turns on real PITR.
 
+## Verified live on 2026-08-14
+
+This is no longer aspirational. On `aic` (the production box):
+
+```
+rclone about gdrive:        Total 15 GiB / Free 13.573 GiB
+restic snapshots            8fce079b  2026-08-14 23:20:00  jabez-vps-essential-2gb
+                            /etc/caddy, /etc/postgresql/16/main,
+                            /root/.config/systemd/user,
+                            apps/api/.env.production, apps/web/.env.production,
+                            the pg_dump
+```
+
+First backup took **4m40s** — Drive is slow, as warned above. And the restore
+drill was run, not just documented:
+
+| table | production | restored from Drive |
+|---|---|---|
+| `medical_records` | 85 | **85** |
+| `dogs` | 88 | **88** |
+| `care_providers` | 93 | **93** |
+
+Both `.env.production` files came back out of the snapshot too, so
+`HETJA_QR_SECRET` is recoverable from a backup as well as from a password
+manager.
+
+### One discrepancy this repository should own
+
+`ops/bootstrap.sh` installs `hetja-restic.{service,timer}` as **system** units
+(`WantedBy=multi-user.target`), and `ops/check-systemd.sh` gates that. But the
+live box does not use them: it has `hetja-restic.timer` as a **user** unit under
+`/root/.config/systemd/user/`, enabled and active, next fire 02:15 IST, running
+this same script. That is why the older instruction said
+`systemctl --user enable --now hetja-walg.timer` — it was correct for how the
+box was actually built, and my earlier "the `--user` was wrong" correction was
+itself too confident.
+
+Nothing was changed about the scheduling: repointing `RESTIC_REPOSITORY` was
+enough, and the existing user timer picks it up. Left alone deliberately —
+installing the system units on top would give this box **two** timers running
+the same backup.
+
+For a fresh box, bootstrap's system units are still the right thing. If you ever
+run `bootstrap.sh` on *this* box, disable the user timer first:
+
+```bash
+systemctl --user disable --now hetja-restic.timer
+```
+
 ## Step 1 — install and authorise rclone
 
 `rclone` needs a browser once, to complete Google's OAuth. The box has no

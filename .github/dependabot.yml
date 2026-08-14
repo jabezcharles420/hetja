@@ -42,29 +42,67 @@ updates:
     open-pull-requests-limit: 5
     groups:
       # Patch and minor bumps of everything, in one PR per ecosystem run. These
-      # are the ones where CI passing is genuinely most of the review.
+      # are the ones where CI passing is genuinely most of the review, and they
+      # are where the security value lives.
       routine:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-      # Majors get their own PR each, because a major is a reading task.
-      major:
-        patterns: ["*"]
-        update-types: ["major"]
+      # NOTE: there is deliberately no `major` group. An earlier version of this
+      # file had one, with a comment claiming "majors get their own PR each,
+      # because a major is a reading task" — which is the opposite of what
+      # grouping does. It produced PR #5: "bump the major group across 3
+      # directories with 8 updates". Eight breaking changes in one diff is not
+      # reviewable, so it would have sat open forever or been merged unread.
+      # Both outcomes are worse than not opening it.
     ignore:
-      # Next 14 -> 15 is an App Router migration, not a bump. Deliberate, not
-      # neglect: revisit when someone has time to read the upgrade guide.
+      # These majors are held for a measured reason, not a general aversion.
+      #
+      # PR #5 ("bump the major group across 3 directories with 8 updates") failed
+      # CI at `apps/web typecheck`:
+      #
+      #   app/layout.tsx(5,8): error TS2882: Cannot find module or type
+      #   declarations for side-effect import of './globals.css'.
+      #
+      # apps/web was the last package on typescript@5 while everything else was
+      # already on 7, and the bump to 7 surfaced TS2882 (new in TS 7 for
+      # side-effect imports of non-code files). apps/web/css.d.ts now supplies
+      # that declaration — but the version stays on 5, because Next 14's
+      # `next lint` does not accept typescript@7 at all: it decides TypeScript is
+      # not installed and tries to auto-install it, so the Lint step breaks even
+      # once typecheck passes.
+      #
+      # So apps/web's TypeScript major is pinned by Next's major, and
+      # eslint/eslint-config-next follow Next in lockstep. Upgrading any one of
+      # them means doing the Next 14 -> 15+ App Router migration, which is a
+      # project, not a merge. That is the whole list below.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major"]
       - dependency-name: next
         update-types: ["version-update:semver-major"]
       - dependency-name: react
         update-types: ["version-update:semver-major"]
       - dependency-name: react-dom
         update-types: ["version-update:semver-major"]
-      # apps/scan has a hard 40 KB gzipped budget (INVARIANT 13) and exactly one
-      # runtime dependency. A major bump of it is a bundle-size decision that the
-      # size gate will catch, but which should be made on purpose rather than
-      # merged from a green PR.
+      # apps/scan's only runtime dependency, against a hard 40 KB gzipped budget
+      # (INVARIANT 13). The size gate would catch a regression, but a bundle-size
+      # decision should be made on purpose rather than merged from a green PR.
       - dependency-name: web-vitals
         update-types: ["version-update:semver-major"]
+      #
+      # Everything else keeps its majors, deliberately: zod, @fastify/cors,
+      # jsdom, @types/node and @testing-library are all covered by 443 tests
+      # across the workspace, so a red PR is a real answer and a green one is
+      # most of the review. @fastify/cors 10 -> 11 in particular is worth having:
+      # altcha-lib already declares it as an unmet peer.
+      #
+      # Note on security, since `ignore` applies to security updates too: a CVE
+      # whose only fix is a major bump of one of the seven above will not open a
+      # PR. Leave Dependabot ALERTS on (Settings -> Code security) so it still
+      # tells you, and do that upgrade by hand.
     labels: ["dependencies"]
     commit-message:
       prefix: "chore(deps)"
@@ -87,3 +125,23 @@ updates:
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(actions)"
+    # No ignores. Action majors are NOT held back, and the reason is that they
+    # were checked rather than assumed.
+    #
+    # An earlier version of this file blocked `actions/setup-node`,
+    # `pnpm/action-setup` and `actions/cache` majors, asserting that the `quality`
+    # job "failed on them" and reasoning at length about ci.yml's load-bearing
+    # step order (pnpm/action-setup before setup-node, no `version:` passed
+    # because v4 reads `packageManager` from package.json). That reasoning was
+    # plausible and the premise was simply false — `gh run list` shows all three
+    # action-major PRs GREEN on both CI and the a11y workflow:
+    #
+    #   success  CI  (dependabot/github_actions/pnpm/action-setup-6)
+    #   success  CI  (dependabot/github_actions/actions/setup-node-7)
+    #   success  CI  (dependabot/github_actions/actions/cache-6)
+    #
+    # The only red run was the npm major group. Holding these back on a
+    # fabricated failure would have been the same mistake this repository has
+    # been cleaning up all week: a confident comment that the code does not
+    # support. If an action major ever does break the workflow, the PR goes red
+    # and that is the signal — no pre-emptive block needed.

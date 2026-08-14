@@ -120,6 +120,14 @@ require_all '/api/v1/care*'     'care* is cached for 60s'           'max-age'  '
 # Content-addressed build output; safe to cache for a year.
 require_all '/_next/static/*'   '_next/static is immutable'         'immutable' '-'
 
+# Feeder-uploaded dog photos, served off disk. The filename is a random UUID so
+# the bytes never change, and a photo is orders of magnitude larger than any JSON
+# response on this box -- it is the single biggest caching win available, so a
+# regression to no-store is worth failing the build over. Present on BOTH vhosts:
+# hetja.in serves the same-origin path and api.hetja.in is what
+# apps/web/lib/api.ts actually builds photo URLs against.
+require_all '/photos/*'         'photos are immutable'              'immutable' '-'
+
 # If anyone ever adds an explicit handler for the dog API or the SOS API, it
 # must be no-store too — these carry live case state. Absent is fine (the
 # catch-all covers them), which is why this is a conditional check rather than

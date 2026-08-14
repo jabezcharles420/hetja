@@ -129,11 +129,49 @@ systemctl is-active hetja-api hetja-web hetja-worker hetja-scan                 
 `<slug>` is a real 9-character collar slug. `pnpm --filter @hetja/db seed` makes
 five if you have none.
 
-**Running the test suite** needs PostGIS, pgvector and pgcrypto in a database
-whose name ends `_test` — the suite refuses anything else, because it inserts
-real rows and `medical_records` is append-only, so test rows can never be
-removed. A stock Homebrew PostgreSQL has only pgcrypto; the Docker recipe
-matching CI is in [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) §8.
+**Running the test suite** needs a disposable database whose name ends `_test` —
+the suite refuses anything else: it inserts real rows, and `medical_records` is
+append-only, so test rows can never be removed. Bootstrap it exactly like CI
+(`.github/workflows/ci.yml`), with every command as the `postgres` superuser
+(root on this box maps to it via the `rootasdba` ident map):
+
+```bash
+# one-time, per cluster: the application login role. Must exist before
+# migrations — 0001_init.sql ends with `REVOKE ... FROM app_user`, which errors
+# if the role does not.
+psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_user') THEN CREATE ROLE app_user LOGIN PASSWORD 'dev-pw'; END IF; END \$\$;"
+psql -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO app_user;"
+
+# per fresh database
+createdb hetja_test
+psql -d hetja_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;"
+
+# migrations MUST run as postgres, never as app_user — see the ownership note in §h
+PGHOST=/var/run/postgresql PGUSER=postgres pnpm --filter @hetja/db migrate
+
+# post-migration grants = production's privilege set, applied after the tables exist
+psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;"
+psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
+# INVARIANT 9: re-applied after the blanket GRANT, which would hand DELETE back
+psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
+```
+
+Then run the suite as `app_user` — always with `PGDATABASE` set; unset it
+defaults to `hetja` (the live database) and the suite refuses to start:
+
+```bash
+PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=app_user PGPASSWORD=<pw> \
+  pnpm --filter @hetja/api test
+```
+
+The ownership detail is load-bearing, not cosmetic: the referential-integrity
+check behind `DELETE FROM dogs` runs as the *referencing* table's owner, so
+`medical_records` must be owned by `postgres` with `app_user` holding grants.
+If `app_user` owns it, `0001_init.sql`'s REVOKE strips the owner's own rights
+and every dog-delete fails with `permission denied for table medical_records` —
+the bug behind 48 CI failures, documented in migration 0012's header comment.
+A stock Homebrew PostgreSQL has only pgcrypto; the Docker recipe matching CI is
+in [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) §8.
 
 ## g. How code reaches production
 

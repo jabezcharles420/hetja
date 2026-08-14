@@ -30,9 +30,56 @@ backlog age, push delivery-receipt rate.
 
 ## Daily ledger anchor
 
-The ledger head must be published daily (INVARIANT 10). Add a cron:
-`pnpm --filter @hetja/ledger anchor` → writes `ledger_anchors` row +
-publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
+The ledger head must be published daily (INVARIANT 10). **No cron is needed** —
+the worker enqueues `anchor_ledger` itself, idempotently, keying off the last
+published anchor rather than any scheduler state, guarded by
+`pg_try_advisory_xact_lock` so a second worker instance cannot double-enqueue.
+It writes a `ledger_anchors` row and serves it at `GET /api/v1/ledger/anchor`.
+
+An earlier version of this section told you to add a cron for
+`pnpm --filter @hetja/ledger anchor`. That script does not exist, and the job it
+was standing in for could not have run either: its query put an aggregate beside
+a bare column with no `GROUP BY`, which PostgreSQL rejects, so every attempt
+threw and retried to `MAX_ATTEMPTS`. Nothing enqueued it in the first place.
+Both fixed 2026-08-14; see `docs/INVARIANTS.md` for the write-up.
+
+**What is still not done, and it is the important half.**
+`ledger_anchors.published_url` is `''`. The head is computed, stored, and — with
+`HETJA_LEDGER_SIGNING_JWK` set — signed. It is not published anywhere outside
+this operator's control, and INVARIANT 10's entire reasoning is that "a hash
+chain that is computed and stored by the same party that could tamper with it
+proves nothing about tampering by that party". Until a head lands somewhere we
+cannot silently rewrite, this invariant is 🔄 and not ✅.
+`anchorMessage()` exists to feed such a channel.
+
+To turn signing on: set `HETJA_LEDGER_SIGNING_JWK` (+ `_KID`) in
+`apps/api/.env.production` — the worker unit loads that file — and **publish the
+public half at a JWKS path**, or the signature verifies against nothing. See
+`apps/worker/src/sign-anchor.ts` for the generation snippet. Check it took:
+
+```bash
+curl -s http://127.0.0.1:8080/api/v1/ledger/anchor | grep -o '"signed":[a-z]*'
+```
+
+### After any deploy that ran migration 0015
+
+`0015_care_phone_e164_retry.sql` adds the phone-format CHECK as `NOT VALID`:
+future writes are constrained unconditionally on both databases, while existing
+rows are validated only if every one of them already conforms. Which happened is
+recorded per-database, so check it rather than assuming:
+
+```bash
+psql -d hetja -c "SELECT conname, convalidated FROM pg_constraint
+                   WHERE conname = 'care_providers_phone_e164_valid_check';"
+```
+
+`convalidated = false` means at least one stored number is not E.164 and the
+migration printed the offending rows (with `id` and `name`, never the value — the
+deploy log is collaborator-readable). Fix those rows, then run the `VALIDATE
+CONSTRAINT` statement the migration's output gives you. Note the deliberate
+forcing function: while the constraint is `NOT VALID`, updating *any* column on a
+violating row fails the check — which puts the error in front of exactly the
+person editing that provider.
 
 ## PITR restore drill (monthly)
 

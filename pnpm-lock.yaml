@@ -165,6 +165,9 @@ importers:
       '@hetja/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@hetja/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
       pg:
         specifier: ^8.23.0
         version: 8.23.0

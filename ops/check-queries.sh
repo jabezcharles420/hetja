@@ -11,6 +11,9 @@ PGUSER=${PGUSER:-app_user} PGPASSWORD=${PGPASSWORD:-8ffe587d42b5b5a56109fc1234b4
 sample_args() {  # per-query sample parameters (count must match $n)
   case "$1" in
     sos_fanout.sql) echo "'0101000020E610000048E17A14AE37524052B81E85EB113340', 40" ;;
+    # dog_id is uuid, so the default 'x' literal fails the cast rather than the
+    # query -- which would report a schema problem that is really a fixture one.
+    ledger_dog_leaves.sql) echo "'00000000-0000-0000-0000-000000000000'::uuid" ;;
     *) echo "'x'" ;;
   esac
 }

@@ -8,11 +8,38 @@
 -- response, sos.ts) would dial incorrectly.
 --
 -- libphonenumber-js is NOT available in SQL, so this migration applies a
--- conservative subset of the same parsing rules the API now enforces
--- (apps/api/src/lib/phone.ts): only the unambiguous national formats are
--- converted, and anything ambiguous is left untouched rather than guessed at.
--- The API closes the gap going forward: a new number that cannot be parsed
--- as a valid Indian number is rejected with a 400 before it is ever written.
+-- conservative subset of the same parsing rules apps/api/src/lib/phone.ts
+-- implements: only the unambiguous national formats are converted, and anything
+-- ambiguous is left untouched rather than guessed at.
+--
+-- CORRECTION (added by 0015_care_phone_e164_retry.sql, which supersedes this
+-- file's constraint). The sentence that stood here claimed: "The API closes the
+-- gap going forward: a new number that cannot be parsed as a valid Indian
+-- number is rejected with a 400 before it is ever written." THAT WAS NEVER
+-- TRUE. `apps/api/src/lib/phone.ts` existed and was tested, but nothing called
+-- it and there was no write route to return a 400 from; `care_providers` had
+-- exactly one writer, packages/db/src/seed-care.ts, which inserted whatever it
+-- was given. The claim mattered because it was the stated justification for
+-- this migration leaving unparseable rows alone -- "the API will catch the rest"
+-- was load-bearing and false, so the rest was caught by nothing.
+--
+-- What actually enforces it now:
+--   * care_providers_phone_e164_valid_check (0015) -- a real E.164 CHECK,
+--     enforced on every INSERT and UPDATE, on every database, unconditionally.
+--     This is the binding one: it also covers hand-written psql, which no
+--     amount of application validation ever will.
+--   * seed-care.ts refuses to seed a non-E.164 number, before its first INSERT.
+--   * apps/api/src/routes/care.ts normalises both numbers through
+--     normalizeIndianPhone() on the way out, so a legacy row still reaches the
+--     caller as a dialable E.164 where it can be parsed.
+--   * IndianPhoneE164 (lib/phone.ts) is the zod field a future write route must
+--     use. Only THEN does the 400 in the sentence above become real.
+--
+-- The SQL in this file is left exactly as it was applied. Only this comment
+-- changed: correcting a false statement about what enforces an invariant is
+-- worth the file no longer being byte-identical to what ran, whereas rewriting
+-- the statements would make the migration disagree with the databases that
+-- already applied it.
 --
 -- phone_verified_at is deliberately NEVER touched here. That column means
 -- "a human actually called this number" (see 0008's comment: a number nobody
@@ -27,7 +54,18 @@
 -- row the ALTER would fail and take the whole migration down with it. The DO
 -- block therefore adds the constraint only when no violating row remains --
 -- on a database where one does, the constraint is SKIPPED rather than
--- guessed at. The API layer enforces the same rule on every future write.
+-- guessed at.
+--
+-- THAT SKIP IS THE BUG, and it fired. The UPDATEs above only understand
+-- 10-digit mobiles, so a Mumbai landline ('02224137518') matched nothing, stayed
+-- unprefixed, and this DO block quietly declined to add the constraint on the
+-- production cluster while adding it to the Supabase mirror. schema_migrations
+-- recorded 0013 as applied on both, so it is never retried, and CI always builds
+-- a fresh database and therefore always lands on the branch that HAS the
+-- constraint -- the divergence was invisible to the test suite by construction.
+-- Fixed by 0015_care_phone_e164_retry.sql, which handles landlines, adds a
+-- stricter constraint as NOT VALID so it can never be skipped, and reports its
+-- outcome instead of choosing a branch in silence.
 
 -- Normalize primary numbers. National-format Indian mobile numbers
 -- (10 digits starting 6-9) are the only shapes that can be re-parsed

@@ -85,7 +85,8 @@ the repo** — cloning gets you no secrets.
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | api | **Generate once**: `npx web-push generate-vapid-keys`. Subject is a `mailto:`. Rotating these invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` | api | Brevo → SMTP & API. **The API refuses to boot in production without these** — deliberately, because the original bug was generating login codes and silently sending them nowhere. |
 | `MAIL_FROM` | api | `no-reply@hetja.in`. Must be on a domain with SPF/DKIM/DMARC or mail lands in spam. |
-| `TRUST_PROXY` | api | Hop count to the real client through Caddy, usually `1`. |
+| `HETJA_LEDGER_SIGNING_JWK` / `_KID` / `HETJA_LEDGER_SIGNER_ID` | api file, read by **worker** | Optional. Signs the daily ledger anchor (INVARIANT 10). Private Ed25519 JWK as one-line JSON; generate with `generateLedgerKeyPair()` and **publish the public half at a JWKS path**, or a signature verifies against nothing. Unset ⇒ anchors publish unsigned, which is degraded but honest. They live in the api env file because `hetja-worker.service` loads it as its `EnvironmentFile`. Never put this in a restic repo a third party stores. |
+| `TRUST_PROXY` | api | Hop count to the real client through Caddy, **usually `1`**. Defaults to `0`, and at `0` Fastify ignores `X-Forwarded-For` entirely — so `request.ip` stays loopback and the Caddy `CF-Connecting-IP` rewrite is inert. Unlike the five secrets above there is no `requireInProd` guard for it, so a missing value fails silently. |
 | `CORS_ORIGINS` | api | Production origins, comma-separated. |
 | `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` or `S3_*` | api | `local` or `s3`. |
 | `NEXT_PUBLIC_API_URL` | web | Public API origin. |

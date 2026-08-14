@@ -1,6 +1,18 @@
 /**
  * E.164 normalization for Indian phone numbers (care-provider directory).
  *
+ * Callers, so the next reader does not have to grep for them:
+ *   - `normalizeIndianPhone` — `routes/care.ts` (`dialable()`), on every
+ *     GET /api/v1/care and every SOS report response. That is the read path a
+ *     stranger's `tel:` link comes from, so it is the one that matters.
+ *   - `IndianPhoneE164` — NOT yet mounted on a route, because there is no write
+ *     route to `care_providers` yet. It is kept because it is the schema a write
+ *     route must use, and because the rule it encodes is currently enforced in
+ *     three other places that would each have to be found and matched by
+ *     whoever adds one (see the CORRECTION note in
+ *     packages/db/migrations/0013_phone_e164.sql). Wire it into that route's
+ *     payload schema rather than re-deriving the check inline.
+ *
  * Uses libphonenumber-js in its `/min` variant, deliberately not `/max` and
  * not `/mobile`:
  *   - `/max` carries full per-country metadata (carrier codes, references) we

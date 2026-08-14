@@ -16,8 +16,8 @@ external build guide that lived outside the repo.
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check per device token |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
-| 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock |
-| 10 | Daily published anchor | ✅ (API) | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job |
+| 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
+| 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`** — the head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
 | 11 | DPDP erasure = PII delete, chain stays valid | 🔶 design | pseudonymous actor IDs in chain; runbook documents erasure |
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
 | 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
@@ -25,6 +25,32 @@ external build guide that lived outside the repo.
 | 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate + `trust.test.ts` (serial rejects pause provisional feeder) |
 
 Legend: ✅ done + tested · 🔄 in flight · 🔶 designed/documented
+
+### Invariant 10 was marked ✅ against a job that could not run
+
+Worth recording, because it is the most instructive failure found in the
+2026-08-14 audit. The row above said `✅ (API)` and cited the worker's
+`anchor_ledger` job. Two things were true at once:
+
+1. The job's query was
+   `SELECT hash_curr AS hash, count(*)::int AS n FROM medical_records ORDER BY created_at DESC LIMIT 1`
+   — an aggregate beside a bare column with no `GROUP BY`. PostgreSQL rejects
+   that outright, so every invocation threw and retried to `MAX_ATTEMPTS`.
+2. Nothing ever enqueued it. No cron, no systemd timer, no `INSERT … kind='anchor_ledger'`
+   anywhere in the repository.
+
+So the invariant most concerned with *being checkable by someone else* was
+itself unchecked, for the whole life of the row. Both are fixed — the query, and
+a worker-side idempotent scheduler that needs no scheduler state because the
+published anchor is itself the record of the last run. The status is now 🔄
+rather than ✅ because publishing to somewhere we do not control is still
+missing, which is the part that makes the anchor mean anything.
+
+The general lesson, and the reason this note exists rather than a silent status
+edit: a ✅ in this table is a claim, and a claim about a scheduled job is only as
+good as evidence that the job has run. `apps/worker` had **zero** tests before
+this audit, which is exactly how a query that PostgreSQL refuses to parse
+survived in a life-safety-adjacent codebase.
 
 ### A numbering warning, before you grep
 

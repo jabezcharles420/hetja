@@ -18,6 +18,10 @@
  *    is by has_ambulance/cost_tier/is_24x7 -- not by the fabricated
  *    ST_Distance -- so an ambulance-carrying free provider outranks a paid
  *    one even when the paid one is nominally closer.
+ * 9. phone contract (lib/phone.ts + 0015_care_phone_e164_retry.sql): an
+ *    already-canonical number passes through untouched, a number that cannot
+ *    be parsed as Indian is returned as stored rather than blanked, and a
+ *    provider with no number still reports null.
  *
  * Fixtures use a location far from Mumbai (and from any seeded directory
  * data) so this suite is independent of packages/db/src/seed-care.ts.
@@ -62,7 +66,10 @@ async function insertProvider(o: ProviderOverrides): Promise<string> {
       o.name,
       o.kind ?? "ngo",
       o.costTier ?? "free",
-      o.phone ?? "+10000000000",
+      // `?? default` would be wrong here: an EXPLICIT null means "this provider
+      // publishes no number", which is a case 0008 allows and which the response
+      // contract has to preserve. Only an omitted `phone` gets the placeholder.
+      o.phone === undefined ? "+10000000000" : o.phone,
       geoWkt(o.lat, o.lng),
       o.listed ?? true,
       o.geoPrecision ?? "exact",
@@ -252,6 +259,76 @@ describe("GET /api/v1/care", () => {
     expect(res.statusCode).toBe(200);
     const ids = (res.json().data.providers as Array<{ id: string }>).map((p) => p.id);
     expect(ids.indexOf(fartherButExact)).toBeLessThan(ids.indexOf(closerButGuessed));
+  });
+
+  it("returns an already-canonical Indian number byte-for-byte", async () => {
+    // The E.164 CHECK constraint (0015_care_phone_e164_retry.sql) means every
+    // stored number is already canonical, so `dialable()` must be a strict
+    // no-op on the happy path — a normaliser that rewrites correct data is a
+    // normaliser that can corrupt it. +912224137518 is the real Bombay SPCA
+    // Parel landline, deliberately chosen: libphonenumber-js is imported as
+    // `/min` rather than `/mobile` precisely so a landline survives this.
+    const id = await insertProvider({
+      name: "CareTest E164 Landline",
+      lat: ORIGIN.lat + 0.001,
+      lng: ORIGIN.lng,
+      phone: "+912224137518",
+    });
+    createdIds.push(id);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/care?lat=${ORIGIN.lat}&lng=${ORIGIN.lng}&max_km=5`,
+    });
+    const row = (res.json().data.providers as Array<{ id: string; phoneE164: string | null }>).find(
+      (p) => p.id === id,
+    )!;
+    expect(row.phoneE164).toBe("+912224137518");
+  });
+
+  it("never blanks a number it cannot parse as Indian", async () => {
+    // A non-Indian number is not parseable by normalizeIndianPhone (it returns
+    // null for a valid +1 number on purpose), and the response must still carry
+    // it. On this surface a possibly-odd number beats no number: someone is
+    // standing over an injured dog, and a missing line is a guaranteed dead end
+    // where an unusual one is probably still dialable.
+    const id = await insertProvider({
+      name: "CareTest Foreign Number",
+      lat: ORIGIN.lat + 0.001,
+      lng: ORIGIN.lng,
+      phone: "+6598765432",
+    });
+    createdIds.push(id);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/care?lat=${ORIGIN.lat}&lng=${ORIGIN.lng}&max_km=5`,
+    });
+    const row = (res.json().data.providers as Array<{ id: string; phoneE164: string | null }>).find(
+      (p) => p.id === id,
+    )!;
+    expect(row.phoneE164).toBe("+6598765432");
+  });
+
+  it("still returns null for a provider that publishes no number at all", async () => {
+    // 0008 allows phone_e164 NULL ("some publish only an address"). null must
+    // stay null and must not become a string.
+    const id = await insertProvider({
+      name: "CareTest No Phone",
+      lat: ORIGIN.lat + 0.001,
+      lng: ORIGIN.lng,
+      phone: null,
+    });
+    createdIds.push(id);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/care?lat=${ORIGIN.lat}&lng=${ORIGIN.lng}&max_km=5`,
+    });
+    const row = (res.json().data.providers as Array<{ id: string; phoneE164: string | null }>).find(
+      (p) => p.id === id,
+    )!;
+    expect(row.phoneE164).toBeNull();
   });
 
   it("ranks locality-precision rows by has_ambulance/cost_tier/is_24x7 rather than a fabricated distance", async () => {

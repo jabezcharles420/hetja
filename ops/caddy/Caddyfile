@@ -33,9 +33,30 @@
 # (real_ip): cloudflared terminates the client connection at Cloudflare's edge
 # and forwards the caller's real address as CF-Connecting-IP. Without this
 # rewrite every stranger arrives at the API as 127.0.0.1 (the tunnel
-# connector), so @fastify/rate-limit would cap the whole city as one IP —
-# either under-limiting (everything through) or over-limiting (blocks
-# everyone). Enhancement stack §L.6 / §N.7.
+# connector). Enhancement stack §L.6 / §N.7.
+#
+# Be precise about what this buys, because an earlier version of this comment
+# was not: it said the rewrite exists so "@fastify/rate-limit would [not] cap
+# the whole city as one IP". There is no @fastify/rate-limit in this
+# repository — it is not a dependency of apps/api and is registered nowhere.
+# Nor should there be a general one: INVARIANT 6 rate-limits per account or per
+# attested device token and never per IP, deliberately, because Indian carrier
+# CGNAT puts hundreds of real subscribers behind one address.
+#
+# What the rewrite actually fixes today is request logging (apps/api's pino
+# serializer records request.ip) and any future per-IP flood cap on device-token
+# MINTING — bounding how many tokens an address can obtain is a different
+# subject from capping what a user may do, and is the one place an IP limit is
+# the right tool.
+#
+# Note also that `header_up` here REPLACES X-Forwarded-For rather than appending
+# to it, so a request that somehow arrives without CF-Connecting-IP gets an
+# empty header rather than its original value. That is the safe direction (an
+# empty value cannot be spoofed into a trusted one), and apps/api pins
+# `trustProxy` to a hop count rather than `true` so a forged header from a
+# non-proxy is ignored — but TRUST_PROXY must actually be set in
+# .env.production or Fastify ignores X-Forwarded-For entirely and request.ip
+# stays loopback. See apps/api/src/config.ts.
 (real_ip) {
 	header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 }

@@ -1,0 +1,21 @@
+[Unit]
+Description=Daily Hetja encrypted backup (02:15 IST)
+Documentation=file://__REPO_ROOT__/ops/RUNBOOK.md
+
+[Timer]
+# 02:15 India Standard Time. Stated explicitly rather than relying on the box's
+# local timezone: the VPS is in Europe today and the plan (AGENTS.md §b) is to
+# move it to India, and a backup window that silently shifts by 4.5 hours when
+# the box moves is the kind of change nobody notices until they need a restore
+# from a specific hour.
+OnCalendar=*-*-* 02:15:00 Asia/Kolkata
+# If the box was off or asleep at 02:15, run on the next boot rather than
+# skipping the day entirely.
+Persistent=true
+# Spread the start over a few minutes so the dump does not land at the exact
+# same instant as any other daily job.
+RandomizedDelaySec=300
+Unit=hetja-restic.service
+
+[Install]
+WantedBy=timers.target

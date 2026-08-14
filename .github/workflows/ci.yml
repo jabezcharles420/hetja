@@ -124,8 +124,16 @@ jobs:
 
       - name: EXPLAIN gate (INVARIANT 12)
         run: bash ops/check-queries.sh
-      - name: Lint + typecheck
+      # This step was named "Lint + typecheck" but ran only typecheck -- a root
+      # `lint` script (`pnpm -r lint` -> `next lint` in apps/web) existed the
+      # whole time and was never invoked by either workflow. Split into two
+      # steps that each do what their name says; verified clean at the time of
+      # the split ("No ESLint warnings or errors"), so this adds a gate rather
+      # than a backlog.
+      - name: Typecheck
         run: pnpm -r typecheck
+      - name: Lint
+        run: pnpm -r lint
       - name: Unit tests
         run: pnpm -r test
       - name: Security gate
@@ -134,3 +142,16 @@ jobs:
         run: bash ops/contrast-gate.sh
       - name: Caddy cache-policy gate (life-safety no-store on /d/*)
         run: bash ops/check-caddy-cache.sh
+      - name: systemd wiring gate (every unit is installed by bootstrap.sh)
+        run: bash ops/check-systemd.sh
+      # INVARIANT 13. This gate previously ran ONLY in deploy.yml's Gate job,
+      # i.e. after merge to main -- so a PR could add a dependency to apps/scan,
+      # blow the 40 KB budget, and show a green CI. Wave 3 added web-vitals as
+      # apps/scan's first runtime dependency, which is exactly the kind of change
+      # that needs the budget checked before it lands, not after. dist/ is
+      # gitignored, so build first.
+      - name: Scan bundle size gate (<40 KB gzipped, INVARIANT 13)
+        run: |
+          set -euo pipefail
+          pnpm --filter @hetja/scan build
+          pnpm --filter @hetja/scan size:gate

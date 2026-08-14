@@ -54,10 +54,28 @@ regardless — nothing reaches port 80 from outside.
 ### Real client IPs (the tunnel makes everything look like loopback)
 
 cloudflared terminates the tunnel on the box itself, so every connection
-reaches Caddy from 127.0.0.1 — and without a fix, the API would rate-limit the
-whole city as one IP. The `real_ip` snippet in `ops/caddy/Caddyfile` rewrites
-the edge's `CF-Connecting-IP` into `X-Forwarded-For`, so `@fastify/rate-limit`
-sees the stranger's actual address. Caddy is rebuilt with the
+reaches Caddy from 127.0.0.1. The `real_ip` snippet in `ops/caddy/Caddyfile`
+rewrites the edge's `CF-Connecting-IP` into `X-Forwarded-For`, so the API sees
+the stranger's actual address.
+
+> An earlier version of this paragraph said the rewrite exists so that
+> `@fastify/rate-limit` "sees the stranger's actual address", and that without
+> it "the API would rate-limit the whole city as one IP". Neither is true.
+> `@fastify/rate-limit` is not a dependency of `apps/api` and is registered
+> nowhere, so there was no per-IP limiter to fix — and there should not be a
+> general one, because INVARIANT 6 rate-limits per account or per attested
+> device token *precisely because* Indian carrier CGNAT makes an IP a poor
+> identity. What the rewrite genuinely buys is correct request logging, and the
+> ability to put a flood cap on device-token **minting** later — bounding how
+> many tokens one address can obtain, which is a different question from capping
+> what a user may do.
+>
+> One operational catch: `TRUST_PROXY` must be set in `apps/api/.env.production`
+> (usually `1`). It defaults to `0`, and at `0` Fastify ignores `X-Forwarded-For`
+> altogether and `request.ip` stays loopback — so the Caddy half of this fix is
+> inert on its own.
+
+Caddy is rebuilt with the
 `caddy-cloudflare-ip` module (`trusted_proxies cloudflare`), which marks
 Cloudflare edge addresses as trusted so the header survives on the CDN-direct
 path too. Verified live 2026-08-14 (API logs show the real remote address, not

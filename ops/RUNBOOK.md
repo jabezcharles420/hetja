@@ -41,11 +41,41 @@ publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
    `scans`, `medical_records`; run `ledger:verify` against the restored chain.
 3. Record RTO (target < 4 h).
 
-Implemented since 2026-08-14: `ops/backup/restic-backup.sh` (encrypted restic
-snapshots of the nightly `pg_dump -Fc` plus `.env.production` and configs;
-daily 02:15 IST via `hetja-restic.timer`; repo at `/srv/hetja-backups/restic`,
-R2-ready via `/root/.backup-env`). WAL archiving with wal-g is staged but
-dormant until R2 credentials land — activation steps in `ops/backup/wal-g.md`.
+### Honest status of backups (read before trusting any of the above)
+
+`ops/backup/restic-backup.sh` exists and works: it takes a `pg_dump -Fc` of the
+production database plus `.env.production` and the Caddy/PostgreSQL/systemd
+configs, and stores encrypted restic snapshots. It is scheduled daily at 02:15
+IST by `ops/systemd/hetja-restic.timer`.
+
+Two things are **not** true yet, and were previously documented as though they
+were:
+
+1. **The repository is still local — `/srv/hetja-backups/restic`, on the same
+   disk it is backing up.** Until `/root/.backup-env` carries R2 credentials
+   this protects against a bad migration or an `rm`, and against nothing that
+   takes the box or its disk with it. It is not an off-box backup and should not
+   be counted as one in any RTO estimate.
+2. **WAL archiving with wal-g is staged but dormant**, so there is no
+   point-in-time recovery — only the nightly dump, i.e. up to 24 h of loss.
+   Activation steps are in `ops/backup/wal-g.md`, and they need the same R2
+   credentials.
+
+Until 2026-08-14 this section, and `docs/CREDITS.md`, described a
+`hetja-restic.timer` running daily at 02:15 IST. The timer was real, but it
+existed only on the live box: it was in no committed file, and neither
+`ops/bootstrap.sh` nor `ops/deploy-remote.sh` installed it. A box provisioned
+from this repository therefore had **no backups at all** while two documents
+said it had daily ones. Both units are now committed under `ops/systemd/`,
+installed by `bootstrap.sh`, and `ops/check-systemd.sh` fails CI if a committed
+unit is ever again left un-installed.
+
+**To finish this, the operator needs to do one thing:** create
+`/root/.backup-env` with a Cloudflare R2 bucket (the free tier is 10 GB, which
+is ample for a dump plus configs), then re-run the timer once by hand and
+confirm `restic snapshots` lists it. That single step turns both items above
+from false into true. Do not include the pepper or any KMS-held secret in a
+restic repository that a third party stores.
 
 ## Web Push (SOS responder notifications)
 

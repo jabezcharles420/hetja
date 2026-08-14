@@ -2,7 +2,7 @@
 
 This document is the one to read first. The [README](../README.md) says *why*
 Hetja exists; [AGENTS.md](../AGENTS.md) says how to get it running on a fresh
-machine; [INVARIANTS.md](INVARIANTS.md) lists the fourteen rules the system is
+machine; [INVARIANTS.md](INVARIANTS.md) lists the fifteen rules the system is
 not allowed to break. This one explains the thing itself: what happens when a
 stranger scans a dog's collar, what happens when they say the dog is hurt, and
 what is holding all of that up.
@@ -449,5 +449,5 @@ than pretend to send an email. Every one of those was a bug where the software
 looked like it was working. On a system whose failure mode is a dog dying
 untreated, looking like it works is the most dangerous state available.
 
-The fourteen [invariants](INVARIANTS.md) are the codified version of that, and
+The fifteen [invariants](INVARIANTS.md) are the codified version of that, and
 several of them are enforced by CI rather than by good intentions.

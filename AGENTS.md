@@ -6,7 +6,7 @@ expected result next to it — if a check fails, stop and fix it before moving o
 
 **Read [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) first.** It explains what
 the system does and why it is shaped this way. This file is the operational
-half. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) lists the fourteen rules the
+half. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) lists the fifteen rules the
 code is not allowed to break, several of which CI enforces.
 
 ## a. If you are just developing, you do not need a server

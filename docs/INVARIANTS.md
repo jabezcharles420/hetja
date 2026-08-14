@@ -26,6 +26,33 @@ external build guide that lived outside the repo.
 
 Legend: ✅ done + tested · 🔄 in flight · 🔶 designed/documented
 
+### A numbering warning, before you grep
+
+**The table above is the canonical numbering.** But if you `grep "INVARIANT 9"`
+you will find it used for two different rules, and the older usage is the more
+common one:
+
+| Rule | Canonical (this table) | Also called, in code | Where |
+|---|---|---|---|
+| `medical_records` append-only | **8** | *9* | `0001_init.sql:151`, `0012_ledger_truncate_and_ownership.sql:3`, `ops/supabase/03_hardening.sql`, `ops/supabase/cutover.sh`, `ci.yml`, `deploy.yml`, `AGENTS.md §f`, `apps/api/vitest.setup.ts`, `docs/HOW-IT-WORKS.md` |
+| Hash inputs length-prefixed | **9** | *9* | `packages/ledger`, `0004_ledger_payload.sql` |
+
+`apps/api/src/routes/medical.ts` and `medical.test.ts` use the canonical
+numbering (8 = append-only, 9 = length-prefixed); almost everything older uses
+9 for append-only. Those historical comments have deliberately **not** been
+renumbered — `0001_init.sql` is the first migration in the repo and rewriting
+the reasoning in an applied migration's header to fix a citation number would
+make the file disagree with what was actually run, for no safety benefit.
+
+So: when you read "INVARIANT 9" in a migration or in CI, it means append-only.
+When you read it in `packages/ledger`, it means length-prefixed hashing. Both
+rules hold and both are tested; only the citation is ambiguous. New code should
+use the canonical numbers above.
+
+The count in `AGENTS.md` was also wrong for a while (it said "fourteen rules"
+against a fifteen-row table) — invariant 15 was added during implementation
+rather than coming from the original spec.
+
 ## Why this exists
 
 The reasoning below used to live only in the build guide, which cites the
@@ -80,12 +107,21 @@ spec PDFs directly. Migrated here so it survives independently of them.
    fallback on desktop web) and are capped at 2/day and 5/week per token.
    Without this, the SOS fan-out — which pages real people's phones — becomes
    a free mechanism for paging strangers at will.
-8. **Medical ledger chaining is on from the first migration.** Retrofitting a
-   hash chain over already-unchained history produces a genesis block whose
-   only honest meaning is "trust everything written before this point,"
-   which defeats the point of a tamper-evident chain for exactly the older
-   records an auditor would care about most.
-9. **Hash inputs are length-prefixed:**
+8. **`medical_records` accepts INSERT and nothing else — no UPDATE, no
+   DELETE, no TRUNCATE.** A dog's treatment history is evidence: it is what a
+   cruelty prosecution or a municipal audit rests on, and a record that can be
+   quietly amended afterwards proves nothing about what was known when. A
+   correction is a new row that supersedes an old one, never an edit to the old
+   one. TRUNCATE needed naming separately from UPDATE/DELETE because revoking
+   those two does not imply it, and because a table's owner holds TRUNCATE
+   regardless of GRANTs — that gap was real, and `0012` closes it with both a
+   REVOKE and a statement-level `BEFORE TRUNCATE` trigger.
+9. **The chain is on from the first migration, and its hash inputs are
+   length-prefixed.** Retrofitting a hash chain over already-unchained history
+   produces a genesis block whose only honest meaning is "trust everything
+   written before this point," which defeats the point of a tamper-evident
+   chain for exactly the older records an auditor would care about most. As for
+   the hash itself, inputs are length-prefixed:
    `SHA256(len‖hash_prev ‖ len‖payload ‖ len‖vet_id ‖ len‖ts)`. Bare
    concatenation of variable-length fields is ambiguous — e.g. `"ab"+"c"` and
    `"a"+"bc"` concatenate to the same string, so two different medical

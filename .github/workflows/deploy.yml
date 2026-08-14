@@ -228,6 +228,20 @@ jobs:
       - name: Scan bundle size gate (<40 KB gzipped)
         run: pnpm --filter @hetja/scan size:gate
 
+      # The gates below were added to ci.yml in wave 3 but never mirrored here,
+      # so the two workflows had divergent gate sets and NEITHER was a superset:
+      # ci.yml lacked the size gate, deploy.yml lacked these three. The
+      # deploy path is the one that actually reaches production, so a gate
+      # missing here is the more expensive half of that mistake.
+      - name: Contrast gate (WCAG-AA on design tokens)
+        run: bash ops/contrast-gate.sh
+
+      - name: Caddy cache-policy gate (life-safety no-store on /d/*)
+        run: bash ops/check-caddy-cache.sh
+
+      - name: systemd wiring gate (every unit is installed by bootstrap.sh)
+        run: bash ops/check-systemd.sh
+
   # =========================================================================
   # MIGRATE -- fail closed on anything destructive. medical_records is
   # append-only and a bad migration against the live Supabase project is not

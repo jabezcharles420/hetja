@@ -44,7 +44,30 @@ algorithm is adapted rather than installed, this file says so.
 | `fengyuanchen/compressorjs` — browser-side photo compress + EXIF strip | github.com/fengyuanchen/compressorjs | MIT | `apps/web/lib/photo.ts`, `apps/web/components/FeedButton.tsx` | Re-encodes through a fresh `<canvas>`: auto-orient (`checkOrientation`), WebP where supported else JPEG, quality 0.8, capped 1600px. `retainExif: false` + `strict: false` mean the output carries no EXIF/GPS (the lib's only EXIF re-insertion path is guarded by `retainExif`); verified again with exifr on the output before upload. Dynamic-imported so the initial dog page pays nothing. |
 | `MikeKovarik/exifr` — EXIF/GPS/orientation reader | github.com/MikeKovarik/exifr | MIT | `apps/web/lib/photo.ts` | Extracts orientation + GPS from the picked photo. GPS is coarsened to ward via `@hetja/contracts` `coarsenToWard` (INVARIANT 2) and feeds ward-level sighting data; the feeder's own device location stays the separate, consented `captureGeo` channel. Also used as the post-compression assertion that no GPS/orientation survived. |
 | `GoogleChrome/web-vitals` — client Core Web Vitals reporting | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/web/lib/web-vitals.ts` + `components/WebVitalsReporter.tsx`, `apps/scan/src/web-vitals.ts` | LCP/CLS/INP/TTFB beamed to `POST /api/v1/metrics/web-vitals` (§M.16) with slug-stripped paths (`/d/:slug`, `/dog/:slug` — never the real collar code). In `apps/scan` it is the one permitted dependency (~1.5 KB gz after tree-shaking; scan bundle stays far under the 40 KB budget). |
+## Wave 4 — a11y + regression gates
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `@axe-core/playwright` (of `dequelabs/axe-core-npm`) | github.com/dequelabs/axe-core-npm | MPL-2.0 | `apps/web/e2e/a11y.spec.ts`, `.github/workflows/a11y.yml` | Top-25 #23. No `serious`/`critical` WCAG 2 A/AA violations on the six static routes at 390×844. Zero found on adoption, nothing disabled. `incomplete` findings are reported but not blocking — the only current ones are `color-contrast` on two decorative glyphs, which SC 1.4.3 does not govern. |
+| `@playwright/test` | github.com/microsoft/playwright | Apache-2.0 | `apps/web/playwright.config.ts`, `apps/web/e2e/` | The first real browser in this repo's CI. jsdom does no cascade and no computed layout, which is why a bug that zeroed the horizontal gutter on every text block below the hero survived 21 test files. `mobile-layout.spec.ts` now asserts gutter, no-flush-text, no-horizontal-overflow and heading spacing per route, and was verified to fail when the bug is re-injected. |
+| RFC 6962 Merkle tree (replacing `merkletreejs`) | IETF RFC 6962 §2.1 | n/a (spec) | `packages/ledger/src/merkle.ts` | See the Wave 2 row above for why the library was removed. |
+
+## Evaluated and deliberately NOT adopted
+
+Recording these so nobody re-does the analysis, and so "not done" is
+distinguishable from "not noticed".
+
+| Item | Source | Why not |
+|---|---|---|
+| `dchest/tweetnacl-js` field encryption (Top-25 #14) | §G.5 | The columns it names (`dogs.exact_lat/lng`) do not exist, and the ones that do are GIST-indexed `GEOGRAPHY` columns that `ST_DWithin` scans to find responders — you cannot run a spatial predicate on ciphertext. The backup threat it targets is already covered by restic's client-side encryption. Full reasoning in `docs/INVARIANTS.md` → "Spec corrections" #4. |
+| `upptime/upptime` (Top-25 #25) | §L.11 | Commits response-time data to its own repository on every check. Against `deploy.yml`'s push-to-main trigger that would have redeployed production every few minutes on a 2 GB box. Upptime ships as a standalone repo upstream and that is where it belongs; `deploy.yml` also gained a `paths-ignore` filter so documentation commits stop triggering deploys. |
+| `telegraf/telegraf` responder bot (Top-25 #13) | §E.2 | Free, and genuinely closes the iOS-push gap for Telegram-using responders. Deferred because it needs a bot token and a decision about which channel responders actually watch — operational choices, not engineering ones. Nothing blocks it technically. |
+| `plausible/analytics` / `umami-software/umami` (Top-25 #22) | §I.3 | Plausible's cloud tier is a recurring cost, which is ruled out. Umami self-hosted is free and MIT and fits the Node+Postgres stack, but adds a service to a box that `AGENTS.md §g` records has OOM-killed its own live services. Deferred as an operational trade, not a licensing one. Note the existing `web_vitals` table already answers the performance questions analytics would; what it does not answer is traffic. |
+| `imgproxy` (#19), `sharp-phash` (#20), `size-limit` (#21), `lighthouse-ci` (#22) | §J, §H | Phase 2 in the enhancement stack's own roadmap (§U), not Phase 1. Not started. |
+| `pgaudit` | §G.9 | Documented and ready but **not applied to the box** — needs `shared_preload_libraries` and a full PostgreSQL restart. See `docs/ops/AUDIT-LOGGING.md`. |
+
 ## Sources researched and evaluated (2026-08-13)
 
 Full evaluation of all researched projects — adopted, deferred, and rejected —
-is in the enhancement-stack document. This file credits what is *used*.
+is in the [enhancement-stack document](hetja-enhancement-stack.md). This file
+credits what is *used*.

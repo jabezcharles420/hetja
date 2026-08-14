@@ -203,3 +203,41 @@ in the table above:
    `hash_vet_id`, `hash_ts`) so verification is possible.
 3. **vets.feeder_id (0003)**: the vet registry must link to a feeder account
    so API callers resolve to their clinic + signing key.
+4. **Field-level encryption of coordinates is not implementable against this
+   schema, and is not needed.** The enhancement stack (§G.5, Top-25 #14)
+   recommends `tweetnacl-js` `secretbox` over `care_providers.phone`,
+   `dogs.exact_lat/lng` and device tokens, to close "the gap between
+   INVARIANT 3 and the columns INVARIANT 3 doesn't cover". Evaluated
+   2026-08-14 and **rejected**, for three separate reasons.
+
+   *The columns it names do not exist.* There is no `dogs.exact_lat/lng`.
+   Precise position lives in `dogs.last_seen_geo` and `feeders.last_known_geo`,
+   both `GEOGRAPHY(Point,4326)`.
+
+   *Encrypting them would break the SOS fan-out.* Those columns carry GIST
+   indexes (`dogs_geo_gix`, `feeders_sos_gix`, and `care_geo_gix` on
+   `care_providers.geo`), and the responder query is
+   `ST_DWithin(f.last_known_geo, $1::geography, 2000)`. You cannot run a
+   spatial predicate against a ciphertext, and you cannot index one. The only
+   alternative is to decrypt every candidate row in the application and compute
+   distance there — turning one indexed radius lookup into a full scan plus N
+   decryptions, on the life-safety path, on a 2 GB box. There are 22 such
+   references across `routes/care.ts`, `routes/sos.ts` and the worker's
+   escalation job. A change that makes the geofence slower or wrong in order to
+   encrypt the data the geofence exists to read is a bad trade at any price.
+
+   *The threat it addresses is already covered elsewhere.* The real risk was
+   precise coordinates leaving the box inside a backup handed to a third party.
+   `restic` encrypts client-side, so Cloudflare R2 only ever holds ciphertext
+   (`ops/backup/restic-backup.sh`). Against an attacker who has the database,
+   a symmetric key sitting in `.env.production` on the same box adds very
+   little — and INVARIANT 3's actual subject, contact information, is already
+   HMAC'd with a pepper held outside the database.
+
+   Not done for `care_providers.phone_e164` either, on separate grounds: that
+   is a vet or NGO's **published** directory number, printed so a stranger can
+   tap it while standing over an injured dog. Encrypting public information on
+   a life-safety read path buys nothing and adds a failure mode.
+   `ops/security-gate.sh` names it as an explicit tracked exception and prints
+   it on every run, so the decision stays visible rather than becoming
+   permanent by being quiet.

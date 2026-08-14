@@ -68,6 +68,26 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # A documentation-only commit does not need to rebuild apps/web on a runner,
+    # rsync a release, rebuild the API on a 2 GB box that has OOM-killed the live
+    # services before, apply migrations to two databases and restart all four
+    # units. It did all of that until now, because this trigger had no filter.
+    #
+    # GitHub skips the workflow only when EVERY changed path matches, so a commit
+    # touching both a doc and a source file still deploys. Note what is
+    # deliberately NOT ignored: ops/**, .github/** and the systemd units all
+    # affect the box, so they must keep deploying.
+    #
+    # This also matters for anything that commits to main on a schedule. Upptime
+    # (enhancement stack Top-25 #25) writes response-time data and graphs back
+    # into its own repository on every check -- installing it in THIS repository
+    # would have redeployed production every few minutes. That is why Upptime
+    # belongs in a separate repo, which is how upstream ships it anyway.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
 
 # Never run two deploys at once against the same box; let one finish
 # (including any rollback) before the next starts.

@@ -136,10 +136,20 @@ said it had daily ones. Both units are now committed under `ops/systemd/`,
 installed by `bootstrap.sh`, and `ops/check-systemd.sh` fails CI if a committed
 unit is ever again left un-installed.
 
-**To finish this, the operator needs to do one thing:** configure an rclone
-Google Drive remote and create `/root/.backup-env` pointing at it, then run the
-timer once by hand and confirm `restic snapshots` lists a snapshot. Full steps in
-`ops/backup/BACKUPS.md`. That turns item 1 above from false into true.
+**DONE 2026-08-14.** Backups go off-box to Google Drive via rclone, and the
+restore was verified rather than assumed: snapshot `8fce079b`, and a
+`pg_restore` into a scratch database reproduced production's row counts exactly
+(`medical_records` 85, `dogs` 88, `care_providers` 93). First run took 4m40s.
+Item 1 above is now true. Item 2 (PITR) remains false and cannot be fixed on
+Drive — see `ops/backup/BACKUPS.md`.
+
+Scheduling note, because it is not what this repo's own bootstrap implies: this
+box runs `hetja-restic.timer` as a **user** unit under
+`/root/.config/systemd/user/` (enabled, 02:15 IST), not the system unit
+`ops/bootstrap.sh` installs. Repointing `RESTIC_REPOSITORY` was sufficient — the
+existing timer picked it up. Do not install the system units on this box without
+first `systemctl --user disable --now hetja-restic.timer`, or it ends up with two
+timers running the same backup.
 
 Google Drive rather than Cloudflare R2 because R2 requires a payment method on
 file even for its free tier, and this project runs on nothing. restic encrypts

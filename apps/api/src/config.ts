@@ -27,8 +27,14 @@ const EnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("30d"),
   // HMAC key that attests anonymous device tokens (INVARIANT 6 rate-limit subject).
+  // Also signs the ALTCHA proof-of-work challenges issued for the desktop-web
+  // fallback (routes/devices.ts) -- one secret, both halves of the flow.
   HETJA_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
-  // Anonymous device-token proof-of-work difficulty (desktop fallback).
+  // Anonymous device-token proof-of-work difficulty, in leading zero bits
+  // (desktop fallback, ALTCHA v2 SHA-256). ALTCHA encodes difficulty as a hex
+  // key prefix, so the EFFECTIVE difficulty rounds this up to a nibble boundary
+  // (18 -> 20 bits) -- the required work is never below this number. 18-20 bits
+  // is the recommended range; 20 is the ceiling for the desktop solver.
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(18),
   // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
   TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),

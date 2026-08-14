@@ -15,6 +15,13 @@ const nextConfig = {
   // ops/deploy-remote.sh and .github/workflows/deploy.yml for the deploy
   // side of this.
   output: "standalone",
+  // `@hetja/pow` ships TypeScript source rather than a built `dist/` — see the
+  // header of packages/pow/src/index.ts for why (it keeps
+  // `pnpm --filter @hetja/scan build` a single esbuild call with no prerequisite
+  // to build first). Next therefore has to compile it like app code; without
+  // this line the login page fails to build with a syntax error on the first
+  // type annotation it meets, because node_modules is not transpiled by default.
+  transpilePackages: ["@hetja/pow"],
   images: {
     // Dog photos are served from the API origin, not from the Next image
     // optimizer — disable remote-pattern requirement by treating them as

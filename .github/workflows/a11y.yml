@@ -62,7 +62,7 @@ jobs:
 
       - name: Cache the Playwright browser build
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # Playwright's default download location on Linux.
           path: ~/.cache/ms-playwright

@@ -1,9 +1,21 @@
+/* `padding-block`, never the `padding` shorthand. Both of these are applied to
+ * the same element as the global `.h-container` (`<section className={`${styles.section}
+ * h-container`}>`, 16 places across about/privacy/faq/contact/how-it-works), and
+ * `.h-container` carries the only horizontal gutter in the system
+ * (`padding: 0 var(--h-gutter)`). Two `padding` shorthands on one element at equal
+ * specificity cannot merge -- the later one in document order wins outright, and
+ * Next.js emits the root layout's globals.css before a page's CSS-module chunk,
+ * so a shorthand here silently reset the gutter to zero. Every heading and
+ * paragraph below the hero then sat flush against the phone's screen edge, wide
+ * enough to overflow the document horizontally. Longhands compose instead of
+ * fighting, which is why `.h-hero-grid` (the one block that always looked right)
+ * has used padding-top/padding-bottom all along. */
 .section {
-  padding: var(--h-s8) 0;
+  padding-block: var(--h-s8);
 }
 
 .sectionTight {
-  padding: var(--h-s7) 0;
+  padding-block: var(--h-s7);
 }
 
 .head {
@@ -47,6 +59,18 @@
 }
 
 .prose > p + p {
+  margin-top: var(--h-s4);
+}
+
+/* Paragraph margins are zeroed globally (globals.css `p { margin: 0 }`) and the
+ * rule above restores rhythm only between *consecutive* paragraphs. A heading
+ * followed by its first paragraph matched neither, so `.title2` (whose own
+ * margin is top-only) sat directly on top of its body text with a measured 0px
+ * gap -- the one heading on /about that did, while every other heading in the
+ * page had 8-24px. Spacing the boundary here rather than adding a bottom margin
+ * to `.title2` keeps `.headCenter`'s title -> `.sub` spacing untouched. */
+.prose > h2 + p,
+.prose > h3 + p {
   margin-top: var(--h-s4);
 }
 

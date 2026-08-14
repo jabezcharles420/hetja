@@ -1,32 +1,55 @@
 /**
  * Hetja anonymous device-token issuance — the missing "issue" half of
  * INVARIANT 6. lib/device.ts already implements issueDeviceToken/
- * verifyDeviceToken/createPoWChallenge/verifyPoW, but nothing outside a
- * test file ever called issueDeviceToken() -- every consumer (auth/verify,
- * scans.ts, sos.ts) only *verified* a device token, and no HTTP route ever
- * minted one. The practical effect: a stranger could not file an anonymous
- * SOS report, could not submit an anonymous feed scan, and could not even
- * complete signup (auth/verify requires a device token) -- every one of
- * those paths 401'd with BAD_DEVICE_TOKEN / UNAUTHENTICATED_DEVICE. This
- * route is that missing half, desktop-web fallback only; native shells are
- * meant to attest via Play Integrity / App Attest instead (build guide
- * Step 2, Phase 1 -- out of scope here).
+ * verifyDeviceToken, but nothing outside a test file ever called
+ * issueDeviceToken() -- every consumer (auth/verify, scans.ts, sos.ts) only
+ * *verified* a device token, and no HTTP route ever minted one. This route
+ * is that missing half, desktop-web fallback only; native shells are meant
+ * to attest via Play Integrity / App Attest instead (build guide Step 2,
+ * Phase 1 -- out of scope here).
  *
  * POST /api/v1/devices/challenge -> { challenge, difficulty }
- *   Stateless, self-authenticating challenge, so no server-side store is
- *   needed to verify it later:
- *     challenge = "<powSeed>.<expiresAtMs>.<HMAC(HETJA_DEVICE_SECRET, powSeed|expiresAtMs)>"
- *   `powSeed` is device.ts's createPoWChallenge() (random bytes). The PoW
- *   itself is solved against the *entire* challenge string (not just
- *   powSeed) so a client can treat it as one opaque token -- no parsing
- *   required -- and so the proof-of-work is bound to the authenticated
- *   expiry too, not just the random seed.
+ *   `challenge` is an ALTCHA v2 challenge object issued by altcha-lib:
+ *     { parameters: { algorithm, nonce, salt, cost, keyLength, keyPrefix,
+ *                      expiresAt }, signature }
+ *   `signature` is HMAC-SHA256(HETJA_DEVICE_SECRET, canonicalJSON(parameters)),
+ *   so the challenge is self-authenticating: any edit to the parameters is
+ *   caught at verify time, no server-side store is needed to authenticate it.
+ *   `difficulty` is the effective leading-zero-bit difficulty (the configured
+ *   DEVICE_POW_DIFFICULTY rounded up to a nibble boundary -- ALTCHA encodes
+ *   difficulty as a hex key prefix). The client solves for `keyPrefix`.
  *
- * POST /api/v1/devices/token  body: { challenge, nonce } -> { deviceToken }
- *   Verified strictly in this order: (1) the challenge's HMAC -- proves we
- *   minted it and it has not been edited; (2) expiry -- proves it is not
- *   stale; (3) verifyPoW(challenge, nonce, difficulty) -- proves the client
- *   burned CPU for it. Only once all three pass does issueDeviceToken() run.
+ * POST /api/v1/devices/token  body: { challenge, solution } -> { deviceToken }
+ *   `solution` = { counter, derivedKey } (the ALTCHA v2 solution). Also
+ *   accepts the widget form { payload } where payload is base64 of
+ *   JSON({ challenge, solution }) -- the exact shape the ALTCHA widget
+ *   submits -- so a future widget integration needs no server change.
+ *   Verified strictly in this order: (1) expiry, (2) the challenge HMAC --
+ *   proves we minted it and it has not been edited; (3) re-derive the key
+ *   from the submitted counter and compare to the prefix -- proves the client
+ *   burned CPU for it; (4) single-use -- the challenge signature must not
+ *   already be in the spent-challenge registry. Only then does
+ *   issueDeviceToken() run.
+ *
+ * SINGLE-USE (enhancement stack D.4): the hand-rolled design this replaces
+ * embedded expiry in the challenge but had NO server-side store of spent
+ * challenges, so a solved (challenge, nonce) pair stayed valid for whoever
+ * held it until expiry -- replayable to mint more than one token. That is
+ * closed here by `spentChallenges`, an in-process LRU keyed on the challenge
+ * signature (unique per issuance because every challenge draws a fresh
+ * random nonce+salt): the registry is consulted and updated synchronously
+ * (no `await` between the has/check and the set, so the check-then-set is
+ * atomic within this process) immediately after a solution verifies, and a
+ * challenge already present is rejected with CHALLENGE_REUSED. Entries live
+ * in the cache for CHALLENGE_TTL_MS plus slack, so a spent challenge cannot
+ * be replayed even in the last moments before it expires.
+ *
+ * The registry is process-local. That is the right trade-off here: the API
+ * runs as a single service (one systemd unit, one process), the entries live
+ * only as long as the challenge is valid (~2 minutes), and there is no Redis
+ * in the stack. A multi-replica deployment would need a shared store; the
+ * enhancement stack doc's durable fix ("a server-side spent set, TTL'd past
+ * challenge expiry") is exactly what this is, scoped to the running process.
  *
  * SECURITY NOTES (read before touching DEVICE_POW_DIFFICULTY, config.ts):
  *
@@ -34,89 +57,97 @@
  *   change. DEVICE_POW_DIFFICULTY defaults to 14 bits -- ~2^14 = 16,384
  *   SHA-256 attempts, a few *milliseconds* on any real CPU. For a token
  *   whose entire job is being the rate-limit subject for INVARIANT 7 (anon
- *   SOS capped 2/day, 5/week per token), that is barely a speed bump: a
- *   script can mint thousands of fresh tokens per second to fan out under
- *   the cap. This route intentionally does NOT change the shipped default
- *   -- that is a product/ops call, not something to flip unilaterally in a
- *   bugfix. Recommendation for production: 18-20 bits (roughly 0.3-1s on a
- *   mid-range phone/laptop) -- still a one-time, once-per-device cost,
- *   invisible to a real user filing a report, but 16-64x more expensive to
- *   a scripted minter than the current default.
- *
- * - As of 2026-08-13 (enhancement stack Phase 0 #6) the shipped default IS
+ *   SOS capped 2/day, 5/week per token), that is barely a speed bump.
+ *   As of 2026-08-13 (enhancement stack Phase 0 #6) the shipped default IS
  *   18 bits and the production .env.production carries DEVICE_POW_DIFFICULTY=18.
- *   The desktop-web fallback solver (solvePoW, maxIterations 20_000_000)
- *   handles 18 bits in well under a second; 20 bits is the ceiling before
- *   low-end devices start to notice. Do not raise past 20 without revisiting
- *   the solver budget and the mobile attestation path.
+ *   ALTCHA's hex-prefix encoding rounds this UP to 20 effective bits, still
+ *   inside the 18-20 range the doc recommends and under the 20-bit ceiling
+ *   for the desktop solver. Do not raise past 20 without revisiting the
+ *   solver budget and the mobile attestation path.
  *
- * - Replay is bounded, not solved, by this stateless design. There is
- *   deliberately no server-side store of spent challenges/nonces here, so
- *   a solved (challenge, nonce) pair stays valid for whoever holds it until
- *   the embedded expiry (~120s) passes -- within that window it could in
- *   principle be resubmitted to mint more than one device token, which
- *   weakens (does not defeat) the per-token caps this token exists to
- *   enforce. The short TTL bounds the blast radius; it does not close it.
- *   A durable fix needs a server-side "spent" set (e.g. a Redis SETNX on
- *   the nonce, TTL'd past challenge expiry), which is out of scope for a
- *   deliberately stateless endpoint. The actual fix per the build guide is
- *   attested tokens via Play Integrity / App Attest in the native shell
- *   (Phase 1) -- proof-of-work was always understood to be the weaker
- *   desktop-web fallback, not a final answer.
- *
- * - Nothing in this file logs the challenge, nonce, or minted token.
+ * - Nothing in this file logs the challenge, nonce, counter, or minted token.
  */
-import { createHmac, timingSafeEqual } from "node:crypto";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { createPoWChallenge, issueDeviceToken, verifyPoW } from "../lib/device.js";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { LRUCache } from "lru-cache";
+import { createPoWChallenge, effectivePowDifficulty, issueDeviceToken, verifyPoW } from "../lib/device.js";
 
 // Short-lived on purpose -- see the replay note above. Long enough for a
 // desktop-web PoW solve at any difficulty this route is actually configured
-// with, short enough to keep the replay window small.
+// with, short enough to keep the reuse window small.
 const CHALLENGE_TTL_MS = 120_000;
 
-function signChallengeParts(powSeed: string, expiresAt: number, secret: string): string {
-  return createHmac("sha256", secret).update(`${powSeed}|${expiresAt}`).digest("base64url");
-}
+// Entries survive a little longer than the challenge itself so a challenge
+// spent near the end of its life stays rejected until it expires.
+const SPENT_TTL_MS = CHALLENGE_TTL_MS + 30_000;
 
-function makeChallenge(secret: string): string {
-  const powSeed = createPoWChallenge();
-  const expiresAt = Date.now() + CHALLENGE_TTL_MS;
-  const sig = signChallengeParts(powSeed, expiresAt, secret);
-  return `${powSeed}.${expiresAt}.${sig}`;
-}
+// 100k spent signatures at SPENT_TTL_MS ≈ 1,500s of budget ≈ ~66 mints/sec
+// sustained before the LRU evicts oldest -- well past any legitimate burst,
+// and past that the only effect is a very old challenge becoming reusable,
+// which the 120s expiry independently forbids.
+const spentChallenges = new LRUCache<string, true>({ max: 100_000, ttl: SPENT_TTL_MS });
 
-interface VerifiedChallenge {
-  expiresAt: number;
-}
-
-/** Recomputes the HMAC over the challenge's own embedded fields -- true iff
- * we minted this exact string and no part of it was edited. */
-function verifyChallengeHmac(challenge: string, secret: string): VerifiedChallenge | null {
-  const parts = challenge.split(".");
-  if (parts.length !== 3) return null;
-  const [powSeed, expiresAtStr, sig] = parts;
-  if (!powSeed || !expiresAtStr || !sig) return null;
-  const expiresAt = Number(expiresAtStr);
-  if (!Number.isFinite(expiresAt)) return null;
-
-  const expected = signChallengeParts(powSeed, expiresAt, secret);
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  return { expiresAt };
-}
-
-const DeviceTokenInput = z.object({
-  challenge: z.string().min(1).max(512),
-  nonce: z.string().min(1).max(64),
+const ChallengeParametersSchema = z.object({
+  algorithm: z.string().min(1),
+  nonce: z.string().min(1),
+  salt: z.string().min(1),
+  cost: z.number().int().positive(),
+  keyLength: z.number().int().positive(),
+  keyPrefix: z.string().min(1),
+  expiresAt: z.number().optional(),
+  keySignature: z.string().optional(),
+  memoryCost: z.number().optional(),
+  parallelism: z.number().optional(),
+  data: z.record(z.string(), z.string().or(z.number()).or(z.boolean()).nullable()).optional(),
 });
+
+const ChallengeSchema = z.object({
+  parameters: ChallengeParametersSchema,
+  signature: z.string().min(1),
+});
+
+const SolutionSchema = z.object({
+  counter: z.number().int().nonnegative(),
+  derivedKey: z.string().min(1),
+});
+
+// Accepts the ALTCHA-native JSON form ({ challenge, solution }) and the
+// widget form ({ payload }: base64 of JSON({ challenge, solution })).
+const DeviceTokenInput = z.object({
+  challenge: ChallengeSchema.optional(),
+  solution: SolutionSchema.optional(),
+  payload: z.string().min(1).max(8192).optional(),
+});
+
+type ParsedChallenge = z.infer<typeof ChallengeSchema>;
+type ParsedSolution = z.infer<typeof SolutionSchema>;
+
+const DecodedPayloadSchema = z.object({ challenge: ChallengeSchema, solution: SolutionSchema });
+type DecodedPayload = z.infer<typeof DecodedPayloadSchema>;
+
+function decodePayload(payload: string): DecodedPayload | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+  const check = DecodedPayloadSchema.safeParse(parsed);
+  if (!check.success) return null;
+  return check.data;
+}
 
 export default async function deviceRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/devices/challenge", async (_req: FastifyRequest, _reply: FastifyReply) => {
-    const challenge = makeChallenge(app.config.HETJA_DEVICE_SECRET);
-    return { ok: true, data: { challenge, difficulty: app.config.DEVICE_POW_DIFFICULTY } };
+    const challenge = await createPoWChallenge(
+      app.config.HETJA_DEVICE_SECRET,
+      app.config.DEVICE_POW_DIFFICULTY,
+      CHALLENGE_TTL_MS,
+    );
+    return {
+      ok: true,
+      data: { challenge, difficulty: effectivePowDifficulty(app.config.DEVICE_POW_DIFFICULTY) },
+    };
   });
 
   app.post("/api/v1/devices/token", async (req: FastifyRequest, reply: FastifyReply) => {
@@ -126,24 +157,55 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
         .status(400)
         .send({ ok: false, error: { message: "invalid device token request", code: "INVALID_DEVICE_TOKEN_REQUEST" } });
     }
-    const { challenge, nonce } = parsed.data;
 
-    const verified = verifyChallengeHmac(challenge, app.config.HETJA_DEVICE_SECRET);
-    if (!verified) {
+    let challenge: ParsedChallenge;
+    let solution: ParsedSolution;
+    if (parsed.data.payload) {
+      const decoded = decodePayload(parsed.data.payload);
+      if (!decoded) {
+        return reply
+          .status(400)
+          .send({ ok: false, error: { message: "invalid device token request", code: "INVALID_DEVICE_TOKEN_REQUEST" } });
+      }
+      challenge = decoded.challenge;
+      solution = decoded.solution;
+    } else if (parsed.data.challenge && parsed.data.solution) {
+      challenge = parsed.data.challenge;
+      solution = parsed.data.solution;
+    } else {
       return reply
-        .status(401)
-        .send({ ok: false, error: { message: "challenge not recognized", code: "BAD_CHALLENGE" } });
+        .status(400)
+        .send({ ok: false, error: { message: "invalid device token request", code: "INVALID_DEVICE_TOKEN_REQUEST" } });
     }
-    if (verified.expiresAt < Date.now()) {
+
+    const verified = await verifyPoW(challenge, solution, app.config.HETJA_DEVICE_SECRET);
+    if (verified.expired) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "challenge expired", code: "CHALLENGE_EXPIRED" } });
     }
-    if (!verifyPoW(challenge, nonce, app.config.DEVICE_POW_DIFFICULTY)) {
+    if (verified.badSignature) {
+      return reply
+        .status(401)
+        .send({ ok: false, error: { message: "challenge not recognized", code: "BAD_CHALLENGE" } });
+    }
+    if (!verified.verified || verified.badSolution) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "proof of work invalid", code: "BAD_POW" } });
     }
+
+    // Single-use: the signature is unique per issuance (fresh nonce+salt every
+    // challenge), so it is the registry key. The has/check and set run with no
+    // await between them -- atomic within this process -- so two concurrent
+    // replays of the same challenge cannot both pass.
+    const spentKey = challenge.signature;
+    if (spentChallenges.has(spentKey)) {
+      return reply
+        .status(401)
+        .send({ ok: false, error: { message: "challenge already used", code: "CHALLENGE_REUSED" } });
+    }
+    spentChallenges.set(spentKey, true);
 
     const deviceToken = issueDeviceToken(app.config.HETJA_DEVICE_SECRET);
     return { ok: true, data: { deviceToken } };

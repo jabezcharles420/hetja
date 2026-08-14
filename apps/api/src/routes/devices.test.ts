@@ -4,19 +4,24 @@
  * issueDeviceToken was only ever called from test files that import it
  * directly, which no real HTTP client can do).
  *
- * 1. happy path: challenge -> solve the PoW with the same solver the
- *    server ships (lib/device.ts's solvePoW) -> token -> and, the whole
- *    point of this task, that token minted through the HTTP endpoints is
- *    accepted by POST /api/v1/reports (previously every anon report path
- *    401'd because nothing could ever obtain a token this way).
- * 2. a tampered/forged challenge is rejected (BAD_CHALLENGE).
- * 3. an expired challenge is rejected (CHALLENGE_EXPIRED).
- * 4. a nonce that does not satisfy the PoW difficulty is rejected (BAD_POW).
+ * 1. happy path: challenge -> solve the ALTCHA v2 SHA-256 PoW with the same
+ *    solver the server ships (lib/device.ts's solvePoW) -> token -> and, the
+ *    whole point of this task, that token minted through the HTTP endpoints
+ *    is accepted by POST /api/v1/reports.
+ * 2. single-use (enhancement stack D.4): a solved challenge mints exactly ONE
+ *    token -- resubmitting it is rejected with CHALLENGE_REUSED -- while a
+ *    freshly issued challenge still mints.
+ * 3. the widget payload form ({ payload: base64(JSON({challenge, solution})) })
+ *    is accepted, so a future altcha-widget integration needs no server change.
+ * 4. a tampered/forged challenge is rejected (BAD_CHALLENGE).
+ * 5. an expired challenge is rejected (CHALLENGE_EXPIRED).
+ * 6. a solution that does not satisfy the PoW is rejected (BAD_POW).
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Challenge } from "altcha-lib";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { solvePoW, verifyPoW } from "../lib/device.js";
+import { effectivePowDifficulty, solvePoW } from "../lib/device.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -59,30 +64,40 @@ afterEach(async () => {
   await query(`DELETE FROM dogs WHERE id = $1`, [dogId]);
 });
 
+async function fetchChallenge(app: ReturnType<typeof buildServer>): Promise<{
+  challenge: Challenge;
+  difficulty: number;
+}> {
+  const res = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
+  expect(res.statusCode).toBe(200);
+  const body = res.json();
+  expect(body.ok).toBe(true);
+  return body.data as unknown as { challenge: Challenge; difficulty: number };
+}
+
 describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
   it(
     "issues a challenge, mints a token from a solved PoW, and that token is accepted by POST /api/v1/reports",
     async () => {
-        // DEVICE_POW_DIFFICULTY defaults to 18 (enhancement stack Phase 0 #6):
-        // ~2^17 average attempts, but the tail is heavy — an unlucky draw can
-        // take 10-30s with the naive solver, so this test gets a real timeout.
-        const app = buildServer(config);
+      // DEVICE_POW_DIFFICULTY defaults to 18 (enhancement stack Phase 0 #6),
+      // rounded up by ALTCHA's hex-prefix encoding to 20 effective bits
+      // (~2^19 average attempts); the tail is heavy, so the test gets a real
+      // timeout.
+      const app = buildServer(config);
 
-      const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
-      expect(challengeRes.statusCode).toBe(200);
-      const challengeBody = challengeRes.json();
-      expect(challengeBody.ok).toBe(true);
-      const { challenge, difficulty } = challengeBody.data as { challenge: string; difficulty: number };
-      expect(typeof challenge).toBe("string");
-      expect(difficulty).toBe(config.DEVICE_POW_DIFFICULTY);
+      const { challenge, difficulty } = await fetchChallenge(app);
+      expect(difficulty).toBe(effectivePowDifficulty(config.DEVICE_POW_DIFFICULTY));
+      expect(difficulty).toBeGreaterThanOrEqual(config.DEVICE_POW_DIFFICULTY);
+      expect(challenge.parameters.algorithm).toBe("SHA-256");
+      expect(challenge.parameters.keyPrefix.length * 4).toBe(difficulty);
 
-      const solution = solvePoW(challenge, difficulty);
+      const solution = await solvePoW(challenge);
       expect(solution).not.toBeNull();
 
       const tokenRes = await app.inject({
         method: "POST",
         url: "/api/v1/devices/token",
-        payload: { challenge, nonce: solution!.nonce },
+        payload: { challenge, solution },
       });
       expect(tokenRes.statusCode).toBe(200);
       const tokenBody = tokenRes.json();
@@ -103,21 +118,83 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
       const reportBody = reportRes.json();
       expect(reportBody.ok).toBe(true);
       expect(reportBody.data.created).toBe(true);
+    },
+    60_000,
+  );
+
+  it("mints exactly one token per solved challenge — replay is rejected (CHALLENGE_REUSED)", async () => {
+    const app = buildServer(config);
+
+    const { challenge } = await fetchChallenge(app);
+    const solution = await solvePoW(challenge);
+    expect(solution).not.toBeNull();
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/devices/token",
+      payload: { challenge, solution },
+    });
+    expect(first.statusCode).toBe(200);
+
+    // Replaying the identical (challenge, solution) must not mint a second
+    // token — this is the reuse gap the enhancement stack documented (D.4).
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/v1/devices/token",
+      payload: { challenge, solution },
+    });
+    expect(replay.statusCode).toBe(401);
+    expect(replay.json().error.code).toBe("CHALLENGE_REUSED");
+
+    // A freshly issued challenge still mints — the registry only blocks spent
+    // challenges, not new work.
+    const fresh = await fetchChallenge(app);
+    const freshSolution = await solvePoW(fresh.challenge);
+    expect(freshSolution).not.toBeNull();
+    const freshRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/devices/token",
+      payload: { challenge: fresh.challenge, solution: freshSolution },
+    });
+    expect(freshRes.statusCode).toBe(200);
   }, 60_000);
 
-  it("rejects a tampered challenge (HMAC no longer matches its own fields)", async () => {
+  it("accepts the altcha-widget payload form (base64 of JSON({challenge, solution}))", async () => {
     const app = buildServer(config);
-    const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
-    const { challenge } = challengeRes.json().data as { challenge: string };
-    const [powSeed, expiresAtStr, sig] = challenge.split(".");
 
-    // Same signature, different expiry -- the HMAC can no longer verify.
-    const tampered = `${powSeed}.${Number(expiresAtStr) + 60_000}.${sig}`;
+    const { challenge } = await fetchChallenge(app);
+    const solution = await solvePoW(challenge);
+    expect(solution).not.toBeNull();
+
+    // btoa(JSON.stringify({challenge, solution})) is exactly what the ALTCHA
+    // widget writes into its hidden `altcha` form field.
+    const payload = Buffer.from(JSON.stringify({ challenge, solution })).toString("base64");
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/devices/token",
+      payload: { payload },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(typeof res.json().data.deviceToken).toBe("string");
+  }, 60_000);
+
+  it("rejects a tampered challenge (HMAC no longer matches its own parameters)", async () => {
+    const app = buildServer(config);
+    const { challenge } = await fetchChallenge(app);
+
+    // Flip a signed parameter (nonce) but leave signature and expiry intact:
+    // the HMAC can no longer verify, and the challenge is not expired, so this
+    // must surface as BAD_CHALLENGE rather than CHALLENGE_EXPIRED or BAD_POW.
+    const tampered = {
+      ...challenge,
+      parameters: { ...challenge.parameters, nonce: "ab".repeat(16) },
+    };
 
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/devices/token",
-      payload: { challenge: tampered, nonce: "0" },
+      payload: { challenge: tampered, solution: { counter: 0, derivedKey: "0".repeat(64) } },
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().error.code).toBe("BAD_CHALLENGE");
@@ -126,11 +203,10 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
   it("rejects an expired challenge even with a correctly-signed body", async () => {
     const app = buildServer(config);
     const realNow = Date.now;
-    let challenge = "";
+    let challenge: Challenge | undefined;
     try {
       Date.now = () => realNow() - 10 * 60 * 1000; // mint as if 10 minutes ago
-      const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
-      challenge = (challengeRes.json().data as { challenge: string }).challenge;
+      challenge = (await fetchChallenge(app)).challenge;
     } finally {
       Date.now = realNow;
     }
@@ -138,35 +214,23 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/devices/token",
-      payload: { challenge, nonce: "0" },
+      payload: { challenge, solution: { counter: 0, derivedKey: "0".repeat(64) } },
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().error.code).toBe("CHALLENGE_EXPIRED");
   });
 
-  it("rejects a nonce that does not satisfy the configured PoW difficulty", async () => {
+  it("rejects a solution that does not satisfy the configured PoW difficulty", async () => {
     const app = buildServer(config);
-    const challengeRes = await app.inject({ method: "POST", url: "/api/v1/devices/challenge" });
-    const { challenge, difficulty } = challengeRes.json().data as { challenge: string; difficulty: number };
+    const { challenge } = await fetchChallenge(app);
 
-    // Find a nonce that provably does NOT satisfy the difficulty -- checked
-    // locally with the exact verifyPoW the server uses -- instead of
-    // guessing a fixed value and relying on it being astronomically
-    // unlikely to accidentally solve the puzzle (which would make this
-    // test occasionally, flakily wrong).
-    let badNonce: string | undefined;
-    for (let i = 0; i < 1000; i++) {
-      if (!verifyPoW(challenge, String(i), difficulty)) {
-        badNonce = String(i);
-        break;
-      }
-    }
-    expect(badNonce).toBeDefined();
-
+    // A nonce/counter of 0 can never produce a 32-byte zero derivedKey, so the
+    // server's key re-derivation cannot match this solution — deterministically
+    // BAD_POW rather than a value we *hope* fails the prefix check.
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/devices/token",
-      payload: { challenge, nonce: badNonce },
+      payload: { challenge, solution: { counter: 0, derivedKey: "0".repeat(64) } },
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().error.code).toBe("BAD_POW");

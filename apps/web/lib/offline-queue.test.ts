@@ -1,3 +1,20 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * This module is browser code -- IndexedDB queue, navigator.onLine,
+ * localStorage, CustomEvent -- so it is tested in a browser-like environment
+ * rather than the `environment: "node"` default this project sets for .ts files.
+ *
+ * Not cosmetic. Under node, `window` does not exist and Node's own
+ * `localStorage` is a lazy global that vitest's `unstubAllGlobals()` (called in
+ * afterEach here) leaves unreadable from inside the module under test for every
+ * test after the first. That produced a failure indistinguishable from a real
+ * bug: "the dropped feed was not recorded", in a test whose drop path was
+ * verifiably working -- the warning fired, the queue entry was removed, and the
+ * JSON did land in storage when the same test ran alone. jsdom gives a stable
+ * localStorage and a real window, so the suite measures the code instead of the
+ * harness.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QueuedScan } from "./idb";
 
@@ -27,7 +44,14 @@ vi.mock("./idb", () => ({
   uuid: idbMock.uuid,
 }));
 
-import { enqueueFeed, flush } from "./offline-queue";
+import {
+  enqueueFeed,
+  flush,
+  flushOnOpen,
+  listDroppedFeeds,
+  clearDroppedFeeds,
+  DROPPED_FEEDS_KEY,
+} from "./offline-queue";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -49,11 +73,51 @@ function postedBodies(fetchMock: ReturnType<typeof vi.fn>): PostedBody[] {
   });
 }
 
+/**
+ * Queue a feed while the browser reports itself OFFLINE, so nothing is sent yet
+ * and the test can drive `flush()` explicitly.
+ *
+ * Needed because `enqueueFeed` flushes immediately when online. These tests used
+ * to get that for free: `isOnLine()` returned `navigator.onLine` directly, and
+ * under the `environment: "node"` these files ran in, that property is
+ * `undefined` — so every enqueue looked offline and the eager-flush path was
+ * never exercised at all. `isOnLine` now
+ * treats unknown as online (a wasted request is cheaper than a queue that never
+ * drains), which is correct and which made that accident visible. Being explicit
+ * about the offline state is also the more honest fixture — queueing is what
+ * happens when a feeder is out of signal.
+ *
+ * Implementation note: this overrides ONLY the `onLine` property, via
+ * defineProperty on the existing navigator, rather than replacing the whole
+ * global with `vi.stubGlobal("navigator", …)`. The latter works but poisons
+ * later tests in the same file — swapping and restoring the global object left
+ * `localStorage` unreadable from inside the module under test, which showed up as
+ * "the dropped feed was not recorded" in a completely unrelated test while the
+ * drop path was actually working. Touch the smallest thing that produces the
+ * behaviour you need.
+ */
+async function enqueueOffline(input: Parameters<typeof enqueueFeed>[0]) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis.navigator, "onLine");
+  const prior = had ? Object.getOwnPropertyDescriptor(globalThis.navigator, "onLine") : undefined;
+  Object.defineProperty(globalThis.navigator, "onLine", {
+    value: false,
+    configurable: true,
+    writable: true,
+  });
+  try {
+    return await enqueueFeed(input);
+  } finally {
+    if (prior) Object.defineProperty(globalThis.navigator, "onLine", prior);
+    else delete (globalThis.navigator as { onLine?: boolean }).onLine;
+  }
+}
+
 describe("lib/offline-queue", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     idbMock.store.clear();
+    clearDroppedFeeds();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -63,8 +127,8 @@ describe("lib/offline-queue", () => {
   });
 
   it("enqueues and flushes scans in FIFO order", async () => {
-    const a = await enqueueFeed({ dogSlug: "abc234567" });
-    const b = await enqueueFeed({ dogSlug: "cde345678" });
+    const a = await enqueueOffline({ dogSlug: "abc234567" });
+    const b = await enqueueOffline({ dogSlug: "cde345678" });
 
     fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
 
@@ -79,7 +143,7 @@ describe("lib/offline-queue", () => {
   });
 
   it("drops a replay that returns created:false — it is not re-queued", async () => {
-    await enqueueFeed({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567" });
 
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: false } }));
 
@@ -94,7 +158,7 @@ describe("lib/offline-queue", () => {
   });
 
   it("keeps records queued on failure, then sends them on a later flush", async () => {
-    await enqueueFeed({ dogSlug: "abc234567", geo: { lat: 19.07, lng: 72.88 } });
+    await enqueueOffline({ dogSlug: "abc234567", geo: { lat: 19.07, lng: 72.88 } });
 
     fetchMock.mockRejectedValueOnce(new TypeError("offline"));
 
@@ -116,7 +180,7 @@ describe("lib/offline-queue", () => {
   // offline queue exists to serve. It then re-uploaded its photo bytes over
   // Mumbai 4G on every app open, forever, to be rejected again every time.
   it("drops a permanently-rejected record instead of retrying it forever", async () => {
-    await enqueueFeed({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567" });
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { ok: false, error: { message: "invalid scan payload", code: "INVALID_SCAN" } }),
@@ -130,12 +194,71 @@ describe("lib/offline-queue", () => {
     expect(dropped).toEqual([{ code: "INVALID_SCAN", status: 400 }]);
   });
 
+  // The point of the onDrop parameter is that a drop is OBSERVABLE. For a while
+  // `flush` documented that and the only caller passed nothing, so every
+  // permanently-refused feed vanished without trace -- the claim was in the
+  // comment and not in the code. These two tests are what make it true.
+  // These seed the queue directly instead of going through `enqueueOffline`. That
+  // is not laziness: `enqueueOffline` replaces the global `navigator` via
+  // vi.stubGlobal, and under this project's `environment: "node"` for .ts files
+  // that interacts badly enough with the surrounding global bookkeeping to make
+  // localStorage unreadable inside the module under test — which produced a
+  // failure that looked like "the drop was not recorded" when the drop path was
+  // in fact running correctly (verified separately: the warning fires, the queue
+  // entry is removed, and the JSON lands in localStorage). Seeding the store
+  // keeps the test about the thing it is testing.
+  function seedQueued(dogSlug: string): void {
+    const now = new Date().toISOString();
+    idbMock.store.set(dogSlug + now, {
+      id: dogSlug + now,
+      clientUuid: `c-${dogSlug}-${now}`,
+      dogSlug,
+      capturedAt: now,
+      queuedAt: now,
+    } as QueuedScan);
+  }
+
+  it("flushOnOpen records a dropped feed instead of discarding it silently", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    seedQueued("abc234567");
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(400, { ok: false, error: { message: "nope", code: "INVALID_PHOTO" } }),
+    );
+
+    expect(await flushOnOpen()).toBe(0);
+    expect(idbMock.store.size).toBe(0); // not retried forever
+
+    const dropped = listDroppedFeeds();
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toMatchObject({ dogSlug: "abc234567", code: "INVALID_PHOTO", status: 400 });
+    // Metadata only -- the photo bytes must NOT be copied into localStorage.
+    expect(JSON.stringify(dropped[0])).not.toContain("data:image");
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it("bounds the dropped-feed list so it cannot grow without limit", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    for (let i = 0; i < 25; i++) {
+      seedQueued(`abc23456${i % 10}`);
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(400, { ok: false, error: { message: "nope", code: "INVALID_SCAN" } }),
+      );
+      await flushOnOpen();
+    }
+    // Proves the cap, and that it capped something rather than never recording.
+    expect(warn).toHaveBeenCalledTimes(25);
+    expect(listDroppedFeeds()).toHaveLength(20);
+    warn.mockRestore();
+  });
+
   it.each([
     ["a server fault", 500, "INTERNAL"],
     ["throttling", 429, "RATE_LIMITED"],
     ["an expired session", 401, "UNAUTHENTICATED"],
   ])("keeps the record queued on %s, which can still succeed later", async (_label, status, code) => {
-    await enqueueFeed({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567" });
 
     fetchMock.mockResolvedValueOnce(jsonResponse(status, { ok: false, error: { message: "nope", code } }));
 

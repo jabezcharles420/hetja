@@ -29,11 +29,32 @@ export interface FeedOutcome {
   offline: boolean;
 }
 
+/**
+ * Is the browser online? Unknown counts as ONLINE, deliberately.
+ *
+ * This used to return `navigator.onLine` directly, so an environment where that
+ * property is absent (it reads `undefined` under this project's jsdom setup, and
+ * is not universally present outside mainstream browsers) was treated as
+ * offline. The consequences of getting that default backwards are asymmetric:
+ *
+ *   - "unknown means offline" makes `flushOnOpen` return early forever, so the
+ *     queue never drains and every logged feed sits in IndexedDB unsent, while
+ *     `enqueueFeed` cheerfully reports `offline: true` to a user who is online.
+ *   - "unknown means online" costs one failed request, which `flush` already
+ *     treats as retryable (status 0 = never reached the network) and retries on
+ *     the next open.
+ *
+ * A wasted request is cheaper than a queue that silently never sends, so the
+ * unknown case fails toward attempting. `navigator.onLine === false` is the only
+ * value that means offline; note that a `true` is only ever a hint anyway — it
+ * says the interface has a link, not that the internet is reachable.
+ */
 function isOnLine(): boolean {
   try {
-    return typeof navigator !== "undefined" && navigator.onLine;
+    if (typeof navigator === "undefined") return true;
+    return navigator.onLine !== false;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -69,7 +90,10 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     if (await hasBackgroundSync()) {
       syncing = await requestSync();
     } else {
-      syncing = (await flush()) > 0;
+      // recordDroppedFeed, not a bare flush(): a feed refused permanently here
+      // is the one the feeder just tapped, so it is the LAST place that should
+      // discard it without a word.
+      syncing = (await flush(recordDroppedFeed)) > 0;
     }
   }
 
@@ -150,11 +174,114 @@ export async function flush(
   return sent;
 }
 
-/** iOS / no-Background-Sync fallback: flush on app open (or reconnect). */
+/** localStorage key holding metadata for feeds the server permanently refused. */
+export const DROPPED_FEEDS_KEY = "hetja.droppedFeeds";
+
+/** Most recent drops to keep. Bounded so this can never grow without limit. */
+const DROPPED_FEEDS_MAX = 20;
+
+/** A feed the server refused permanently, kept so the feeder can be told. */
+export interface DroppedFeed {
+  dogSlug: string;
+  capturedAt: string;
+  code?: string;
+  status: number;
+  droppedAt: string;
+}
+
+/** Feeds the server permanently refused, newest first. Never throws. */
+export function listDroppedFeeds(): DroppedFeed[] {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(DROPPED_FEEDS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as DroppedFeed[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Clear the list — call once the feeder has actually been shown it. */
+export function clearDroppedFeeds(): void {
+  try {
+    localStorage?.removeItem(DROPPED_FEEDS_KEY);
+  } catch {
+    /* private mode / storage disabled — nothing to clear */
+  }
+}
+
+/**
+ * Records a permanently-refused feed so it is not silently destroyed.
+ *
+ * Deliberately **metadata only** — dogSlug, capturedAt, the error code — and NOT
+ * the photo bytes. The queued record carries a base64 image, and copying those
+ * into localStorage would move a multi-megabyte payload into a ~5 MB
+ * synchronous-access store that the rest of the app also needs. Bounded to the
+ * newest DROPPED_FEEDS_MAX entries for the same reason.
+ *
+ * The honest limit: the photo IS lost. What survives is enough to tell the
+ * feeder which dog and when, so the feed can be logged again deliberately rather
+ * than the app quietly pretending it never happened. That is the INVARIANT 14
+ * principle — "a flag nobody looks at is a silent rejection with extra steps" —
+ * applied to a queue rather than to AI validation.
+ */
+function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
+  const entry: DroppedFeed = {
+    dogSlug: item.dogSlug,
+    capturedAt: item.capturedAt,
+    code: err.code,
+    status: err.status,
+    droppedAt: new Date().toISOString(),
+  };
+  // Console first, so the record exists even if storage is unavailable
+  // (Safari private mode throws on setItem).
+  console.warn(
+    `offline-queue: dropped a queued feed for ${item.dogSlug} — the server ` +
+      `refused it permanently (${err.status}${err.code ? ` ${err.code}` : ""}). ` +
+      "It will not be retried. See listDroppedFeeds().",
+  );
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(
+      DROPPED_FEEDS_KEY,
+      JSON.stringify([entry, ...listDroppedFeeds()].slice(0, DROPPED_FEEDS_MAX)),
+    );
+  } catch {
+    /* storage full or blocked — the console warning above is the fallback */
+  }
+  // Let any mounted UI react without this module knowing about React.
+  //
+  // Guarded on `typeof window`, and in its OWN try/catch after the write above
+  // rather than sharing one. Two reasons, both real rather than defensive habit:
+  // this module is imported by a Next.js client component, so it can be
+  // evaluated where `window` does not exist (and `window?.x` does not help —
+  // optional chaining still throws a ReferenceError on an undeclared
+  // identifier); and if the dispatch shared a try block with the write, a throw
+  // here would look identical to "storage blocked" while actually having
+  // persisted fine. Notifying is best-effort; recording is not.
+  try {
+    if (typeof window !== "undefined" && typeof CustomEvent === "function") {
+      window.dispatchEvent(new CustomEvent("hetja:feed-dropped", { detail: entry }));
+    }
+  } catch {
+    /* no DOM to notify — the record is stored and the warning is logged */
+  }
+}
+
+/**
+ * iOS / no-Background-Sync fallback: flush on app open (or reconnect).
+ *
+ * Passes `recordDroppedFeed` rather than calling `flush()` bare. That matters:
+ * `flush`'s contract says a permanent drop is "reported through onDrop rather
+ * than happening silently", and for a while this was the ONLY caller and passed
+ * nothing — so the claim was false and every permanently-refused feed vanished
+ * without trace. A default that discards is worse than no default.
+ */
 export async function flushOnOpen(): Promise<number> {
   if (!isOnLine()) return 0;
   try {
-    return await flush();
+    return await flush(recordDroppedFeed);
   } catch {
     return 0;
   }

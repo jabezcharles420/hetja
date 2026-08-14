@@ -87,3 +87,27 @@ updates:
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(actions)"
+    ignore:
+      # These two majors are held back deliberately, and this is the reason.
+      #
+      # The first thing dependabot did after being added was open
+      # `setup-node 4 -> 7` and `pnpm/action-setup 4 -> 6`, and the `quality`
+      # job failed on them. Not a flake: both bumps change the pnpm install
+      # contract that the workflow's step ORDER depends on. ci.yml runs
+      # pnpm/action-setup BEFORE setup-node and passes no `version:` — because
+      # v4 reads `packageManager` from package.json, and giving it both fails
+      # with "Multiple versions of pnpm specified". The comment saying so is
+      # right above the steps. Later majors change how the version is resolved
+      # and how `cache: pnpm` finds a store, so the bump breaks the job at
+      # `pnpm install`, before a single test runs.
+      #
+      # Held rather than adopted because CI infrastructure is the one thing that
+      # cannot be validated by CI passing — a green run after changing the
+      # runner setup only tells you the new setup works for the happy path, and
+      # a red one tells you nothing about which half broke. Adopting these needs
+      # someone to read both changelogs and watch a run, which is a task, not a
+      # merge. Security patches and minor bumps still flow.
+      - dependency-name: actions/setup-node
+        update-types: ["version-update:semver-major"]
+      - dependency-name: pnpm/action-setup
+        update-types: ["version-update:semver-major"]

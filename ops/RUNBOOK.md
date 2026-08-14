@@ -52,14 +52,31 @@ proves nothing about tampering by that party". Until a head lands somewhere we
 cannot silently rewrite, this invariant is 🔄 and not ✅.
 `anchorMessage()` exists to feed such a channel.
 
-To turn signing on: set `HETJA_LEDGER_SIGNING_JWK` (+ `_KID`) in
-`apps/api/.env.production` — the worker unit loads that file — and **publish the
-public half at a JWKS path**, or the signature verifies against nothing. See
-`apps/worker/src/sign-anchor.ts` for the generation snippet. Check it took:
+To turn signing on, on the box:
 
 ```bash
+cd /root/hetja
+pnpm ledger:keygen                      # prints private env lines + the JWKS to publish
+pnpm ledger:keygen --env >> apps/api/.env.production   # or paste the two lines by hand
+pnpm ledger:keygen --jwks               # NOTE: a fresh pair each run -- see below
+systemctl restart hetja-worker
 curl -s http://127.0.0.1:8080/api/v1/ledger/anchor | grep -o '"signed":[a-z]*'
 ```
+
+**Run `ledger:keygen` once and keep all three outputs from that single run.**
+Each invocation generates a new pair, so `--env` from one run and `--jwks` from
+another give you a private key and a public document that do not match, and every
+signature then verifies against nothing. Take the plain (no-flag) output, which
+prints the private lines and the matching JWKS together.
+
+Then **publish the JWKS**, or none of this means anything: an auditor reads `kid`
+from the JWS header and needs a document to look it up in. `did:web` resolution
+expects it at `https://hetja.in/.well-known/jwks.json` or the path named in the
+`sub` DID. Until it is served, `signed: true` only tells you we signed something.
+
+Rotation: generate a new pair, publish a JWKS containing **both** keys, then swap
+the env vars. Do not drop the retired public key — every anchor it ever signed
+becomes unverifiable, and that history is precisely what an auditor may want.
 
 ### After any deploy that ran migration 0015
 

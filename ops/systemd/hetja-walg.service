@@ -1,0 +1,43 @@
+[Unit]
+# wal-g base backup (enhancement stack §L.1, Phase 1 #6). Continuous WAL
+# archiving is done by PostgreSQL's own `archive_command` (see
+# ops/backup/wal-g.md step 2) -- this unit only pushes the periodic BASE backup
+# that WAL segments are replayed on top of. Both halves are required for PITR:
+# WAL with no base backup restores nothing.
+#
+# This unit is committed because ops/backup/wal-g.md step 3 told the operator to
+# `systemctl --user enable --now hetja-walg.timer`, and that unit existed
+# nowhere in the repository -- the same class of mistake as the restic timer that
+# was documented but never installed. (The `--user` was also wrong: this runs as
+# root against the cluster's data directory, not in a user session.)
+Description=Hetja wal-g base backup (PITR)
+Documentation=file://__REPO_ROOT__/ops/backup/wal-g.md
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+# Do not race the logical dump; restic runs at 02:15.
+After=hetja-restic.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_ROOT__
+# /root/.backup-env carries WALG_S3_PREFIX and the R2 credentials, shared with
+# restic. Without it wal-g exits non-zero and the unit is marked failed, which is
+# the intended behaviour: a backup that silently does nothing is worse than one
+# that is loudly absent.
+EnvironmentFile=/root/.backup-env
+Environment=PGHOST=/var/run/postgresql
+Environment=PGUSER=postgres
+ExecStart=/usr/local/bin/wal-g backup-push /var/lib/postgresql/16/main
+# A base backup reads the whole data directory. On a 2 GB box that competes with
+# the API for page cache, so deprioritise it against anything serving a request
+# (AGENTS.md §g records an unbounded process OOM-killing the live services here).
+MemoryHigh=200M
+MemoryMax=350M
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+NoNewPrivileges=true
+TimeoutStartSec=7200
+
+[Install]
+WantedBy=multi-user.target

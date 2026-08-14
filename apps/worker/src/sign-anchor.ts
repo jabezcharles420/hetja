@@ -52,13 +52,12 @@
  *
  *   HETJA_LEDGER_SIGNING_JWK   REQUIRED to sign. The PRIVATE half of an Ed25519
  *                              key pair, as a JSON JWK on one line. Generate it
- *                              with the package itself and keep the public half:
- *                                node -e 'import("@hetja/ledger").then(async m => {
- *                                  const k = await m.generateLedgerKeyPair();
- *                                  console.log("kid:", k.kid);
- *                                  console.log("private:", JSON.stringify(k.privateJwk));
- *                                  console.log("public:",  JSON.stringify(k.publicJwk));
- *                                })'
+ *                              with `pnpm ledger:keygen` (add `--env` for just
+ *                              the two env lines, `--jwks` for just the document
+ *                              to publish). That command exists so this is not a
+ *                              nine-line `node -e` in a runbook — a one-liner
+ *                              that mishandles a private key is a bad way to
+ *                              discover that quoting differs between shells.
  *                              Store the private JWK the way HETJA_HMAC_PEPPER
  *                              is stored (secret manager / .env.production,
  *                              never committed). Publish the public half at the

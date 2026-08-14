@@ -1,0 +1,21 @@
+[Unit]
+Description=Hetja wal-g base backup (every 6h)
+Documentation=file://__REPO_ROOT__/ops/backup/wal-g.md
+
+[Timer]
+# Every 6 hours rather than the hourly the runbook first suggested. The recovery
+# window is set by WAL archiving (archive_timeout = 60s), not by base-backup
+# frequency -- a base backup only bounds how much WAL has to be replayed to reach
+# a given point. Four a day on a pilot-sized database keeps replay short while
+# leaving the 2 GB box alone most of the time, and keeps R2 storage (10 GB free
+# tier) from filling with near-identical base backups.
+OnCalendar=*-*-* 00,06,12,18:40:00 Asia/Kolkata
+# 00:40 rather than on the hour so it never lands with the 02:15 restic dump, and
+# an explicit timezone for the same reason that one is explicit there: the VPS is
+# in Europe today and the plan is to move it to India.
+Persistent=true
+RandomizedDelaySec=600
+Unit=hetja-walg.service
+
+[Install]
+WantedBy=timers.target

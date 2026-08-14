@@ -81,7 +81,7 @@ the repo** — cloning gets you no secrets.
 | `HETJA_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. Peppers `identity_hmac` (INVARIANT 3). |
 | `HETJA_QR_SECRET` | api | **CARRY OVER — see the warning below.** |
 | `HETJA_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
-| `DEVICE_POW_DIFFICULTY` | api | Default `18` (ALTCHA v2 PoW); 18–20 is the right range. |
+| `DEVICE_POW_DIFFICULTY` | api | Default `16` (ALTCHA v2 PoW), max `20`. Lowered from 18 on 2026-08-14 — ALTCHA encodes difficulty as a hex prefix, so 18 rounded **up** to 20 effective bits, which the scan-app solver could not finish inside its own 20 s budget (measured 4/10 solves; 16 gives 25/25 at ~1 s). What actually bounds abuse is INVARIANT 7's 2/day + 5/week cap, not the PoW: a native solver does 2^20 in ~1.5 s. See `docs/HOW-IT-WORKS.md` §9. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | api | **Generate once**: `npx web-push generate-vapid-keys`. Subject is a `mailto:`. Rotating these invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` | api | Brevo → SMTP & API. **The API refuses to boot in production without these** — deliberately, because the original bug was generating login codes and silently sending them nowhere. |
 | `MAIL_FROM` | api | `no-reply@hetja.in`. Must be on a domain with SPF/DKIM/DMARC or mail lands in spam. |

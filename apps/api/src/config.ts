@@ -32,10 +32,36 @@ const EnvSchema = z.object({
   HETJA_DEVICE_SECRET: z.string().min(16).default("dev-device-secret-change-me"),
   // Anonymous device-token proof-of-work difficulty, in leading zero bits
   // (desktop fallback, ALTCHA v2 SHA-256). ALTCHA encodes difficulty as a hex
-  // key prefix, so the EFFECTIVE difficulty rounds this up to a nibble boundary
-  // (18 -> 20 bits) -- the required work is never below this number. 18-20 bits
-  // is the recommended range; 20 is the ceiling for the desktop solver.
-  DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).default(18),
+  // key prefix, so the EFFECTIVE difficulty rounds this UP to a nibble
+  // boundary -- the required work is never below this number, but it can be
+  // well above what was typed. That rounding is why the default is 16 and not
+  // 18: 18 rounds to 20 effective bits, and 20 bits is a solve the browser
+  // fallback in apps/scan could not finish inside its own 20 s budget.
+  // Measured on a dev laptop, 2026-08-14: 0.009 ms per crypto.subtle SHA-256
+  // attempt, so 2^20 expected attempts is ~9.4 s of pure hashing there and
+  // simply does not land on a mid-range phone several times slower. 16 rounds
+  // to 16 (~0.6 s on the same box), which leaves real headroom for a slow
+  // handset -- the whole point of this path is a stranger standing over an
+  // injured dog getting a report filed, not the "couldn't confirm the report
+  // automatically" degrade.
+  //
+  // What lowering it costs, stated plainly: an attacker's cost per minted
+  // token drops from ~2^20 to ~2^16 hashes. On this box a native SHA-256 loop
+  // runs ~696k h/s, i.e. 1.5 s per token at 20 bits versus 0.09 s at 16 -- so
+  // the PoW was never the thing bounding abuse at either setting. What bounds
+  // it is INVARIANT 7's 2/day + 5/week cap, and that cap only actually holds
+  // because lib/device.ts now rejects non-canonical token encodings and
+  // routes/sos.ts keys the cap on the canonical deviceId; before that fix one
+  // solve at ANY difficulty bought unlimited budget.
+  //
+  // The upper bound is not cosmetic. `keyPrefixForDifficulty` turns this into
+  // a `"0".repeat(bits / 4)` hex prefix, so a fat-fingered `180` would ask for
+  // a 45-nibble prefix: every mint becomes unsolvable, anonymous SOS
+  // attestation stops working entirely, and nothing errors at boot or appears
+  // in any dashboard. 20 is the ceiling because 20 is already past what the
+  // desktop/mobile solver can carry (see above), so anything higher is a typo
+  // by definition.
+  DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).max(20).default(16),
   // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
   TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),
   // Comma-separated exact browser origins allowed in production. Exact origins

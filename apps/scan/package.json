@@ -9,11 +9,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "size:gate": "node scripts/size-gate.mjs",
     "serve": "node scripts/serve.mjs",
-    "start": "node scripts/build.mjs && node scripts/serve.mjs"
+    "start": "node scripts/build.mjs && node scripts/serve.mjs",
+    "test": "vitest run"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "web-vitals": "^6.1.0"

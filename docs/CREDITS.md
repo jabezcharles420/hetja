@@ -15,7 +15,7 @@ algorithm is adapted rather than installed, this file says so.
 | `Sec-ant/barcode-detector` (QR polyfill) | github.com/Sec-ant/barcode-detector | MIT | `apps/web/components/QrScanner.tsx` | Lazy dynamic import; ~3 KB JS + ~13 KB WASM, never in the initial bundle. |
 | `@fastify/compress` + `@fastify/etag` | github.com/fastify/fastify-compress · github.com/fastify/fastify-etag | MIT | `apps/api/src/server.ts` | Brotli/gzip + conditional GET; SOS and dog paths explicitly excluded (never ETag life-safety state). Tested in `apps/api/src/server.test.ts`. |
 | WCAG-AA contrast gate | WCAG 2.2 (no repo); formula per W3C relative luminance | n/a | `ops/contrast-gate.sh` | Parses `packages/design/tokens.css`; zero-dep implementation (no chroma.js needed for 6 tokens). |
-| `DEVICE_POW_DIFFICULTY` 14 → 18 | existing codebase; recommendation from enhancement-stack §B / HOW-IT-WORKS §9 | n/a | `apps/api/src/config.ts`, `apps/api/src/routes/devices.ts` | ~2^17 avg attempts (~0.5 s); test timeout raised accordingly. |
+| `DEVICE_POW_DIFFICULTY` 14 → 18, then → **16** | existing codebase; recommendation from enhancement-stack §B / HOW-IT-WORKS §9 | n/a | `apps/api/src/config.ts`, `apps/api/src/routes/devices.ts` | The 18 was measured wrong: ALTCHA encodes difficulty as a hex prefix, so it rounded up to **20** effective bits (~2^20, not the ~2^17 recorded here), which the scan solver finished only 4 times in 10 inside its 20 s budget. 16 lands on 16 exactly (25/25, ~1 s). Reverted to 16 and capped at 20 on 2026-08-14; see `docs/HOW-IT-WORKS.md` §9 for the measurements and why the PoW is a throttle rather than the gate. |
 
 ## Wave 2 — Phase 1 (small deps, life-safety + ops)
 

@@ -51,6 +51,18 @@ Because Caddy sits behind the tunnel and never sees the internet, `auto_https`
 is **off** and the site addresses are written `http://`. ACME could not work here
 regardless — nothing reaches port 80 from outside.
 
+### Real client IPs (the tunnel makes everything look like loopback)
+
+cloudflared terminates the tunnel on the box itself, so every connection
+reaches Caddy from 127.0.0.1 — and without a fix, the API would rate-limit the
+whole city as one IP. The `real_ip` snippet in `ops/caddy/Caddyfile` rewrites
+the edge's `CF-Connecting-IP` into `X-Forwarded-For`, so `@fastify/rate-limit`
+sees the stranger's actual address. Caddy is rebuilt with the
+`caddy-cloudflare-ip` module (`trusted_proxies cloudflare`), which marks
+Cloudflare edge addresses as trusted so the header survives on the CDN-direct
+path too. Verified live 2026-08-14 (API logs show the real remote address, not
+127.0.0.1); guarded by `ops/check-caddy-cache.sh` in CI.
+
 ## Setup
 
 ### 1. Cloudflare

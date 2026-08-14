@@ -81,7 +81,7 @@ the repo** — cloning gets you no secrets.
 | `HETJA_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. Peppers `identity_hmac` (INVARIANT 3). |
 | `HETJA_QR_SECRET` | api | **CARRY OVER — see the warning below.** |
 | `HETJA_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
-| `DEVICE_POW_DIFFICULTY` | api | Currently `14`; 18–20 is the right range. |
+| `DEVICE_POW_DIFFICULTY` | api | Default `18` (ALTCHA v2 PoW); 18–20 is the right range. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | api | **Generate once**: `npx web-push generate-vapid-keys`. Subject is a `mailto:`. Rotating these invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` | api | Brevo → SMTP & API. **The API refuses to boot in production without these** — deliberately, because the original bug was generating login codes and silently sending them nowhere. |
 | `MAIL_FROM` | api | `no-reply@hetja.in`. Must be on a domain with SPF/DKIM/DMARC or mail lands in spam. |

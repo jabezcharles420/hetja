@@ -239,8 +239,9 @@ hash — an email address has little enough entropy that a plain SHA-256 of it i
 reversible with a wordlist.
 
 Anonymous clients that need to write (a stranger reporting an injury) get a
-*device token* minted by `POST /api/v1/devices/challenge` + `/token` against a
-proof-of-work, so the write endpoints are not open to trivial scripted abuse
+*device token* minted by `POST /api/v1/devices/challenge` + `/token` against an
+ALTCHA v2 proof-of-work (an HMAC-signed, single-use challenge solved
+client-side), so the write endpoints are not open to trivial scripted abuse
 without demanding an account from someone standing next to a bleeding dog.
 
 ---
@@ -262,6 +263,14 @@ TLS. Caddy runs with `auto_https off` because it is behind the tunnel and must
 not try to obtain its own certificate.
 
 `hetja.in` is registered at Dynadot with its nameservers pointed at Cloudflare.
+
+cloudflared terminates the tunnel on the box itself, so connections reach Caddy
+from loopback. Caddy rewrites `CF-Connecting-IP` into `X-Forwarded-For` (the
+`real_ip` snippet, with `trusted_proxies cloudflare` via the
+`caddy-cloudflare-ip` module) so the API's per-IP rate limits see the stranger's
+real address instead of capping the whole city as one IP — verified live
+2026-08-14, guarded by `ops/check-caddy-cache.sh` in CI. See
+`ops/caddy/HOSTING.md` for the tunnel setup.
 
 The authoritative database is PostgreSQL on that same box. A Supabase project
 in Mumbai (`mipvvlrzovevmjzlyxfr`) holds a hardened mirror — RLS on, exact
@@ -422,7 +431,7 @@ for macOS.
 - Most `care_providers` coordinates are locality estimates, not geocoded
   points. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
   incoming government vet database is meant to close.
-- `DEVICE_POW_DIFFICULTY` is 18 (~2^17 avg hashes, ~0.5 s on the naive solver; heavy tail on unlucky draws). Raised from 14 on 2026-08-13 (enhancement stack Phase 0 #6); 18–20 is the right range, 20 is the ceiling for the current solver budget.
+- `DEVICE_POW_DIFFICULTY` is 18 (~2^17 avg hashes, ~0.5 s on the altcha-lib client solver; heavy tail on unlucky draws). Raised from 14 on 2026-08-13 (enhancement stack Phase 0 #6); 18–20 is the right range, 20 is the ceiling for the current solver budget. Device challenges are ALTCHA v2 (HMAC-signed, single-use) since 2026-08-14.
 - The git history still contains the old working title in commit messages.
   Rewriting it invalidates every SHA, so it happens once, last.
 

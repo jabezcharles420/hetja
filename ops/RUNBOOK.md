@@ -41,6 +41,12 @@ publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
    `scans`, `medical_records`; run `ledger:verify` against the restored chain.
 3. Record RTO (target < 4 h).
 
+Implemented since 2026-08-14: `ops/backup/restic-backup.sh` (encrypted restic
+snapshots of the nightly `pg_dump -Fc` plus `.env.production` and configs;
+daily 02:15 IST via `hetja-restic.timer`; repo at `/srv/hetja-backups/restic`,
+R2-ready via `/root/.backup-env`). WAL archiving with wal-g is staged but
+dormant until R2 credentials land — activation steps in `ops/backup/wal-g.md`.
+
 ## Web Push (SOS responder notifications)
 
 Feeders subscribe via `POST /api/v1/push/subscribe` after their first logged

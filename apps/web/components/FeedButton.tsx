@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { enqueueFeed, blobToBase64, stripDataPrefix, captureGeo } from "@/lib/offline-queue";
+import { prepareFeedPhoto } from "@/lib/photo";
 import styles from "./FeedButton.module.css";
 
 export interface FeedButtonProps {
@@ -38,8 +39,14 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
       setBusy(true);
       setStatus({ kind: "busy", text: "Logging feed…" });
       try {
-        const dataUrl = await blobToBase64(file);
-        const geo = await captureGeo();
+        // Photo pipeline: auto-orient + compress to ~800 KB via compressorjs
+        // (WebP where supported, else JPEG), strip all EXIF/GPS, and coarsen
+        // any photo GPS to ward level (INVARIANT 2) before it leaves the
+        // browser. Only when the photo carries no GPS do we fall back to the
+        // feeder's consented device location (captureGeo).
+        const { blob, geo: photoGeo } = await prepareFeedPhoto(file);
+        const dataUrl = await blobToBase64(blob);
+        const geo = photoGeo ?? (await captureGeo());
         const { offline: wentOffline } = await enqueueFeed({
           dogSlug,
           photo: stripDataPrefix(dataUrl),

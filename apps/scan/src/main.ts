@@ -4,6 +4,7 @@ import { setStatus, setSub, renderProfile, renderError, setNote, clearNote } fro
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
 import { wirePanel, setPanelProfile } from "./panel";
+import { reportWebVitals } from "./web-vitals";
 
 const SLUG = parseSlug(location.pathname);
 const SIG = new URLSearchParams(location.search).get("s") ?? "";
@@ -67,3 +68,4 @@ wirePanel(SLUG);
 registerServiceWorker();
 void view();
 void checkQueue();
+reportWebVitals();

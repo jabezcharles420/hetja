@@ -34,6 +34,13 @@ algorithm is adapted rather than installed, this file says so.
 | `restic/restic` — encrypted file backups | github.com/restic/restic | BSD-2-Clause | `ops/backup/restic-backup.sh`, `hetja-restic.timer` (daily 02:15 IST) | Encrypted snapshots of the daily PG dump, `.env.production` secrets, Caddy/PG configs, systemd units. R2-ready via `/root/.backup-env`; running against a local interim repo until R2 creds exist. |
 | `WeidiDeng/caddy-cloudflare-ip` | github.com/WeidiDeng/caddy-cloudflare-ip | Apache-2.0 | `ops/caddy/Caddyfile` | Caddy rebuilt (v2.11.4 + module); `trusted_proxies cloudflare` + `header_up X-Forwarded-For {CF-Connecting-IP}` — the tunnel fix that makes `@fastify/rate-limit` see per-stranger IPs (verified live: API logs the real client IP). Guarded by `ops/check-caddy-cache.sh`. |
 
+## Wave 3b — photo pipeline (feeder photo pipeline + web-vitals clients)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `fengyuanchen/compressorjs` — browser-side photo compress + EXIF strip | github.com/fengyuanchen/compressorjs | MIT | `apps/web/lib/photo.ts`, `apps/web/components/FeedButton.tsx` | Re-encodes through a fresh `<canvas>`: auto-orient (`checkOrientation`), WebP where supported else JPEG, quality 0.8, capped 1600px. `retainExif: false` + `strict: false` mean the output carries no EXIF/GPS (the lib's only EXIF re-insertion path is guarded by `retainExif`); verified again with exifr on the output before upload. Dynamic-imported so the initial dog page pays nothing. |
+| `MikeKovarik/exifr` — EXIF/GPS/orientation reader | github.com/MikeKovarik/exifr | MIT | `apps/web/lib/photo.ts` | Extracts orientation + GPS from the picked photo. GPS is coarsened to ward via `@hetja/contracts` `coarsenToWard` (INVARIANT 2) and feeds ward-level sighting data; the feeder's own device location stays the separate, consented `captureGeo` channel. Also used as the post-compression assertion that no GPS/orientation survived. |
+| `GoogleChrome/web-vitals` — client Core Web Vitals reporting | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/web/lib/web-vitals.ts` + `components/WebVitalsReporter.tsx`, `apps/scan/src/web-vitals.ts` | LCP/CLS/INP/TTFB beamed to `POST /api/v1/metrics/web-vitals` (§M.16) with slug-stripped paths (`/d/:slug`, `/dog/:slug` — never the real collar code). In `apps/scan` it is the one permitted dependency (~1.5 KB gz after tree-shaking; scan bundle stays far under the 40 KB budget). |
 ## Sources researched and evaluated (2026-08-13)
 
 Full evaluation of all researched projects — adopted, deferred, and rejected —

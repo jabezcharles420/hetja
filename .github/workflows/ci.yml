@@ -31,8 +31,8 @@ jobs:
       PGPASSWORD_APP: hetja_dev_2026
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      # No `version:` here on purpose: pnpm/action-setup@v4 reads
+      - uses: pnpm/action-setup@v6
+      # No `version:` here on purpose: pnpm/action-setup@v6 reads
       # `packageManager` from package.json, and passing both makes it
       # fail with "Multiple versions of pnpm specified".
       - uses: actions/setup-node@v4

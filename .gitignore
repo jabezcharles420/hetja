@@ -24,6 +24,16 @@ ops/supabase/*_data.sql
 # incremental tsc cache — regenerated on every build
 *.tsbuildinfo
 
+# Playwright output. apps/web/playwright.config.ts deliberately points
+# outputDir/outputFolder under apps/web/build/ so the existing `build/` rule
+# already covers them, but the conventional default paths are listed too: a run
+# with an overridden config, or `npx playwright test` from a different cwd, still
+# writes here, and a screenshot of a failing a11y run is not something to commit.
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
 # Python virtualenv for apps/ai -- committed by mistake once, regenerate with
 # `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 apps/ai/.venv/

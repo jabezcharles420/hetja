@@ -112,11 +112,34 @@ tell responders or pilot staff "you'll be paged" without qualifying it with
 home screen first."** This is a life-safety limitation; it is documented
 here on purpose, not smoothed over.
 
+## Audit logging (pgaudit)
+
+See [`docs/ops/AUDIT-LOGGING.md`](../docs/ops/AUDIT-LOGGING.md) for the install,
+the two non-obvious configuration decisions (`log_parameter = off`, bounded log
+rotation) and how it relates to the `medical_records` hash chain.
+
+**Status: documented, not applied to the box.** It needs
+`shared_preload_libraries` and therefore a full PostgreSQL restart, which drops
+every connection including any in-flight SOS write — a maintenance-window
+operation, not a deploy step. Nothing in this repository applies it, and that is
+deliberate: it is not a migration (see the doc for why a
+`CREATE EXTENSION pgaudit` migration would fail CI or silently no-op).
+
 ## DPDP erasure (INVARIANT 11)
 
-Erasure = DELETE the PII row (e.g. feeders.phone_hmac) while the ledger chain
+Erasure = DELETE the PII row (e.g. feeders.identity_hmac) while the ledger chain
 stays valid. The chain hashes pseudonymous actor IDs only — no personal data
 inside hashed payloads.
+
+What INVARIANT 11 does **not** yet have, and why it is still marked `🔶 design`
+in `docs/INVARIANTS.md`: there is no `audit_log` table and no redaction job. The
+designed shape (enhancement stack §G.9, §T.11) is an append-but-redactable table
+— a `redacted_fields` JSONB column, a `redact_at` timestamp, and a scheduled job
+that nulls fields past retention. It is deliberately **not** hash-chained,
+because satisfying an erasure request means altering an old row, which a chain
+would forbid. Also note `feeders.phone_hmac` was renamed `identity_hmac` in
+migration `0010_identity_email.sql`; this section said the old name until
+2026-08-14.
 
 ## Incident notes
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hetja/db": "workspace:*",
+    "@hetja/ledger": "workspace:*",
     "pg": "^8.23.0",
     "web-push": "^3.6.7"
   },

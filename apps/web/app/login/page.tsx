@@ -4,24 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError, setAccessToken } from "@/lib/api";
-import { uuid } from "@/lib/idb";
+import {
+  clearCachedDeviceToken,
+  deviceTokenFailureMessage,
+  getDeviceToken,
+  isBadDeviceTokenError,
+  readCachedDeviceToken,
+} from "@/lib/device";
 import styles from "./login.module.css";
 
-const DEVICE_TOKEN_KEY = "hetja.deviceToken";
 const CONSENT_VERSION = 1;
-
-function getDeviceToken(): string {
-  try {
-    if (typeof localStorage === "undefined") return uuid();
-    const existing = localStorage.getItem(DEVICE_TOKEN_KEY);
-    if (existing) return existing;
-    const fresh = uuid();
-    localStorage.setItem(DEVICE_TOKEN_KEY, fresh);
-    return fresh;
-  } catch {
-    return uuid();
-  }
-}
 
 export default function LoginPage(): React.JSX.Element {
   const router = useRouter();
@@ -34,6 +26,30 @@ export default function LoginPage(): React.JSX.Element {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Mint the attested device token in the background, while the feeder is off
+   * reading their email for the code.
+   *
+   * `POST /api/v1/auth/verify` refuses to look at an OTP without one
+   * (routes/auth.ts gates on `verifyDeviceToken`), and minting costs a
+   * proof-of-work solve — about a second on a desktop, a few on a cheap phone.
+   * Doing it here overlaps that cost with the wait for the email instead of
+   * stacking it on top of the tap the feeder is watching.
+   *
+   * Deliberately fire-and-forget for transient failures: the verify step calls
+   * `getDeviceToken()` again and will retry then. The two permanent failures are
+   * the exception — if this browser cannot do Web Crypto at all, saying so now is
+   * far kinder than letting someone type a code that cannot possibly be
+   * accepted, so those overwrite the "code sent" message.
+   */
+  const warmDeviceToken = async () => {
+    if (readCachedDeviceToken()) return;
+    const outcome = await getDeviceToken();
+    if (!outcome.ok && (outcome.reason === "insecure-context" || outcome.reason === "no-web-crypto")) {
+      setStatus(deviceTokenFailureMessage(outcome.reason));
+    }
+  };
+
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -44,6 +60,7 @@ export default function LoginPage(): React.JSX.Element {
       setExpiresAt(res.expiresAt);
       setStep("code");
       setStatus(res.devCode ? `Dev build — your code is ${res.devCode}` : "Code sent to your email.");
+      void warmDeviceToken();
     } catch (err) {
       setStatus(err instanceof ApiError ? err.message : "Could not send the code.");
     } finally {
@@ -51,18 +68,55 @@ export default function LoginPage(): React.JSX.Element {
     }
   };
 
+  /**
+   * Submits the OTP with an attested device token, retrying once with a freshly
+   * minted token if the server says it does not recognise the one we sent.
+   *
+   * The realistic cause of BAD_DEVICE_TOKEN on a well-formed token is a
+   * HETJA_DEVICE_SECRET rotation, which invalidates every token cached in every
+   * browser at once. Without this retry, the fix for that would be "ask every
+   * feeder to clear their site data".
+   *
+   * The retry is safe *because of the order of the checks in auth.ts*: the device
+   * token is verified (line 73) BEFORE the OTP is consumed (line 80), so a
+   * rejection on that ground has not burned the code the feeder just typed. If
+   * that order is ever reversed, this retry starts quietly eating one-time codes
+   * and must go.
+   */
+  const submitVerify = async (deviceToken: string) => {
+    const base = {
+      email: email.trim(),
+      code: code.trim(),
+      consentVersion: CONSENT_VERSION,
+      isMinor: false,
+    };
+    try {
+      return await api.verifyOtp({ ...base, deviceToken });
+    } catch (err) {
+      if (!isBadDeviceTokenError(err)) throw err;
+      clearCachedDeviceToken();
+      const fresh = await getDeviceToken();
+      if (!fresh.ok) throw err;
+      return await api.verifyOtp({ ...base, deviceToken: fresh.token });
+    }
+  };
+
   const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setStatus("Verifying…");
     try {
-      const res = await api.verifyOtp({
-        email: email.trim(),
-        code: code.trim(),
-        deviceToken: getDeviceToken(),
-        consentVersion: CONSENT_VERSION,
-        isMinor: false,
-      });
+      // Usually instant: either the token is cached, or the mint kicked off when
+      // the code was requested has already finished (`getDeviceToken` shares one
+      // in-flight solve rather than starting a second).
+      setStatus("Confirming this device…");
+      const device = await getDeviceToken();
+      if (!device.ok) {
+        setStatus(deviceTokenFailureMessage(device.reason));
+        return;
+      }
+
+      setStatus("Verifying…");
+      const res = await submitVerify(device.token);
       setAccessToken(res.accessToken);
       router.push("/me");
     } catch (err) {

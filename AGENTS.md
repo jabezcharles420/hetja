@@ -6,7 +6,7 @@ expected result next to it — if a check fails, stop and fix it before moving o
 
 **Read [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) first.** It explains what
 the system does and why it is shaped this way. This file is the operational
-half. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) lists the fourteen rules the
+half. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) lists the fifteen rules the
 code is not allowed to break, several of which CI enforces.
 
 ## a. If you are just developing, you do not need a server
@@ -81,11 +81,12 @@ the repo** — cloning gets you no secrets.
 | `HETJA_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. Peppers `identity_hmac` (INVARIANT 3). |
 | `HETJA_QR_SECRET` | api | **CARRY OVER — see the warning below.** |
 | `HETJA_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
-| `DEVICE_POW_DIFFICULTY` | api | Default `18` (ALTCHA v2 PoW); 18–20 is the right range. |
+| `DEVICE_POW_DIFFICULTY` | api | Default `16` (ALTCHA v2 PoW), max `20`. Lowered from 18 on 2026-08-14 — ALTCHA encodes difficulty as a hex prefix, so 18 rounded **up** to 20 effective bits, which the scan-app solver could not finish inside its own 20 s budget (measured 4/10 solves; 16 gives 25/25 at ~1 s). What actually bounds abuse is INVARIANT 7's 2/day + 5/week cap, not the PoW: a native solver does 2^20 in ~1.5 s. See `docs/HOW-IT-WORKS.md` §9. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | api | **Generate once**: `npx web-push generate-vapid-keys`. Subject is a `mailto:`. Rotating these invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` | api | Brevo → SMTP & API. **The API refuses to boot in production without these** — deliberately, because the original bug was generating login codes and silently sending them nowhere. |
 | `MAIL_FROM` | api | `no-reply@hetja.in`. Must be on a domain with SPF/DKIM/DMARC or mail lands in spam. |
-| `TRUST_PROXY` | api | Hop count to the real client through Caddy, usually `1`. |
+| `HETJA_LEDGER_SIGNING_JWK` / `_KID` / `HETJA_LEDGER_SIGNER_ID` | api file, read by **worker** | Optional. Signs the daily ledger anchor (INVARIANT 10). Private Ed25519 JWK as one-line JSON; generate with `generateLedgerKeyPair()` and **publish the public half at a JWKS path**, or a signature verifies against nothing. Unset ⇒ anchors publish unsigned, which is degraded but honest. They live in the api env file because `hetja-worker.service` loads it as its `EnvironmentFile`. Never put this in a restic repo a third party stores. |
+| `TRUST_PROXY` | api | Hop count to the real client through Caddy, **usually `1`**. Defaults to `0`, and at `0` Fastify ignores `X-Forwarded-For` entirely — so `request.ip` stays loopback and the Caddy `CF-Connecting-IP` rewrite is inert. Unlike the five secrets above there is no `requireInProd` guard for it, so a missing value fails silently. |
 | `CORS_ORIGINS` | api | Production origins, comma-separated. |
 | `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` or `S3_*` | api | `local` or `s3`. |
 | `NEXT_PUBLIC_API_URL` | web | Public API origin. |

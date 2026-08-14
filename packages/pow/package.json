@@ -1,0 +1,17 @@
+{
+  "name": "@hetja/pow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ALTCHA v2 SHA-256 proof-of-work solver shared by apps/scan and apps/web — zero dependencies, Web Crypto only",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}

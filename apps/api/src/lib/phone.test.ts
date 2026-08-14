@@ -12,6 +12,14 @@ describe("normalizeIndianPhone (enhancement stack §G.3)", () => {
   it("normalizes fixed-line numbers (landlines are care providers too)", () => {
     // Bombay SPCA's Parel landline shape — /mobile metadata would reject this.
     expect(normalizeIndianPhone("022 2493 9005")).toBe("+912224939005");
+    // The exact shape that broke migration 0013: a landline typed with the
+    // trunk 0 and no separators. 0013's UPDATEs only matched 10-digit mobiles
+    // (^[6-9]…), so this stayed unprefixed, its CHECK constraint was silently
+    // skipped on the production cluster, and 0013 can never be retried. Fixed
+    // in SQL by 0015_care_phone_e164_retry.sql; asserted here because this is
+    // the value the two implementations have to agree about.
+    expect(normalizeIndianPhone("02224137518")).toBe("+912224137518");
+    expect(normalizeIndianPhone("2224137518")).toBe("+912224137518");
   });
 
   it("returns null for unparseable or foreign numbers", () => {

@@ -16,12 +16,20 @@
  * 4. a tampered/forged challenge is rejected (BAD_CHALLENGE).
  * 5. an expired challenge is rejected (CHALLENGE_EXPIRED).
  * 6. a solution that does not satisfy the PoW is rejected (BAD_POW).
+ * 7. a device token must be CANONICALLY encoded -- the regression test for the
+ *    bug where one PoW solve bought unlimited INVARIANT 7 budget.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Challenge } from "altcha-lib";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { effectivePowDifficulty, solvePoW } from "../lib/device.js";
+import {
+  deviceTokenSubject,
+  effectivePowDifficulty,
+  issueDeviceToken,
+  solvePoW,
+  verifyDeviceToken,
+} from "../lib/device.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -79,10 +87,11 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
   it(
     "issues a challenge, mints a token from a solved PoW, and that token is accepted by POST /api/v1/reports",
     async () => {
-      // DEVICE_POW_DIFFICULTY defaults to 18 (enhancement stack Phase 0 #6),
-      // rounded up by ALTCHA's hex-prefix encoding to 20 effective bits
-      // (~2^19 average attempts); the tail is heavy, so the test gets a real
-      // timeout.
+      // DEVICE_POW_DIFFICULTY defaults to 16, which ALTCHA's hex-prefix
+      // encoding leaves at 16 effective bits (~2^16 expected attempts). It was
+      // 18 -- i.e. 20 effective bits -- until the browser solver in apps/scan
+      // was measured as unable to finish 2^20 inside its own 20s budget. The
+      // tail is heavy either way, so the test keeps a real timeout.
       const app = buildServer(config);
 
       const { challenge, difficulty } = await fetchChallenge(app);
@@ -234,5 +243,88 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().error.code).toBe("BAD_POW");
+  });
+});
+
+/**
+ * Canonical device-token encoding (INVARIANT 6/7).
+ *
+ * `Buffer.from(s, "base64url")` silently discards every character outside the
+ * base64 alphabet, padding included. So a minted token and its `=`, `==`,
+ * newline, space, tab and `!` suffixed variants all decode to identical bytes,
+ * recompute an identical HMAC, and used to all verify -- while remaining
+ * distinct strings. Since routes/sos.ts keyed its INVARIANT 7 cap query and
+ * its idempotency key on the *string*, one proof-of-work solve yielded an
+ * unbounded family of device identities, each granted a fresh 2/day + 5/week
+ * SOS budget, and each report pages real responders' phones.
+ *
+ * `deviceTokenSubject` closes it by requiring the decoded bytes to re-encode
+ * to exactly the submitted string.
+ */
+// Every one of these decodes, under Node's base64url decoder, to byte-for-byte
+// the same bytes as the unmodified prefix -- asserted below rather than
+// asserted-by-comment, so this stays true if Node's decoder ever changes.
+const NON_CANONICAL_SUFFIXES = ["=", "==", "\n", "\r\n", " ", "\t", "!", "!!", "-=", "*"];
+
+describe("device token canonical encoding (INVARIANT 6/7)", () => {
+  it("rejects every non-canonical re-encoding of a token it just minted", () => {
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    expect(verifyDeviceToken(token, config.HETJA_DEVICE_SECRET)).toBe(true);
+
+    const dot = token.indexOf(".");
+    const base = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+
+    for (const suffix of NON_CANONICAL_SUFFIXES) {
+      const label = JSON.stringify(suffix);
+
+      // Establish the premise first: this variant really is the same bytes, so
+      // the HMAC really does still match. A rejection therefore proves the
+      // canonical round-trip check fired -- not that we happened to corrupt
+      // the signature.
+      expect(
+        Buffer.from(base + suffix, "base64url").equals(Buffer.from(base, "base64url")),
+        `premise: ${label} must decode to the same bytes`,
+      ).toBe(true);
+
+      const mutated = `${base}${suffix}.${sig}`;
+      expect(verifyDeviceToken(mutated, config.HETJA_DEVICE_SECRET), `variant ${label} must be rejected`).toBe(false);
+      expect(deviceTokenSubject(mutated, config.HETJA_DEVICE_SECRET), `variant ${label} must yield no subject`).toBe(
+        null,
+      );
+    }
+  });
+
+  it("yields one canonical subject per device, and that subject is the deviceId rather than the token", () => {
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const subject = deviceTokenSubject(token, config.HETJA_DEVICE_SECRET);
+
+    // A UUID -- the deviceId issueDeviceToken drew -- and specifically NOT the
+    // bearer token: the HMAC half is never stored, so a leak of
+    // scans.device_token cannot be replayed as an attested token.
+    expect(subject).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(subject).not.toBe(token);
+    expect(token).toContain(Buffer.from(subject!, "utf8").toString("base64url"));
+
+    // Stable across calls, and distinct per mint -- the two properties a
+    // rate-limit subject has to have.
+    expect(deviceTokenSubject(token, config.HETJA_DEVICE_SECRET)).toBe(subject);
+    expect(deviceTokenSubject(issueDeviceToken(config.HETJA_DEVICE_SECRET), config.HETJA_DEVICE_SECRET)).not.toBe(
+      subject,
+    );
+  });
+
+  it("still rejects the ordinary failures: wrong secret, no dot, empty id, tampered signature", () => {
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const dot = token.indexOf(".");
+
+    expect(verifyDeviceToken(token, "a-different-device-secret")).toBe(false);
+    expect(verifyDeviceToken(token.replace(".", ""), config.HETJA_DEVICE_SECRET)).toBe(false);
+    expect(verifyDeviceToken(`.${token.slice(dot + 1)}`, config.HETJA_DEVICE_SECRET)).toBe(false);
+    expect(verifyDeviceToken(`${token.slice(0, dot)}.`, config.HETJA_DEVICE_SECRET)).toBe(false);
+    expect(verifyDeviceToken("", config.HETJA_DEVICE_SECRET)).toBe(false);
+    // Non-canonical in the signature half too: the signature is compared
+    // against a canonically-encoded expected value, so padding it mismatches.
+    expect(verifyDeviceToken(`${token}=`, config.HETJA_DEVICE_SECRET)).toBe(false);
   });
 });

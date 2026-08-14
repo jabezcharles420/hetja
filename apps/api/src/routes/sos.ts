@@ -17,7 +17,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
-import { verifyDeviceToken } from "../lib/device.js";
+import { deviceTokenSubject } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { getNearbyCare } from "./care.js";
 
@@ -136,6 +136,18 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     }
     const { dogSlug, severity, note, deviceToken } = parsed.data;
 
+    // INVARIANT 6/7: `deviceSubject` — the canonical deviceId the token
+    // attests — is the rate-limit subject, and the ONLY device-derived value
+    // this route is allowed to key on. Never `deviceToken` as submitted: the
+    // token string is not a canonical name for a device (Node's base64 decoder
+    // ignores padding and non-alphabet bytes, so `tok`, `tok=` and `tok!` all
+    // authenticate as the same device while being different strings). Keying
+    // the cap query and the dedupe key on the string handed each variant its
+    // own fresh 2/day + 5/week budget off a single proof-of-work solve, and
+    // each of those reports pages real responders. `deviceTokenSubject` now
+    // also refuses non-canonical encodings outright, so both halves are shut.
+    const deviceSubject = deviceToken ? deviceTokenSubject(deviceToken, app.config.HETJA_DEVICE_SECRET) : null;
+
     const rawAuth = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
     let feederId: string | null = null;
     if (rawAuth.startsWith("Bearer ")) {
@@ -146,7 +158,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           .status(401)
           .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
       }
-    } else if (!deviceToken || !verifyDeviceToken(deviceToken, app.config.HETJA_DEVICE_SECRET)) {
+    } else if (!deviceSubject) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
@@ -154,7 +166,10 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
 
     // INVARIANT 5: deterministic client_uuid → replay of the same report is
     // idempotent (a re-submit while a case is open/acked never double-opens).
-    const dedupeKey = deterministicUuid("sos-report", [deviceToken ?? "", dogSlug, severity, note ?? ""].join("|"));
+    // Keyed on `deviceSubject`, not the token string, for the same reason the
+    // cap below is: otherwise re-encoding the token also defeats the dedupe,
+    // and one held report re-submits as an unbounded family of new cases.
+    const dedupeKey = deterministicUuid("sos-report", [deviceSubject ?? "", dogSlug, severity, note ?? ""].join("|"));
 
     let result: { created: boolean; caseId: string; tier: number };
     try {
@@ -173,14 +188,17 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           return { created: false, caseId: replay.id, tier: replay.tier };
         }
 
-        // INVARIANT 7 — per-token caps apply to anon reports only.
+        // INVARIANT 7 — per-device caps apply to anon reports only. `$1` is
+        // the canonical deviceId (see `deviceSubject` above), which is also
+        // what the INSERT below writes into scans.device_token, so the count
+        // and the rows it counts agree on what identifies a device.
         if (!feederId) {
           const counts = await client.query<{ today: number; week: number }>(
             `SELECT count(*) FILTER (WHERE received_at >= date_trunc('day', now()))::int AS today,
                     count(*) FILTER (WHERE received_at >= date_trunc('week', now()))::int AS week
              FROM scans
              WHERE scan_type = 'sos' AND device_token = $1`,
-            [deviceToken],
+            [deviceSubject],
           );
           if (counts.rows[0].today >= SOS_DAILY_CAP || counts.rows[0].week >= SOS_WEEKLY_CAP) {
             throw new SosRateLimitError();
@@ -200,12 +218,19 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         const dog = dogRes.rows[0];
         if (!dog) throw new SosDogNotFoundError();
 
+        // scans.device_token stores the canonical deviceId, NOT the bearer
+        // token. Two consequences worth stating: the cap query above can no
+        // longer be defeated by re-encoding the token string, and a database
+        // leak no longer hands out replayable attested tokens, because the
+        // HMAC half is not stored. Existing rows hold whole raw tokens; the
+        // caps are rolling 1-day/7-day windows, so those age out on their own
+        // and no migration is required (see docs/INVARIANTS.md #7).
         const scanRes = await client.query<{ id: string }>(
           `INSERT INTO scans (dog_id, client_uuid, scan_type, device_token, captured_at, received_at, review_status)
            VALUES ($1, $2, 'sos', $3, now(), now(), 'pending')
            ON CONFLICT (client_uuid) DO NOTHING
            RETURNING id`,
-          [dog.id, dedupeKey, deviceToken ?? null],
+          [dog.id, dedupeKey, deviceSubject],
         );
         let scanId = scanRes.rows[0]?.id;
         if (!scanId) {

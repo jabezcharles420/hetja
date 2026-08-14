@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
-import { issueDeviceToken } from "../lib/device.js";
+import { deviceTokenSubject, issueDeviceToken } from "../lib/device.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { query, generateSlug } from "@hetja/db";
 
@@ -182,6 +182,104 @@ describe("POST /api/v1/reports (anon-attested)", () => {
       [dogId],
     );
     expect(Number(count.rows[0].n)).toBe(2);
+
+    await app.close();
+  });
+
+  /**
+   * INVARIANT 7 regression: the cap must not be resettable by rewriting the
+   * token string.
+   *
+   * Node's base64 decoder ignores padding and any non-alphabet character, so
+   * `tok`, `tok=`, `tok==`, `tok\n` and `tok!` all decoded to the same bytes
+   * and so all recomputed the same HMAC -- every one of them verified. But the
+   * cap query and the idempotency key were keyed on the submitted *string*, so
+   * each variant was a different `scans.device_token` value with its own fresh
+   * 2/day + 5/week budget. One proof-of-work solve therefore bought unbounded
+   * anonymous SOS, at zero marginal cost, and every report pages real
+   * responders' phones. The 429 below has to stay a 429 no matter how the
+   * attacker re-encodes the token they already hold.
+   */
+  it("cannot reset the anon cap by re-encoding the device token (padding-variant bypass)", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+
+    // Spend the legitimate 2/day budget.
+    for (const note of ["reencode one", "reencode two"]) {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/reports",
+        payload: { dogSlug, severity: "minor", note, deviceToken: token },
+      });
+      expect(res.statusCode).toBe(200);
+    }
+    const capped = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "reencode three", deviceToken: token },
+    });
+    expect(capped.statusCode).toBe(429);
+
+    const dot = token.indexOf(".");
+    const base = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+
+    for (const suffix of ["=", "==", "\n", " ", "!", "!!"]) {
+      const label = JSON.stringify(suffix);
+      // Premise: same decoded bytes, so the HMAC still matches and this used to
+      // sail through as a valid attestation for a "new" device.
+      expect(
+        Buffer.from(base + suffix, "base64url").equals(Buffer.from(base, "base64url")),
+        `premise: ${label} decodes to the same bytes`,
+      ).toBe(true);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/reports",
+        payload: {
+          dogSlug,
+          severity: "minor",
+          note: `bypass ${label}`,
+          deviceToken: `${base}${suffix}.${sig}`,
+        },
+      });
+      // Refused outright rather than merely rate-limited: a non-canonical
+      // token is not a token, so it never reaches the cap query at all.
+      expect(res.statusCode, `variant ${label} must not mint a fresh budget`).toBe(401);
+      expect(res.json().error.code).toBe("UNAUTHENTICATED_DEVICE");
+    }
+
+    // The two legitimate reports, and nothing the bypass added.
+    const count = await query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM sos_cases WHERE dog_id = $1`,
+      [dogId],
+    );
+    expect(Number(count.rows[0].n)).toBe(2);
+
+    await app.close();
+  });
+
+  it("records the canonical deviceId as the cap subject, not the bearer token", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "subject shape", deviceToken: token },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const row = await query<{ device_token: string }>(
+      `SELECT s.device_token FROM scans s JOIN sos_cases c ON c.scan_id = s.id WHERE c.id = $1`,
+      [res.json().data.caseId],
+    );
+    // The cap query and this column must agree on what names a device, or the
+    // count counts something other than the rows it is meant to count. Storing
+    // the deviceId rather than the whole token also means a leak of this column
+    // cannot be replayed as an attested token -- the HMAC half is never stored.
+    expect(row.rows[0].device_token).toBe(deviceTokenSubject(token, config.HETJA_DEVICE_SECRET));
+    expect(row.rows[0].device_token).not.toBe(token);
 
     await app.close();
   });

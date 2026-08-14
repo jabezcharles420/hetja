@@ -5,6 +5,19 @@
  * Token format: `<base64url(deviceId)>.<base64url(HMAC(secret, deviceId))>`
  * so attestation is stateless and self-contained. `deviceId` is a random UUID.
  *
+ * The token string is a *transport* encoding, never an identity. Callers that
+ * need a rate-limit subject must use `deviceTokenSubject()`, which returns the
+ * `deviceId` the token attests. Keying a limit on the submitted string instead
+ * was a real, verified INVARIANT 7 bypass: `Buffer.from(s, "base64url")`
+ * silently discards every character outside the base64 alphabet — padding,
+ * newlines, `!`, spaces, tabs — so `tok`, `tok=`, `tok==`, `tok\n` and `tok!`
+ * all decode to the same bytes, recompute the same HMAC, and used to all
+ * verify. Each was a distinct `scans.device_token` value, so one
+ * proof-of-work solve bought an unbounded number of fresh 2/day + 5/week
+ * budgets at zero marginal cost, and each report paged real responders'
+ * phones. `deviceTokenSubject()` closes both halves: it rejects non-canonical
+ * encodings outright, and it hands callers one canonical name per device.
+ *
  * Desktop-web fallback: proof-of-work, issued and verified with ALTCHA
  * (altcha-lib v2, algorithm `SHA-256`). The server issues a signed challenge
  * ({ parameters, signature } where `parameters.keyPrefix` encodes the required
@@ -24,17 +37,60 @@ export function issueDeviceToken(secret: string): string {
   return `${Buffer.from(deviceId).toString("base64url")}.${sig}`;
 }
 
-export function verifyDeviceToken(token: string, secret: string): boolean {
+/**
+ * Authenticates a device token and returns the canonical `deviceId` it
+ * attests — the value every INVARIANT 6/7 rate limit must key on — or `null`
+ * if the token was not minted by `issueDeviceToken` with this secret.
+ *
+ * Three checks, in order:
+ *
+ * 1. **Canonical encoding.** The decoded bytes are re-encoded and must
+ *    round-trip to exactly the submitted `deviceIdPart`. This is the load-
+ *    bearing one, and it is not about malformed input: Node's base64 decoder
+ *    ignores non-alphabet characters and padding, so a token and its padded /
+ *    whitespace-appended / punctuation-appended variants all decode to the
+ *    *same* bytes and therefore produce the *same* HMAC. Without this check
+ *    they all verify while remaining distinct strings, which is precisely what
+ *    turned one PoW solve into unlimited SOS budget (see the module header).
+ *    Node never emits `=` padding for `base64url`, so the round-trip rejects
+ *    padded forms too.
+ * 2. **UTF-8 canonical.** A `deviceId` we minted is an ASCII UUID, so decoding
+ *    to UTF-8 and re-encoding is lossless. Requiring that closes the same
+ *    many-to-one door at the byte→string boundary that check 1 closes at the
+ *    string→byte boundary, so the returned subject is a faithful name for
+ *    exactly one token.
+ * 3. **HMAC**, constant-time, over the decoded bytes.
+ */
+export function deviceTokenSubject(token: string, secret: string): string | null {
   const dot = token.indexOf(".");
-  if (dot <= 0) return false;
+  if (dot <= 0) return null;
   const deviceIdPart = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  const expected = createHmac("sha256", secret)
-    .update(Buffer.from(deviceIdPart, "base64url"))
-    .digest("base64url");
+
+  const decoded = Buffer.from(deviceIdPart, "base64url");
+  if (decoded.length === 0) return null;
+  if (decoded.toString("base64url") !== deviceIdPart) return null;
+
+  const deviceId = decoded.toString("utf8");
+  if (!Buffer.from(deviceId, "utf8").equals(decoded)) return null;
+
+  const expected = createHmac("sha256", secret).update(decoded).digest("base64url");
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+
+  return deviceId;
+}
+
+/**
+ * Boolean form, for callers that only gate on attestation and never use the
+ * token as an identity (auth.ts's OTP verify). Deliberately delegates to
+ * `deviceTokenSubject` so there is exactly one implementation of what "a valid
+ * device token" means — a second, laxer copy here is how the non-canonical
+ * bypass would come back.
+ */
+export function verifyDeviceToken(token: string, secret: string): boolean {
+  return deviceTokenSubject(token, secret) !== null;
 }
 
 /** ALTCHA v2 PoW algorithm this flow uses — plain SHA-256, solvable in any

@@ -94,12 +94,15 @@ for pkg in @hetja/ledger @hetja/contracts @hetja/db @hetja/api @hetja/worker @he
 done
 
 # ---------------------------------------------------------------------------
-# 3. Render + install the four systemd units.
+# 3. Render + install the systemd units — the four services plus the backup
+#    timer.
 # ---------------------------------------------------------------------------
 log "rendering systemd units (__REPO_ROOT__=$REPO_ROOT, __NODE_BIN__=$NODE_BIN)"
 
 for unit in ops/systemd/hetja-api.service ops/systemd/hetja-web.service \
-            ops/systemd/hetja-worker.service ops/systemd/hetja-scan.service; do
+            ops/systemd/hetja-worker.service ops/systemd/hetja-scan.service \
+            ops/systemd/hetja-restic.service ops/systemd/hetja-restic.timer \
+            ops/systemd/hetja-walg.service ops/systemd/hetja-walg.timer; do
   [ -f "$unit" ] || fail "missing unit template: $unit"
   name="$(basename "$unit")"
   sed -e "s#__REPO_ROOT__#${REPO_ROOT}#g" -e "s#__NODE_BIN__#${NODE_BIN}#g" \
@@ -112,6 +115,32 @@ assemble_release
 
 systemctl daemon-reload
 systemctl enable --now hetja-api hetja-web hetja-worker hetja-scan
+
+# The backup timer is enabled unconditionally, but the backup itself refuses to
+# run without /root/.backup-env (repository URL + credentials + restic password
+# file). Enabling it regardless is deliberate: a box whose timer is armed and
+# failing loudly is recoverable, whereas the previous state -- the timer existing
+# only on one hand-configured box while docs/CREDITS.md and ops/RUNBOOK.md
+# claimed a working daily backup -- meant a fresh box had no backups and nothing
+# said so. Enhancement stack §L.2.
+systemctl enable --now hetja-restic.timer
+
+# hetja-walg.timer is INSTALLED but deliberately NOT enabled here. Base backups
+# are useless without continuous WAL archiving, and turning that on needs
+# `archive_mode = on` plus a full PostgreSQL restart — a maintenance-window
+# decision, not something bootstrap should do to a running box. Enable it as
+# step 3 of ops/backup/wal-g.md, after step 2's restart.
+log "hetja-walg.timer installed but not enabled — see ops/backup/wal-g.md (needs a PG restart first)."
+
+if [ ! -r /root/.backup-env ]; then
+  log "WARN: /root/.backup-env is missing, so hetja-restic.service will fail on its first run."
+  log "WARN: backups are NOT running on this box until you create it — see ops/backup/wal-g.md."
+fi
+if command -v restic >/dev/null 2>&1; then
+  log "restic present: $(restic version 2>/dev/null | head -1)"
+else
+  log "WARN: restic is not installed on this box; hetja-restic.service cannot succeed."
+fi
 
 if [ -f ops/caddy/Caddyfile ]; then
   systemctl enable --now caddy 2>/dev/null || \

@@ -1,0 +1,42 @@
+[Unit]
+# Encrypted off-box backups (enhancement stack §L.2, Phase 1 #7). Runs
+# ops/backup/restic-backup.sh: pg_dump -Fc of the production database, plus the
+# .env.production secrets and the Caddy/PostgreSQL/systemd configs, into a
+# restic repository.
+#
+# This unit is committed deliberately. docs/CREDITS.md and ops/RUNBOOK.md both
+# asserted a "hetja-restic.timer (daily 02:15 IST)" that existed only on the
+# live box and in no committed file — so a fresh box provisioned from this repo
+# got no backups at all, while the docs said otherwise. That is the failure this
+# file closes.
+Description=Hetja encrypted backup (pg_dump + configs -> restic)
+Documentation=file://__REPO_ROOT__/ops/backup/wal-g.md
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_ROOT__
+ExecStart=/bin/bash __REPO_ROOT__/ops/backup/restic-backup.sh
+# The script reads /root/.backup-env itself (R2 credentials + repository URL)
+# and refuses to run if it is missing, rather than silently backing up nowhere.
+#
+# pg_dump of the live database competes with the API for a 2 GB box's memory,
+# and AGENTS.md §g records that an unbounded build has OOM-killed the live
+# services here before. Cap it, and deprioritise it against anything serving
+# a request.
+MemoryHigh=200M
+MemoryMax=350M
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+NoNewPrivileges=true
+PrivateTmp=false
+# A failed backup must be loud. Type=oneshot + a non-zero exit marks the unit
+# failed, which is what an uptime/heartbeat check should be watching for --
+# a backup that has been silently failing for a month is worse than none,
+# because you believe you have one.
+TimeoutStartSec=3600
+
+[Install]
+WantedBy=multi-user.target

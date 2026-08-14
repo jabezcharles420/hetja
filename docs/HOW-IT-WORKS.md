@@ -2,7 +2,7 @@
 
 This document is the one to read first. The [README](../README.md) says *why*
 Hetja exists; [AGENTS.md](../AGENTS.md) says how to get it running on a fresh
-machine; [INVARIANTS.md](INVARIANTS.md) lists the fourteen rules the system is
+machine; [INVARIANTS.md](INVARIANTS.md) lists the fifteen rules the system is
 not allowed to break. This one explains the thing itself: what happens when a
 stranger scans a dog's collar, what happens when they say the dog is hurt, and
 what is holding all of that up.
@@ -434,7 +434,13 @@ for macOS.
   points (12 exact-geocoded as of the 2026-08-14 import).
   See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
   incoming government vet database is meant to close.
-- `DEVICE_POW_DIFFICULTY` is 18 (~2^17 avg hashes, ~0.5 s on the altcha-lib client solver; heavy tail on unlucky draws). Raised from 14 on 2026-08-13 (enhancement stack Phase 0 #6); 18–20 is the right range, 20 is the ceiling for the current solver budget. Device challenges are ALTCHA v2 (HMAC-signed, single-use) since 2026-08-14.
+- `DEVICE_POW_DIFFICULTY` is **16**, capped at 20. It went 14 → 18 on 2026-08-13 (enhancement stack Phase 0 #6) and 18 → 16 on 2026-08-14, which needs explaining because it reads like a retreat.
+
+  ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits — so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead — the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.
+
+  Two measurements are worth recording because they change how much the number matters. First, hashing was never the bottleneck: the old solver yielded with `setTimeout(0)` after every 48-hash batch, and the browser's 4 ms clamp on nested timers made the *yields* ~90% of the wall clock (0.009 ms/hash of real work versus 0.32 ms/hash with the timer tax). That is fixed independently by yielding on a 16 ms wall-clock budget via `MessageChannel`, which is ~900× cheaper per yield. Second, the PoW is not what bounds abuse at either setting — a native `createHash` loop on this box does ~696k hashes/s, i.e. 1.5 s per token at 20 bits and 0.09 s at 16. What bounds abuse is INVARIANT 7's 2/day + 5/week cap per attested device, and that cap was **not being enforced at all** until 2026-08-14: Node's base64 decoder ignores non-alphabet characters, so `tok`, `tok=`, `tok==` and `tok!` all verified as the same device while counting as three different rate-limit subjects. One solve bought unlimited SOS budget at any difficulty. Treat the PoW as a throttle; the cap is the gate.
+
+  Device challenges are ALTCHA v2 (HMAC-signed parameters, single-use per process lifetime) since 2026-08-14.
 - The git history still contains the old working title in commit messages.
   Rewriting it invalidates every SHA, so it happens once, last.
 
@@ -452,5 +458,5 @@ than pretend to send an email. Every one of those was a bug where the software
 looked like it was working. On a system whose failure mode is a dog dying
 untreated, looking like it works is the most dangerous state available.
 
-The fourteen [invariants](INVARIANTS.md) are the codified version of that, and
+The fifteen [invariants](INVARIANTS.md) are the codified version of that, and
 several of them are enforced by CI rather than by good intentions.

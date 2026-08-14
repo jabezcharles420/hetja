@@ -41,29 +41,72 @@
  * (no `await` between the has/check and the set, so the check-then-set is
  * atomic within this process) immediately after a solution verifies, and a
  * challenge already present is rejected with CHALLENGE_REUSED. Entries live
- * in the cache for CHALLENGE_TTL_MS plus slack, so a spent challenge cannot
- * be replayed even in the last moments before it expires.
+ * in the cache for CHALLENGE_TTL_MS plus slack, so a spent challenge stays
+ * rejected for the rest of its own validity -- as long as this process keeps
+ * running.
  *
- * The registry is process-local. That is the right trade-off here: the API
+ * That last clause is the actual guarantee, and this comment used to overstate
+ * it: it said "a spent challenge cannot be replayed even in the last moments
+ * before it expires" flat out, which is stronger than the code delivers.
+ * `spentChallenges` is a plain in-process LRU with no durability. A restart, a
+ * deploy, or an OOM kill inside the 120s challenge TTL empties it, and a held
+ * (challenge, solution) pair then mints a second token. That is not
+ * theoretical on this box -- AGENTS.md §g records `next build` OOM-killing
+ * live services on 2 GB -- so the honest property is "single-use per process
+ * lifetime", and a mint straddling a restart can double.
+ *
+ * Why that is documented rather than fixed here: the blast radius is one extra
+ * token per held solution per restart, and what a token actually buys is
+ * bounded by INVARIANT 7's 2/day + 5/week cap keyed on the canonical deviceId
+ * (lib/device.ts's `deviceTokenSubject`, routes/sos.ts). A duplicate mint buys
+ * one extra budget for the price of a fresh PoW solve. Until 2026-08-14 the
+ * same file's non-canonical-base64url bug bought *unlimited* budget off ONE
+ * solve with no restart involved, so restart-durability is the far smaller of
+ * the two holes.
+ *
+ * Making it genuinely durable needs a table, which needs a migration this file
+ * cannot carry: `app_user` holds USAGE on schema `public` but not CREATE
+ * (AGENTS.md §f), so a lazy `CREATE TABLE IF NOT EXISTS` at boot would fail as
+ * the application role -- and a durability mechanism that silently does
+ * nothing is worse than a comment that admits the gap. The shape when someone
+ * adds it: `spent_challenges (signature TEXT PRIMARY KEY, expires_at
+ * TIMESTAMPTZ NOT NULL)`, then replace the has/set pair below with one
+ * `INSERT ... ON CONFLICT (signature) DO NOTHING RETURNING signature` -- the
+ * primary key makes the check-then-set atomic across processes AND restarts
+ * with no advisory lock needed -- and sweep `expires_at < now()` from the
+ * worker's retention job. One extra write per mint, on a path that already
+ * costs the client a proof-of-work solve, so the cost is noise.
+ *
+ * The registry being process-local is otherwise the right trade-off: the API
  * runs as a single service (one systemd unit, one process), the entries live
  * only as long as the challenge is valid (~2 minutes), and there is no Redis
- * in the stack. A multi-replica deployment would need a shared store; the
- * enhancement stack doc's durable fix ("a server-side spent set, TTL'd past
- * challenge expiry") is exactly what this is, scoped to the running process.
+ * in the stack. A multi-replica deployment would need the shared store above.
  *
  * SECURITY NOTES (read before touching DEVICE_POW_DIFFICULTY, config.ts):
  *
- * - Difficulty is weak today, by design of the existing default, not this
- *   change. DEVICE_POW_DIFFICULTY defaults to 14 bits -- ~2^14 = 16,384
- *   SHA-256 attempts, a few *milliseconds* on any real CPU. For a token
- *   whose entire job is being the rate-limit subject for INVARIANT 7 (anon
- *   SOS capped 2/day, 5/week per token), that is barely a speed bump.
- *   As of 2026-08-13 (enhancement stack Phase 0 #6) the shipped default IS
- *   18 bits and the production .env.production carries DEVICE_POW_DIFFICULTY=18.
- *   ALTCHA's hex-prefix encoding rounds this UP to 20 effective bits, still
- *   inside the 18-20 range the doc recommends and under the 20-bit ceiling
- *   for the desktop solver. Do not raise past 20 without revisiting the
- *   solver budget and the mobile attestation path.
+ * - Difficulty is a bot speed bump, NOT the anti-abuse mechanism, and it is
+ *   important not to confuse the two. History: the default was 14 bits, was
+ *   raised to 18 on 2026-08-13 (enhancement stack Phase 0 #6), and is 16 as
+ *   of 2026-08-14. ALTCHA's hex-prefix encoding rounds the configured number
+ *   UP to a nibble boundary, so 18 was really 20 effective bits -- ~2^20
+ *   crypto.subtle digests, which the apps/scan browser solver could not finish
+ *   inside its own 20s budget, so anonymous attestation silently degraded to
+ *   "couldn't confirm the report automatically" on the life-safety path. 16
+ *   rounds to 16 exactly, which the solver clears with real headroom on a slow
+ *   phone. The reasoning and the measurements live on the field in config.ts;
+ *   read that before changing this. `.max(20)` there is a hard ceiling now:
+ *   the difficulty becomes a `"0".repeat(bits/4)` hex prefix, so an unbounded
+ *   typo (`180`) made every mint unsolvable with no boot error at all.
+ *
+ * - What actually bounds abuse is INVARIANT 7's 2/day + 5/week cap, and that
+ *   cap only holds because lib/device.ts's `deviceTokenSubject` rejects
+ *   non-canonical base64url and routes/sos.ts keys the cap on the canonical
+ *   deviceId rather than on the submitted token string. Before that fix, ONE
+ *   solve at any difficulty -- 14, 18 or 20 bits -- bought unlimited SOS
+ *   budget, because `tok`, `tok=`, `tok==` and `tok!` all verified as valid
+ *   tokens while counting as four different devices. Difficulty was never
+ *   what was holding the line: on this box a native SHA-256 loop runs ~696k
+ *   h/s, i.e. ~1.5s per token at 20 bits and ~0.09s at 16.
  *
  * - Nothing in this file logs the challenge, nonce, counter, or minted token.
  */

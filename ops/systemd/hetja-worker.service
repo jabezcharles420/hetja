@@ -1,8 +1,14 @@
 [Unit]
 Description=Hetja Worker (job queue)
-# The database is managed (Supabase), so there is no local postgresql.service
-# to order against — see AGENTS.md. Only the network needs to be up.
-After=network.target
+# The authoritative database is a LOCAL PostgreSQL on this box (AGENTS.md §b).
+# An earlier version of this comment said it was managed Supabase and that
+# "there is no local postgresql.service to order against" — the same stale
+# claim that AGENTS.md was corrected for in 15a89e9, left behind here. Ordering
+# after postgresql.service matters on a cold boot: without it the worker starts
+# while PostgreSQL is still coming up, fails its first connections, and relies
+# on Restart=always to paper over it.
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple

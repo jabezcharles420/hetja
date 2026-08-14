@@ -6,19 +6,20 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ledger:verify": "dist/cli.js"
+    "ledger:verify": "dist/cli.js",
+    "ledger:keygen": "dist/keygen.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "verify": "node dist/cli.js"
+    "verify": "node dist/cli.js",
+    "keygen": "node dist/keygen.js"
   },
   "devDependencies": {
     "@types/node": "^26.2.0"
   },
   "dependencies": {
-    "jose": "^6.2.8",
-    "merkletreejs": "^0.6.0"
+    "jose": "^6.2.8"
   }
 }

@@ -1,0 +1,26 @@
+{
+  // Mirrors apps/scan/tsconfig.json on purpose, and is the stricter of the two
+  // consumers' configs (apps/web does not set noUncheckedIndexedAccess). If
+  // this package compiles here it compiles in both apps.
+  //
+  // `"types": []` is load-bearing, not tidiness: it means @types/node is NOT in
+  // scope, so a well-meant `import { createHash } from "node:crypto"` or a
+  // stray `Buffer` fails to compile here rather than at `esbuild` time in
+  // apps/scan — where it would either break the build or (worse) bundle a
+  // Node shim into the 40 KB budget. This package must run in a browser with
+  // nothing but Web Crypto and the DOM.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

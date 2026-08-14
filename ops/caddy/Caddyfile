@@ -33,9 +33,30 @@
 # (real_ip): cloudflared terminates the client connection at Cloudflare's edge
 # and forwards the caller's real address as CF-Connecting-IP. Without this
 # rewrite every stranger arrives at the API as 127.0.0.1 (the tunnel
-# connector), so @fastify/rate-limit would cap the whole city as one IP —
-# either under-limiting (everything through) or over-limiting (blocks
-# everyone). Enhancement stack §L.6 / §N.7.
+# connector). Enhancement stack §L.6 / §N.7.
+#
+# Be precise about what this buys, because an earlier version of this comment
+# was not: it said the rewrite exists so "@fastify/rate-limit would [not] cap
+# the whole city as one IP". There is no @fastify/rate-limit in this
+# repository — it is not a dependency of apps/api and is registered nowhere.
+# Nor should there be a general one: INVARIANT 6 rate-limits per account or per
+# attested device token and never per IP, deliberately, because Indian carrier
+# CGNAT puts hundreds of real subscribers behind one address.
+#
+# What the rewrite actually fixes today is request logging (apps/api's pino
+# serializer records request.ip) and any future per-IP flood cap on device-token
+# MINTING — bounding how many tokens an address can obtain is a different
+# subject from capping what a user may do, and is the one place an IP limit is
+# the right tool.
+#
+# Note also that `header_up` here REPLACES X-Forwarded-For rather than appending
+# to it, so a request that somehow arrives without CF-Connecting-IP gets an
+# empty header rather than its original value. That is the safe direction (an
+# empty value cannot be spoofed into a trusted one), and apps/api pins
+# `trustProxy` to a hop count rather than `true` so a forged header from a
+# non-proxy is ignored — but TRUST_PROXY must actually be set in
+# .env.production or Fastify ignores X-Forwarded-For entirely and request.ip
+# stays loopback. See apps/api/src/config.ts.
 (real_ip) {
 	header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 }
@@ -74,6 +95,49 @@ http://hetja.in {
 		}
 	}
 
+	# Feeder-uploaded dog photos. Served straight off disk by Caddy, not through
+	# the API: they are static bytes, and the 2 GB box should not stream them
+	# through Node.
+	#
+	# This block did not exist until 2026-08-14, which meant NO dog photo had
+	# ever been reachable. apps/web's dogPhotoUrl() builds
+	# `${NEXT_PUBLIC_API_URL}/${photoKey}` = https://api.hetja.in/photos/<id>.webp,
+	# apps/api registers no static handler at all (no @fastify/static anywhere),
+	# and the api.hetja.in vhost below had only the two /api/v1 handles and no
+	# catch-all — so every photo URL matched nothing. The feature had tests, a
+	# storage layer and an upload pipeline, and no way to look at the result.
+	#
+	# The path arithmetic is load-bearing: storage keys are `photos/<uuid>.<ext>`
+	# and storeLocal writes join(STORAGE_LOCAL_DIR, key), so with
+	# STORAGE_LOCAL_DIR=data/photos a file lands at data/photos/photos/<uuid>.<ext>.
+	# Rooting this handler at data/photos means URI /photos/<uuid>.<ext> resolves
+	# to exactly that. Change one and you must change the other.
+	#
+	# This is the ONLY absolute filesystem path in this file, and it is absolute
+	# because nothing templates the Caddyfile -- unlike ops/systemd/*.service,
+	# which bootstrap.sh renders __REPO_ROOT__ into, this file is installed
+	# verbatim. /root/hetja is where the API actually runs from (AGENTS.md §g:
+	# "api and worker run from the git checkout at /root/hetja"), and
+	# STORAGE_LOCAL_DIR is relative to the unit's WorkingDirectory, which is that
+	# same checkout. If the checkout ever moves, this line moves with it.
+	#
+	# Long-lived cache is safe here in a way it is not for /d/*: the filename is a
+	# random UUID, so the bytes at a given URL never change. This is also the one
+	# thing on the box that most wants caching — a dog photo is orders of
+	# magnitude larger than any JSON response, on a Mumbai 4G connection.
+	#
+	# Safe to serve publicly ONLY because the API now strips metadata server-side
+	# before writing (apps/api/src/lib/exif-strip.ts). Until that landed these
+	# files could carry the original camera's GPS, and publishing them would have
+	# defeated INVARIANT 2 through a channel the coarsening code never sees. If
+	# that strip is ever removed, remove this handler with it.
+	handle /photos/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		root * /root/hetja/data/photos
+		file_server
+	}
+
 	# Next.js static assets: content-addressed, immutable for a year.
 	handle /_next/static/* {
 		header Cache-Control "public, max-age=31536000, immutable"
@@ -110,5 +174,18 @@ http://api.hetja.in {
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}
+	}
+
+	# Dog photos. This vhost is the one that actually matters for them:
+	# apps/web/lib/api.ts builds photo URLs from NEXT_PUBLIC_API_URL, which
+	# .env.example sets to https://api.hetja.in — so before this block existed,
+	# every dog photo resolved to a hostname whose only two handlers were the two
+	# /api/v1 ones above, with no catch-all. See the matching block on hetja.in
+	# for the path arithmetic and why serving these publicly is safe.
+	handle /photos/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		root * /root/hetja/data/photos
+		file_server
 	}
 }

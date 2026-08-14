@@ -37,7 +37,12 @@ export function ChromeShell({
   return (
     <>
       {!bare && <Header />}
-      <main className="h-main">{children}</main>
+      {/* No className: `.h-main` was deleted along with the padding-bottom that
+       * moved to .h-footer-clear-nav, leaving a class name that matched no rule
+       * in any stylesheet. Left bare rather than re-added, because horizontal
+       * gutters belong to `.h-container` and the per-route page wrappers —
+       * padding here would double up on every one of them. */}
+      <main>{children}</main>
       {!bare && <InstallBanner />}
       {!bare && <BottomNav />}
       {/* The footer clears the bottom nav only where the nav actually renders —

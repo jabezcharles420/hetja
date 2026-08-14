@@ -38,7 +38,21 @@ export default function Footer({
         <nav className="h-footer-links" aria-label="Footer">
           {NAV_LINKS.map((link, i) => (
             <Fragment key={link.href}>
-              {i > 0 ? <span className="h-footer-dot">·</span> : null}
+              {/* aria-hidden: this is a purely visual separator between links.
+                * Without it a screen reader announces "middle dot" between every
+                * footer link, which is noise standing between the user and the
+                * links themselves. It is also why axe reports a `color-contrast`
+                * INCOMPLETE here (#e4e4e4 on #ffffff = 1.27:1) rather than a
+                * violation -- SC 1.4.3 does not apply to decorative text, and a
+                * separator the assistive layer cannot see needs no contrast
+                * ratio. The other decorative glyphs in this codebase
+                * (Content.module.css's check marks) were already aria-hidden;
+                * this one was missed. */}
+              {i > 0 ? (
+                <span className="h-footer-dot" aria-hidden="true">
+                  ·
+                </span>
+              ) : null}
               <Link href={link.href}>{link.label}</Link>
             </Fragment>
           ))}

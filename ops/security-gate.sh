@@ -17,14 +17,122 @@ check() {  # check <desc> <cmd...>
 # cover both; "identity_hmac"/"phone_hmac" survive because \b does not match
 # between "phone"/"email" and the following "_" (underscore counts as a word
 # character, so there is no boundary there).
-check "no bare 'phone' or 'email' column in migrations" \
-  bash -c "! grep -riE 'CREATE TABLE.*(phone|email)\b|\b(phone|email)\s+(TEXT|VARCHAR)' packages/db/migrations/ 2>/dev/null"
+#
+# That \b exemption is load-bearing and it also had a hole. It was written to
+# let `phone_hmac` through -- but it equally let through `phone_e164`, which is
+# a genuinely bare plaintext phone number, and `0013_phone_e164.sql` writes to
+# it. So the gate that exists to enforce INVARIANT 3 could not see the one
+# column in the schema that violates its spirit.
+#
+# Fixed by checking the suffix rather than the word boundary: a contact column
+# is acceptable only if what follows is `_hmac` (or `_enc`, for the field-level
+# encryption in enhancement stack §G.5 that has not landed yet). Anything else
+# -- `phone_e164`, `phone_raw`, `email_address` -- is reported.
+#
+# KNOWN_PLAINTEXT_CONTACT below is an explicit, narrow allowlist for columns
+# that exist today and are not yet encrypted. It is deliberately a visible list
+# rather than a looser regex: the point of naming them is that the next person
+# reading this gate learns they are unencrypted, instead of the gate silently
+# passing and implying they are not.
+#
+# care_providers.phone_e164 is the published contact number of a vet or NGO --
+# an organisation's directory listing, not a private individual's number, and it
+# is meant to be tapped by a stranger standing over an injured dog. That is why
+# it is a tracked exception rather than a blocking failure.
+#
+# Encrypting it was evaluated (enhancement stack Top-25 #14, tweetnacl-js
+# secretbox) and DECLINED on 2026-08-14: encrypting published information on a
+# life-safety read path buys nothing and adds a failure mode. The coordinate half
+# of that same recommendation was declined for a harder reason -- the columns are
+# GIST-indexed GEOGRAPHY and ST_DWithin cannot run on ciphertext. Full reasoning
+# in docs/INVARIANTS.md -> "Spec corrections" #4.
+#
+# So this entry is a settled decision, not a backlog item. It is still printed on
+# every run because a reader of this gate should know the column is plaintext.
+KNOWN_PLAINTEXT_CONTACT='care_providers?\.?phone_e164|alt_phone_e164|phone_e164'
 
-# No secret-looking strings committed (API keys, private keys)
-check "no private keys in repo" \
-  bash -c "! grep -rE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' --include='*' . 2>/dev/null | grep -v node_modules"
-check "no sk- API keys in repo" \
-  bash -c "! grep -rE 'sk-[A-Za-z0-9]{20,}' --include='*.ts' --include='*.json' --include='*.env*' . 2>/dev/null | grep -v node_modules"
+bare_contact_hits() {
+  # Column declarations whose name starts with phone/email but does not
+  # continue with _hmac / _enc, minus the tracked exceptions.
+  grep -rniE '^[[:space:]]*(phone|email)[a-z0-9_]*[[:space:]]+(TEXT|VARCHAR|CITEXT)' \
+    packages/db/migrations/ 2>/dev/null \
+    | grep -viE '(phone|email)[a-z0-9_]*_(hmac|enc)[[:space:]]' \
+    | grep -viE "$KNOWN_PLAINTEXT_CONTACT"
+}
+
+if [ -n "$(bare_contact_hits)" ]; then
+  echo "FAIL: bare contact-info column in migrations (INVARIANT 3)"
+  bare_contact_hits | sed 's/^/       /'
+  fail=1
+else
+  echo "PASS: no untracked bare 'phone'/'email' column in migrations"
+fi
+
+# Report the tracked exceptions every run, so they stay visible rather than
+# becoming permanent by being quiet.
+tracked=$(grep -rniE "[[:space:]]($KNOWN_PLAINTEXT_CONTACT)[[:space:]]+(TEXT|VARCHAR|CITEXT)" \
+  packages/db/migrations/ 2>/dev/null | wc -l | tr -d ' ')
+if [ "${tracked:-0}" -gt 0 ]; then
+  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- published vet/NGO directory numbers; encryption evaluated and declined, see docs/INVARIANTS.md 'Spec corrections' #4"
+fi
+
+# No secret-looking strings committed (API keys, private keys).
+#
+# Driven from `git ls-files`, not a recursive walk of the working tree. The
+# previous form was `grep -rE ... --include='*' .` piped into `grep -v
+# node_modules`, which is wrong in two ways: it walked node_modules, .git, .next
+# and every dist/ directory before discarding the matches (measured 7.6s on this
+# tree, and it grows with every dependency), and post-filtering by path meant a
+# match inside an excluded directory still had to be read and matched first.
+#
+# Tracked files are also the correct SET to check. This gate's claim is "no
+# secret is COMMITTED"; an untracked local key file is not a committed secret,
+# and .gitignore already covers .env / *.local. Scanning what git tracks makes
+# the check say exactly what it means.
+#
+# -I skips binary files; -z / --null pairs with -0 so paths containing spaces
+# survive. `|| true` on the grep keeps a clean run (exit 1 = no matches) from
+# tripping `set -u` semantics in the check helper.
+scan_tracked() { # pattern, then optional pathspecs
+  local pattern=$1; shift
+  git ls-files -z -- "$@" \
+    | xargs -0 -r grep -IlE "$pattern" 2>/dev/null \
+    || true
+}
+
+if [ -n "$(scan_tracked 'BEGIN (RSA|OPENSSH|EC|PRIVATE|ENCRYPTED) PRIVATE KEY')" ]; then
+  echo "FAIL: private key material in a tracked file"
+  scan_tracked 'BEGIN (RSA|OPENSSH|EC|PRIVATE|ENCRYPTED) PRIVATE KEY' | sed 's/^/       /'
+  fail=1
+else
+  echo "PASS: no private keys in tracked files"
+fi
+
+if [ -n "$(scan_tracked 'sk-[A-Za-z0-9]{20,}' '*.ts' '*.tsx' '*.json' '*.env*' '*.md' '*.sh' '*.yml')" ]; then
+  echo "FAIL: sk- style API key in a tracked file"
+  scan_tracked 'sk-[A-Za-z0-9]{20,}' '*.ts' '*.tsx' '*.json' '*.env*' '*.md' '*.sh' '*.yml' | sed 's/^/       /'
+  fail=1
+else
+  echo "PASS: no sk- API keys in tracked files"
+fi
+
+# A private JWK is the shape the ledger anchor signer takes (see
+# apps/worker/src/sign-anchor.ts). An Ed25519 private JWK is recognisable by its
+# `d` member alongside `"kty":"OKP"`, and unlike a PEM block it carries no BEGIN
+# header for the check above to catch.
+if [ -n "$(scan_tracked '"kty"[[:space:]]*:[[:space:]]*"(OKP|EC|RSA)"' '*.json' '*.ts' '*.env*' '*.md')" ]; then
+  for f in $(scan_tracked '"kty"[[:space:]]*:[[:space:]]*"(OKP|EC|RSA)"' '*.json' '*.ts' '*.env*' '*.md'); do
+    # Only the PRIVATE half has "d". A published JWKS document is fine and
+    # expected -- that is the whole point of publishing the public key.
+    if grep -qE '"d"[[:space:]]*:[[:space:]]*"' "$f"; then
+      echo "FAIL: private JWK (has a \"d\" member) in tracked file $f"
+      fail=1
+    fi
+  done
+  [ "$fail" -eq 0 ] && echo "PASS: JWKs in tracked files are public halves only"
+else
+  echo "PASS: no JWK material in tracked files"
+fi
 
 # Env files must not be committed
 check "no .env committed" \

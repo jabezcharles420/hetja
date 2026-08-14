@@ -7,8 +7,11 @@
  *   - Bearer access token attached from localStorage when present
  *   - unwraps the `{ok: true, data}` envelope; throws ApiError on
  *     `{ok: false, error}` responses and transport failures
- *   - on 401 the stored token is cleared (session expired / invalid)
+ *   - on 401 the stored token is cleared, but only for requests that actually
+ *     sent it (see `sessionRejected` in `request`)
  */
+import type { PowChallenge, PowSolution } from "@hetja/pow";
+
 
 /**
  * Origin of the API, no path component. Asset URLs (dog photos) hang off this
@@ -110,13 +113,21 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const payload: unknown = await res.json().catch(() => null);
 
+  // A 401 only tells us something about the stored session if this request
+  // actually presented it. `auth: false` endpoints 401 for reasons that have
+  // nothing to do with the access token -- `/devices/token` answers 401 for
+  // BAD_POW and CHALLENGE_EXPIRED, and `/auth/verify` answers 401 for
+  // BAD_DEVICE_TOKEN -- and wiping the session on those would silently sign a
+  // feeder out because an unrelated proof-of-work expired.
+  const sessionRejected = res.status === 401 && auth;
+
   if (isErrorEnvelope(payload)) {
-    if (res.status === 401) clearAccessToken();
+    if (sessionRejected) clearAccessToken();
     throw new ApiError(payload.error.message, { status: res.status, code: payload.error.code });
   }
 
   if (!res.ok) {
-    if (res.status === 401) clearAccessToken();
+    if (sessionRejected) clearAccessToken();
     throw new ApiError(`Request failed (HTTP ${res.status})`, { status: res.status });
   }
 
@@ -169,6 +180,19 @@ export interface Story {
   paragraph: string;
   moderatedAt: string | null;
   createdAt: string;
+}
+
+/** What `POST /api/v1/devices/challenge` answers. `difficulty` is the effective
+ * leading-zero-bit count the server rounded the configured DEVICE_POW_DIFFICULTY
+ * up to; the solver only needs `challenge.parameters.keyPrefix`, so it is carried
+ * here for diagnostics rather than for the solve. */
+export interface DeviceChallengeResult {
+  challenge: PowChallenge;
+  difficulty: number;
+}
+
+export interface DeviceTokenResult {
+  deviceToken: string;
 }
 
 export interface OtpRequestResult {
@@ -230,6 +254,27 @@ export const api = {
   /** Anonymous moderated micro-stories for a dog. */
   getDogStories: (slug: string) =>
     request<{ stories: Story[] }>(`/dogs/${encodeURIComponent(slug)}/stories`, { auth: false }),
+
+  /**
+   * Ask for an ALTCHA proof-of-work challenge to attest this device.
+   *
+   * `auth: false` and no body: the route is deliberately unauthenticated (it is
+   * how a browser with no session at all gets its first credential), and it
+   * ignores the request body entirely.
+   */
+  requestDeviceChallenge: () =>
+    request<DeviceChallengeResult>(`/devices/challenge`, { method: "POST", auth: false }),
+
+  /**
+   * Exchange a solved challenge for an attested device token.
+   *
+   * 401s here are about the proof of work, not about any session: BAD_POW,
+   * CHALLENGE_EXPIRED, CHALLENGE_REUSED. The challenge must be handed back
+   * byte-identical to what the server issued — it carries an HMAC over its own
+   * parameters, so re-serialising a mutated copy fails with BAD_CHALLENGE.
+   */
+  requestDeviceToken: (input: { challenge: PowChallenge; solution: PowSolution }) =>
+    request<DeviceTokenResult>(`/devices/token`, { method: "POST", body: input, auth: false }),
 
   /** Request an OTP for an email address. Dev builds echo devCode. */
   requestOtp: (email: string) =>

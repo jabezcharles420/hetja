@@ -68,6 +68,26 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # A documentation-only commit does not need to rebuild apps/web on a runner,
+    # rsync a release, rebuild the API on a 2 GB box that has OOM-killed the live
+    # services before, apply migrations to two databases and restart all four
+    # units. It did all of that until now, because this trigger had no filter.
+    #
+    # GitHub skips the workflow only when EVERY changed path matches, so a commit
+    # touching both a doc and a source file still deploys. Note what is
+    # deliberately NOT ignored: ops/**, .github/** and the systemd units all
+    # affect the box, so they must keep deploying.
+    #
+    # This also matters for anything that commits to main on a schedule. Upptime
+    # (enhancement stack Top-25 #25) writes response-time data and graphs back
+    # into its own repository on every check -- installing it in THIS repository
+    # would have redeployed production every few minutes. That is why Upptime
+    # belongs in a separate repo, which is how upstream ships it anyway.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
 
 # Never run two deploys at once against the same box; let one finish
 # (including any rollback) before the next starts.
@@ -227,6 +247,20 @@ jobs:
 
       - name: Scan bundle size gate (<40 KB gzipped)
         run: pnpm --filter @hetja/scan size:gate
+
+      # The gates below were added to ci.yml in wave 3 but never mirrored here,
+      # so the two workflows had divergent gate sets and NEITHER was a superset:
+      # ci.yml lacked the size gate, deploy.yml lacked these three. The
+      # deploy path is the one that actually reaches production, so a gate
+      # missing here is the more expensive half of that mistake.
+      - name: Contrast gate (WCAG-AA on design tokens)
+        run: bash ops/contrast-gate.sh
+
+      - name: Caddy cache-policy gate (life-safety no-store on /d/*)
+        run: bash ops/check-caddy-cache.sh
+
+      - name: systemd wiring gate (every unit is installed by bootstrap.sh)
+        run: bash ops/check-systemd.sh
 
   # =========================================================================
   # MIGRATE -- fail closed on anything destructive. medical_records is

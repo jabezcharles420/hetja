@@ -1,0 +1,89 @@
+# Dependency update PRs (enhancement stack §Q Top-25 #24, §L.5).
+#
+# Dependabot rather than Renovate, deliberately: the enhancement-stack doc's own
+# advice is to "start with Dependabot (free, zero-config); switch to Renovate the
+# day you find yourself merging five identical bump-next PRs." Renovate's
+# monorepo grouping is genuinely better, but it is a hosted app to install and
+# configure, and this repository does not yet have the PR volume to justify it.
+#
+# Both run on GitHub's infrastructure, which is the property that matters here:
+# AGENTS.md §g records that an unbounded build has OOM-killed the live services
+# on this 2 GB box, so dependency resolution must never happen on it.
+#
+# Every PR these open runs the full ci.yml gate set (typecheck, tests against a
+# real PostGIS database, security gate, EXPLAIN gate, contrast gate, Caddy
+# cache-policy gate, systemd wiring gate, and the 40 KB scan budget). That is the
+# point: an automated bump that breaks an invariant fails before a human reads it.
+version: 2
+updates:
+  # ---------------------------------------------------------------------------
+  # npm / pnpm. One entry per workspace package: Dependabot does not follow
+  # pnpm-workspace.yaml, so a single root entry would silently ignore every
+  # dependency in apps/* and packages/* — which is all of them.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/apps/api"
+      - "/apps/web"
+      - "/apps/scan"
+      - "/apps/worker"
+      - "/packages/contracts"
+      - "/packages/db"
+      - "/packages/design"
+      - "/packages/ledger"
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "04:00"
+      timezone: Asia/Kolkata
+    # Weekly, not daily, and capped: this is a small team and a queue of 30 open
+    # bump PRs is reviewed as carefully as a queue of zero.
+    open-pull-requests-limit: 5
+    groups:
+      # Patch and minor bumps of everything, in one PR per ecosystem run. These
+      # are the ones where CI passing is genuinely most of the review.
+      routine:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      # Majors get their own PR each, because a major is a reading task.
+      major:
+        patterns: ["*"]
+        update-types: ["major"]
+    ignore:
+      # Next 14 -> 15 is an App Router migration, not a bump. Deliberate, not
+      # neglect: revisit when someone has time to read the upgrade guide.
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      # apps/scan has a hard 40 KB gzipped budget (INVARIANT 13) and exactly one
+      # runtime dependency. A major bump of it is a bundle-size decision that the
+      # size gate will catch, but which should be made on purpose rather than
+      # merged from a green PR.
+      - dependency-name: web-vitals
+        update-types: ["version-update:semver-major"]
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions. Pinning drift here is a supply-chain question, not a
+  # feature question — a compromised third-party action in ci.yml or deploy.yml
+  # runs with this repository's deploy secrets (DEPLOY_SSH_KEY, the Supabase
+  # password). Worth keeping current.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "04:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(actions)"

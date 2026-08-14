@@ -16,8 +16,8 @@ external build guide that lived outside the repo.
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check per device token |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
-| 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock |
-| 10 | Daily published anchor | ✅ (API) | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job |
+| 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
+| 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`** — the head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
 | 11 | DPDP erasure = PII delete, chain stays valid | 🔶 design | pseudonymous actor IDs in chain; runbook documents erasure |
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
 | 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
@@ -25,6 +25,59 @@ external build guide that lived outside the repo.
 | 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate + `trust.test.ts` (serial rejects pause provisional feeder) |
 
 Legend: ✅ done + tested · 🔄 in flight · 🔶 designed/documented
+
+### Invariant 10 was marked ✅ against a job that could not run
+
+Worth recording, because it is the most instructive failure found in the
+2026-08-14 audit. The row above said `✅ (API)` and cited the worker's
+`anchor_ledger` job. Two things were true at once:
+
+1. The job's query was
+   `SELECT hash_curr AS hash, count(*)::int AS n FROM medical_records ORDER BY created_at DESC LIMIT 1`
+   — an aggregate beside a bare column with no `GROUP BY`. PostgreSQL rejects
+   that outright, so every invocation threw and retried to `MAX_ATTEMPTS`.
+2. Nothing ever enqueued it. No cron, no systemd timer, no `INSERT … kind='anchor_ledger'`
+   anywhere in the repository.
+
+So the invariant most concerned with *being checkable by someone else* was
+itself unchecked, for the whole life of the row. Both are fixed — the query, and
+a worker-side idempotent scheduler that needs no scheduler state because the
+published anchor is itself the record of the last run. The status is now 🔄
+rather than ✅ because publishing to somewhere we do not control is still
+missing, which is the part that makes the anchor mean anything.
+
+The general lesson, and the reason this note exists rather than a silent status
+edit: a ✅ in this table is a claim, and a claim about a scheduled job is only as
+good as evidence that the job has run. `apps/worker` had **zero** tests before
+this audit, which is exactly how a query that PostgreSQL refuses to parse
+survived in a life-safety-adjacent codebase.
+
+### A numbering warning, before you grep
+
+**The table above is the canonical numbering.** But if you `grep "INVARIANT 9"`
+you will find it used for two different rules, and the older usage is the more
+common one:
+
+| Rule | Canonical (this table) | Also called, in code | Where |
+|---|---|---|---|
+| `medical_records` append-only | **8** | *9* | `0001_init.sql:151`, `0012_ledger_truncate_and_ownership.sql:3`, `ops/supabase/03_hardening.sql`, `ops/supabase/cutover.sh`, `ci.yml`, `deploy.yml`, `AGENTS.md §f`, `apps/api/vitest.setup.ts`, `docs/HOW-IT-WORKS.md` |
+| Hash inputs length-prefixed | **9** | *9* | `packages/ledger`, `0004_ledger_payload.sql` |
+
+`apps/api/src/routes/medical.ts` and `medical.test.ts` use the canonical
+numbering (8 = append-only, 9 = length-prefixed); almost everything older uses
+9 for append-only. Those historical comments have deliberately **not** been
+renumbered — `0001_init.sql` is the first migration in the repo and rewriting
+the reasoning in an applied migration's header to fix a citation number would
+make the file disagree with what was actually run, for no safety benefit.
+
+So: when you read "INVARIANT 9" in a migration or in CI, it means append-only.
+When you read it in `packages/ledger`, it means length-prefixed hashing. Both
+rules hold and both are tested; only the citation is ambiguous. New code should
+use the canonical numbers above.
+
+The count in `AGENTS.md` was also wrong for a while (it said "fourteen rules"
+against a fifteen-row table) — invariant 15 was added during implementation
+rather than coming from the original spec.
 
 ## Why this exists
 
@@ -80,12 +133,21 @@ spec PDFs directly. Migrated here so it survives independently of them.
    fallback on desktop web) and are capped at 2/day and 5/week per token.
    Without this, the SOS fan-out — which pages real people's phones — becomes
    a free mechanism for paging strangers at will.
-8. **Medical ledger chaining is on from the first migration.** Retrofitting a
-   hash chain over already-unchained history produces a genesis block whose
-   only honest meaning is "trust everything written before this point,"
-   which defeats the point of a tamper-evident chain for exactly the older
-   records an auditor would care about most.
-9. **Hash inputs are length-prefixed:**
+8. **`medical_records` accepts INSERT and nothing else — no UPDATE, no
+   DELETE, no TRUNCATE.** A dog's treatment history is evidence: it is what a
+   cruelty prosecution or a municipal audit rests on, and a record that can be
+   quietly amended afterwards proves nothing about what was known when. A
+   correction is a new row that supersedes an old one, never an edit to the old
+   one. TRUNCATE needed naming separately from UPDATE/DELETE because revoking
+   those two does not imply it, and because a table's owner holds TRUNCATE
+   regardless of GRANTs — that gap was real, and `0012` closes it with both a
+   REVOKE and a statement-level `BEFORE TRUNCATE` trigger.
+9. **The chain is on from the first migration, and its hash inputs are
+   length-prefixed.** Retrofitting a hash chain over already-unchained history
+   produces a genesis block whose only honest meaning is "trust everything
+   written before this point," which defeats the point of a tamper-evident
+   chain for exactly the older records an auditor would care about most. As for
+   the hash itself, inputs are length-prefixed:
    `SHA256(len‖hash_prev ‖ len‖payload ‖ len‖vet_id ‖ len‖ts)`. Bare
    concatenation of variable-length fields is ambiguous — e.g. `"ab"+"c"` and
    `"a"+"bc"` concatenate to the same string, so two different medical
@@ -167,3 +229,41 @@ in the table above:
    `hash_vet_id`, `hash_ts`) so verification is possible.
 3. **vets.feeder_id (0003)**: the vet registry must link to a feeder account
    so API callers resolve to their clinic + signing key.
+4. **Field-level encryption of coordinates is not implementable against this
+   schema, and is not needed.** The enhancement stack (§G.5, Top-25 #14)
+   recommends `tweetnacl-js` `secretbox` over `care_providers.phone`,
+   `dogs.exact_lat/lng` and device tokens, to close "the gap between
+   INVARIANT 3 and the columns INVARIANT 3 doesn't cover". Evaluated
+   2026-08-14 and **rejected**, for three separate reasons.
+
+   *The columns it names do not exist.* There is no `dogs.exact_lat/lng`.
+   Precise position lives in `dogs.last_seen_geo` and `feeders.last_known_geo`,
+   both `GEOGRAPHY(Point,4326)`.
+
+   *Encrypting them would break the SOS fan-out.* Those columns carry GIST
+   indexes (`dogs_geo_gix`, `feeders_sos_gix`, and `care_geo_gix` on
+   `care_providers.geo`), and the responder query is
+   `ST_DWithin(f.last_known_geo, $1::geography, 2000)`. You cannot run a
+   spatial predicate against a ciphertext, and you cannot index one. The only
+   alternative is to decrypt every candidate row in the application and compute
+   distance there — turning one indexed radius lookup into a full scan plus N
+   decryptions, on the life-safety path, on a 2 GB box. There are 22 such
+   references across `routes/care.ts`, `routes/sos.ts` and the worker's
+   escalation job. A change that makes the geofence slower or wrong in order to
+   encrypt the data the geofence exists to read is a bad trade at any price.
+
+   *The threat it addresses is already covered elsewhere.* The real risk was
+   precise coordinates leaving the box inside a backup handed to a third party.
+   `restic` encrypts client-side, so Cloudflare R2 only ever holds ciphertext
+   (`ops/backup/restic-backup.sh`). Against an attacker who has the database,
+   a symmetric key sitting in `.env.production` on the same box adds very
+   little — and INVARIANT 3's actual subject, contact information, is already
+   HMAC'd with a pepper held outside the database.
+
+   Not done for `care_providers.phone_e164` either, on separate grounds: that
+   is a vet or NGO's **published** directory number, printed so a stranger can
+   tap it while standing over an injured dog. Encrypting public information on
+   a life-safety read path buys nothing and adds a failure mode.
+   `ops/security-gate.sh` names it as an explicit tracked exception and prints
+   it on every run, so the decision stays visible rather than becoming
+   permanent by being quiet.

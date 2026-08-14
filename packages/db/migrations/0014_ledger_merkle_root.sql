@@ -1,0 +1,107 @@
+-- Hetja · migration 0014_ledger_merkle_root
+--
+-- Persists the Merkle root next to the chain head, which is the half of
+-- enhancement stack §D.1 (Top-25 #15) that was never built. `packages/ledger`
+-- has had `merkleRoot`/`merkleProof`/`verifyInclusion` (RFC 6962) and
+-- `signChainHead` for a while; nothing called them, so the requirement --
+-- "Merkle root over each dog's medical_records rows on each insert, persisted
+-- alongside the chain head", so that "an external auditor (court, municipal vet
+-- office) can verify a specific record's inclusion in O(log n) without seeing
+-- the whole table" -- was satisfied by a library and a test file, not by the
+-- database. A root that is recomputed on demand and never stored proves
+-- nothing: the party recomputing it is the party that could have rewritten the
+-- rows it is recomputing over.
+--
+-- WHERE "alongside the chain head" ACTUALLY IS. There is no chain-head table.
+-- The head of the medical chain is `medical_records.hash_curr` of the most
+-- recent row (see the head SELECT in apps/api/src/routes/medical.ts), and the
+-- published daily head is a row in `ledger_anchors` (INVARIANT 10). So the root
+-- gets persisted in both of those places, for two different scopes:
+--
+--   medical_records.merkle_root  -- the PER-DOG root, as of this row. Written
+--     in the same INSERT as hash_curr, under the same advisory lock, so the
+--     row's own leaf is included and no concurrent append can interleave.
+--   ledger_anchors.merkle_root   -- the GLOBAL root over the whole chain, as of
+--     the daily anchor. Same tree construction, all dogs.
+--
+-- Why storing the per-dog root on the row is worth anything, given the operator
+-- computes it: `medical_records` accepts INSERT and nothing else (INVARIANT 8 --
+-- 0001 REVOKEs UPDATE/DELETE, 0012 REVOKEs TRUNCATE and adds a BEFORE TRUNCATE
+-- trigger that binds even the owner). A root written at insert time therefore
+-- cannot be quietly recomputed later to match doctored history the way an
+-- on-demand root can. If a row is altered, the root recomputed from today's
+-- rows stops matching the root stored on the latest row, and the mismatch is
+-- what an auditor is shown (GET /api/v1/ledger/proof).
+--
+-- Both columns are NULLABLE and there is deliberately NO backfill:
+--
+--   * Rows written before this migration have no root, and inventing one now
+--     would mean computing it from data as it stands today -- i.e. attesting
+--     "this was the tree at insert time" about a tree we are seeing for the
+--     first time. That is exactly the retrofitted-genesis-block problem
+--     INVARIANT 9 calls out: an attestation whose only honest meaning is
+--     "trust everything written before this point".
+--   * An RFC 6962 tree is also not expressible in SQL without reimplementing
+--     the domain-separated leaf/node hashing (packages/ledger/src/merkle.ts) in
+--     pgcrypto, which would give the auditor a second, divergeable
+--     implementation of the thing being audited.
+--
+-- So `merkle_root IS NULL` means "written before 0014", which the proof
+-- endpoint reports as `attestedRoot: null` rather than as agreement. A null is
+-- not a pass.
+--
+-- Additive only: two ALTER TABLE ADD COLUMN, one ALTER TABLE ADD COLUMN on
+-- ledger_anchors, one CREATE INDEX. No DROP, no DELETE, no TRUNCATE, so no
+-- `-- MIGRATION-APPROVED:` marker is needed (and none should be added).
+
+-- ---------------------------------------------------------------------------
+-- 1. Per-dog Merkle root, written on append.
+-- ---------------------------------------------------------------------------
+ALTER TABLE medical_records
+  -- Hex SHA-256 (64 chars) of the RFC 6962 Merkle Tree Hash over every
+  -- medical_records row for THIS row's dog_id, in canonical chain order
+  -- (created_at ASC, id ASC), including this row. Leaf data is the row's own
+  -- hash_curr; leaves are hashed with the 0x00 prefix and internal nodes with
+  -- 0x01, so an internal node can never be replayed as a leaf. NULL for rows
+  -- inserted before this migration -- see the header.
+  ADD COLUMN IF NOT EXISTS merkle_root TEXT;
+
+-- ---------------------------------------------------------------------------
+-- 2. Anchor: the published root, the signature over it, and which ledger the
+--    signature is about.
+-- ---------------------------------------------------------------------------
+ALTER TABLE ledger_anchors
+  -- Global RFC 6962 root over every medical_records row at anchor time. Lets an
+  -- auditor holding one record + an inclusion proof check it against a value
+  -- published outside this database, which is the entire point of INVARIANT 10.
+  ADD COLUMN IF NOT EXISTS merkle_root TEXT,
+  -- Compact JWS (EdDSA/Ed25519) over {ledger, head, merkleRoot, recordCount}
+  -- from signChainHead(). NULL when no signing key is configured -- an
+  -- unsigned anchor is still published and still useful for comparison, it
+  -- just does not say WHO computed it. See apps/worker/src/sign-anchor.ts for
+  -- the env the operator must set, and why the job degrades instead of
+  -- refusing to publish.
+  ADD COLUMN IF NOT EXISTS head_signature TEXT,
+  -- The ledger identifier that head_signature commits to, stored so an
+  -- auditor can call verifyChainHead(token, key, { ledgerId }) without having
+  -- to guess it (verifyChainHead REQUIRES the caller to name the ledger, on
+  -- purpose: a head that does not name its ledger is only a statement about
+  -- *some* ledger). Today this is always the single global medical chain; it
+  -- is a column rather than a hardcoded constant in the verifier because
+  -- per-dog and per-vet anchors are the direction §D.1 is heading.
+  ADD COLUMN IF NOT EXISTS ledger_id TEXT;
+
+-- ---------------------------------------------------------------------------
+-- 3. The index the two new read paths need.
+--
+-- Both the append path (recompute this dog's root) and the proof endpoint
+-- (rebuild this dog's tree) read every row for one dog in canonical chain
+-- order. Without this they are a seq scan of the whole table plus a sort, per
+-- append -- and the append happens while holding the chain advisory lock, so
+-- that cost is paid by every concurrent writer, not just this one.
+--
+-- Column order matches the ORDER BY exactly (dog_id, created_at, id) so the
+-- sort disappears as well as the scan.
+-- ---------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS medical_records_dog_chain_ix
+  ON medical_records (dog_id, created_at, id);

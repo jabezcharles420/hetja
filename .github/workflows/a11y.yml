@@ -1,0 +1,106 @@
+name: a11y + mobile layout
+
+# A SEPARATE workflow from ci.yml on purpose.
+#
+# ci.yml's `quality` job is the gate everything else waits on: typecheck, unit
+# tests, security-gate, contrast-gate, the EXPLAIN gate. It already stands up a
+# PostGIS service container and applies every migration. Hanging a browser
+# download off it would add ~120 MB and a Chromium boot to the critical path of
+# every push, to check six static marketing pages that need no database at all.
+#
+# So this runs on its own, in parallel, with no Postgres service and no secrets.
+# The pages under test (/, /about, /privacy, /faq, /how-it-works, /contact) are
+# fully static: no API, no database, no NEXT_PUBLIC_* values needed to render
+# them. /dog/[slug] and /scan are deliberately NOT covered here — they need the
+# Fastify API and a real database, which is exactly the cost this split avoids.
+# See apps/web/e2e/routes.ts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run's answer irrelevant.
+concurrency:
+  group: a11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  a11y:
+    name: WCAG-AA + mobile layout (Chromium @390px)
+    runs-on: ubuntu-latest
+    env:
+      # AGENTS.md §c: pnpm is invoked through corepack, which resolves the
+      # version pinned in the root package.json's `packageManager`. On a
+      # non-interactive runner corepack would otherwise be able to stall on its
+      # "about to download pnpm@x, continue?" prompt; 0 makes that unconditional.
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      # No `version:` here on purpose: pnpm/action-setup@v4 reads
+      # `packageManager` from package.json, and passing both makes it fail with
+      # "Multiple versions of pnpm specified". Same reasoning as ci.yml.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      # pnpm/action-setup above is still needed even though every command below
+      # goes through corepack: `cache: pnpm` in setup-node resolves the store
+      # path by running `pnpm` from PATH.
+      - run: corepack pnpm install --frozen-lockfile
+
+      - name: Build @hetja/contracts
+        # apps/web imports `coarsenToWard` from @hetja/contracts, whose
+        # package.json points `main`/`types` at dist/, and dist/ is gitignored.
+        # On a clean checkout the Next dev compile of any route that reaches
+        # lib/photo.ts fails with "cannot find module @hetja/contracts". It is
+        # the only workspace library apps/web depends on (contracts itself needs
+        # nothing but zod), so unlike ci.yml this job does not need the full
+        # ledger -> contracts -> db chain.
+        run: corepack pnpm --filter @hetja/contracts build
+
+      - name: Cache the Playwright browser build
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          # Playwright's default download location on Linux.
+          path: ~/.cache/ms-playwright
+          # Keyed on the lockfile, because that is what pins the Playwright
+          # version, and a browser build is only valid for the Playwright
+          # release that asked for it. Bumping @playwright/test changes
+          # pnpm-lock.yaml and therefore misses the cache, which is correct.
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: corepack pnpm --filter @hetja/web exec playwright install --with-deps chromium
+
+      - name: Install Chromium's system libraries (cache hit path)
+        # The browser binary is cached under ~/.cache/ms-playwright; the apt
+        # packages it links against are NOT, because they live in /usr/lib and
+        # are reinstalled on every fresh runner image. On a cache hit we still
+        # need `install-deps`, or Chromium fails to launch with a missing .so.
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: corepack pnpm --filter @hetja/web exec playwright install-deps chromium
+
+      - name: a11y + mobile layout specs
+        # Playwright's own `webServer` starts `next dev` on 127.0.0.1:3211 and
+        # tears it down afterwards (apps/web/playwright.config.ts). CI must NOT
+        # set HETJA_E2E_BASE_URL: reusing an already-running server would risk
+        # testing stale code. `reuseExistingServer` is already false when CI=true.
+        run: corepack pnpm --filter @hetja/web test:e2e
+
+      - name: Upload the Playwright report
+        # Only on failure, and this is the whole point of uploading it: the
+        # report carries the axe advisory attachments, the trace, and the
+        # failure screenshot, which is what turns "gutter assertion failed on
+        # /about" into a fixable bug rather than a mystery.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          # Under build/ rather than the Playwright defaults — see the
+          # outputDir comment in apps/web/playwright.config.ts for why.
+          path: apps/web/build
+          retention-days: 14

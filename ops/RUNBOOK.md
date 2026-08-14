@@ -30,9 +30,73 @@ backlog age, push delivery-receipt rate.
 
 ## Daily ledger anchor
 
-The ledger head must be published daily (INVARIANT 10). Add a cron:
-`pnpm --filter @hetja/ledger anchor` → writes `ledger_anchors` row +
-publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
+The ledger head must be published daily (INVARIANT 10). **No cron is needed** —
+the worker enqueues `anchor_ledger` itself, idempotently, keying off the last
+published anchor rather than any scheduler state, guarded by
+`pg_try_advisory_xact_lock` so a second worker instance cannot double-enqueue.
+It writes a `ledger_anchors` row and serves it at `GET /api/v1/ledger/anchor`.
+
+An earlier version of this section told you to add a cron for
+`pnpm --filter @hetja/ledger anchor`. That script does not exist, and the job it
+was standing in for could not have run either: its query put an aggregate beside
+a bare column with no `GROUP BY`, which PostgreSQL rejects, so every attempt
+threw and retried to `MAX_ATTEMPTS`. Nothing enqueued it in the first place.
+Both fixed 2026-08-14; see `docs/INVARIANTS.md` for the write-up.
+
+**What is still not done, and it is the important half.**
+`ledger_anchors.published_url` is `''`. The head is computed, stored, and — with
+`HETJA_LEDGER_SIGNING_JWK` set — signed. It is not published anywhere outside
+this operator's control, and INVARIANT 10's entire reasoning is that "a hash
+chain that is computed and stored by the same party that could tamper with it
+proves nothing about tampering by that party". Until a head lands somewhere we
+cannot silently rewrite, this invariant is 🔄 and not ✅.
+`anchorMessage()` exists to feed such a channel.
+
+To turn signing on, on the box:
+
+```bash
+cd /root/hetja
+pnpm ledger:keygen                      # prints private env lines + the JWKS to publish
+pnpm ledger:keygen --env >> apps/api/.env.production   # or paste the two lines by hand
+pnpm ledger:keygen --jwks               # NOTE: a fresh pair each run -- see below
+systemctl restart hetja-worker
+curl -s http://127.0.0.1:8080/api/v1/ledger/anchor | grep -o '"signed":[a-z]*'
+```
+
+**Run `ledger:keygen` once and keep all three outputs from that single run.**
+Each invocation generates a new pair, so `--env` from one run and `--jwks` from
+another give you a private key and a public document that do not match, and every
+signature then verifies against nothing. Take the plain (no-flag) output, which
+prints the private lines and the matching JWKS together.
+
+Then **publish the JWKS**, or none of this means anything: an auditor reads `kid`
+from the JWS header and needs a document to look it up in. `did:web` resolution
+expects it at `https://hetja.in/.well-known/jwks.json` or the path named in the
+`sub` DID. Until it is served, `signed: true` only tells you we signed something.
+
+Rotation: generate a new pair, publish a JWKS containing **both** keys, then swap
+the env vars. Do not drop the retired public key — every anchor it ever signed
+becomes unverifiable, and that history is precisely what an auditor may want.
+
+### After any deploy that ran migration 0015
+
+`0015_care_phone_e164_retry.sql` adds the phone-format CHECK as `NOT VALID`:
+future writes are constrained unconditionally on both databases, while existing
+rows are validated only if every one of them already conforms. Which happened is
+recorded per-database, so check it rather than assuming:
+
+```bash
+psql -d hetja -c "SELECT conname, convalidated FROM pg_constraint
+                   WHERE conname = 'care_providers_phone_e164_valid_check';"
+```
+
+`convalidated = false` means at least one stored number is not E.164 and the
+migration printed the offending rows (with `id` and `name`, never the value — the
+deploy log is collaborator-readable). Fix those rows, then run the `VALIDATE
+CONSTRAINT` statement the migration's output gives you. Note the deliberate
+forcing function: while the constraint is `NOT VALID`, updating *any* column on a
+violating row fails the check — which puts the error in front of exactly the
+person editing that provider.
 
 ## PITR restore drill (monthly)
 
@@ -41,11 +105,41 @@ publishes the head hash to the public endpoint `GET /api/v1/ledger/anchor`.
    `scans`, `medical_records`; run `ledger:verify` against the restored chain.
 3. Record RTO (target < 4 h).
 
-Implemented since 2026-08-14: `ops/backup/restic-backup.sh` (encrypted restic
-snapshots of the nightly `pg_dump -Fc` plus `.env.production` and configs;
-daily 02:15 IST via `hetja-restic.timer`; repo at `/srv/hetja-backups/restic`,
-R2-ready via `/root/.backup-env`). WAL archiving with wal-g is staged but
-dormant until R2 credentials land — activation steps in `ops/backup/wal-g.md`.
+### Honest status of backups (read before trusting any of the above)
+
+`ops/backup/restic-backup.sh` exists and works: it takes a `pg_dump -Fc` of the
+production database plus `.env.production` and the Caddy/PostgreSQL/systemd
+configs, and stores encrypted restic snapshots. It is scheduled daily at 02:15
+IST by `ops/systemd/hetja-restic.timer`.
+
+Two things are **not** true yet, and were previously documented as though they
+were:
+
+1. **The repository is still local — `/srv/hetja-backups/restic`, on the same
+   disk it is backing up.** Until `/root/.backup-env` carries R2 credentials
+   this protects against a bad migration or an `rm`, and against nothing that
+   takes the box or its disk with it. It is not an off-box backup and should not
+   be counted as one in any RTO estimate.
+2. **WAL archiving with wal-g is staged but dormant**, so there is no
+   point-in-time recovery — only the nightly dump, i.e. up to 24 h of loss.
+   Activation steps are in `ops/backup/wal-g.md`, and they need the same R2
+   credentials.
+
+Until 2026-08-14 this section, and `docs/CREDITS.md`, described a
+`hetja-restic.timer` running daily at 02:15 IST. The timer was real, but it
+existed only on the live box: it was in no committed file, and neither
+`ops/bootstrap.sh` nor `ops/deploy-remote.sh` installed it. A box provisioned
+from this repository therefore had **no backups at all** while two documents
+said it had daily ones. Both units are now committed under `ops/systemd/`,
+installed by `bootstrap.sh`, and `ops/check-systemd.sh` fails CI if a committed
+unit is ever again left un-installed.
+
+**To finish this, the operator needs to do one thing:** create
+`/root/.backup-env` with a Cloudflare R2 bucket (the free tier is 10 GB, which
+is ample for a dump plus configs), then re-run the timer once by hand and
+confirm `restic snapshots` lists it. That single step turns both items above
+from false into true. Do not include the pepper or any KMS-held secret in a
+restic repository that a third party stores.
 
 ## Web Push (SOS responder notifications)
 
@@ -82,11 +176,34 @@ tell responders or pilot staff "you'll be paged" without qualifying it with
 home screen first."** This is a life-safety limitation; it is documented
 here on purpose, not smoothed over.
 
+## Audit logging (pgaudit)
+
+See [`docs/ops/AUDIT-LOGGING.md`](../docs/ops/AUDIT-LOGGING.md) for the install,
+the two non-obvious configuration decisions (`log_parameter = off`, bounded log
+rotation) and how it relates to the `medical_records` hash chain.
+
+**Status: documented, not applied to the box.** It needs
+`shared_preload_libraries` and therefore a full PostgreSQL restart, which drops
+every connection including any in-flight SOS write — a maintenance-window
+operation, not a deploy step. Nothing in this repository applies it, and that is
+deliberate: it is not a migration (see the doc for why a
+`CREATE EXTENSION pgaudit` migration would fail CI or silently no-op).
+
 ## DPDP erasure (INVARIANT 11)
 
-Erasure = DELETE the PII row (e.g. feeders.phone_hmac) while the ledger chain
+Erasure = DELETE the PII row (e.g. feeders.identity_hmac) while the ledger chain
 stays valid. The chain hashes pseudonymous actor IDs only — no personal data
 inside hashed payloads.
+
+What INVARIANT 11 does **not** yet have, and why it is still marked `🔶 design`
+in `docs/INVARIANTS.md`: there is no `audit_log` table and no redaction job. The
+designed shape (enhancement stack §G.9, §T.11) is an append-but-redactable table
+— a `redacted_fields` JSONB column, a `redact_at` timestamp, and a scheduled job
+that nulls fields past retention. It is deliberately **not** hash-chained,
+because satisfying an erasure request means altering an old row, which a chain
+would forbid. Also note `feeders.phone_hmac` was renamed `identity_hmac` in
+migration `0010_identity_email.sql`; this section said the old name until
+2026-08-14.
 
 ## Incident notes
 

@@ -89,14 +89,22 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
+/* The only horizontal gutter in the system. Anything that also lands on a
+ * `.h-container` element must set its vertical padding with `padding-block`, not
+ * the `padding` shorthand -- a second shorthand at equal specificity wins the
+ * whole property and resets this to zero. See the note on `.section` in
+ * components/Content.module.css for the regression that taught us. */
 .h-container {
   max-width: 1080px;
   margin: 0 auto;
   padding: 0 var(--h-gutter);
 }
 
+/* Currently only ever used on a <section> that wraps a separate `.h-container`
+ * child, so the shorthand did no harm -- longhand anyway, so that merging it
+ * onto a container element later cannot resurrect the gutter bug. */
 .h-section {
-  padding: var(--h-s8) 0;
+  padding-block: var(--h-s8);
 }
 
 /* --- Eyebrow / kicker label --------------------------------------------
@@ -423,11 +431,12 @@ summary:focus-visible,
   border-bottom: var(--h-hairline) solid var(--h-rule);
 }
 
+/* padding-block: shares an element with `.h-container` (app/page.tsx). */
 .h-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   text-align: center;
-  padding: var(--h-s7) 0;
+  padding-block: var(--h-s7);
 }
 
 .h-stats-row > div {
@@ -515,13 +524,15 @@ summary:focus-visible,
   border-top: var(--h-hairline) solid var(--h-rule);
 }
 
+/* padding-block: shares an element with `.h-container` (page.tsx, about,
+ * how-it-works). */
 .h-band-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: var(--h-s5);
-  padding: var(--h-s8) 0;
+  padding-block: var(--h-s8);
 }
 
 .h-band-title {

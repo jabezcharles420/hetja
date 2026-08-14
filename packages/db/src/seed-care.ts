@@ -8,6 +8,12 @@
  * rows seeded before that migration existed, without disturbing anything
  * else (notably phone_verified_at).
  *
+ * Every number in CARE_SEED must already be E.164 ("+91" + the 10-digit
+ * national number, landlines included). `assertSeedPhonesAreE164()` below
+ * refuses to seed otherwise, before the first INSERT — see its comment for why
+ * the check lives here in this shape rather than parsing with
+ * libphonenumber-js.
+ *
  * Every row ships `phone_verified_at = NULL`. None of these numbers have
  * been called to confirm they still work — phone_verified_at is set only
  * once a human actually rings the line (see the migration's comment on why
@@ -387,9 +393,86 @@ function geoWkt(lat: number, lng: number): string {
   return `SRID=4326;POINT(${lng} ${lat})`;
 }
 
+/**
+ * E.164: '+', a non-zero country-code digit, 8-15 digits total. Identical to
+ * the regex in `care_providers_phone_e164_valid_check`
+ * (0015_care_phone_e164_retry.sql) on purpose — this check exists to produce a
+ * good error message for the same rule the database enforces, not a second,
+ * subtly different rule.
+ */
+const E164_RE = /^\+[1-9][0-9]{7,14}$/;
+
+/**
+ * Refuses to seed if any number in CARE_SEED is not already E.164.
+ *
+ * This file is the only writer to `care_providers` today, and
+ * `care_providers.phone_e164` is the number a stranger taps while standing over
+ * an injured dog — a malformed one is a life-safety defect, not a
+ * data-quality one. The invariant is enforced by the database
+ * (`care_providers_phone_e164_valid_check`, added unconditionally by 0015 after
+ * 0013's version was silently skipped on production), so the seed cannot
+ * actually write a bad number even without this function. What this adds is the
+ * difference between:
+ *
+ *   error: new row for relation "care_providers" violates check constraint
+ *          "care_providers_phone_e164_valid_check"
+ *
+ * and being told which organisation, which field, and which value — BEFORE any
+ * row is written, so a bad edit does not abort a partially-applied seed.
+ *
+ * A SHAPE CHECK, NOT A VALIDITY CHECK, and the distinction is worth knowing:
+ * `apps/api/src/lib/phone.ts` (`normalizeIndianPhone`) validates against
+ * India's real numbering plan via libphonenumber-js and would also normalise
+ * '022 2413 7518' for you. It cannot be used here — `libphonenumber-js` is a
+ * dependency of `apps/api`, not of `packages/db`, and in this pnpm workspace
+ * that is a hard resolution failure, not a soft one:
+ *
+ *   $ cd packages/db && node -e "import('libphonenumber-js/min')"
+ *   Cannot find package 'libphonenumber-js' imported from packages/db
+ *
+ * Adding it here would mean a second copy of the metadata in a package that has
+ * no other need for it, so the seed asks only "is this already canonical?" and
+ * expects a human to have typed a canonical number. Which is the right ask for
+ * hand-curated data: this file is reviewed, and '+912224137518' with a citation
+ * next to it is a better artefact than '022 2413 7518' plus a parser.
+ */
+function assertSeedPhonesAreE164(): void {
+  const bad: string[] = [];
+  for (const row of CARE_SEED) {
+    for (const [field, value] of [
+      ["phone", row.phone],
+      ["altPhone", row.altPhone ?? null],
+    ] as const) {
+      if (value !== null && value !== undefined && !E164_RE.test(value)) {
+        bad.push(`  ${row.name} — ${field}: ${JSON.stringify(value)}`);
+      }
+    }
+  }
+  if (bad.length > 0) {
+    throw new Error(
+      [
+        `seed-care: ${bad.length} phone number(s) in CARE_SEED are not E.164, refusing to seed.`,
+        "",
+        ...bad,
+        "",
+        "Write them as +91 followed by the 10-digit national number, with no spaces:",
+        "  mobile   9820127085   -> +919820127085",
+        "  landline 022 2413 7518 -> +912224137518   (drop the trunk 0 from the STD code)",
+        "",
+        "This is the same rule care_providers_phone_e164_valid_check enforces",
+        "(packages/db/migrations/0015_care_phone_e164_retry.sql).",
+      ].join("\n"),
+    );
+  }
+}
+
 export async function seedCare(): Promise<{ inserted: number; skipped: number }> {
   let inserted = 0;
   let skipped = 0;
+
+  // Before the first INSERT, not per row: a bad number should stop the seed
+  // rather than leave half the directory written.
+  assertSeedPhonesAreE164();
 
   for (const row of CARE_SEED) {
     const res = await pool.query(

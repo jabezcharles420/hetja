@@ -39,11 +39,18 @@
  * collapsed into a boolean, so a caller can be told a number is unconfirmed
  * instead of it being silently hidden (plan §2.1/§3.4) — "a possibly-stale
  * number beats none, but the user is told which it is."
+ *
+ * Both numbers go through `dialable()` (below) before they leave this module, so
+ * what a caller renders as a `tel:` link is E.164 whenever the stored value can
+ * be parsed as a valid Indian number, and the stored value verbatim when it
+ * cannot. See that function for why a read-path normalisation is still needed
+ * given the CHECK constraint in 0015_care_phone_e164_retry.sql.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
 import { z } from "zod";
 import { query } from "@hetja/db";
+import { normalizeIndianPhone } from "../lib/phone.js";
 
 const MAX_RESULTS = 8;
 const MAX_KM_CAP = 25;
@@ -112,6 +119,43 @@ export interface NearbyCareProvider {
 
 function geoWkt(lat: number, lng: number): string {
   return `SRID=4326;POINT(${lng} ${lat})`;
+}
+
+/**
+ * Last stop before a phone number becomes a `tel:` link a stranger taps while
+ * standing over an injured dog. Returns the number in E.164 when it parses as a
+ * valid Indian number, and otherwise returns it EXACTLY as stored.
+ *
+ * Why this exists on the READ path, when the write side is constrained.
+ * `0015_care_phone_e164_retry.sql` puts a real E.164 CHECK on the column and
+ * enforces it on every future INSERT and UPDATE, so on a healthy database this
+ * function is a no-op — `normalizeIndianPhone("+912224137518")` returns its
+ * input. The case it covers is the one that actually happened: `0013` was
+ * supposed to normalise the column and silently skipped its constraint on the
+ * production cluster, so rows have sat there in national format
+ * ("02224137518") for as long as that has been true. 0015 rewrites the ones it
+ * can parse, but until it is applied — and for any row it declines to rewrite
+ * (see its collision handling) — the directory still hands the scan page a
+ * number in a form that only dials from an Indian SIM. Mumbai has a lot of
+ * visitors, and a `tel:` link that silently fails on a foreign handset is a
+ * dead end at the worst possible moment.
+ *
+ * NEVER returns null for a non-null input. An unparseable number is passed
+ * through rather than hidden: the directory's own rule is that "a
+ * possibly-stale number beats none, but the user is told which it is"
+ * (phone_verified_at), and the same logic holds harder for format — a number we
+ * cannot canonicalise is very likely still dialable, and blanking it is a
+ * guaranteed dead end in place of a probable connection.
+ *
+ * This is also where `libphonenumber-js` earns its place over the SQL in 0015:
+ * the migration matches shapes with anchored regexes, while `isValid()` checks
+ * the number against India's actual numbering plan, so a value that is
+ * E.164-SHAPED but not a real Indian number is not silently promoted by this
+ * function into looking canonical.
+ */
+function dialable(stored: string | null): string | null {
+  if (stored === null) return null;
+  return normalizeIndianPhone(stored) ?? stored;
 }
 
 // Canonical query — kept in lockstep with docs/queries/care_nearby.sql and
@@ -187,8 +231,8 @@ export async function getNearbyCare(
     name: row.name,
     kind: row.kind,
     costTier: row.cost_tier,
-    phoneE164: row.phone_e164,
-    altPhoneE164: row.alt_phone_e164,
+    phoneE164: dialable(row.phone_e164),
+    altPhoneE164: dialable(row.alt_phone_e164),
     hasAmbulance: row.has_ambulance,
     is24x7: row.is_24x7,
     hoursNote: row.hours_note,

@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "ledger:verify": "pnpm -C packages/ledger verify",
+    "ledger:keygen": "pnpm -C packages/ledger keygen",
     "db:migrate": "pnpm -C packages/db migrate",
     "db:seed": "pnpm -C packages/db seed",
     "lint": "pnpm -r lint",

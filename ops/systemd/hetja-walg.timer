@@ -1,6 +1,6 @@
 [Unit]
 Description=Hetja wal-g base backup (every 6h)
-Documentation=file://__REPO_ROOT__/ops/backup/wal-g.md
+Documentation=file://__REPO_ROOT__/ops/backup/BACKUPS.md
 
 [Timer]
 # Every 6 hours rather than the hourly the runbook first suggested. The recovery

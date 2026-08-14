@@ -129,12 +129,12 @@ systemctl enable --now hetja-restic.timer
 # are useless without continuous WAL archiving, and turning that on needs
 # `archive_mode = on` plus a full PostgreSQL restart — a maintenance-window
 # decision, not something bootstrap should do to a running box. Enable it as
-# step 3 of ops/backup/wal-g.md, after step 2's restart.
-log "hetja-walg.timer installed but not enabled — see ops/backup/wal-g.md (needs a PG restart first)."
+# step 3 of ops/backup/BACKUPS.md, after step 2's restart.
+log "hetja-walg.timer installed but not enabled — see ops/backup/BACKUPS.md (needs a PG restart first)."
 
 if [ ! -r /root/.backup-env ]; then
   log "WARN: /root/.backup-env is missing, so hetja-restic.service will fail on its first run."
-  log "WARN: backups are NOT running on this box until you create it — see ops/backup/wal-g.md."
+  log "WARN: backups are NOT running on this box until you create it — see ops/backup/BACKUPS.md."
 fi
 if command -v restic >/dev/null 2>&1; then
   log "restic present: $(restic version 2>/dev/null | head -1)"

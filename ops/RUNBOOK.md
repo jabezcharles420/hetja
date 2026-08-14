@@ -2,7 +2,7 @@
 
 Phase-0 operating procedures for the Hetja stack on the VPS (and the
 blueprint's production targets). Update as the platform moves to managed
-infra (Cloudflare R2, KMS, HA Postgres).
+infra (object storage, KMS, HA Postgres).
 
 **Authoritative database: managed Supabase.** `ops/supabase/*` is the source
 of truth for schema and hardening; there is no competing local-systemd
@@ -116,14 +116,16 @@ Two things are **not** true yet, and were previously documented as though they
 were:
 
 1. **The repository is still local — `/srv/hetja-backups/restic`, on the same
-   disk it is backing up.** Until `/root/.backup-env` carries R2 credentials
+   disk it is backing up.** Until `/root/.backup-env` carries a remote destination
    this protects against a bad migration or an `rm`, and against nothing that
    takes the box or its disk with it. It is not an off-box backup and should not
    be counted as one in any RTO estimate.
 2. **WAL archiving with wal-g is staged but dormant**, so there is no
-   point-in-time recovery — only the nightly dump, i.e. up to 24 h of loss.
-   Activation steps are in `ops/backup/wal-g.md`, and they need the same R2
-   credentials.
+   point-in-time recovery — only the nightly dump, i.e. up to 24 h of loss. On
+   the chosen destination it stays dormant: backups go to Google Drive via
+   rclone, and wal-g has no Drive backend. `ops/backup/BACKUPS.md` §5 documents
+   the middle option and is honest that it is worse than WAL going straight
+   off-box.
 
 Until 2026-08-14 this section, and `docs/CREDITS.md`, described a
 `hetja-restic.timer` running daily at 02:15 IST. The timer was real, but it
@@ -134,12 +136,23 @@ said it had daily ones. Both units are now committed under `ops/systemd/`,
 installed by `bootstrap.sh`, and `ops/check-systemd.sh` fails CI if a committed
 unit is ever again left un-installed.
 
-**To finish this, the operator needs to do one thing:** create
-`/root/.backup-env` with a Cloudflare R2 bucket (the free tier is 10 GB, which
-is ample for a dump plus configs), then re-run the timer once by hand and
-confirm `restic snapshots` lists it. That single step turns both items above
-from false into true. Do not include the pepper or any KMS-held secret in a
-restic repository that a third party stores.
+**To finish this, the operator needs to do one thing:** configure an rclone
+Google Drive remote and create `/root/.backup-env` pointing at it, then run the
+timer once by hand and confirm `restic snapshots` lists a snapshot. Full steps in
+`ops/backup/BACKUPS.md`. That turns item 1 above from false into true.
+
+Google Drive rather than Cloudflare R2 because R2 requires a payment method on
+file even for its free tier, and this project runs on nothing. restic encrypts
+client-side either way, so Google only ever holds ciphertext — which is also why
+a lost `RESTIC_PASSWORD_FILE` is an unrecoverable backup with no reset path.
+Store that password off this box and outside that Drive account.
+
+And the thing worth doing before any of it, because it takes ten seconds and
+closes the worst outcome: **put `HETJA_QR_SECRET` in a password manager.** It is
+the HMAC key baked into every QR code already glued to a dog, it exists in one
+gitignored file on one disk, and neither git nor the Supabase schema mirror can
+reproduce it. Losing the box loses data; losing that string bricks every collar
+in the field.
 
 ## Web Push (SOS responder notifications)
 

@@ -10,7 +10,7 @@
 # got no backups at all, while the docs said otherwise. That is the failure this
 # file closes.
 Description=Hetja encrypted backup (pg_dump + configs -> restic)
-Documentation=file://__REPO_ROOT__/ops/backup/wal-g.md
+Documentation=file://__REPO_ROOT__/ops/backup/BACKUPS.md
 After=network-online.target postgresql.service
 Wants=network-online.target postgresql.service
 

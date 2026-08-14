@@ -26,6 +26,14 @@ algorithm is adapted rather than installed, this file says so.
 | `merkletreejs` — Merkle inclusion proofs over the ledger chain | github.com/merkletreejs/merkletreejs | MIT | `packages/ledger/src/merkle.ts` | Per-append Merkle root over the chain's canonical record hashes (leaf = `LedgerRecord.hash`, so tree and chain agree); O(log n) `verifyInclusion` for external auditors. Tree uses `duplicateOdd`; proofs are extracted from the library's layers because its own proof walk drops the self-duplicate for the last leaf of odd trees. |
 | `panva/jose` — signed chain head (Ed25519/EdDSA) | github.com/panva/jose | MIT | `packages/ledger/src/signing.ts` | Compact JWS over `{head, merkleRoot, recordCount}` with `sub: did:web:hetja.in:vets/<vetId>`; keygen + JWK export so the public half can later be served at a `did:web` JWKS endpoint (`jwks()` helper). |
 
+## Wave 3 — Phase 1 pick 18 (feeder photo pipeline + web-vitals clients)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `fengyuanchen/compressorjs` — browser-side photo compress + EXIF strip | github.com/fengyuanchen/compressorjs | MIT | `apps/web/lib/photo.ts`, `apps/web/components/FeedButton.tsx` | Re-encodes through a fresh `<canvas>`: auto-orient (`checkOrientation`), WebP where supported else JPEG, quality 0.8, capped 1600px. `retainExif: false` + `strict: false` mean the output carries no EXIF/GPS (the lib's only EXIF re-insertion path is guarded by `retainExif`); verified again with exifr on the output before upload. Dynamic-imported so the initial dog page pays nothing. |
+| `MikeKovarik/exifr` — EXIF/GPS/orientation reader | github.com/MikeKovarik/exifr | MIT | `apps/web/lib/photo.ts` | Extracts orientation + GPS from the picked photo. GPS is coarsened to ward via `@hetja/contracts` `coarsenToWard` (INVARIANT 2) and feeds ward-level sighting data; the feeder's own device location stays the separate, consented `captureGeo` channel. Also used as the post-compression assertion that no GPS/orientation survived. |
+| `GoogleChrome/web-vitals` — client Core Web Vitals reporting | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/web/lib/web-vitals.ts` + `components/WebVitalsReporter.tsx`, `apps/scan/src/web-vitals.ts` | LCP/CLS/INP/TTFB beamed to `POST /api/v1/metrics/web-vitals` (§M.16) with slug-stripped paths (`/d/:slug`, `/dog/:slug` — never the real collar code). In `apps/scan` it is the one permitted dependency (~1.5 KB gz after tree-shaking; scan bundle stays far under the 40 KB budget). |
+
 ## Sources researched and evaluated (2026-08-13)
 
 Full evaluation of all researched projects — adopted, deferred, and rejected —

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { PwaBootstrap } from "@/components/PwaBootstrap";
 import { ChromeShell } from "@/components/ChromeShell";
+import { WebVitalsReporter } from "@/components/WebVitalsReporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <PwaBootstrap />
+        <WebVitalsReporter />
         <ChromeShell>{children}</ChromeShell>
       </body>
     </html>

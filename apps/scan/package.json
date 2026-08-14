@@ -14,5 +14,8 @@
   "devDependencies": {
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "web-vitals": "^6.1.0"
   }
 }

@@ -26,5 +26,9 @@ check "_next/static block immutable" yes "$(echo "$s" | grep -q 'immutable' && e
 api=$(block '/api/v1/*')
 check "api catch-all no-store" yes "$(echo "$api" | grep -q 'no-store' && echo yes || echo no)"
 
+# Real-IP fix (enhancement stack §L.6): cloudflared's CF-Connecting-IP must be
+# forwarded upstream, or every stranger looks like 127.0.0.1 to the rate limiter.
+check "CF-Connecting-IP forwarded upstream" yes "$(grep -q 'CF-Connecting-IP' "$CADDY" && echo yes || echo no)"
+
 [ "$fail" -eq 0 ] && echo "PASS: Caddy cache policy intact" && exit 0
 exit 1

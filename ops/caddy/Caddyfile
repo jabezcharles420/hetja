@@ -6,6 +6,16 @@
 	# forward). Explicit http:// site addresses keep auto-HTTPS off.
 	auto_https off
 	admin localhost:2019
+	# Trust Cloudflare's published edge ranges (module WeidiDeng/caddy-cloudflare-ip,
+	# enhancement stack §L.6). In tunnel mode cloudflared connects from loopback
+	# so this is future-proofing for CDN-direct mode; the live fix for tunnels is
+	# the header_up CF-Connecting-IP rewrite below.
+	servers {
+		trusted_proxies cloudflare {
+			interval 12h
+			timeout 15s
+		}
+	}
 }
 
 (common) {
@@ -18,6 +28,16 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
+}
+
+# (real_ip): cloudflared terminates the client connection at Cloudflare's edge
+# and forwards the caller's real address as CF-Connecting-IP. Without this
+# rewrite every stranger arrives at the API as 127.0.0.1 (the tunnel
+# connector), so @fastify/rate-limit would cap the whole city as one IP —
+# either under-limiting (everything through) or over-limiting (blocks
+# everyone). Enhancement stack §L.6 / §N.7.
+(real_ip) {
+	header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 }
 
 # Canonical origin. Everything is served from one hostname on purpose: the
@@ -34,29 +54,39 @@ http://hetja.in {
 	# matters: more specific handles first (care* before the API catch-all).
 	handle /api/v1/care* {
 		header Cache-Control "public, max-age=60, s-maxage=60"
-		reverse_proxy 127.0.0.1:8080
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
 	}
 	handle /api/v1/* {
 		header Cache-Control "no-store"
-		reverse_proxy 127.0.0.1:8080
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
 	}
 
 	# QR collar landing -- the URL etched on the collar:
 	#   https://hetja.in/d/<9-char-slug>?s=<hmac-sig>
 	handle /d/* {
 		header Cache-Control "no-store"
-		reverse_proxy 127.0.0.1:8081
+		reverse_proxy 127.0.0.1:8081 {
+			import real_ip
+		}
 	}
 
 	# Next.js static assets: content-addressed, immutable for a year.
 	handle /_next/static/* {
 		header Cache-Control "public, max-age=31536000, immutable"
-		reverse_proxy 127.0.0.1:3100
+		reverse_proxy 127.0.0.1:3100 {
+			import real_ip
+		}
 	}
 
 	# Next.js feeder PWA (everything else).
 	handle {
-		reverse_proxy 127.0.0.1:3100
+		reverse_proxy 127.0.0.1:3100 {
+			import real_ip
+		}
 	}
 }
 
@@ -71,10 +101,14 @@ http://api.hetja.in {
 	import common
 	handle /api/v1/care* {
 		header Cache-Control "public, max-age=60, s-maxage=60"
-		reverse_proxy 127.0.0.1:8080
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
 	}
 	handle /api/v1/* {
 		header Cache-Control "no-store"
-		reverse_proxy 127.0.0.1:8080
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
 	}
 }

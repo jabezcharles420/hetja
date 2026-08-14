@@ -37,10 +37,18 @@ check() {  # check <desc> <cmd...>
 #
 # care_providers.phone_e164 is the published contact number of a vet or NGO --
 # an organisation's directory listing, not a private individual's number, and it
-# is meant to be read aloud by a stranger's phone. That is why it is a tracked
-# exception rather than a blocking failure. Encrypting it is Top-25 #14
-# (tweetnacl-js secretbox); when that lands, remove the entry rather than
-# widening the pattern.
+# is meant to be tapped by a stranger standing over an injured dog. That is why
+# it is a tracked exception rather than a blocking failure.
+#
+# Encrypting it was evaluated (enhancement stack Top-25 #14, tweetnacl-js
+# secretbox) and DECLINED on 2026-08-14: encrypting published information on a
+# life-safety read path buys nothing and adds a failure mode. The coordinate half
+# of that same recommendation was declined for a harder reason -- the columns are
+# GIST-indexed GEOGRAPHY and ST_DWithin cannot run on ciphertext. Full reasoning
+# in docs/INVARIANTS.md -> "Spec corrections" #4.
+#
+# So this entry is a settled decision, not a backlog item. It is still printed on
+# every run because a reader of this gate should know the column is plaintext.
 KNOWN_PLAINTEXT_CONTACT='care_providers?\.?phone_e164|alt_phone_e164|phone_e164'
 
 bare_contact_hits() {
@@ -65,7 +73,7 @@ fi
 tracked=$(grep -rniE "[[:space:]]($KNOWN_PLAINTEXT_CONTACT)[[:space:]]+(TEXT|VARCHAR|CITEXT)" \
   packages/db/migrations/ 2>/dev/null | wc -l | tr -d ' ')
 if [ "${tracked:-0}" -gt 0 ]; then
-  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- unencrypted, pending Top-25 #14 (tweetnacl secretbox)"
+  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- published vet/NGO directory numbers; encryption evaluated and declined, see docs/INVARIANTS.md 'Spec corrections' #4"
 fi
 
 # No secret-looking strings committed (API keys, private keys)

@@ -42,29 +42,42 @@ updates:
     open-pull-requests-limit: 5
     groups:
       # Patch and minor bumps of everything, in one PR per ecosystem run. These
-      # are the ones where CI passing is genuinely most of the review.
+      # are the ones where CI passing is genuinely most of the review, and they
+      # are where the security value lives.
       routine:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-      # Majors get their own PR each, because a major is a reading task.
-      major:
-        patterns: ["*"]
-        update-types: ["major"]
+      # NOTE: there is deliberately no `major` group. An earlier version of this
+      # file had one, with a comment claiming "majors get their own PR each,
+      # because a major is a reading task" — which is the opposite of what
+      # grouping does. It produced PR #5: "bump the major group across 3
+      # directories with 8 updates". Eight breaking changes in one diff is not
+      # reviewable, so it would have sat open forever or been merged unread.
+      # Both outcomes are worse than not opening it.
     ignore:
-      # Next 14 -> 15 is an App Router migration, not a bump. Deliberate, not
-      # neglect: revisit when someone has time to read the upgrade guide.
-      - dependency-name: next
+      # Majors are not automated at all here, and that is a deliberate trade
+      # rather than neglect. This is a two-person project on one box; the useful
+      # half of dependabot is the weekly minor/patch sweep, and a queue of
+      # breaking-change PRs nobody has time to read is just red CI that trains
+      # you to ignore CI. Majors get done when someone opens the changelog.
+      #
+      # The cost, stated honestly: dependabot's ignore rules apply to security
+      # updates too, so a CVE whose only fix is a major bump will NOT open a PR
+      # here. Mitigate by leaving Dependabot **alerts** enabled in repo settings
+      # (Settings -> Code security) — alerts still fire, and then the upgrade is
+      # done by hand, on purpose. Check them monthly; that is the whole cost of
+      # this trade.
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      - dependency-name: react
-        update-types: ["version-update:semver-major"]
-      - dependency-name: react-dom
-        update-types: ["version-update:semver-major"]
-      # apps/scan has a hard 40 KB gzipped budget (INVARIANT 13) and exactly one
-      # runtime dependency. A major bump of it is a bundle-size decision that the
-      # size gate will catch, but which should be made on purpose rather than
-      # merged from a green PR.
-      - dependency-name: web-vitals
-        update-types: ["version-update:semver-major"]
+      #
+      # Two specific ones worth naming even though the wildcard above covers
+      # them, because the reason is not "no time" but "this is a project":
+      #
+      # Next 14 -> 15 is an App Router migration, not a bump.
+      # web-vitals is apps/scan's only runtime dependency, and apps/scan has a
+      # hard 40 KB gzipped budget (INVARIANT 13) — bumping it is a bundle-size
+      # decision the size gate will catch, but which should be made on purpose
+      # rather than merged from a green PR.
     labels: ["dependencies"]
     commit-message:
       prefix: "chore(deps)"
@@ -88,26 +101,32 @@ updates:
     commit-message:
       prefix: "chore(actions)"
     ignore:
-      # These two majors are held back deliberately, and this is the reason.
+      # Action majors are held back, and this is the reason rather than a shrug.
       #
-      # The first thing dependabot did after being added was open
-      # `setup-node 4 -> 7` and `pnpm/action-setup 4 -> 6`, and the `quality`
-      # job failed on them. Not a flake: both bumps change the pnpm install
-      # contract that the workflow's step ORDER depends on. ci.yml runs
-      # pnpm/action-setup BEFORE setup-node and passes no `version:` — because
-      # v4 reads `packageManager` from package.json, and giving it both fails
-      # with "Multiple versions of pnpm specified". The comment saying so is
-      # right above the steps. Later majors change how the version is resolved
-      # and how `cache: pnpm` finds a store, so the bump breaks the job at
-      # `pnpm install`, before a single test runs.
+      # Within an hour of adding dependabot it opened `setup-node 4 -> 7`,
+      # `pnpm/action-setup 4 -> 6` and `actions/cache 4 -> 6`, and the `quality`
+      # job failed. Not a flake, and not the merged code — that was verified
+      # separately by running the suites against the real PostGIS database
+      # (apps/api 173/173, apps/worker 3/3, all five EXPLAIN queries).
       #
-      # Held rather than adopted because CI infrastructure is the one thing that
-      # cannot be validated by CI passing — a green run after changing the
-      # runner setup only tells you the new setup works for the happy path, and
-      # a red one tells you nothing about which half broke. Adopting these needs
-      # someone to read both changelogs and watch a run, which is a task, not a
-      # merge. Security patches and minor bumps still flow.
-      - dependency-name: actions/setup-node
-        update-types: ["version-update:semver-major"]
-      - dependency-name: pnpm/action-setup
+      # The first two bumps change the pnpm install contract that this
+      # workflow's step ORDER depends on: ci.yml runs pnpm/action-setup BEFORE
+      # setup-node and passes no `version:`, because v4 reads `packageManager`
+      # from package.json and giving it both fails with "Multiple versions of
+      # pnpm specified". There is a comment saying exactly that above the steps.
+      # Later majors change how the version resolves and how `cache: pnpm`
+      # locates a store, so the job dies at `pnpm install` before a test runs.
+      #
+      # Naming actions one at a time turned out to be whack-a-mole — cache/4->6
+      # arrived while the first two were being held — so this is a wildcard.
+      # The underlying reason generalises: CI infrastructure is the one thing CI
+      # passing cannot validate. A green run after changing the runner setup only
+      # proves the new setup works for the happy path; a red one does not say
+      # which half broke. Adopting an action major means reading a changelog and
+      # watching a run, which is a task, not a merge.
+      #
+      # Minor and patch bumps still flow, which is where action security fixes
+      # actually land (actions are pinned by major tag, so v4 keeps receiving
+      # them).
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]

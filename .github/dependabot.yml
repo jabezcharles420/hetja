@@ -55,29 +55,54 @@ updates:
       # reviewable, so it would have sat open forever or been merged unread.
       # Both outcomes are worse than not opening it.
     ignore:
-      # Majors are not automated at all here, and that is a deliberate trade
-      # rather than neglect. This is a two-person project on one box; the useful
-      # half of dependabot is the weekly minor/patch sweep, and a queue of
-      # breaking-change PRs nobody has time to read is just red CI that trains
-      # you to ignore CI. Majors get done when someone opens the changelog.
+      # These majors are held for a measured reason, not a general aversion.
       #
-      # The cost, stated honestly: dependabot's ignore rules apply to security
-      # updates too, so a CVE whose only fix is a major bump will NOT open a PR
-      # here. Mitigate by leaving Dependabot **alerts** enabled in repo settings
-      # (Settings -> Code security) — alerts still fire, and then the upgrade is
-      # done by hand, on purpose. Check them monthly; that is the whole cost of
-      # this trade.
-      - dependency-name: "*"
+      # PR #5 ("bump the major group across 3 directories with 8 updates") failed
+      # CI at `apps/web typecheck`:
+      #
+      #   app/layout.tsx(5,8): error TS2882: Cannot find module or type
+      #   declarations for side-effect import of './globals.css'.
+      #
+      # apps/web was the last package on typescript@5 while everything else was
+      # already on 7, and the bump to 7 surfaced TS2882 (new in TS 7 for
+      # side-effect imports of non-code files). apps/web/css.d.ts now supplies
+      # that declaration — but the version stays on 5, because Next 14's
+      # `next lint` does not accept typescript@7 at all: it decides TypeScript is
+      # not installed and tries to auto-install it, so the Lint step breaks even
+      # once typecheck passes.
+      #
+      # So apps/web's TypeScript major is pinned by Next's major, and
+      # eslint/eslint-config-next follow Next in lockstep. Upgrading any one of
+      # them means doing the Next 14 -> 15+ App Router migration, which is a
+      # project, not a merge. That is the whole list below.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      # apps/scan's only runtime dependency, against a hard 40 KB gzipped budget
+      # (INVARIANT 13). The size gate would catch a regression, but a bundle-size
+      # decision should be made on purpose rather than merged from a green PR.
+      - dependency-name: web-vitals
         update-types: ["version-update:semver-major"]
       #
-      # Two specific ones worth naming even though the wildcard above covers
-      # them, because the reason is not "no time" but "this is a project":
+      # Everything else keeps its majors, deliberately: zod, @fastify/cors,
+      # jsdom, @types/node and @testing-library are all covered by 443 tests
+      # across the workspace, so a red PR is a real answer and a green one is
+      # most of the review. @fastify/cors 10 -> 11 in particular is worth having:
+      # altcha-lib already declares it as an unmet peer.
       #
-      # Next 14 -> 15 is an App Router migration, not a bump.
-      # web-vitals is apps/scan's only runtime dependency, and apps/scan has a
-      # hard 40 KB gzipped budget (INVARIANT 13) — bumping it is a bundle-size
-      # decision the size gate will catch, but which should be made on purpose
-      # rather than merged from a green PR.
+      # Note on security, since `ignore` applies to security updates too: a CVE
+      # whose only fix is a major bump of one of the seven above will not open a
+      # PR. Leave Dependabot ALERTS on (Settings -> Code security) so it still
+      # tells you, and do that upgrade by hand.
     labels: ["dependencies"]
     commit-message:
       prefix: "chore(deps)"
@@ -100,33 +125,23 @@ updates:
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(actions)"
-    ignore:
-      # Action majors are held back, and this is the reason rather than a shrug.
-      #
-      # Within an hour of adding dependabot it opened `setup-node 4 -> 7`,
-      # `pnpm/action-setup 4 -> 6` and `actions/cache 4 -> 6`, and the `quality`
-      # job failed. Not a flake, and not the merged code — that was verified
-      # separately by running the suites against the real PostGIS database
-      # (apps/api 173/173, apps/worker 3/3, all five EXPLAIN queries).
-      #
-      # The first two bumps change the pnpm install contract that this
-      # workflow's step ORDER depends on: ci.yml runs pnpm/action-setup BEFORE
-      # setup-node and passes no `version:`, because v4 reads `packageManager`
-      # from package.json and giving it both fails with "Multiple versions of
-      # pnpm specified". There is a comment saying exactly that above the steps.
-      # Later majors change how the version resolves and how `cache: pnpm`
-      # locates a store, so the job dies at `pnpm install` before a test runs.
-      #
-      # Naming actions one at a time turned out to be whack-a-mole — cache/4->6
-      # arrived while the first two were being held — so this is a wildcard.
-      # The underlying reason generalises: CI infrastructure is the one thing CI
-      # passing cannot validate. A green run after changing the runner setup only
-      # proves the new setup works for the happy path; a red one does not say
-      # which half broke. Adopting an action major means reading a changelog and
-      # watching a run, which is a task, not a merge.
-      #
-      # Minor and patch bumps still flow, which is where action security fixes
-      # actually land (actions are pinned by major tag, so v4 keeps receiving
-      # them).
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    # No ignores. Action majors are NOT held back, and the reason is that they
+    # were checked rather than assumed.
+    #
+    # An earlier version of this file blocked `actions/setup-node`,
+    # `pnpm/action-setup` and `actions/cache` majors, asserting that the `quality`
+    # job "failed on them" and reasoning at length about ci.yml's load-bearing
+    # step order (pnpm/action-setup before setup-node, no `version:` passed
+    # because v4 reads `packageManager` from package.json). That reasoning was
+    # plausible and the premise was simply false — `gh run list` shows all three
+    # action-major PRs GREEN on both CI and the a11y workflow:
+    #
+    #   success  CI  (dependabot/github_actions/pnpm/action-setup-6)
+    #   success  CI  (dependabot/github_actions/actions/setup-node-7)
+    #   success  CI  (dependabot/github_actions/actions/cache-6)
+    #
+    # The only red run was the npm major group. Holding these back on a
+    # fabricated failure would have been the same mistake this repository has
+    # been cleaning up all week: a confident comment that the code does not
+    # support. If an action major ever does break the workflow, the PR goes red
+    # and that is the signal — no pre-emptive block needed.

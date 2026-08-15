@@ -129,9 +129,35 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
         // Enhancement stack Phase 0 #3 (Sec-ant/barcode-detector): lazy-load
         // the ~3 KB JS + ~13 KB WASM polyfill behind a dynamic import so iOS
         // Safari / Firefox get QR scanning without paying for it up front.
+        //
+        // The default entry (not `/pure`) is deliberate: it carries the global
+        // type declarations for `BarcodeDetector`, `DetectedBarcode` and
+        // `BarcodeDetectorOptions` that this file's `declare global` block
+        // builds on. Its own `import "./polyfill.js"` publishes the global with
+        // a `??=`, which cannot overwrite a detector that is already there —
+        // unlike the bare assignment below, which is why only that one needed
+        // guarding.
         try {
           const { BarcodeDetector: Polyfill } = await import("barcode-detector");
-          if (typeof window !== "undefined") {
+          // `!cancelled` is load-bearing, not defensive tidiness. This writes to
+          // a GLOBAL, and the await above can outlive the component: the import
+          // pulls ~13 KB of WASM, so on a slow or busy machine it can still be
+          // in flight long after unmount. Without this guard an unmounted
+          // component would install the polyfill over whatever the page had put
+          // there since — publishing to `window` on behalf of a component that
+          // no longer exists.
+          //
+          // That is not hypothetical. It made the scanner suite fail on CI while
+          // passing locally: the first test renders with no detector and starts
+          // this import; its cleanup deletes `window.BarcodeDetector`; a later
+          // test installs a fake one and clicks "Use camera"; then this import
+          // finally resolved and replaced the fake with the real polyfill. The
+          // real polyfill then tried to decode pixels from a jsdom <video> that
+          // has none, so no barcode was ever found, `router.push` was never
+          // called, and the phase sat on "scanning" until the test timed out.
+          // Intermittent, environment-dependent, and nothing to do with the
+          // assertion that failed.
+          if (!cancelled && typeof window !== "undefined") {
             (window as unknown as {
               BarcodeDetector?: new (options?: BarcodeDetectorOptions) => BarcodeDetectorInstance;
             }).BarcodeDetector = Polyfill as never;
@@ -242,6 +268,25 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
       }
       detectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
       setPhase("scanning");
+      // Try to decode straight away, then every 350ms.
+      //
+      // This used to be `setInterval` alone, so the FIRST decode attempt could
+      // not happen until a full interval after the camera was ready — a flat
+      // 350ms of live preview pointed at a collar with nothing being read. Most
+      // scans are of a QR already centred in frame by the time the camera
+      // opens, so that delay was pure latency on the common path.
+      //
+      // It also made the test for this the only timing-sensitive one in the
+      // suite: it had to outwait a 350ms timer inside Testing Library's default
+      // 1000ms waitFor budget, on a runner executing every package's suite in
+      // parallel. That went red intermittently — the same commit passed one CI
+      // job and failed two others, which is what blocked the deploy pipeline at
+      // its Gate.
+      //
+      // `tick` is safe to call before the first frame: it returns early unless
+      // both the video element and the detector exist, guards re-entrancy with
+      // detectingRef, and treats a mid-frame decode failure as routine.
+      void tick();
       intervalRef.current = setInterval(() => {
         void tick();
       }, 350);

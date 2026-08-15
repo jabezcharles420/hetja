@@ -46,8 +46,19 @@ class Detector:
 def claim_job(conn: Any) -> Optional[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
+            # `run_after <= now()` and `failed_at IS NULL` must both be here to
+            # match apps/worker/src/index.ts's claimNext. Without the first, this
+            # worker claims jobs the TypeScript worker has deliberately backed
+            # off after a failure, defeating the retry delay. Without the second,
+            # it resurrects rows that were dead-lettered on purpose (migration
+            # 0016) and runs them forever. Both workers register a handler for
+            # `validate_scan`, so they see the same rows and have to agree on
+            # what "claimable" means.
             """SELECT id, payload FROM jobs
-               WHERE kind = 'validate_scan' AND (locked_until IS NULL OR locked_until < now())
+               WHERE kind = 'validate_scan'
+                 AND run_after <= now()
+                 AND (locked_until IS NULL OR locked_until < now())
+                 AND failed_at IS NULL
                ORDER BY run_after LIMIT 1 FOR UPDATE SKIP LOCKED"""
         )
         row = cur.fetchone()
@@ -62,13 +73,24 @@ def claim_job(conn: Any) -> Optional[dict[str, Any]]:
         return {"id": job_id, "payload": payload}
 
 
-def write_result(conn: Any, scan_id: str, validation: dict[str, Any], review: str) -> None:
+def write_result(conn: Any, job_id: int, scan_id: str, validation: dict[str, Any], review: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE scans SET ai_validation = %s, review_status = %s WHERE id = %s",
             (json.dumps(validation), review, scan_id),
         )
-        cur.execute("DELETE FROM jobs WHERE id = (SELECT id FROM jobs WHERE kind='validate_scan' ORDER BY id LIMIT 1)")
+        # Delete THE JOB WE PROCESSED, by id.
+        #
+        # This was `DELETE FROM jobs WHERE id = (SELECT id FROM jobs
+        # WHERE kind='validate_scan' ORDER BY id LIMIT 1)` — a fresh lookup
+        # ordered by `id`, while claim_job selects by `run_after`. Whenever more
+        # than one validate_scan job was queued and the lowest-id row was not the
+        # one claimed, this destroyed a DIFFERENT job: that scan was never
+        # validated and never flagged, which is a direct breach of INVARIANT 14
+        # ("flags, never silently rejects"). Meanwhile the job that actually ran
+        # was never deleted, so its 60s lease expired and it re-ran forever,
+        # incrementing attempts with no cap.
+        cur.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
         conn.commit()
 
 
@@ -94,7 +116,7 @@ def process_once(conn: Any, detector: Detector) -> int:
         "detections": [{"label": d.label, "confidence": round(d.confidence, 3)} for d in detections],
     }
     review = "auto_passed" if dog_present else "flagged"  # INVARIANT 14: flag, never silently reject
-    write_result(conn, scan_id, validation, review)
+    write_result(conn, job["id"], scan_id, validation, review)
     return 1
 
 
@@ -110,7 +132,24 @@ def main() -> int:
             processed += process_once(conn, detector)
         except Exception as exc:  # noqa: BLE001
             print(f"worker error: {exc}", file=sys.stderr)
-            conn.rollback()
+            # rollback() on an already-closed connection raises, and raising
+            # from inside this handler propagated straight out of main() and
+            # killed the process. PostgreSQL restarts are routine here — every
+            # migration and every deploy touches it — so "the database blinked"
+            # was a fatal error for a worker that nothing restarts (there is no
+            # hetja-ai.service). Reconnect instead of dying.
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001
+                try:
+                    conn.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                if args.once:
+                    return 1
+                print("worker: reconnecting to PostgreSQL", file=sys.stderr)
+                time.sleep(POLL_S)
+                conn = psycopg2.connect(PG_DSN, cursor_factory=psycopg2.extras.RealDictCursor)
         if args.once:
             break
         time.sleep(POLL_S)

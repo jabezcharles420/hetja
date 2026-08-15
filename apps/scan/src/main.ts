@@ -4,7 +4,6 @@ import { setStatus, setSub, renderProfile, renderError, setNote, clearNote } fro
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
 import { wirePanel, setPanelProfile } from "./panel";
-import { reportWebVitals } from "./web-vitals";
 
 const SLUG = parseSlug(location.pathname);
 const SIG = new URLSearchParams(location.search).get("s") ?? "";
@@ -68,4 +67,39 @@ wirePanel(SLUG);
 registerServiceWorker();
 void view();
 void checkQueue();
-reportWebVitals();
+
+/**
+ * Telemetry loads AFTER the page is usable, as its own chunk.
+ *
+ * `web-vitals` was a static import, which put it in `main.js` — measured at
+ * ~3.2 KB gzipped of an 11.7 KB bundle, so a quarter of the JavaScript on the
+ * critical path of a page whose entire design constraint is that a stranger on
+ * 4G can load it while standing over an injured dog. (The header comment in
+ * web-vitals.ts claimed "~1.5 KB gzipped, tree-shaken"; that was optimistic by
+ * about 2×.) It also ran its four observers during the LCP window it exists to
+ * measure.
+ *
+ * Deferring it does not lose data: CLS/INP/LCP are all reported from buffered
+ * PerformanceObserver entries, so registering slightly late still sees what
+ * already happened. `requestIdleCallback` where available, a `load`-anchored
+ * fallback elsewhere (Safari has no rIC).
+ */
+function loadTelemetry(): void {
+  try {
+    const s = document.createElement("script");
+    s.src = "/d/telemetry.js";
+    s.async = true;
+    document.head.appendChild(s);
+  } catch {
+    /* telemetry is optional -- it must never surface to the user */
+  }
+}
+
+const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number })
+  .requestIdleCallback;
+if (typeof idle === "function") {
+  idle(loadTelemetry, { timeout: 5000 });
+} else {
+  // Safari has no requestIdleCallback.
+  window.addEventListener("load", () => window.setTimeout(loadTelemetry, 1500), { once: true });
+}

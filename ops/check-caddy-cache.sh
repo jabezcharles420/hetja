@@ -64,9 +64,27 @@ parse_blocks() {
         if (c == "{") depth++
         else if (c == "}") depth--
       }
-      if (line ~ /no-store/)  has_nostore = 1
-      if (line ~ /max-age/)   has_maxage = 1
-      if (line ~ /immutable/) has_immutable = 1
+      # Flags may only come from a real `header ... Cache-Control ...` DIRECTIVE.
+      #
+      # These three tests used to run against the raw line, so any line merely
+      # CONTAINING the word set the flag — including a comment. That made the
+      # gate fail open in the one direction that matters: delete
+      # `header Cache-Control "no-store"` from the /d/* block, leave behind a
+      # comment such as `# no-store is handled at the Cloudflare edge now`, and
+      # the gate printed `PASS: /d/* is no-store and never cached` and exited 0.
+      # The collar page a stranger loads over an injured dog would be cacheable,
+      # with stale SOS state, and CI would call the policy intact. A `max-age`
+      # regression was still caught (the `mustnot` clause), so the hole was
+      # specifically "the directive is gone entirely" — the exact edit a
+      # well-meaning refactor makes.
+      code = line
+      sub(/^[[:space:]]*#.*$/, "", code)   # whole-line comment
+      sub(/[[:space:]]#.*$/, "", code)     # trailing comment
+      if (code ~ /Cache-Control/) {
+        if (code ~ /no-store/)  has_nostore = 1
+        if (code ~ /max-age/)   has_maxage = 1
+        if (code ~ /immutable/) has_immutable = 1
+      }
       if (depth <= 0) { flush(); depth = 0 }
     }
   ' "$CADDY"

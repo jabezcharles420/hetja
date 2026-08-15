@@ -111,11 +111,26 @@ spec PDFs directly. Migrated here so it survives independently of them.
    A feeder's phone can be offline for hours; if the server resolved
    `last_seen_geo` by the order photos arrive rather than the order they were
    taken, a late-arriving-but-earlier observation could silently overwrite a
-   fresher one, walking the dog's known location backwards. Clock skew is
-   clamped to ±15 minutes (a phone's clock can drift or be wrong) and ties
-   break on `received_at` only because two clients cannot otherwise be
-   ordered. This field is load-bearing for the SOS geofence, so getting it
-   backwards has a safety consequence, not just a data-quality one.
+   fresher one, walking the dog's known location backwards. Ties break on
+   `received_at` only because two clients cannot otherwise be ordered. This
+   field is load-bearing for the SOS geofence, so getting it backwards has a
+   safety consequence, not just a data-quality one.
+
+   The clock-skew clamp is **asymmetric**: at most 15 minutes into the future,
+   up to 30 days into the past. This rule previously read "±15 minutes" and was
+   implemented as `Math.abs(now - capturedAt) <= 15min`, which contradicted the
+   first sentence of this very invariant — a phone offline for hours produced a
+   `capturedAt` hours old, so every feed queued offline for more than a quarter
+   of an hour was rejected with a permanent 400 on sync. INVARIANT 5's
+   idempotent replay had nothing left to replay, and the client, correctly
+   treating a 400 as final, discarded the feed and its photo.
+
+   Only the future direction needs a tight bound. `applyLww` keeps the greatest
+   `captured_at`, so a fast or lying clock wins last-writer-wins indefinitely
+   and pins `last_seen_geo`. A timestamp in the past merely loses that
+   comparison, which is the correct outcome for an old observation — it cannot
+   walk the location backwards, because losing is exactly what "backwards"
+   means here.
 5. **`scans.client_uuid` has a UNIQUE index.** It is the only mechanism that
    makes offline replay idempotent: a phone that queues a feed while offline
    and retries the sync on reconnect must produce exactly one row, not one

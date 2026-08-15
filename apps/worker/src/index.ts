@@ -60,7 +60,9 @@ async function claimNext(client: PoolClient): Promise<Job | null> {
   const res = await client.query<Job>(
     `SELECT id, kind, payload, run_after, attempts
        FROM jobs
-      WHERE run_after <= now() AND (locked_until IS NULL OR locked_until < now())
+      WHERE run_after <= now()
+        AND (locked_until IS NULL OR locked_until < now())
+        AND failed_at IS NULL
       ORDER BY run_after
       LIMIT 1
         FOR UPDATE SKIP LOCKED`,
@@ -71,7 +73,90 @@ async function claimNext(client: PoolClient): Promise<Job | null> {
     `UPDATE jobs SET locked_until = now() + make_interval(secs => $2), attempts = attempts + 1 WHERE id = $1`,
     [j.id, LOCK_SECONDS],
   );
-  return j;
+  // The row's own `attempts` is now one behind what the database holds, and the
+  // caller decides whether this run exhausts the budget. Return the committed
+  // value so that decision is made against the truth.
+  return { ...j, attempts: j.attempts + 1 };
+}
+
+/** Backoff before a failed job is eligible again: 5s, 10s, 20s … capped at 1h. */
+function retryDelaySeconds(attempts: number): number {
+  return Math.min(5 * 2 ** Math.max(0, attempts - 1), 3_600);
+}
+
+/**
+ * Records a failed attempt, in its OWN transaction.
+ *
+ * Separate from the handler's transaction on purpose. The whole defect this
+ * replaces was bookkeeping that shared a transaction with the work it was
+ * bookkeeping about: the ROLLBACK that undid the handler's partial writes also
+ * undid the attempt counter and the lease, so the queue could not remember that
+ * anything had gone wrong.
+ */
+async function recordFailure(job: Job, err: unknown): Promise<void> {
+  const message = err instanceof Error ? err.message : String(err);
+  const exhausted = job.attempts >= MAX_ATTEMPTS;
+  if (exhausted) {
+    // Parked, not deleted: these are SOS escalations and push fan-outs. See the
+    // header of migration 0016.
+    await query(
+      `UPDATE jobs
+          SET failed_at = now(), locked_until = NULL, last_error = left($2, 2000)
+        WHERE id = $1`,
+      [job.id, message],
+    );
+    console.error(
+      `worker: job ${job.id} (${job.kind}) DEAD-LETTERED after ${job.attempts} attempts: ${message}. ` +
+        "It will not run again. Inspect with: " +
+        "SELECT id, kind, attempts, last_error FROM jobs WHERE failed_at IS NOT NULL;",
+    );
+    return;
+  }
+  const delay = retryDelaySeconds(job.attempts);
+  await query(
+    `UPDATE jobs
+        SET locked_until = NULL,
+            run_after = now() + make_interval(secs => $2),
+            last_error = left($3, 2000)
+      WHERE id = $1`,
+    [job.id, delay, message],
+  );
+  console.warn(
+    `worker: job ${job.id} (${job.kind}) failed on attempt ${job.attempts}/${MAX_ATTEMPTS}, ` +
+      `retrying in ${delay}s: ${message}`,
+  );
+}
+
+/**
+ * Claim, run and settle exactly one job. Returns what happened so the batch
+ * loop can decide whether to keep going.
+ *
+ * Three transactions, deliberately, where there used to be one:
+ *
+ *   1. CLAIM  — lease the job and increment `attempts`, then COMMIT. This must
+ *      survive the handler failing, or the queue cannot count attempts.
+ *   2. RUN    — the handler, outside any transaction of ours. A handler that
+ *      needs atomicity opens its own (`escalate_sos` does).
+ *   3. SETTLE — DELETE on success, or `recordFailure` on error.
+ *
+ * It never throws for a handler failure; that is reported as `"failed"`. Only a
+ * database fault in the claim or settle steps propagates, because at that point
+ * the queue itself is broken and the caller's backoff is the right response.
+ */
+export async function processOneJob(): Promise<"idle" | "done" | "failed"> {
+  const job = await withTx(claimNext);
+  if (!job) return "idle";
+
+  try {
+    const handler = HANDLERS[job.kind];
+    if (!handler) throw new Error(`no handler for job kind '${job.kind}'`);
+    await handler(job.payload);
+  } catch (err) {
+    await recordFailure(job, err);
+    return "failed";
+  }
+  await query(`DELETE FROM jobs WHERE id = $1`, [job.id]);
+  return "done";
 }
 
 interface PushSubRow {
@@ -336,9 +421,15 @@ export async function enqueueAnchorJobIfDue(client: PoolClient): Promise<boolean
   );
   if (!lock.rows[0].locked) return false;
   const res = await client.query(
+    // `failed_at IS NULL` matters: a dead-lettered anchor job is parked forever
+    // (migration 0016), and without this filter its mere existence would satisfy
+    // the NOT EXISTS guard and stop INVARIANT 10 from ever being scheduled
+    // again — trading a loud repeated failure for a silent permanent one.
     `INSERT INTO jobs (kind, payload, run_after)
      SELECT 'anchor_ledger', '{}'::jsonb, now()
-      WHERE NOT EXISTS (SELECT 1 FROM jobs WHERE kind = 'anchor_ledger')
+      WHERE NOT EXISTS (
+              SELECT 1 FROM jobs WHERE kind = 'anchor_ledger' AND failed_at IS NULL
+            )
         AND NOT EXISTS (
               SELECT 1 FROM ledger_anchors
                WHERE published_at > now() - interval '24 hours'
@@ -371,26 +462,12 @@ export async function runWorker(once = false): Promise<void> {
     }
     let processed = 0;
     while (processed < BATCH) {
-      const job = await withTx(async (client) => {
-        const j = await claimNext(client);
-        if (!j) return null;
-        try {
-          const handler = HANDLERS[j.kind];
-          if (!handler) throw new Error(`no handler for job kind '${j.kind}'`);
-          await handler(j.payload);
-          await client.query(`DELETE FROM jobs WHERE id = $1`, [j.id]);
-          return j;
-        } catch (err) {
-          if (j.attempts >= MAX_ATTEMPTS) {
-            await client.query(
-              `UPDATE jobs SET locked_until = NULL WHERE id = $1`,
-              [j.id],
-            );
-          }
-          throw err;
-        }
-      });
-      if (!job) break;
+      // A handler failure is a `"failed"` result, not a throw, so one poison job
+      // no longer aborts the batch behind it. That was the sharpest edge of the
+      // old single-transaction design: a broken `escalate_sos` stopped every
+      // `send_sos_push` queued after it.
+      const outcome = await processOneJob();
+      if (outcome === "idle") break;
       processed++;
     }
   };

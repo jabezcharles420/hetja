@@ -4,7 +4,7 @@
  * a fresh `jti` on every issuance; `type` is embedded so tokens can't be
  * used across scopes.
  */
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 const HEADER = { alg: "HS256", typ: "JWT" };
 
@@ -69,9 +69,15 @@ export function verifyToken(token: string, secret: string, expectedType: "access
   const expectedSig = createHmac("sha256", secret)
     .update(`${headerPart}.${payloadPart}`)
     .digest("base64url");
+  // `timingSafeEqual`, not `Buffer.equals`, for the same reason lib/hmac.ts and
+  // lib/device.ts already use it: `equals` short-circuits on the first differing
+  // byte, so how long a rejection takes leaks how much of a forged signature was
+  // correct. This is the primitive that gates every authenticated route, and it
+  // was the one place in the codebase still comparing with a variable-time
+  // method. The length check stays because timingSafeEqual throws on a mismatch.
   const a = Buffer.from(sig);
   const b = Buffer.from(expectedSig);
-  if (a.length !== b.length || !a.equals(b)) throw new JwtError("bad signature");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) throw new JwtError("bad signature");
 
   let payload: JwtPayload;
   try {

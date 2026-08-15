@@ -13,6 +13,12 @@ const esbuild = await findEsbuild();
 const entries = [
   [join(ROOT, "src/main.ts"), join(DIST, "main.js")],
   [join(ROOT, "src/service-worker.ts"), join(DIST, "service-worker.js")],
+  // Telemetry is its own entry so it stays out of main.js and off the critical
+  // path -- see the header of src/telemetry-entry.ts. It has to be an entry
+  // rather than a dynamic import() because these are IIFE bundles, and esbuild
+  // cannot code-split IIFE output: it inlines the import back into main.js
+  // instead, which silently undoes the split.
+  [join(ROOT, "src/telemetry-entry.ts"), join(DIST, "telemetry.js")],
 ];
 
 for (const [inFile, outFile] of entries) {
@@ -29,7 +35,7 @@ for (const [inFile, outFile] of entries) {
 
 copyFileSync(join(ROOT, "index.html"), join(DIST, "index.html"));
 
-console.log("built dist/ (main.js, service-worker.js, index.html)");
+console.log("built dist/ (index.html + " + entries.length + " bundles)");
 execFileSync(process.execPath, [join(ROOT, "scripts", "size-gate.mjs")], { stdio: "inherit" });
 
 async function findEsbuild() {

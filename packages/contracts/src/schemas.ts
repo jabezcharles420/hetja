@@ -75,15 +75,50 @@ export const Scan = z.object({
 });
 export type Scan = z.infer<typeof Scan>;
 
-const SKEW_MS = 15 * 60 * 1000; // ±15 minutes (INVARIANT 4 — clock-skew clamp)
+/**
+ * How far in the FUTURE a `capturedAt` may sit (INVARIANT 4 clock-skew clamp).
+ *
+ * This bound is asymmetric on purpose, and it used to be symmetric — a bug that
+ * defeated the feature the invariant exists to serve.
+ *
+ * INVARIANT 4 resolves offline conflicts on `captured_at` precisely because "a
+ * feeder's phone can be offline for hours". The clamp was
+ * `Math.abs(Date.now() - captured) <= 15min`, which rejected anything captured
+ * more than fifteen minutes ago — so every feed queued offline for longer than
+ * a quarter of an hour became a permanent 400 the moment it finally synced.
+ * That is the exact population the offline queue exists for: a feeder out of
+ * signal for an afternoon. INVARIANT 5's idempotent replay then had nothing
+ * left to be idempotent about, and the client, correctly treating a 400 as a
+ * permanent verdict, discarded the feed and its photo.
+ *
+ * Only the future direction needs a tight bound, because only the future
+ * direction is dangerous. `applyLww` keeps the observation with the greatest
+ * `captured_at`, so a phone whose clock runs fast (or a client that lies) would
+ * win last-writer-wins indefinitely and pin `last_seen_geo` — and that field is
+ * load-bearing for the SOS geofence. A `capturedAt` in the past cannot do that:
+ * it simply loses the comparison, which is the correct outcome for an old
+ * observation.
+ */
+const FUTURE_SKEW_MS = 15 * 60 * 1000;
+
+/**
+ * How far in the PAST a `capturedAt` may sit. Generous, because a long offline
+ * stretch is a legitimate and expected state, but not unbounded — a timestamp
+ * from 1970 or 2099 is a broken client, not a patient feeder, and pinning some
+ * ceiling keeps `applyLww` reasoning about a finite window.
+ */
+const PAST_SKEW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const clockSkewClamped = () =>
   isoDateTime().refine(
     (value) => {
-      const skewMs = Math.abs(Date.now() - new Date(value).getTime());
-      return skewMs <= SKEW_MS;
+      const aheadMs = new Date(value).getTime() - Date.now();
+      return aheadMs <= FUTURE_SKEW_MS && -aheadMs <= PAST_SKEW_MS;
     },
-    { message: "capturedAt is outside the allowed ±15min skew window" },
+    {
+      message:
+        "capturedAt may be at most 15min in the future or 30d in the past",
+    },
   );
 
 export const MAX_PHOTO_BASE64_CHARS = Math.ceil((2 * 1024 * 1024) / 3) * 4;

@@ -103,14 +103,23 @@ function requireFeeder(
       .send({ ok: false, error: { message: "authentication required", code: "UNAUTHENTICATED" } });
     return null;
   }
-  const payload = verifyAccessToken(token, req.server.config.JWT_SECRET);
-  if (!payload) {
+  // `verifyAccessToken` THROWS (JwtError) on a malformed, mis-signed, wrong-type
+  // or expired token — it never returns a falsy payload. So the `if (!payload)`
+  // guard that used to stand here was unreachable, the throw escaped the handler,
+  // and with no `setErrorHandler` registered Fastify's default turned it into a
+  // 500 whose body echoed the internal message ("malformed token", "bad
+  // signature"). Every other authenticated route — stories.ts, trust.ts, push.ts,
+  // territories.ts, metrics.ts — wraps this call in try/catch; medical.ts was the
+  // one that did not, and it guards the append-only ledger write.
+  try {
+    const payload = verifyAccessToken(token, req.server.config.JWT_SECRET);
+    return { feederId: payload.sub as string };
+  } catch {
     void reply
       .status(401)
       .send({ ok: false, error: { message: "invalid token", code: "BAD_TOKEN" } });
     return null;
   }
-  return { feederId: payload.sub as string };
 }
 
 async function loadFeederRole(feederId: string): Promise<string | null> {

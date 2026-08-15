@@ -26,7 +26,14 @@ fail=0
 [ -f "$BOOTSTRAP" ] || { echo "FAIL: $BOOTSTRAP not found"; exit 1; }
 [ -d "$UNIT_DIR" ]  || { echo "FAIL: $UNIT_DIR not found"; exit 1; }
 
-units=$(find "$UNIT_DIR" -maxdepth 1 -type f \( -name '*.service' -o -name '*.timer' \) -printf '%f\n' | sort)
+# `-printf` is a GNU find extension. BSD find (macOS) does not have it, and on a
+# failure it prints its usage to stderr and exits non-zero with EMPTY stdout — so
+# this gate did not misreport, it reported "FAIL: no systemd units found", which
+# reads as a real repo problem rather than "this gate cannot run here". AGENTS.md
+# §a tells a developer to run the gates locally before pushing, so a macOS clone
+# hit a red gate that no edit to the repo could turn green. `sed` strips the
+# directory instead, which is POSIX and behaves identically for these names.
+units=$(find "$UNIT_DIR" -maxdepth 1 -type f \( -name '*.service' -o -name '*.timer' \) | sed 's|.*/||' | sort)
 [ -n "$units" ] || { echo "FAIL: no systemd units found in $UNIT_DIR"; exit 1; }
 
 while read -r name; do
@@ -60,7 +67,7 @@ while read -r timer; do
     echo "FAIL: $timer triggers $want, which is not committed"
     fail=1
   fi
-done <<< "$(find "$UNIT_DIR" -maxdepth 1 -type f -name '*.timer' -printf '%f\n' | sort)"
+done <<< "$(find "$UNIT_DIR" -maxdepth 1 -type f -name '*.timer' | sed 's|.*/||' | sort)"
 
 if [ "$fail" -eq 0 ]; then
   echo "PASS: systemd units and bootstrap.sh agree"

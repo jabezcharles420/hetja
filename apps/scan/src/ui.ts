@@ -20,7 +20,17 @@ function speakDog(p: DogProfile): void {
     `This dog is named ${p.name}.`,
     p.sex ? `${p.sex}.` : "",
     p.approxAge !== undefined ? `Around ${p.approxAge} years old.` : "",
-    p.vaccine ? `Vaccination: ${p.vaccine}.` : "",
+    // `p.vaccine` is a VaccineStatus OBJECT, not a string. Interpolating it
+    // directly made the page read "Vaccination: object Object." aloud — and a
+    // template literal accepts any type, so TypeScript never objected. This is
+    // the accessibility affordance for a non-literate bystander on a
+    // life-safety page, so it is the one place where the spoken text is the
+    // whole feature.
+    p.vaccine
+      ? p.vaccine.upToDate
+        ? "Vaccination is up to date."
+        : "Vaccination status is not confirmed."
+      : "",
     p.abcStatus ? `Sterilisation: ${p.abcStatus}.` : "",
     p.microStory ?? "",
     "If this dog is hurt, press the red button to alert nearby responders.",

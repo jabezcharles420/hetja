@@ -11,7 +11,7 @@
  */
 import { unlink } from "node:fs/promises";
 import { join as joinPath } from "node:path";
-import { pool, query, withTx } from "@hetja/db";
+import { pool, query, withTx, CHAIN_ORDER_ASC } from "@hetja/db";
 import type { PoolClient } from "pg";
 import webpush from "web-push";
 import {
@@ -454,7 +454,7 @@ export async function publishLedgerAnchor(client: PoolClient): Promise<Published
   const rows = await client.query<MerkleLeaf>(
     `SELECT id, hash_curr AS hash
        FROM medical_records
-      ORDER BY created_at ASC, id ASC`,
+      ORDER BY ${CHAIN_ORDER_ASC}`,
   );
   if (rows.rows.length === 0) return null;
 

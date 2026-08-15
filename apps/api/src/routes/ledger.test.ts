@@ -190,7 +190,7 @@ describe("GET /api/v1/ledger/proof", () => {
   it("computes the same root an independent RFC 6962 implementation would", async () => {
     const rows = await query<ProvenRecord>(
       `SELECT id, hash_curr AS hash FROM medical_records
-        WHERE dog_id = $1 ORDER BY created_at ASC, id ASC`,
+        WHERE dog_id = $1 ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
       [dogId],
     );
     const res = await app.inject({
@@ -219,7 +219,7 @@ describe("GET /api/v1/ledger/proof", () => {
     // once observed — the re-read below confirms that rather than assuming it,
     // because a suite running in parallel can still append.
     const before = await query<ProvenRecord>(
-      `SELECT id, hash_curr AS hash FROM medical_records ORDER BY created_at ASC, id ASC`,
+      `SELECT id, hash_curr AS hash FROM medical_records ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
     );
     const snapshot = before.rows;
     const root = merkleRoot(asLeaves(snapshot));
@@ -240,7 +240,7 @@ describe("GET /api/v1/ledger/proof", () => {
     expect(global.ledgerId).toBe("hetja:medical:global");
 
     const after = await query<ProvenRecord>(
-      `SELECT id FROM medical_records ORDER BY created_at ASC, id ASC LIMIT $1`,
+      `SELECT id FROM medical_records ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC LIMIT $1`,
       [snapshot.length],
     );
     const prefixStable =
@@ -260,7 +260,7 @@ describe("GET /api/v1/ledger/proof", () => {
     // reading alerts.
     await query("DELETE FROM ledger_anchors WHERE published_url = 'test-anchor'");
     const first = await query<ProvenRecord>(
-      `SELECT id, hash_curr AS hash FROM medical_records ORDER BY created_at ASC, id ASC LIMIT 1`,
+      `SELECT id, hash_curr AS hash FROM medical_records ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC LIMIT 1`,
     );
     await query(
       `INSERT INTO ledger_anchors (head_hash, merkle_root, record_count, ledger_id, published_url)

@@ -59,8 +59,13 @@
 -- ---------------------------------------------------------------------------
 ALTER TABLE medical_records
   -- Hex SHA-256 (64 chars) of the RFC 6962 Merkle Tree Hash over every
-  -- medical_records row for THIS row's dog_id, in canonical chain order
-  -- (created_at ASC, id ASC), including this row. Leaf data is the row's own
+  -- medical_records row for THIS row's dog_id, in canonical chain order,
+  -- including this row. That order was `created_at ASC, id ASC` when this
+  -- migration was written; 0017 replaced it with
+  -- `chain_seq ASC NULLS FIRST, created_at ASC, id ASC` because created_at is
+  -- transaction-START time and could not witness append order. Roots stored
+  -- before 0017 still reproduce: rows predating it keep chain_seq NULL and so
+  -- retain exactly their old relative order. Leaf data is the row's own
   -- hash_curr; leaves are hashed with the 0x00 prefix and internal nodes with
   -- 0x01, so an internal node can never be replayed as a leaf. NULL for rows
   -- inserted before this migration -- see the header.
@@ -102,6 +107,12 @@ ALTER TABLE ledger_anchors
 --
 -- Column order matches the ORDER BY exactly (dog_id, created_at, id) so the
 -- sort disappears as well as the scan.
+--
+-- SUPERSEDED BY 0017, which changed the canonical order to
+-- (chain_seq NULLS FIRST, created_at, id) and adds
+-- medical_records_dog_chain_seq_ix to match it. This index is deliberately kept
+-- rather than dropped: the Migrate job runs before the Deploy job, so the
+-- previous release still issues the old ORDER BY for the length of a deploy.
 -- ---------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS medical_records_dog_chain_ix
   ON medical_records (dog_id, created_at, id);

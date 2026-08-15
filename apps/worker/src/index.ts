@@ -9,6 +9,8 @@
  *   anchor_ledger  → daily ledger head publication, Merkle root and signature
  *                    (INVARIANT 10; see src/sign-anchor.ts for the key config)
  */
+import { unlink } from "node:fs/promises";
+import { join as joinPath } from "node:path";
 import { pool, query, withTx } from "@hetja/db";
 import type { PoolClient } from "pg";
 import webpush from "web-push";
@@ -20,6 +22,20 @@ import {
 } from "./sign-anchor.js";
 
 const BATCH = 10;
+
+/**
+ * Raw-photo retention (see the `retention` handler).
+ *
+ * Read from the same env the API writes with, so the worker deletes from the
+ * directory the API actually wrote to. A mismatch here would silently delete
+ * nothing while reporting success — which is exactly how the previous version
+ * of this job went unnoticed.
+ */
+const PHOTO_TTL_DAYS = Number(process.env.HETJA_PHOTO_TTL_DAYS ?? 7);
+const STORAGE_BACKEND = process.env.STORAGE_BACKEND ?? "local";
+const STORAGE_LOCAL_DIR = process.env.STORAGE_LOCAL_DIR ?? "data/photos";
+/** Bounded so one run cannot hold the queue for an unbounded time. */
+const RETENTION_BATCH = 200;
 const POLL_MS = 2_000;
 const LOCK_SECONDS = 60;
 const MAX_ATTEMPTS = 8;
@@ -292,9 +308,88 @@ const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     }
   },
 
-  retention: async (p) => {
-    // Raw photos: 7-day TTL (S3 keys written to a retention manifest in Phase 0).
-    await query(`DELETE FROM jobs WHERE kind = 'retention' AND run_after < now() - interval '7 days'`);
+  /**
+   * Raw-photo retention: delete the image bytes after PHOTO_TTL_DAYS.
+   *
+   * THIS HANDLER USED TO BE A NO-OP WEARING A COMMENT. Its entire body was:
+   *
+   *     // Raw photos: 7-day TTL (S3 keys written to a retention manifest...)
+   *     DELETE FROM jobs WHERE kind = 'retention' AND run_after < now() - '7 days'
+   *
+   * which deletes rows from the JOB QUEUE, not photographs. No file was ever
+   * removed, no "retention manifest" exists anywhere in the repository, and
+   * nothing enqueued the job in the first place — so the set it deleted from
+   * was always empty. Three separate documents state a 7-day photo TTL as
+   * fact. Photos were retained forever, on the same disk as PostgreSQL, and
+   * `docs/ops/AUDIT-LOGGING.md` spells out where that ends: "if [the disk]
+   * fills, PostgreSQL stops accepting writes, and the SOS path stops working."
+   *
+   * WHAT IS DELETED, PRECISELY: the file on disk, and the `photo_s3_key`
+   * pointer that named it. The scan row itself, its timestamps, its geo and
+   * its trust effects all remain — the retention promise is about images, not
+   * about erasing that a feed happened. A feeder's streak does not evaporate
+   * because their photo aged out.
+   *
+   * Deletion order is file-then-pointer, deliberately. If the process dies
+   * between the two, the row points at a missing file: the profile shows a
+   * broken image, which is visible and self-corrects on the next run. The
+   * reverse order would leave an orphaned file no query can ever find again —
+   * an invisible leak that grows forever, which is the failure this job exists
+   * to prevent.
+   */
+  retention: async () => {
+    if (STORAGE_BACKEND !== "local") {
+      console.warn(
+        `retention: STORAGE_BACKEND=${STORAGE_BACKEND} has no delete path in this build — ` +
+          "photos are NOT being expired. Implement it before relying on the TTL.",
+      );
+      return;
+    }
+
+    const expired = await query<{ id: string; photo_s3_key: string }>(
+      `SELECT id, photo_s3_key
+         FROM scans
+        WHERE photo_s3_key IS NOT NULL
+          AND received_at < now() - make_interval(days => $1)
+        LIMIT $2`,
+      [PHOTO_TTL_DAYS, RETENTION_BATCH],
+    );
+    if (expired.rowCount === 0) return;
+
+    let removed = 0;
+    for (const row of expired.rows) {
+      // `photo_s3_key` is minted server-side as `photos/<uuid>.<ext>`, never
+      // supplied by a caller, but this is a filesystem delete driven by a
+      // database value — so the value is re-validated here rather than trusted.
+      // A key that escaped its prefix would let this loop delete outside the
+      // photo directory entirely.
+      if (!/^photos\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(row.photo_s3_key)) {
+        console.error(
+          `retention: refusing to delete unexpected photo key ${JSON.stringify(row.photo_s3_key)} ` +
+            `on scan ${row.id} — clearing the pointer only`,
+        );
+        await query(`UPDATE scans SET photo_s3_key = NULL WHERE id = $1`, [row.id]);
+        continue;
+      }
+
+      const filePath = joinPath(STORAGE_LOCAL_DIR, row.photo_s3_key);
+      try {
+        await unlink(filePath);
+      } catch (err) {
+        // ENOENT means the file is already gone — that is success for a
+        // deletion job, and re-running after a partial pass must not fail.
+        if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+          console.error(`retention: could not unlink ${filePath}:`, err);
+          continue; // leave the pointer so the next run retries
+        }
+      }
+      await query(`UPDATE scans SET photo_s3_key = NULL WHERE id = $1`, [row.id]);
+      removed++;
+    }
+
+    console.log(
+      `retention: expired ${removed}/${expired.rowCount} photo(s) older than ${PHOTO_TTL_DAYS}d`,
+    );
   },
 
   /**
@@ -469,6 +564,58 @@ export async function enqueueAnchorJobIfDue(client: PoolClient): Promise<boolean
   return enqueued;
 }
 
+/** Advisory lock for the retention scheduler. Distinct from the anchor's. */
+const RETENTION_SCHEDULE_LOCK_KEY = 420_011;
+
+/**
+ * Enqueues the daily photo-retention sweep, if one is not already pending and
+ * one has not run in the last 24 hours.
+ *
+ * NOTHING ENQUEUED THIS JOB BEFORE. `retention` had a handler, a documented
+ * 7-day TTL in three separate files, and no producer anywhere in the
+ * repository — so the TTL was prose. Photos accumulated indefinitely on the
+ * same disk as PostgreSQL, and that disk filling stops the database accepting
+ * writes, which stops the SOS path.
+ *
+ * Mirrors `enqueueAnchorJobIfDue` deliberately, including the `failed_at IS
+ * NULL` filter: a dead-lettered retention job must not satisfy the NOT EXISTS
+ * guard and silently stop retention forever.
+ *
+ * "Has one run recently" is inferred from the queue rather than from a
+ * timestamp table: a completed job is DELETEd, so the absence of a live row
+ * plus the 24h floor on `run_after` is the same signal without a new table to
+ * keep in sync.
+ */
+export async function enqueueRetentionJobIfDue(client: PoolClient): Promise<boolean> {
+  const lock = await client.query<{ locked: boolean }>(
+    "SELECT pg_try_advisory_xact_lock($1) AS locked",
+    [RETENTION_SCHEDULE_LOCK_KEY],
+  );
+  if (!lock.rows[0].locked) return false;
+  const res = await client.query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT 'retention', '{}'::jsonb, now()
+      WHERE NOT EXISTS (
+              SELECT 1 FROM jobs
+               WHERE kind = 'retention'
+                 AND failed_at IS NULL
+                 AND run_after > now() - interval '24 hours'
+            )`,
+  );
+  const enqueued = (res.rowCount ?? 0) > 0;
+  if (enqueued) console.log("retention: enqueued (no sweep in the last 24h)");
+  return enqueued;
+}
+
+/** `enqueueRetentionJobIfDue`, throttled, on its own transaction. */
+let lastRetentionScheduleCheck = 0;
+async function ensureDailyRetentionJob(): Promise<void> {
+  const now = Date.now();
+  if (now - lastRetentionScheduleCheck < ANCHOR_SCHEDULE_CHECK_MS) return;
+  lastRetentionScheduleCheck = now;
+  await withTx(enqueueRetentionJobIfDue);
+}
+
 /** `enqueueAnchorJobIfDue`, throttled, on its own transaction. */
 async function ensureDailyAnchorJob(): Promise<void> {
   const now = Date.now();
@@ -486,6 +633,14 @@ export async function runWorker(once = false): Promise<void> {
       await ensureDailyAnchorJob();
     } catch (err) {
       console.error("anchor_ledger: could not evaluate the daily schedule:", err);
+    }
+    // Same contract as the anchor scheduler: a scheduling error must never stop
+    // the tick. A missed retention sweep costs disk; an SOS escalation that
+    // never runs costs an animal.
+    try {
+      await ensureDailyRetentionJob();
+    } catch (err) {
+      console.error("retention: could not evaluate the daily schedule:", err);
     }
     let processed = 0;
     while (processed < BATCH) {

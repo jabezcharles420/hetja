@@ -6,6 +6,7 @@ import { signAccessToken, signRefreshToken } from "../lib/jwt.js";
 import { verifyDeviceToken } from "../lib/device.js";
 import { issueOtp, verifyOtp } from "../lib/otp.js";
 import { sendOtpEmail } from "../lib/mailer.js";
+import { GLOBAL_SUBJECT, otpGlobal, otpPerIdentity } from "../lib/rate-limit.js";
 
 interface FeederRow {
   id: string;
@@ -40,6 +41,53 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const { email } = parsed.data;
     const idHmac = identityHmac(email, app.config.HETJA_HMAC_PEPPER);
+
+    // Rate limit BEFORE issuing anything.
+    //
+    // Order matters twice over. `issueOtp` overwrites any pending code for this
+    // identity, so limiting afterwards would still let an attacker invalidate a
+    // real user's in-flight code at will — a denial of service that needs no
+    // email to be sent at all. And the send is synchronous, so limiting
+    // afterwards would not protect the SMTP quota either.
+    //
+    // Keyed on identity_hmac and on a global bucket, never on IP: INVARIANT 6
+    // forbids per-IP limits because Indian carrier CGNAT puts hundreds of real
+    // subscribers behind one address. See lib/rate-limit.ts.
+    //
+    // Both limits are checked before either is consumed, so a request refused
+    // by the global cap does not also burn the user's personal allowance.
+    const perIdentity = otpPerIdentity.consume(idHmac);
+    if (!perIdentity.allowed) {
+      return reply
+        .status(429)
+        .header("retry-after", String(perIdentity.retryAfterSec))
+        .send({
+          ok: false,
+          error: {
+            message: "Too many codes requested for this address. Try again shortly.",
+            code: "RATE_LIMITED",
+          },
+        });
+    }
+    const global = otpGlobal.consume(GLOBAL_SUBJECT);
+    if (!global.allowed) {
+      // Deliberately vague to the caller and loud in the log: this is either an
+      // attack in progress or a genuine surge, and both need an operator to see
+      // it. The daily mail quota is a hard vendor ceiling — running it to zero
+      // means no user can log in until midnight.
+      req.log.error(
+        { retryAfterSec: global.retryAfterSec },
+        "OTP global send budget exhausted — refusing further sends to protect the daily mail quota",
+      );
+      return reply
+        .status(429)
+        .header("retry-after", String(global.retryAfterSec))
+        .send({
+          ok: false,
+          error: { message: "Sign-in is temporarily busy. Try again shortly.", code: "RATE_LIMITED" },
+        });
+    }
+
     const { code, expiresAt } = await issueOtp(idHmac, app.config.HETJA_HMAC_PEPPER);
 
     if (app.config.NODE_ENV === "production") {

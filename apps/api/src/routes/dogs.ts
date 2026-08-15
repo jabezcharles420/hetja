@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
 import { coarsenToWard, type DogStatus } from "@hetja/contracts";
+import { timingSafeEqual } from "node:crypto";
 import { query } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
 
@@ -78,11 +79,57 @@ export const dogCache = new LRUCache<string, DogPagePayload>({
   ttl: 5_000,
 });
 
+/**
+ * Verifies a collar signature, accepting EITHER the value stored on the collar
+ * row OR a fresh HMAC over the current secret.
+ *
+ * WHY BOTH, AND WHY THE STORED ONE FIRST.
+ *
+ * `HETJA_QR_SECRET` is the single most dangerous value in this system. It is
+ * HMAC'd into the URL etched on every collar already glued to an animal, and
+ * verification used to be purely stateless — recompute the HMAC, compare. That
+ * made the secret load-bearing forever: lose it, and every collar in the field
+ * stops resolving. Not degraded — stops. Rotate it, and the same. AGENTS.md
+ * documents this at length as a hazard to be careful around.
+ *
+ * It did not have to be a hazard. `collars.hmac_sig` has existed since
+ * migration 0001 and held the correct signature for every collar the whole
+ * time — and no code in the API ever read it. Consulting it converts a
+ * catastrophic loss into an inconvenience: an operator who loses the secret can
+ * still serve every collar already in the field, and can mint a new secret for
+ * new collars without invalidating the old ones. That is also what makes
+ * rotation possible at all, which today it is not at any price.
+ *
+ * SECURITY IS UNCHANGED. The threat this defends against is a stranger
+ * fabricating collar URLs to enumerate the register — "in one political
+ * climate a tool for protection, in another a targeting list". A forged
+ * signature still fails: matching the stored value requires a row this
+ * operator inserted, and matching the computed value requires the secret.
+ * Neither is guessable, and the comparison stays constant-time.
+ *
+ * Stored first because it is the branch that survives a lost or rotated
+ * secret; the recompute is the fallback for collars minted since, whose row
+ * may not carry a signature yet.
+ */
+async function verifyCollarSignature(slug: string, sig: string, secret: string): Promise<boolean> {
+  const row = await query<{ hmac_sig: string }>(
+    `SELECT c.hmac_sig FROM collars c JOIN dogs d ON d.id = c.dog_id WHERE d.slug = $1 LIMIT 1`,
+    [slug],
+  );
+  const stored = row.rows[0]?.hmac_sig;
+  if (stored) {
+    const a = Buffer.from(stored);
+    const b = Buffer.from(sig);
+    if (a.length === b.length && timingSafeEqual(a, b)) return true;
+  }
+  return verifySlugSig(slug, sig, secret);
+}
+
 export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
     const { s: sig } = req.query as { s?: string };
-    if (!sig || !verifySlugSig(slug, sig, app.config.HETJA_QR_SECRET)) {
+    if (!sig || !(await verifyCollarSignature(slug, sig, app.config.HETJA_QR_SECRET))) {
       return notFound(reply);
     }
 

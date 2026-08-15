@@ -74,6 +74,31 @@ interface RequestOptions {
   auth?: boolean;
   /** Override the deadline. `0` disables it — use only where a caller imposes its own. */
   timeoutMs?: number;
+  /** Sent as `x-device-token` for endpoints that accept device attestation. */
+  deviceToken?: string;
+}
+
+/**
+ * An attested device token, or undefined if one cannot be minted right now.
+ *
+ * Never throws and never blocks the caller's action. Minting involves a network
+ * round trip and a proof-of-work solve that can legitimately time out on a slow
+ * handset; when that happens the request proceeds without a token and the
+ * server's own 401 handling applies. Failing the user's feed or emergency report
+ * because a puzzle did not finish would be a worse outcome than an honest
+ * server-side rejection.
+ *
+ * Imported lazily so that `lib/api` stays usable in contexts (tests, SSR) where
+ * the device module's browser dependencies are absent.
+ */
+async function bestEffortDeviceToken(): Promise<string | undefined> {
+  try {
+    const { getDeviceToken } = await import("./device");
+    const outcome = await getDeviceToken();
+    return outcome.ok ? outcome.token : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface ErrorEnvelope {
@@ -96,7 +121,7 @@ function isErrorEnvelope(payload: unknown): payload is ErrorEnvelope {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, auth = true } = opts;
+  const { method = "GET", body, auth = true, deviceToken } = opts;
 
   const headers: Record<string, string> = { accept: "application/json" };
   if (body !== undefined) headers["content-type"] = "application/json";
@@ -104,6 +129,11 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const token = getAccessToken();
     if (token) headers.authorization = `Bearer ${token}`;
   }
+  // The API accepts a feeder Bearer token OR an attested device token. Sending
+  // both is harmless — the route prefers the Bearer — and it means a signed-in
+  // feeder whose access token has expired still gets the anonymous path rather
+  // than a hard 401.
+  if (deviceToken) headers["x-device-token"] = deviceToken;
 
   let res: Response;
   try {
@@ -311,12 +341,48 @@ export const api = {
     request<VerifyResult>(`/auth/verify`, { method: "POST", body: input, auth: false }),
 
   /** POST a feed scan. Idempotent on the server by clientUuid. */
+  /**
+   * Log a feed.
+   *
+   * KNOWN GAP, deliberately not patched here. The API accepts a feeder Bearer
+   * token OR an `x-device-token` header (apps/api/src/routes/scans.ts), and this
+   * client sends only the Bearer — so an ANONYMOUS feed returns 401
+   * UNAUTHENTICATED_DEVICE. It presents badly: FeedButton branches only on
+   * `offline`, so the user is told "Feed logged ♥" regardless, and the offline
+   * queue treats 401 as retryable, so the record stays in IndexedDB and
+   * re-uploads its photo on every app open.
+   *
+   * It is not fixed by attaching a token here, because this function's callers
+   * are the offline queue's REPLAY path: minting is a network round trip plus a
+   * proof-of-work solve, and doing it per queued record during a flush is the
+   * wrong shape. The fix belongs one level up — mint once when the feed is
+   * captured, store it with the queued record, and replay it — which changes the
+   * queue's persisted schema and its tests. Tracked rather than rushed.
+   */
   createScan: (input: { clientUuid: string; dogSlug: string; type: "feed"; geo?: GeoPoint; photoBase64?: string; capturedAt: string }) =>
     request<ScanResult>(`/scans`, { method: "POST", body: input }),
 
-  /** Open an SOS report (minor / serious / critical). */
-  createReport: (input: { dogSlug: string; severity: SosSeverity; note?: string }) =>
-    request<SosReportResult>(`/reports`, { method: "POST", body: input }),
+  /**
+   * Open an SOS report (minor / serious / critical).
+   *
+   * `deviceToken` in the body is REQUIRED for an anonymous caller
+   * (apps/api/src/routes/sos.ts returns 401 UNAUTHENTICATED_DEVICE without it).
+   * This client never sent one, so the single primary action on the dog page —
+   * "This dog needs help" — failed for exactly the persona the page exists for:
+   * a stranger with no account. The user was shown the raw server string
+   * "attested device token required", on a screen that deliberately strips all
+   * navigation, so there was not even a way to sign in from there.
+   *
+   * apps/scan/src/sheet.ts has always done this correctly; apps/web simply never
+   * implemented it.
+   */
+  createReport: async (input: { dogSlug: string; severity: SosSeverity; note?: string }) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<SosReportResult>(`/reports`, {
+      method: "POST",
+      body: deviceToken ? { ...input, deviceToken } : input,
+    });
+  },
 
   /** Feeder self-service: trust score, streak days and badges. */
   getStreak: () => request<StreakData>(`/feeders/me/streak`),

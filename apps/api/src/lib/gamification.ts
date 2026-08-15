@@ -178,9 +178,10 @@ export interface FeederGamificationRow {
   streak_days: number;
   last_feed_date: string | null;
   badges: string[];
+  trust_score: number;
 }
 
-const GAM_COLUMNS = `streak_days, last_feed_date::text AS last_feed_date, badges`;
+const GAM_COLUMNS = `streak_days, last_feed_date::text AS last_feed_date, badges, trust_score`;
 
 export async function getFeederGamification(
   feederId: string,
@@ -316,6 +317,22 @@ export interface StreakView {
   streakDays: number;
   lastFeedDate: string | null;
   nextBadgeHint: BadgeHint | null;
+  /**
+   * `badges` and `trustScore` are part of this payload because /me RENDERS
+   * them — `apps/web/lib/streak.ts` declares both as required and calls
+   * `data.badges.map(...)`.
+   *
+   * They were missing, and the consequence was not a missing widget: the
+   * client threw `TypeError: Cannot read properties of undefined (reading
+   * 'map')` on every render of /me, which is the page the user is redirected
+   * to immediately after a successful sign-in. With no error boundary in the
+   * app, React unmounted the tree and Next.js rendered its bare "Application
+   * error: a client-side exception has occurred". Every feeder, every time,
+   * in every environment — a login that worked perfectly, followed by a blank
+   * error page. This is the defect that read as "the app is not working".
+   */
+  badges: string[];
+  trustScore: number;
 }
 
 /** GET /feeders/me/streak payload: current streak + last feed + hint. */
@@ -327,5 +344,7 @@ export async function getStreakView(feederId: string): Promise<StreakView> {
     streakDays: currentStreak({ streakDays: row.streak_days, lastFeedDate: row.last_feed_date }, today),
     lastFeedDate: row.last_feed_date,
     nextBadgeHint: nextBadgeHint(row.badges, ctx),
+    badges: row.badges,
+    trustScore: row.trust_score,
   };
 }

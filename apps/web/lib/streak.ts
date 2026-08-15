@@ -78,15 +78,33 @@ export function nextMilestoneFor(days: number): string | null {
   return null;
 }
 
+/**
+ * Tolerates a server payload that is missing fields this type declares.
+ *
+ * `StreakData` says `badges` and `trustScore` are required, and for a while the
+ * API did not send either. `data.badges.map(...)` then threw on every render of
+ * /me — the page a feeder is redirected to the instant they sign in — and with
+ * no error boundary in the app the whole tree unmounted to Next.js's bare
+ * "Application error: a client-side exception has occurred". A successful login
+ * followed by a blank error page, for every user.
+ *
+ * The API now sends both. This coercion exists so that the NEXT time a payload
+ * drifts, a feeder loses a number on a page instead of losing the page — a
+ * missing badge list is a display gap, not a reason to destroy the session's
+ * only screen. It is deliberately not a schema validation: the goal is to
+ * degrade, not to be strict.
+ */
 export function mapStreak(data: StreakData): StreakDisplay {
-  const days = Math.max(0, Math.floor(data.streakDays));
+  const days = Math.max(0, Math.floor(Number(data?.streakDays) || 0));
+  const badges = Array.isArray(data?.badges) ? data.badges : [];
+  const trustScore = Number.isFinite(data?.trustScore) ? data.trustScore : 0;
   return {
     streakDays: days,
     streakLevel: streakLevelFor(days),
     streakLabel: streakLabelFor(days),
-    trustScore: data.trustScore,
-    trustLabel: trustLabelFor(data.trustScore),
-    badges: data.badges.map((key) => ({ key, label: badgeLabel(key) })),
+    trustScore,
+    trustLabel: trustLabelFor(trustScore),
+    badges: badges.map((key) => ({ key, label: badgeLabel(key) })),
     nextMilestone: nextMilestoneFor(days),
   };
 }

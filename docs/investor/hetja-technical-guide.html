@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hetja — Technical Guide for Investors</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm 18mm 18mm; }
+  :root{
+    --ink:#14161a; --ink-2:#3d434d; --ink-3:#6b7280; --rule:#d7dbe0;
+    --accent:#8a1f1f; --ok:#1c6b3f; --warn:#8a5a00; --bg-soft:#f6f7f9;
+  }
+  *{box-sizing:border-box}
+  html{font-size:10.5pt}
+  body{
+    margin:0; color:var(--ink); background:#fff;
+    font-family:"Charter","Iowan Old Style","Palatino Linotype","Georgia",serif;
+    line-height:1.5; text-rendering:optimizeLegibility;
+  }
+  code,pre,.mono{font-family:"SF Mono",ui-monospace,"Menlo","Consolas",monospace}
+  code{font-size:.86em;background:var(--bg-soft);padding:.08em .3em;border-radius:2px}
+  pre{background:var(--bg-soft);border:1px solid var(--rule);border-left:3px solid var(--ink-3);
+      padding:.7em .9em;font-size:8.4pt;line-height:1.42;overflow-x:auto;white-space:pre;border-radius:2px}
+  h1,h2,h3,h4{font-family:"Helvetica Neue",Inter,system-ui,sans-serif;line-height:1.2;font-weight:650}
+  h1{font-size:22pt;letter-spacing:-.015em;margin:0 0 .2em}
+  h2{font-size:15pt;margin:0 0 .55em;padding-bottom:.3em;border-bottom:2px solid var(--ink)}
+  h3{font-size:11.5pt;margin:1.6em 0 .45em}
+  h4{font-size:10pt;margin:1.2em 0 .35em;color:var(--ink-2)}
+  p{margin:0 0 .75em}
+  ul,ol{margin:0 0 .8em;padding-left:1.15em}
+  li{margin:.22em 0}
+  a{color:var(--accent);text-decoration:none}
+  section{page-break-before:always}
+  section.first{page-break-before:avoid}
+  .cover{page-break-after:always;display:flex;flex-direction:column;justify-content:center;min-height:238mm}
+  .cover .rule{height:3px;background:var(--ink);width:70px;margin:0 0 1.4em}
+  .cover h1{font-size:34pt;line-height:1.05;margin-bottom:.25em}
+  .cover .sub{font-size:13pt;color:var(--ink-2);margin-bottom:2.4em;max-width:34em}
+  .cover dl{display:grid;grid-template-columns:auto 1fr;gap:.3em 1.4em;font-size:9.5pt;max-width:32em}
+  .cover dt{color:var(--ink-3);font-family:"Helvetica Neue",sans-serif}
+  .cover dd{margin:0}
+  table{width:100%;border-collapse:collapse;margin:.5em 0 1em;font-size:8.8pt}
+  th,td{text-align:left;padding:.4em .55em;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{font-family:"Helvetica Neue",sans-serif;font-size:8.2pt;text-transform:uppercase;
+     letter-spacing:.05em;color:var(--ink-3);border-bottom:1.5px solid var(--ink-2)}
+  tbody tr:nth-child(even){background:#fafbfc}
+  .tag{font-family:"Helvetica Neue",sans-serif;font-size:7.2pt;font-weight:700;letter-spacing:.04em;
+       padding:.16em .42em;border-radius:2px;white-space:nowrap;text-transform:uppercase}
+  .t-code{background:#e3f0e8;color:var(--ok)} .t-db{background:#e4ecf7;color:#1b4b82}
+  .t-gate{background:#e8e6f5;color:#453a86} .t-doc{background:#fbeaea;color:var(--accent)}
+  .t-part{background:#fdf1dc;color:var(--warn)}
+  .callout{border:1px solid var(--rule);border-left:3px solid var(--accent);background:#fdfafa;
+           padding:.75em .95em;margin:1em 0;font-size:9.6pt}
+  .callout.good{border-left-color:var(--ok);background:#fafdfb}
+  .callout.warn{border-left-color:var(--warn);background:#fffcf5}
+  .callout p:last-child{margin-bottom:0}
+  .callout .lbl{font-family:"Helvetica Neue",sans-serif;font-weight:700;font-size:8pt;
+                text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);display:block;margin-bottom:.3em}
+  .lede{font-size:11pt;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:1em;margin:0 0 1.5em}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.6em;margin:1em 0}
+  .kpi{border:1px solid var(--rule);border-top:2px solid var(--ink);padding:.6em .7em;background:#fff}
+  .kpi .n{font-family:"Helvetica Neue",sans-serif;font-size:16pt;font-weight:700;line-height:1}
+  .kpi .l{font-size:7.6pt;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:.3em;
+          font-family:"Helvetica Neue",sans-serif}
+  .toc{font-size:9.6pt;column-count:1}
+  .toc div{display:flex;gap:.6em;padding:.28em 0;border-bottom:1px dotted var(--rule)}
+  .toc .n{color:var(--ink-3);font-family:"Helvetica Neue",sans-serif;min-width:2.1em}
+  figure{margin:1em 0}
+  figcaption{font-size:8.2pt;color:var(--ink-3);margin-top:.4em;font-family:"Helvetica Neue",sans-serif}
+  .small{font-size:8.8pt;color:var(--ink-2)}
+  .footnote{font-size:8.2pt;color:var(--ink-3);border-top:1px solid var(--rule);padding-top:.5em;margin-top:1.2em}
+  strong{font-weight:650}
+  .nobreak{page-break-inside:avoid}
+  /* Print break control: keep headings with their content, never split a table
+     row across pages, repeat table headers on continuation pages, and forbid
+     single-line orphans. Without these, forced section breaks leave near-empty
+     pages and orphaned table headers. */
+  h2,h3,h4{page-break-after:avoid;break-after:avoid}
+  tr,li{page-break-inside:avoid;break-inside:avoid}
+  thead{display:table-header-group}
+  p{orphans:2;widows:2}
+  figure,.callout,.kpis{page-break-inside:avoid;break-inside:avoid}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════ COVER ══════════════════════════ -->
+<div class="cover">
+  <div class="rule"></div>
+  <h1>Hetja</h1>
+  <div class="sub">City-scale infrastructure for keeping street dogs alive — a technical guide for investors and their technical advisors.</div>
+  <dl>
+    <dt>Subject</dt><dd>github.com/jabezcharles420/hetja — private evaluation copy</dd>
+    <dt>Prepared</dt><dd>15 August 2026</dd>
+    <dt>Basis</dt><dd>Direct source audit, live production measurement, and full test-suite execution against the production database image</dd>
+    <dt>Commit</dt><dd class="mono">d8f8e1e (deployed) · fix/ledger-chain-seq pending</dd>
+    <dt>Status</dt><dd>Live and serving. Pre-revenue. Four days of version-control history.</dd>
+  </dl>
+  <div class="footnote" style="margin-top:3.5em">
+    This document was produced by reading the repository and measuring the running system, not by
+    interviewing the team. Every quantitative claim is either measured (and marked as such) or cited to a
+    file. Where the repository's own documentation contradicts its code, the code is reported and the
+    contradiction is flagged. <strong>No financial, market, traction or team information was available to
+    the author</strong>, and none is asserted here.
+  </div>
+</div>
+
+<!-- ══════════════════════════ CONTENTS ══════════════════════════ -->
+<section class="first">
+<h2>Contents</h2>
+<div class="toc">
+  <div><span class="n">1</span><span>How to read this document</span></div>
+  <div><span class="n">2</span><span>Executive summary</span></div>
+  <div><span class="n">3</span><span>The problem, and what has been built</span></div>
+  <div><span class="n">4</span><span>The four surfaces, and what each one is for</span></div>
+  <div><span class="n">5</span><span>Architecture and data model</span></div>
+  <div><span class="n">6</span><span>The fifteen invariants — the actual intellectual property</span></div>
+  <div><span class="n">7</span><span>Privacy, security and Indian regulatory exposure</span></div>
+  <div><span class="n">8</span><span>Engineering quality: an independent audit and what it found</span></div>
+  <div><span class="n">9</span><span>Live production verification</span></div>
+  <div><span class="n">10</span><span>Cost structure and the scaling ceiling</span></div>
+  <div><span class="n">11</span><span>Risk register</span></div>
+  <div><span class="n">12</span><span>What investment would actually buy</span></div>
+  <div><span class="n">A</span><span>Appendix: measured repository metrics</span></div>
+  <div><span class="n">B</span><span>Appendix: glossary for non-specialists</span></div>
+</div>
+</section>
+
+<!-- ══════════════════════════ 1. HOW TO READ ══════════════════════════ -->
+<section>
+<h2>1 · How to read this document</h2>
+<p class="lede">You asked for technical depth without being written down to. This section exists so that the
+depth is usable rather than decorative.</p>
+
+<p>The document is layered. Each numbered section opens with a plain-language paragraph stating what the
+section is about and why it matters commercially. The detail that follows is aimed at a technical advisor
+doing due diligence. You can read only the opening paragraphs and the tables and come away with an accurate
+picture; the rest is there so that someone you trust can check my work.</p>
+
+<h3>Three phrases you will meet constantly</h3>
+<p><strong>An invariant</strong> is a rule the system promises never to break — for example, "a stranger
+who scans a collar can never see the dog's exact location." The commercial question about any such promise
+is always the same: <em>is it enforced by a machine, or is it just written down?</em> Section 6 answers
+that for all fifteen, one at a time, and the distinction is the single most important thing in this
+document.</p>
+
+<p><strong>A gate</strong> is an automated check that refuses to let code reach production if a rule is
+broken. Gates are how a promise becomes mechanical rather than cultural. A gate that cannot fail is worse
+than no gate, because it produces false confidence — and I found two of those, described in section 8.</p>
+
+<p><strong>The ledger</strong> is a tamper-evident record of veterinary treatment. Each record is
+cryptographically linked to the one before it, so altering an old record breaks every link after it and is
+detectable. Section 7 explains precisely what that does and does not prove.</p>
+
+<div class="callout">
+<span class="lbl">On my independence</span>
+<p>I was asked to improve this codebase, and I did: three changesets, two already deployed to production.
+That makes me a contributor, not a neutral party. I have tried to correct for it by reporting defects I
+introduced myself alongside those I found, and by marking every claim as measured, cited, or uncertain.
+Where I judged something and could be wrong, I have said so rather than smoothing it over.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 2. EXEC SUMMARY ══════════════════════════ -->
+<section>
+<h2>2 · Executive summary</h2>
+
+<div class="kpis">
+  <div class="kpi"><div class="n">21.9k</div><div class="l">lines of source</div></div>
+  <div class="kpi"><div class="n">9.5k</div><div class="l">lines of tests</div></div>
+  <div class="kpi"><div class="n">445</div><div class="l">tests passing</div></div>
+  <div class="kpi"><div class="n">4 days</div><div class="l">of git history</div></div>
+</div>
+
+<p><strong>What it is.</strong> Hetja is working infrastructure for keeping street dogs alive in Mumbai: a
+QR-coded collar tag, a public web page any passer-by can load without installing anything, a geofenced
+emergency network that pages nearby responders, and a tamper-evident medical ledger. It is live — the
+production system answered requests while this document was being written — and it is open source by
+deliberate policy.</p>
+
+<p><strong>What is genuinely unusual about it.</strong> Two things. First, the engineering discipline is far
+above what its age would predict: fifteen written invariants, seven automated gates enforcing them, a hard
+40 KB budget on the page a stranger loads, and 9,500 lines of tests against 21,900 lines of source. Second,
+the reasoning is written down. The codebase explains <em>why</em> decisions were made, including its own past
+mistakes, at a density I rarely see in mature commercial code. That is a real asset: it is what let an
+outside auditor become productive in hours rather than weeks.</p>
+
+<p><strong>What an investor must weigh against that.</strong> The version-control history is four days old,
+59 of 109 commits are AI co-authored, and the system has no measured traction of any kind that I could
+find. The discipline is real but young, and young discipline has not yet been tested by the things that
+break systems: concurrency, a second machine, an unattended deploy at 3 a.m. My audit found exactly that
+pattern — the code was well-reasoned and well-documented, and the defects clustered precisely where
+reasoning cannot substitute for execution.</p>
+
+<h3>What the audit found</h3>
+<p>I audited the codebase against its own stated invariants and found <strong>fourteen defects</strong>,
+every one of them silent: nothing crashed, no test went red, and in three cases an automated gate actively
+reported a property intact while it was broken. The three that matter most:</p>
+
+<table>
+<thead><tr><th style="width:31%">Defect</th><th>Consequence</th><th style="width:15%">Status</th></tr></thead>
+<tbody>
+<tr><td><strong>The job queue could not retry</strong></td>
+    <td>A single failing job halted the 8-minute emergency escalation for the entire system, silently. The retry counter was rolled back by the same transaction that was supposed to record it, making the give-up branch unreachable code.</td>
+    <td><span class="tag t-code">Fixed &amp; deployed</span></td></tr>
+<tr><td><strong>The emergency ledger forked under load</strong></td>
+    <td>The lock meant to prevent this did not: 16 concurrent writes inverted 42.5% of ordering pairs and created 3 forks. The public verification endpoint then reported <em>TAMPERED</em> on data nobody had touched.</td>
+    <td><span class="tag t-part">Fixed, awaiting merge</span></td></tr>
+<tr><td><strong>Two gates could not fail</strong></td>
+    <td>One would pass a configuration with the life-safety cache rule deleted. The other would let <code>DROP TABLE medical_records</code> through to an unattended production migration.</td>
+    <td><span class="tag t-code">Fixed &amp; deployed</span></td></tr>
+</tbody>
+</table>
+
+<p>I regard finding these as evidence <em>for</em> the project rather than against it. They were findable
+because the invariants were written down precisely enough to test against — most codebases cannot be
+audited this way at all. But they were present, which means the promises were not yet mechanically true.</p>
+
+<h3>Three gaps that outweigh every defect</h3>
+<p>The audit above concerns correctness. Separately, tracing the product end to end found three structural
+gaps that a technical diligence process would surface immediately, and that matter more than any bug:</p>
+
+<table>
+<thead><tr><th style="width:30%">Gap</th><th>What it means</th></tr></thead>
+<tbody>
+<tr><td><strong>There is no way to enrol a dog</strong></td>
+<td>No tagger application exists, and no endpoint to create a dog or bind a collar is registered. Dogs can currently be added only by a seed script or hand-written SQL. The system that registers street dogs cannot yet register a street dog.</td></tr>
+<tr><td><strong>The emergency loop does not close</strong></td>
+<td>Only reports marked <em>critical</em> notify anyone — and the app's emergency form defaults to <em>serious</em>, which notifies nobody. The push notification links to a screen that does not exist. The 8-minute escalation writes database rows addressed to channels with no sender. See §3.4.</td></tr>
+<tr><td><strong>The ledger is not yet evidence against its operator</strong></td>
+<td>The daily fingerprint that makes the chain auditable is computed and stored but <strong>published nowhere</strong>. It currently proves integrity against an intruder, not against Hetja. See §7.3.</td></tr>
+</tbody>
+</table>
+
+<p>None of this is concealed — the repository documents most of it against itself, which is a genuine mark
+in its favour. But an investor should hold an accurate picture of what is deployed: <strong>a working
+identification and phone-directory system for dogs that cannot yet be enrolled, with a correctly-modelled
+emergency case that in its default configuration pages nobody.</strong></p>
+
+<div class="callout warn">
+<span class="lbl">The honest headline</span>
+<p>This is an unusually well-architected and exceptionally well-documented four-day-old system, live but
+with no measured usage. The engineering judgement on display is real and well above the norm for its age.
+Ten of its fifteen stated invariants are mechanically enforced.</p>
+<p>The risk is not the code. It is that the <em>mission-critical path is incomplete</em> — no enrolment, no
+closed emergency loop — while the operational base is thin: one shared 2 GB server in the wrong continent,
+backups written to the disk they back up, no restore ever performed, and no rate limiting on the endpoint
+that sends email. Those are weeks of work, not quarters. But they are the work, and they are not features.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 3. PROBLEM & PRODUCT ══════════════════════════ -->
+<section>
+<h2>3 · The problem, and what has been built</h2>
+<p class="lede">Mumbai has a large street-dog population, no register of which animal is which, and no mechanism
+for a bystander to summon help for an injured one. Hetja is an attempt to build that register and that
+mechanism as public infrastructure rather than as a company asset.</p>
+
+<h3>3.1 · The mechanism in one paragraph</h3>
+<p>A dog wears a collar carrying a QR code. Anyone who finds the dog points a phone camera at it and lands
+on a web page — <strong>no app, no account, no login</strong> — showing the dog's identity, vaccination
+status, and one large button reading "this dog needs help". Pressing it opens an emergency case, surfaces
+tappable phone numbers for nearby veterinary and NGO providers, and is designed to wake nearby registered
+responders. A separate signed-in application lets volunteer feeders log meals and photographs, which
+accrues a trust score. Veterinary treatment is written into an append-only, cryptographically chained
+ledger.</p>
+
+<h3>3.2 · Why it exists</h3>
+<p>The origin is documented in the repository and is unusually specific. The maintainer, as a child leaving
+an abusive home, walked three kilometres through rain; a stray he had occasionally fed followed him the
+whole way and barked down other dogs on the road. He learned years later that it had been poisoned. The
+repository records the consequence plainly:</p>
+<pre>"I went inside. I never said goodbye. I never hugged it.
+ I never thanked it. I never gave it a name."
+                          — docs/design/MEMORIAL-CONTENT.md:66</pre>
+<p>This matters commercially for one reason: the design constraints are traceable to it, and they are
+unusually disciplined as a result. Collar codes are random rather than sequential, and coordinates are
+deliberately coarsened, because — in the repository's words — <em>"a georeferenced list of every stray in a
+city is, in one political climate, a tool for protection. In another, it is a targeting list."</em> The
+project's governing rule is stated as: <strong>"The system is allowed to know less than it wants to. It is
+not allowed to <em>claim</em> more than it knows."</strong></p>
+
+<h3>3.3 · What is genuinely built, and what is not</h3>
+<p>This is the most important table in the document for judging maturity. It is derived from reading the
+code, not the documentation — in several places the two disagree, and where they do, the code is reported.</p>
+
+<table>
+<thead><tr><th style="width:30%">Capability</th><th style="width:14%">State</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td><strong>Stranger scans a collar → sees the dog, gets phone numbers</strong></td>
+    <td><span class="tag t-code">Works</span></td>
+    <td>End to end, deployed, measured live. HMAC signature on the code is verified server-side; location is coarsened before it is returned.</td></tr>
+<tr><td><strong>Feeder logs a feed, offline-capable</strong></td>
+    <td><span class="tag t-code">Works</span></td>
+    <td>Email code login, in-browser photo compression with GPS metadata stripped, queued in the browser and replayed idempotently when signal returns.</td></tr>
+<tr><td><strong>Medical ledger — hash chain, Merkle proofs, append-only</strong></td>
+    <td><span class="tag t-part">API only</span></td>
+    <td>Cryptographically rigorous and enforced by the database in two independent ways. <strong>There is no veterinary user interface anywhere</strong> — it can only be written to via the API.</td></tr>
+<tr><td><strong>SOS → responders are woken</strong></td>
+    <td><span class="tag t-doc">Half-built</span></td>
+    <td>See §3.4. This is the mission statement, and it is the least complete part of the system.</td></tr>
+<tr><td><strong>Enrolling a dog / binding a collar</strong></td>
+    <td><span class="tag t-doc">Absent</span></td>
+    <td><strong>No mechanism exists.</strong> The tagger portal is not built, and no route to create a dog is registered. Dogs can currently only be added by a seed script or by hand-written SQL.</td></tr>
+<tr><td><strong>AI photo validation</strong></td>
+    <td><span class="tag t-doc">Stub</span></td>
+    <td>The detector returns "no dog" unconditionally and is labelled <code>stub-v0</code>. Nothing schedules it.</td></tr>
+<tr><td><strong>First-aid guidance on the collar page</strong></td>
+    <td><span class="tag t-part">Built, disabled</span></td>
+    <td>Deliberately switched off pending sign-off from a practising vet. The source carries the comment <code>*** DO NOT SET FIRST_AID_ENABLED TO true ***</code>.</td></tr>
+<tr><td><strong>iOS emergency notifications</strong></td>
+    <td><span class="tag t-doc">Blocked</span></td>
+    <td>Requires a native wrapper application. That directory exists and is empty.</td></tr>
+</tbody>
+</table>
+
+<h3>3.4 · The gap that matters most</h3>
+<div class="callout warn">
+<span class="lbl">The emergency loop does not close</span>
+<p>The project's mission is that an injured dog gets help. Tracing that path through the code, four
+independent breaks appear:</p>
+<ul>
+<li><strong>Only cases marked <em>critical</em> notify anyone.</strong> Cases marked minor or serious notify
+nobody at all — and the emergency form in the feeder app <strong>defaults to "serious"</strong>. The default
+emergency report therefore wakes no one.</li>
+<li><strong>The notification links to a screen that does not exist.</strong> A responder who receives a push
+and taps it lands on a dead route. The acknowledgement API is correctly built and well-designed; nothing in
+the product calls it.</li>
+<li><strong>The 8-minute escalation terminates in a database row.</strong> It writes notification records
+addressed to SMS and to the municipal body. No sender exists for either channel.</li>
+<li><strong>iOS responders are unreachable</strong> without the unbuilt native wrapper.</li>
+</ul>
+<p>None of this is hidden — the repository documents most of it against itself. But an investor should
+understand precisely what is deployed: <em>a working identification and phone-directory system</em>, plus a
+correctly-modelled emergency case that, in its default configuration, currently pages nobody.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 4. SURFACES ══════════════════════════ -->
+<section>
+<h2>4 · The four surfaces</h2>
+<p class="lede">Four separately-deployed applications, deliberately isolated so that a bad release of one
+cannot take down the others. The isolation is a safety decision, not an architectural fashion.</p>
+
+<table>
+<thead><tr><th style="width:15%">Surface</th><th style="width:22%">Technology</th><th>Purpose and notable constraint</th></tr></thead>
+<tbody>
+<tr><td><code>apps/scan</code></td><td>Plain TypeScript, <strong>2 runtime dependencies</strong></td>
+<td>The page a stranger loads. Held to a hard <strong>40 KB gzipped budget enforced by CI</strong>. Deployed separately so an unrelated release cannot break it. Measured live at 11.9 KB.</td></tr>
+<tr><td><code>apps/web</code></td><td>Next.js 14, 11 dependencies</td>
+<td>The signed-in feeder application plus public content, delivered as an installable offline-capable web app so no app store is required.</td></tr>
+<tr><td><code>apps/api</code></td><td>Fastify 5 + schema validation</td>
+<td>26 endpoints under <code>/api/v1</code>. Enforces every privacy rule at the boundary.</td></tr>
+<tr><td><code>apps/worker</code></td><td>Node, PostgreSQL-backed queue</td>
+<td>Emergency escalation, notifications, retention, daily ledger anchoring. <strong>No Redis</strong> — a deliberate rule, driven by the memory budget.</td></tr>
+</tbody>
+</table>
+
+<h3>4.1 · Why the collar page has a 40 KB budget</h3>
+<p>This is the clearest example of the project's engineering character, so it is worth quoting the reasoning
+directly:</p>
+<pre>"A framework runtime alone would blow the budget before a single line
+ of the app's own code ran, on exactly the lowest-bandwidth,
+ highest-urgency path in the system."          — docs/INVARIANTS.md</pre>
+<p>The person loading that page is standing on a street over an injured animal, on a congested mobile
+network. Every kilobyte is a second. The budget is enforced by an automated gate that fails the build — and
+during this audit I found and fixed a flaw in that gate, described in §8.</p>
+</section>
+
+<!-- ══════════════════════════ 5. ARCHITECTURE ══════════════════════════ -->
+<section>
+<h2>5 · Architecture and data model</h2>
+<p class="lede">Everything runs on one small virtual machine behind an outbound-only tunnel. That is both
+the system's most elegant property and its single largest risk.</p>
+
+<h3>5.1 · Topology</h3>
+<figure>
+<pre>  phone ──https──&gt; Cloudflare edge  (TLS terminates here)
+                        │  encrypted tunnel, OUTBOUND ONLY
+                        │  (the server has no public IP and no inbound ports)
+                        v
+                  cloudflared ──&gt; Caddy :80  (the only listener)
+                                    │
+        ┌── /d/*          no-store ─┼──&gt; scan   :8081   collar page
+        ├── /api/v1/*     no-store ─┼──&gt; api    :8080
+        ├── /api/v1/care* 60s cache ┤
+        ├── /photos/*     immutable ┼──&gt; served from disk by Caddy
+        └── /*                      ┴──&gt; web    :3100   feeder PWA
+                                    │
+                                    v
+                    ┌─────────────────────────────────┐
+                    │  PostgreSQL 16  (AUTHORITATIVE) │
+                    │  PostGIS · pgvector · pgcrypto  │
+                    │  `jobs` table IS the queue      │
+                    └─────────────────────────────────┘
+                                    ^ polled every 2s
+                              worker  (no network port)
+                                → Web Push → browsers
+                                → SMTP    → login codes
+
+                    ┌─────────────────────────────────┐
+                    │  Supabase (Mumbai)              │
+                    │  schema mirror — SERVES NO READS│
+                    │  and contains no rows           │
+                    └─────────────────────────────────┘</pre>
+<figcaption>All four application services bind to loopback only. Even if a port were accidentally exposed,
+they could not be reached except through Caddy.</figcaption>
+</figure>
+
+<div class="callout warn">
+<span class="lbl">Two facts an investor should not miss</span>
+<p><strong>The server is physically in Europe, serving users in Mumbai.</strong> A move to India is
+referenced in four places in the repository and has not been executed.</p>
+<p><strong>The machine is shared with unrelated workloads.</strong> The repository documents tuning it to
+host a fleet of other processes alongside production. It also cannot swap — swap is blocked by the
+container's security policy.</p>
+</div>
+
+<h3>5.2 · The data model</h3>
+<p>Nineteen tables across twenty migrations. The structurally interesting ones:</p>
+<table>
+<thead><tr><th style="width:22%">Table</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><code>dogs</code></td><td>The register. Carries a coarse last-seen location as a geographic type, and a reserved 768-dimension vector column for future photo-based re-identification (unused today).</td></tr>
+<tr><td><code>scans</code></td><td>Every interaction with a collar. Carries a client-generated unique identifier which is what makes offline replay safe — a phone retrying a queued feed produces exactly one row, not one per retry.</td></tr>
+<tr><td><code>medical_records</code></td><td>The ledger. Append-only, enforced by the database in two independent ways. Each row links cryptographically to its predecessor.</td></tr>
+<tr><td><code>feeders</code></td><td>Volunteers. Identity is stored only as a keyed hash — never the raw email — under a secret held outside the database.</td></tr>
+<tr><td><code>jobs</code></td><td>The queue itself. No Redis; PostgreSQL's row-locking provides the same guarantees on a machine that cannot afford a second service.</td></tr>
+</tbody>
+</table>
+<p>The geographic indexing is worth one note for a technical reviewer: the index serving emergency
+responder lookup <em>encodes the eligibility rule in the index itself</em> — it indexes only feeders who have
+opted in and who exceed a trust threshold. That is a sophisticated piece of database design, and it is
+representative of the codebase's general level.</p>
+
+<h3>5.3 · Deployment</h3>
+<p>Pushing to the main branch triggers three stages. Each guarantees something different:</p>
+<ol>
+<li><strong>Gate</strong> — type checking, the full test suite against a real database, and seven independent
+gates. Nothing proceeds if any fails.</li>
+<li><strong>Migrate</strong> — database changes are screened for destructive operations, then applied.</li>
+<li><strong>Deploy</strong> — the front-end is built on the CI machine (it needs about 1 GB and has
+previously killed the live services when built on the server), shipped, and the server rebuilds the
+back-end from the same commit. It then verifies that the deployed commit matches the intended one.</li>
+</ol>
+<div class="callout">
+<span class="lbl">What does not roll back</span>
+<p>Code rolls back automatically; <strong>database schema does not</strong>. This is only safe because the
+destructive-change gate keeps unattended migrations additive — which is precisely why the flaw I found in
+that gate (§8.2) mattered more than its size suggests.</p>
+<p>Separately, the health checks after deployment verify the internal services but <strong>not the tunnel,
+DNS or TLS</strong>. A total outage visible to every user would pass every check.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 6. INVARIANTS ══════════════════════════ -->
+<section>
+<h2>6 · The fifteen invariants — the actual intellectual property</h2>
+<p class="lede">Hetja's distinctive asset is not its code, which is replaceable. It is a written list of fifteen
+rules the system promises never to break, several of which are enforced by machines rather than by
+intention. This section establishes which ones are real.</p>
+
+<p>The commercial question is simple. A promise enforced by a database constraint survives staff turnover,
+a rushed release, and a careless contractor. A promise that exists only in a document survives none of
+those. The classification below was produced by tracing each rule to its enforcement point, and
+<strong>deliberately biased downward</strong>: where a mechanism exists but sits on a code path nothing
+invokes, it is classified as documentation, because a dead code path is not a commitment.</p>
+
+<table>
+<thead><tr><th style="width:4%">#</th><th style="width:38%">The rule</th><th style="width:15%">Enforcement</th><th>Basis</th></tr></thead>
+<tbody>
+<tr><td>5</td><td>Offline replay is idempotent — a phone retrying a queued feed produces one row, not one per retry</td><td><span class="tag t-db">Database</span></td><td>A unique index. <strong>The strongest of the fifteen</strong> — a constraint, not a convention.</td></tr>
+<tr><td>8</td><td>Medical records accept inserts only — no edits, no deletions, no truncation</td><td><span class="tag t-db">Database</span></td><td>Privilege revocation plus an all-roles trigger. <em>Limit:</em> edits are blocked by privilege, so a superuser on the machine can still rewrite rows.</td></tr>
+<tr><td>1</td><td>Collar codes are random, never sequential</td><td><span class="tag t-code">Code</span></td><td>Cryptographic random source, with tests. <em>Note:</em> the check character is ineffective (§8.4).</td></tr>
+<tr><td>2</td><td>Public reads never return exact coordinates</td><td><span class="tag t-code">Code</span></td><td>Coarsening applied at the response boundary, plus a CI grep as backstop. See §7.2 for what "coarse" means in metres.</td></tr>
+<tr><td>3</td><td>Contact details stored only as a keyed hash, never in the clear</td><td><span class="tag t-code">Code</span></td><td>Keyed HMAC under a secret pepper. <em>Limits:</em> a development default exists and is only mandatory in production; published clinic phone numbers are a deliberate, documented exception.</td></tr>
+<tr><td>4</td><td>Offline conflicts resolve on capture time, not arrival time</td><td><span class="tag t-code">Code</span></td><td>Enforced atomically inside the update statement.</td></tr>
+<tr><td>7</td><td>Anonymous emergency reports require an attested device, capped 2/day and 5/week</td><td><span class="tag t-code">Code</span></td><td>Real and tested. <em>Limits:</em> the cap is a count-then-insert with no lock, so concurrent requests can overshoot; the windows reset on calendar boundaries rather than rolling.</td></tr>
+<tr><td>9</td><td>The ledger is hash-chained with unambiguous hash inputs</td><td><span class="tag t-code">Code</span></td><td>Correctly implemented and tested. <em>Limit:</em> nothing in the database requires a row to actually link to its predecessor — a direct insert bypassing the application writes an unchained row.</td></tr>
+<tr><td>12</td><td>Every documented query is checked against the real schema</td><td><span class="tag t-gate">CI gate</span></td><td>Blocking, runs against a real database. Covers documented queries only.</td></tr>
+<tr><td>13</td><td>The collar page stays under 40 KB compressed</td><td><span class="tag t-gate">CI gate</span></td><td>Blocking. Now walks the whole build output, so new code counts by default (a fix from this audit).</td></tr>
+<tr><td>6</td><td>Rate limits are per account or device, never per IP address</td><td><span class="tag t-doc">Doc only</span></td><td>Nothing enforces the negative, and <strong>there is no general rate limiter at all</strong>. True today only because the two limits that exist happen to be keyed correctly.</td></tr>
+<tr><td>10</td><td>Publish the ledger head daily, somewhere the operator does not control</td><td><span class="tag t-doc">Doc only</span></td><td>Computation and signing are built; <strong>publication is not</strong>. See §7.3 — this is the invariant that makes the ledger evidence.</td></tr>
+<tr><td>11</td><td>Erasure requests delete personal data while the chain stays valid</td><td><span class="tag t-doc">Doc only</span></td><td>Design intent. The documented procedure would fail if executed today — see §7.4.</td></tr>
+<tr><td>14</td><td>AI validation flags for review; never silently rejects</td><td><span class="tag t-doc">Doc only</span></td><td><strong>Nothing anywhere schedules the validation job.</strong> Marked complete in the project's own table; it is not.</td></tr>
+<tr><td>15</td><td>Provisional volunteers auto-pause after three serial rejections</td><td><span class="tag t-doc">Doc only</span></td><td>The logic is real and tested but is <strong>never called from any route</strong>, and its input is never produced. Marked complete; it is not.</td></tr>
+</tbody>
+</table>
+
+<h3>6.1 · Reading the scorecard</h3>
+<div class="kpis">
+  <div class="kpi"><div class="n">2</div><div class="l">Database-enforced</div></div>
+  <div class="kpi"><div class="n">6</div><div class="l">Code-enforced, tested</div></div>
+  <div class="kpi"><div class="n">2</div><div class="l">Blocking CI gates</div></div>
+  <div class="kpi"><div class="n">5</div><div class="l">Documented only</div></div>
+</div>
+
+<p><strong>Ten of fifteen are mechanically real.</strong> For a system this young that is a genuinely strong
+result, and it is the single best evidence that the engineering culture is substantive rather than
+performative.</p>
+
+<div class="callout warn">
+<span class="lbl">The finding that matters</span>
+<p>Of the five that are documentation only, <strong>the project self-reports two</strong> (10 and 11) and
+marks the other three — 6, 14 and 15 — as complete in its own table. They are not. Invariant 14 in
+particular exhibits precisely the failure the project already documented and post-mortemed for invariant
+10: a rule marked done against a background job that <em>nothing ever schedules</em>.</p>
+<p>This should not be read as dishonesty. The repository's own post-mortem of that earlier case is the most
+self-critical document I found in it. It should be read as an <strong>immature verification culture</strong>:
+the team writes rules well, implements them well, and does not yet consistently test that the implementation
+is reachable. That is a fixable process gap, and the three affected rules are the ones to fix first.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 7. PRIVACY / SECURITY / LEGAL ══════════════════════════ -->
+<section>
+<h2>7 · Privacy, security and Indian regulatory exposure</h2>
+<p class="lede">The project treats location privacy as a safety property rather than a compliance chore, for
+a stated reason: a register of where every street dog sleeps is protective in one political climate and a
+targeting list in another.</p>
+
+<h3>7.1 · What personal data exists</h3>
+<p>Deliberately little. Anonymous reporters supply <em>no identity at all</em> — only a pseudonymous device
+identifier. Volunteers supply an email address, which is never stored: only a keyed hash of it. Photographs
+have their embedded metadata, including GPS coordinates, stripped <strong>server-side before the record is
+created</strong> — the browser-side stripping is correctly treated as a convenience rather than a control.</p>
+
+<p>Two exposures a technical reviewer should note, because they are not covered by the hashing:</p>
+<ul>
+<li><strong>Volunteer display names are stored in the clear alongside an exact location point.</strong> The
+hash protects the login channel, not the person. Anyone with database access has a named individual and
+their precise position. The project evaluated encrypting those coordinates and rejected it on sound
+technical grounds — geographic queries cannot run against ciphertext — but the residual exposure is real.</li>
+<li><strong>Photograph pixels are unaddressed.</strong> Metadata is stripped rigorously; a doorway, a
+shopfront or a nameplate visible in the image is published unredacted.</li>
+</ul>
+
+<h3>7.2 · Location coarsening, in metres</h3>
+<p>The published precision is worth quantifying exactly, because the project's own documentation describes
+it imprecisely.</p>
+<table>
+<thead><tr><th style="width:30%">Measure</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Coarsening method</td><td>Truncation to two decimal degrees — despite the function's name, no administrative ward polygon is involved</td></tr>
+<tr><td>Cell size at Mumbai</td><td><strong>1,113 m north–south × 1,052 m east–west</strong> (≈ 1.17 km²)</td></tr>
+<tr><td>Worst-case displacement</td><td><strong>≈ 1,531 m</strong> — truncation places the published point at the cell's south-west corner, not its centre</td></tr>
+<tr><td>Also published</td><td>The administrative ward label, verbatim, alongside the coarsened point</td></tr>
+<tr><td>Heatmap aggregation</td><td>≈ 189 m cells internally, then re-quantised to the same ~1.1 km lattice on output</td></tr>
+<tr><td>k-anonymity floor</td><td><strong>k = 3</strong> distinct active dogs per cell, applied at the finer grain — stricter than required, which is the right direction</td></tr>
+<tr><td>Storage</td><td><strong>Exact coordinates are stored at rest.</strong> Coarsening is applied when shaping the response, not when writing.</td></tr>
+</tbody>
+</table>
+<p class="small">One literal deviation worth recording: the invariant's prose specifies cells of 500 m or
+larger, and the heatmap aggregates at ~189 m before re-quantising. The published output is coarser than the
+rule requires, so the deviation is technical rather than harmful — but the function that actually implements
+the documented 500 m behaviour is dead code, called only by its own test.</p>
+
+<h3>7.3 · What the tamper-evident ledger actually proves</h3>
+<p>The cryptography is competently done: each record's fingerprint incorporates its predecessor's, with
+length-prefixed inputs so two different records cannot collide by construction; each write also stores a
+Merkle root permitting an efficient inclusion proof; and the proof endpoint is deliberately
+<strong>unauthenticated</strong>, on the correct reasoning that a proof requiring a credential the operator
+can revoke would be worthless against that operator.</p>
+
+<div class="callout warn">
+<span class="lbl">The limit, stated precisely</span>
+<p>The daily head is computed, optionally signed, stored — and <strong>published nowhere</strong>. The field
+intended to hold its public location is written as an empty string.</p>
+<p>Consequently: <strong>the ledger is today tamper-evident against an attacker who reaches the database,
+but not against Hetja itself.</strong> An operator who rewrote history could recompute the chain and
+re-anchor it, and no external party holds an earlier value to contradict them. Signing is off by default,
+and no public-key document is served, so a signature currently verifies against nothing.</p>
+<p>The gap is a small amount of work — publish the daily head somewhere third parties can retain it. Until
+that is done, the ledger's marketable claim should be stated as integrity against intrusion, not
+independent auditability.</p>
+</div>
+
+<h3>7.4 · India's DPDP Act: an unresolved tension</h3>
+<p>The project has thought about this harder than most at its stage. Consent version and minor status are
+recorded as first-class columns; the design principle is that the immutable ledger holds no personal data,
+so an erasure request can delete the identity record while the chain stands.</p>
+<p>Four things are unresolved, and I will not resolve them here either:</p>
+<ol>
+<li><strong>A veterinarian is a natural person.</strong> Medical records carry a vet identifier, and vets are
+linked to personal accounts. An erasure request <em>from a vet</em> touches rows that are undeletable by
+construction. The repository never discusses this case.</li>
+<li><strong>Free-text clinical fields are unconstrained.</strong> "No personal data in the ledger" is a
+convention about what callers submit, not a mechanism that prevents it.</li>
+<li><strong>The documented erasure procedure would fail if executed today.</strong> Eight foreign keys
+reference the volunteer record with no cascade behaviour defined; the deletion the runbook prescribes would
+error on any referencing row, and no code implements the cascade.</li>
+<li><strong>No request-handling machinery exists</strong> — no intake route, no audit log, no retention job.</li>
+</ol>
+<p>For an investor: this is a <em>plausible architecture</em> for reconciling immutable veterinary evidence
+with a statutory erasure right, with an unexamined case at its centre and no operational implementation.
+It is a diligence item, not a blocker, but it should be costed as legal work rather than assumed.</p>
+
+<h3>7.5 · Security posture</h3>
+<table>
+<thead><tr><th style="width:26%">Area</th><th>Assessment</th></tr></thead>
+<tbody>
+<tr><td>Attack surface</td><td><strong>Good.</strong> No inbound ports. All services bind to loopback and are reachable only through the proxy. TLS terminates at the CDN edge.</td></tr>
+<tr><td>Injection</td><td><strong>Clean.</strong> Every dynamic value is parameterised; the only string interpolation is of module-level integer constants.</td></tr>
+<tr><td>Cryptographic comparisons</td><td>Now constant-time throughout, following this audit.</td></tr>
+<tr><td>Rate limiting</td><td><strong>Absent entirely.</strong> The login endpoint is uncapped and sends email synchronously.</td></tr>
+<tr><td>Privilege</td><td>All four services run as <strong>root</strong> with minimal hardening directives. A remote-code-execution flaw in any of them is immediately root, with access to the secret that signs every printed collar.</td></tr>
+<tr><td>Secrets</td><td>A database password is committed in a public repository and is present in git history.</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ══════════════════════════ 8. ENGINEERING QUALITY ══════════════════════════ -->
+<section>
+<h2>8 · Engineering quality: an independent audit</h2>
+<p class="lede">This is the section a technical advisor should read first. It is also the section I have
+the most direct evidence for, because I performed the audit and fixed what it found.</p>
+
+<h3>8.1 · Method</h3>
+<p>I cloned the repository, brought up the exact database image CI uses (<code>postgis/postgis:16-3.4</code>
+plus pgvector), applied all migrations, and ran the entire test suite — which required a real PostgreSQL
+with geospatial and vector extensions, not a mock. I then audited five areas in parallel against the
+project's own written invariants, and verified each finding by reproducing it rather than by reading.</p>
+
+<p>That distinction matters. Every significant claim below was reproduced against a running system. Where a
+finding was reported to me but did not survive verification, I rejected it — one such case is documented in
+§8.5, because how a team handles a wrong-but-plausible bug report says more than the bug count.</p>
+
+<h3>8.2 · What was found</h3>
+<p><strong>Fourteen defects, every one silent.</strong> Nothing crashed. No test failed. In three cases an
+automated gate reported the property intact while it was broken. That pattern is the finding: this is not a
+sloppy codebase, it is a careful codebase whose careful claims had not been mechanically verified.</p>
+
+<h4>Defect 1 — The job queue could not retry, and one bad job stopped all the others</h4>
+<p>The queue delivers emergency escalation and responder notifications. Its claim, restart, and delete all
+ran inside <em>one</em> database transaction. When a job failed, the rollback that undid the job's partial
+writes also undid the attempt counter and the lease that recorded the failure. Three consequences, all
+silent:</p>
+<ul>
+<li>The attempt counter never advanced, so the "give up after 8 tries" branch was <strong>unreachable
+code</strong> — it could never execute.</li>
+<li>The job kept its original schedule, so the queue re-selected the same failing job every two seconds,
+forever.</li>
+<li>The failure propagated out and aborted the whole batch, so <strong>one poison job stopped every job
+queued behind it</strong>.</li>
+</ul>
+<p>In plain terms: one emergency-escalation job whose dog record had been deleted would silently halt the
+8-minute escalation ladder for the entire city, with a single line in a log as the only evidence.</p>
+<p><em>Fix:</em> split into three transactions — claim, run, settle — with exponential backoff, plus a
+migration adding a dead-letter column so an exhausted job is parked and visible rather than deleted. Deleting
+it was not an option: these are life-safety jobs, and a job that vanishes after eight failures is precisely
+the silent rejection the project's own INVARIANT 14 forbids.</p>
+
+<h4>Defect 2 — The medical ledger forked under ordinary concurrency</h4>
+<p>This is the most serious finding, and the most interesting. The ledger ordered its records by
+<code>created_at</code>. In PostgreSQL that value is the <em>transaction start</em> time, stamped when the
+transaction opens — which happens one network round trip <em>before</em> the lock that decides append order
+is acquired. A transaction can therefore start earlier and append later.</p>
+
+<pre>16 concurrent appends through the real endpoint, no contrived timing:
+
+    inversions:          51 / 120 pairs   (42.5%)
+    chain forks created: 3</pre>
+
+<p>42.5% is statistically near-indistinguishable from a random shuffle. The surprise was the forks: the
+advisory lock, which exists precisely to prevent them, does not — it serialises the <em>writes</em> but not
+the choice of <em>what to link onto</em>. Once one pair inverts, every later record links onto a parent that
+already has a child. The table permits no updates, so this cannot be repaired after the fact.</p>
+
+<p>The user-visible symptom is the worst one available to a tamper-evidence system:</p>
+<pre>db order   [B,A]  verify -> valid=false  => TAMPERED
+true order [A,B]  verify -> valid=true   => VALID
+
+Same bytes. Same stored hashes. Only the sort order differed.</pre>
+<p>A public endpoint reporting <em>TAMPERED</em> on untouched data does not merely fail — it trains whoever
+watches it to ignore the alarm, which destroys the value of the entire ledger.</p>
+
+<div class="callout">
+<span class="lbl">Why this one is commercially significant</span>
+<p>The ledger is the project's differentiating claim: that its records are evidence a court or a municipal
+audit could rely on. An ordering bug that makes clean data report as tampered attacks that claim directly.
+It is now fixed, and the fix is verified in both directions — the new test fails against the old ordering
+and passes against the new one — but an investor should note that the flagship feature was, until this week,
+not delivering its flagship property under load.</p>
+</div>
+
+<h4>Defect 3 — Two automated gates could not fail</h4>
+<p>Gates are how this project turns written promises into mechanical ones, so a gate that cannot fail is
+worse than no gate. I tested both by deliberately sabotaging their inputs.</p>
+<ul>
+<li><strong>The cache-policy gate.</strong> The collar page must never be cached — a stale emergency page is
+a life-safety bug. I deleted the rule enforcing that and left a comment mentioning it. The gate printed
+<code>PASS: /d/* is no-store and never cached</code> and exited successfully, because it matched the
+<em>word</em> anywhere on a line, including in comments.</li>
+<li><strong>The destructive-migration gate.</strong> This is the check that stops an unattended deployment
+from destroying data. It stripped SQL comments with a pattern that also truncated real SQL following a
+comment marker inside a text value. The result: <code>INSERT INTO t VALUES ('a -- b'); DROP TABLE
+medical_records;</code> passed the gate. Against an append-only table whose loss is unrecoverable.</li>
+</ul>
+<p>Both are fixed and both are now negative-tested — I verified the old versions pass the sabotage and the
+new versions catch it. The destructive-migration gate immediately proved its worth by catching a
+<code>DROP INDEX</code> in <em>my own</em> migration, which I then rewrote.</p>
+
+<h4>Defects 4–14 — summary</h4>
+<table>
+<thead><tr><th style="width:26%">Area</th><th>Defect</th></tr></thead>
+<tbody>
+<tr><td>Offline feed queue</td><td>The clock-skew rule rejected any feed queued offline for more than 15 minutes — precisely the case the offline queue exists to serve. The client correctly treats the rejection as final, so the feed <em>and its photo</em> were discarded. The rule's own documentation says "a phone can be offline for hours."</td></tr>
+<tr><td>Public collar page</td><td>The emergency button was disabled whenever the dog's profile failed to load — so a stranger on a poor connection, standing over an injured dog, saw a greyed-out "This dog needs help". Nothing in the emergency path needed that profile.</td></tr>
+<tr><td>Authentication</td><td>Malformed tokens returned HTTP 500 with the internal error text, instead of 401. The guard intended to prevent this was unreachable code.</td></tr>
+<tr><td>Login security</td><td>The 3-attempt cap on emailed login codes was a read-then-write race — concurrent attempts all read "0 used", so the cap never engaged against a 6-digit code.</td></tr>
+<tr><td>Deployment</td><td>Re-deploys shipped nothing. The command used starts a service but does not restart an already-running one, so new code was built, "deploy complete" was printed, and the old code kept running. Health checks could not fail — every probe ended in <code>|| true</code>.</td></tr>
+<tr><td>AI validator</td><td>Deleted a different job than the one it processed, so one scan was silently discarded while the processed job re-ran forever.</td></tr>
+<tr><td>Photo capture</td><td>Two paths could wedge the primary action permanently: an unhandled module-load failure left a promise that never settled, and network requests had no timeout, so the SOS screen could display "Sending…" indefinitely.</td></tr>
+<tr><td>Performance</td><td>Telemetry was 28% of the JavaScript on the critical path of the page whose entire design constraint is size. Now loaded after the page is usable.</td></tr>
+<tr><td>Test integrity</td><td>Two tests failed on any modern Node version while CI's older version stayed green — and the failure was disguised as a data-loss bug. Separately, a component wrote to a browser global after being unmounted, which made an unrelated test suite fail intermittently.</td></tr>
+</tbody>
+</table>
+
+<h3>8.3 · What was delivered</h3>
+<table>
+<thead><tr><th>Changeset</th><th>Contents</th><th style="width:20%">State</th></tr></thead>
+<tbody>
+<tr><td>PR #17</td><td>Queue retry, offline skew clamp, both fail-open gates, auth error handling, login-cap race, timing-safe comparisons</td><td><span class="tag t-code">Merged &amp; live</span></td></tr>
+<tr><td>PR #18</td><td>Unmounted-component global write; first QR frame decoded immediately rather than after a 350 ms delay</td><td><span class="tag t-code">Merged &amp; live</span></td></tr>
+<tr><td>PR #19</td><td>Ledger ordering (<code>chain_seq</code>), ordering centralised into one module, migration 0017</td><td><span class="tag t-part">Green, awaiting merge</span></td></tr>
+</tbody>
+</table>
+<p class="small">Net: 41 files changed, +1,917 / −221 lines. Test count 433 (2 failing) → 445 (all passing).
+Three database migrations. All seven gates passing.</p>
+
+<h3>8.4 · What remains open, and why</h3>
+<p>I did not fix everything, and the reasons differ in kind. Stating them precisely is more useful than a
+count.</p>
+<table>
+<thead><tr><th style="width:30%">Open item</th><th>Why it is still open</th></tr></thead>
+<tbody>
+<tr><td><strong>Photo retention and AI validation jobs are never scheduled</strong></td>
+<td>Nothing enqueues them, so every scan sits at "pending" forever, badges can never be awarded, and the documented 7-day photo deletion is unimplemented — photos accumulate without bound. <em>Not fixed because</em> implementing it means choosing a permanent data-destruction policy, which is an owner's decision, not an auditor's.</td></tr>
+<tr><td><strong>No rate limiting anywhere</strong></td>
+<td>The endpoint that emails login codes is uncapped and sends mail synchronously. Roughly 300 unauthenticated requests would exhaust the email provider's free tier and break login for every user for the rest of the day. <em>Not fixed because</em> the project's own INVARIANT 6 forbids the obvious per-IP approach (Indian carriers use large-scale NAT, so per-IP limits lock out whole neighbourhoods), and choosing the real limits is a product decision.</td></tr>
+<tr><td><strong>Collar code check character is ineffective</strong></td>
+<td>It is supposed to catch a mistyped code before it becomes a lookup for the wrong dog. It catches neither of the two most common typo classes: the alphabet is 33 characters where the code assumes 32, and the checksum is order-independent so every adjacent transposition passes. <em>Not fixed because</em> I ran out of sequence, not because it is hard — this one is a genuine omission on my part.</td></tr>
+<tr><td><strong>Reverse-proxy config is never installed by automation</strong></td>
+<td>A server provisioned by following the project's own setup guide would serve none of the routing that the configuration describes, because nothing copies it into place. <em>Not fixed because</em> I cannot verify a change to the component that installs production routing without a server to test on.</td></tr>
+<tr><td><strong>A database password is committed to the repository</strong></td>
+<td>Present as a fallback default in four files, in a public repository. <em>Not fixed because</em> removing it from the code without rotating it on the server is theatre — the value is already in public git history. Rotation requires server access I do not have.</td></tr>
+<tr><td><strong>Ledger verification endpoint compares mismatched ranges</strong></td>
+<td>It recomputes over the first 1,000 records but compares against a daily anchor covering all of them, so it reports TAMPERED on an intact ledger once the ledger exceeds that size, or on the first record after any anchor. <em>Not fixed because</em> it is independent of the ordering bug and mixing two fixes in a ledger change destroys the ability to isolate a regression.</td></tr>
+</tbody>
+</table>
+
+<h3>8.5 · A finding I rejected</h3>
+<p>An audit flagged that any authenticated user could hijack another user's push-notification registration,
+which would have been a serious access-control flaw. I implemented the fix, and an existing test failed —
+one whose fixtures were named "Original Owner" and "New Owner", indicating the behaviour was deliberate.</p>
+<p>On review the existing behaviour is correct. A web-push endpoint identifies a <em>browser</em>, not a
+person: when a second user signs in on a shared phone, the browser returns the same endpoint. Blocking
+reassignment would mean the new user silently never receives emergency notifications on that device — a
+life-safety regression introduced in the name of security. I reverted my change.</p>
+<div class="callout good">
+<span class="lbl">Why this belongs in an investor document</span>
+<p>Because it is the difference between an audit and a checklist. The plausible-sounding fix would have
+degraded a life-safety path, and the thing that caught it was a test whose fixture <em>names</em> encoded
+the author's intent. That is a signal about the codebase's quality, and it is worth more than the defect
+count.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 9. LIVE VERIFICATION ══════════════════════════ -->
+<section>
+<h2>9 · Live production verification</h2>
+<p class="lede">Claims about a system are worth checking against the system. These were measured from the
+public internet on 15 August 2026, not read from documentation.</p>
+
+<table>
+<thead><tr><th>Check</th><th>Result</th><th>What it establishes</th></tr></thead>
+<tbody>
+<tr><td><code>GET hetja.in/</code></td><td>HTTP 200 · 18.4 KB · 1.29 s</td><td>The public site is live and serving.</td></tr>
+<tr><td><code>GET api.hetja.in/healthz</code></td><td>HTTP 200 · 0.87 s</td><td>The API is up and reachable independently of the website.</td></tr>
+<tr><td><code>GET hetja.in/d/main.js</code></td><td>HTTP 200 · <strong>8,674 B gzipped</strong></td><td>The collar page's code budget is real and being met in production.</td></tr>
+<tr><td><code>GET hetja.in/d/</code></td><td>HTTP 200 · 3,268 B gzipped</td><td>Collar page total ≈ <strong>11.9 KB</strong> against a self-imposed 40 KB ceiling.</td></tr>
+<tr><td>Response headers on <code>/d/</code></td><td><code>cache-control: no-store</code></td><td>The life-safety cache rule is enforced in production, not merely configured.</td></tr>
+<tr><td>Deployment pipeline</td><td>Gate → Migrate → Deploy, all green</td><td>Deployed commit on the server matched the intended commit exactly; all four services reported active.</td></tr>
+</tbody>
+</table>
+
+<p>The 8,674-byte measurement is worth dwelling on, because it confirms something specific: the code-splitting
+change I made two hours earlier is live and delivering its benefit. The page a stranger loads while standing
+over an injured dog costs about <strong>12 KB</strong> — roughly one small photograph — against a budget of
+40 KB. On a congested mobile network that is the difference between a page that renders and a page that does
+not.</p>
+
+<div class="callout warn">
+<span class="lbl">What this does not establish</span>
+<p>That the system is <em>used</em>. I could find no traction data of any kind: no user counts, no scan
+volume, no registered collars in production. The database I tested against contained 140 medical records,
+all of them test fixtures. "It is deployed and correct" and "it is adopted" are different claims, and only
+the first is supported by evidence available to me.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ 10. COST ══════════════════════════ -->
+<section>
+<h2>10 · Cost structure and the scaling ceiling</h2>
+<p class="lede">The system is engineered to run on almost no money, and it succeeds. The corollary is that
+the ceilings are close, and they are known.</p>
+
+<h3>10.1 · What it costs to run</h3>
+<p>The repository's recurring design filter is stated bluntly and repeatedly: <em>"this has to run on
+nothing."</em> The evidence supports it — one small virtual machine, a free Cloudflare plan, a free email
+tier, and a Supabase project holding schema only. Notably, cloud object storage was rejected <strong>because
+it required a payment card on file</strong> even for its free allowance.</p>
+
+<h3>10.2 · The four ceilings, in the order they will be hit</h3>
+<table>
+<thead><tr><th style="width:22%">Ceiling</th><th>Mechanism</th><th style="width:24%">Consequence</th></tr></thead>
+<tbody>
+<tr><td><strong>Disk</strong></td>
+<td>Dog photographs are written to the same disk as the database and served directly. The documented 7-day deletion policy is <strong>unimplemented</strong> — the routine that claims to delete old photos actually deletes rows from the job queue.</td>
+<td>When the disk fills, PostgreSQL stops accepting writes and <strong>the emergency path stops working</strong>. This is stated in the repository.</td></tr>
+<tr><td><strong>Email quota</strong></td>
+<td>Login is by emailed code, on a free tier of <strong>300 messages per day</strong>. There are no passwords and no alternative login path.</td>
+<td>A hard cap on daily new users, and — with no rate limiting — a trivially triggered outage.</td></tr>
+<tr><td><strong>Memory</strong></td>
+<td>The four services' declared memory limits total roughly <strong>1.68 GB before PostgreSQL starts</strong>, on a 2 GB machine that cannot swap and is shared with other workloads. The limits are annotated as tuned for a 3 GB machine — an unreconciled contradiction.</td>
+<td>Already caused two outages, one of which produced no error message anywhere.</td></tr>
+<tr><td><strong>Table size</strong></td>
+<td>The highest-volume table is deliberately unpartitioned, documented as adequate to roughly 5 million rows per year.</td>
+<td>Beyond that requires a migration that cannot be done with a single statement.</td></tr>
+</tbody>
+</table>
+
+<h3>10.3 · The irreplaceable secret</h3>
+<p>The key signing collar QR codes exists in <strong>one file, on one disk</strong>, baked into every collar
+already glued to an animal. Losing it does not degrade the system — every collar stops verifying, and no code
+or schema recovers it. Regenerating it fails <em>silently</em>: discovered only when a stranger scans a collar
+while standing over a dog.</p>
+<h3>10.4 · The backup position</h3>
+<div class="callout warn">
+<span class="lbl">This is the most serious operational finding in the document</span>
+<p>A backup routine exists, is well written, and runs nightly. <strong>Its destination is a directory on the
+same disk it is backing up.</strong> The repository says so itself and warns it "should not be counted as
+[an off-box backup] in any RTO estimate."</p>
+<p>Point-in-time recovery tooling is installed but deliberately not enabled, and cannot work with the chosen
+storage provider — so the realistic recovery point is <strong>up to 24 hours of data loss</strong>.</p>
+<p><strong>No restore has ever been performed.</strong> The repository contains three separate instructions
+to carry one out, all unexecuted, including one that states: <em>"A backup you have never restored is a
+hypothesis."</em></p>
+</div>
+
+</section>
+
+<!-- ══════════════════════════ 11. RISK ══════════════════════════ -->
+<section>
+<h2>11 · Risk register</h2>
+<p class="lede">Ordered by expected cost, not by likelihood. Each entry states the concrete failure, not a
+category.</p>
+
+<table>
+<thead><tr><th style="width:22%">Risk</th><th>Concrete failure mode</th><th style="width:17%">Mitigation status</th></tr></thead>
+<tbody>
+<tr><td><strong>Single server</strong></td>
+<td>Everything except the CDN runs on one 2 GB virtual machine. If it is lost, the register of every dog in the city is lost with it. A backup exists on paper; I found no evidence a restore has ever been performed.</td>
+<td><span class="tag t-doc">Unmitigated</span></td></tr>
+<tr><td><strong>Untested restore</strong></td>
+<td>A backup that has never been restored is a hypothesis. One of the backup scripts also references a directory that does not exist, which can mark the whole nightly run as failed while logging almost nothing.</td>
+<td><span class="tag t-doc">Unmitigated</span></td></tr>
+<tr><td><strong>Login denial of service</strong></td>
+<td>~300 unauthenticated requests exhaust the email provider's daily free tier; nobody can log in until the next day. No rate limiting exists anywhere in the API.</td>
+<td><span class="tag t-doc">Open — §8.4</span></td></tr>
+<tr><td><strong>Silent photo loss</strong></td>
+<td>If the storage backend is configured for S3, the code throws "not implemented" and the caller swallows it into a log line. The user sees success; no photo is ever stored.</td>
+<td><span class="tag t-part">Identified, unfixed</span></td></tr>
+<tr><td><strong>Unbounded photo growth</strong></td>
+<td>The documented 7-day photo deletion is unimplemented and its job is never scheduled. Storage grows without limit on a 2 GB machine.</td>
+<td><span class="tag t-doc">Open — §8.4</span></td></tr>
+<tr><td><strong>Credential exposure</strong></td>
+<td>A database password is committed in a public repository and present in git history. Rotation requires server access.</td>
+<td><span class="tag t-doc">Open — §8.4</span></td></tr>
+<tr><td><strong>Key-person and provenance</strong></td>
+<td>Four days of history, 59 of 109 commits AI co-authored, and no evidence of a team beyond a small number of committer identities. Institutional knowledge lives in the repository's comments — which is unusually good, but it is not a team.</td>
+<td><span class="tag t-part">Partly mitigated by documentation</span></td></tr>
+<tr><td><strong>Regulatory: right to erasure</strong></td>
+<td>The medical ledger is append-only by design and cannot delete records. India's DPDP Act contemplates erasure rights. These are in genuine tension; see §7.</td>
+<td><span class="tag t-doc">Unresolved</span></td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ══════════════════════════ 12. WHAT INVESTMENT BUYS ══════════════════════════ -->
+<section>
+<h2>12 · What investment would actually buy</h2>
+<p class="lede">I have no budget, runway or valuation information, so I will not pretend to model any. What
+follows is what the <em>engineering evidence</em> says money would need to address, in priority order.</p>
+
+<h3>Tier 1 — Buys survival (weeks)</h3>
+<ol>
+<li><strong>Get off one machine, and prove the restore.</strong> The single highest-expected-cost risk in
+this document is not a bug; it is that the entire register lives on one 2 GB server whose backup has never
+been restored. A second machine and one rehearsed restore changes the risk profile more than any feature.</li>
+<li><strong>Rate limiting, then rotate the committed credential.</strong> Both are small, both are currently
+exploitable by anyone who reads the public repository.</li>
+<li><strong>Schedule the retention and validation jobs.</strong> Until then, photos accumulate without bound
+on a machine with no headroom, and the AI review pipeline — which several user-facing features depend on —
+does nothing at all.</li>
+</ol>
+
+<h3>Tier 2 — Buys credibility (months)</h3>
+<ol>
+<li><strong>Close the ledger's remaining verification gap</strong> so the public endpoint stops reporting
+tampering on intact data. The ledger is the differentiating claim; it should be airtight before it is
+marketed.</li>
+<li><strong>Install the reverse-proxy configuration from automation</strong> so a second city can be
+provisioned by following the guide, which is currently not true.</li>
+<li><strong>Fix the collar check character.</strong> Small, and it directly affects whether a mistyped code
+sends someone to the wrong dog.</li>
+</ol>
+
+<h3>Tier 3 — Buys the thesis</h3>
+<p>Everything above is remediation. The actual thesis — that a city-scale, open, auditable register of
+street animals is valuable — is not proven or disproven by any of it. What would prove it is adoption data,
+which does not yet exist. <strong>The engineering is not the bottleneck; evidence of use is.</strong></p>
+
+<div class="callout">
+<span class="lbl">The investment decision, stated plainly</span>
+<p>On the evidence available, this is a bet on a team that can build unusually disciplined systems very
+fast, applied to a problem with real moral weight and no obvious revenue model in the repository. The code
+quality is genuinely above its age. The operational maturity is genuinely below what production demands.
+The gap between those two is small, well-understood, and fixable in weeks — which is the most encouraging
+thing I can say about it, and also the reason I would want to see adoption evidence before anything else.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════ APPENDIX A ══════════════════════════ -->
+<section>
+<h2>Appendix A · Measured repository metrics</h2>
+<p class="small">All figures measured directly on 15 August 2026 at commit <code>d8f8e1e</code>, excluding
+dependencies and build output.</p>
+
+<table>
+<thead><tr><th>Component</th><th>Purpose</th><th style="width:14%">Lines</th><th style="width:22%">Runtime deps</th></tr></thead>
+<tbody>
+<tr><td><code>apps/web</code></td><td>Feeder app (Next.js)</td><td>6,422</td><td>11</td></tr>
+<tr><td><code>apps/api</code></td><td>HTTP API (Fastify)</td><td>5,724</td><td>13</td></tr>
+<tr><td><code>ops/</code></td><td>Deployment, gates, backups</td><td>3,063</td><td>—</td></tr>
+<tr><td><code>packages/db</code></td><td>Schema, migrations, pool</td><td>2,769</td><td>—</td></tr>
+<tr><td><code>apps/scan</code></td><td>Public collar page</td><td>1,584</td><td><strong>2</strong></td></tr>
+<tr><td><code>packages/ledger</code></td><td>Hash chain, Merkle, signing</td><td>814</td><td>—</td></tr>
+<tr><td><code>apps/worker</code></td><td>Job queue</td><td>764</td><td>4</td></tr>
+<tr><td><code>packages/pow</code></td><td>Proof-of-work anti-abuse</td><td>321</td><td>—</td></tr>
+<tr><td><code>packages/contracts</code></td><td>Shared validation schemas</td><td>249</td><td>—</td></tr>
+<tr><td><code>apps/ai</code></td><td>Photo validation (Python)</td><td>162</td><td>—</td></tr>
+<tr><td colspan="2"><strong>Total source</strong></td><td><strong>21,872</strong></td><td></td></tr>
+<tr><td colspan="2"><strong>Total tests</strong></td><td><strong>9,484</strong></td><td></td></tr>
+</tbody>
+</table>
+
+<table>
+<thead><tr><th>Measure</th><th style="width:22%">Value</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Tests passing</td><td>445</td><td>Across 9 packages; requires a real PostgreSQL with PostGIS + pgvector</td></tr>
+<tr><td>Test-to-source ratio</td><td>0.43 : 1</td><td>High for a system of this age</td></tr>
+<tr><td>Database tables</td><td>19</td><td>Across 20 migration files</td></tr>
+<tr><td>API endpoints</td><td>26</td><td>All under <code>/api/v1/</code></td></tr>
+<tr><td>Automated gates</td><td>7</td><td>Security, contrast, cache policy, systemd wiring, query plans, destructive migrations, bundle size</td></tr>
+<tr><td>Collar page budget</td><td>11.9 / 40 KB</td><td>Measured on the live site, gzipped</td></tr>
+<tr><td>Commits</td><td>109</td><td>Over 4 calendar days; 59 AI co-authored</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ══════════════════════════ APPENDIX B ══════════════════════════ -->
+<section>
+<h2>Appendix B · Glossary</h2>
+<table>
+<thead><tr><th style="width:24%">Term</th><th>Meaning in this system</th></tr></thead>
+<tbody>
+<tr><td>Collar / slug</td><td>A physical QR tag on a dog. The "slug" is the 9-character code it encodes, signed so a forged code can be detected.</td></tr>
+<tr><td>Scan</td><td>Any interaction recorded against a collar — a stranger viewing the page, or a feeder logging a meal.</td></tr>
+<tr><td>Feeder</td><td>A registered volunteer who feeds and monitors specific dogs.</td></tr>
+<tr><td>SOS case</td><td>An emergency report about an injured dog, which pages nearby responders and escalates if unacknowledged.</td></tr>
+<tr><td>Hash chain</td><td>Records linked by cryptographic fingerprints, so altering an old record breaks every link after it.</td></tr>
+<tr><td>Merkle root / anchor</td><td>A single fingerprint summarising every record, published daily so later alteration is detectable by comparison.</td></tr>
+<tr><td>Append-only</td><td>Records can be added but never edited or deleted — corrections are new records that supersede old ones.</td></tr>
+<tr><td>Advisory lock</td><td>A database mechanism ensuring only one writer at a time performs a sensitive operation.</td></tr>
+<tr><td>Gate</td><td>An automated check that blocks a release when a rule is violated.</td></tr>
+<tr><td>Migration</td><td>A versioned, ordered change to the database structure, applied automatically on deployment.</td></tr>
+<tr><td>PostGIS / pgvector</td><td>PostgreSQL extensions for geographic queries and for AI image-similarity search respectively.</td></tr>
+<tr><td>Progressive Web App</td><td>A website installable like an app, which works offline — chosen so users need no app store.</td></tr>
+<tr><td>Fail open / fail closed</td><td>A failing check that lets bad input through (open) versus one that blocks it (closed). Gates must fail closed.</td></tr>
+</tbody>
+</table>
+
+<div class="footnote">
+<p><strong>Provenance.</strong> Prepared by an AI engineering agent (Claude) that also contributed the three
+changesets described in §8.3. Findings were verified by reproduction against a running system wherever
+reproduction was possible. Figures marked "measured" were obtained by executing commands on 15 August 2026;
+all others are cited to repository files. No financial, market or team due diligence was performed, and none
+should be inferred from this document.</p>
+</div>
+</section>
+
+</body>
+</html>

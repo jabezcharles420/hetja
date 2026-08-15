@@ -28,8 +28,31 @@ const SEVERITIES: Array<{ key: Severity; label: string }> = [
   { key: "critical", label: "Life-threatening" },
 ];
 
-const EMERGENCY_FALLBACK_NAME = "Hetja emergency line";
-const EMERGENCY_FALLBACK_PHONE = "+919000000000";
+/*
+ * There is no fallback emergency number, and this file must not invent one.
+ *
+ * It used to declare:
+ *
+ *     const EMERGENCY_FALLBACK_NAME = "Hetja emergency line";
+ *     const EMERGENCY_FALLBACK_PHONE = "+919000000000";
+ *
+ * and render them as a card headed "ALWAYS AVAILABLE" with a working Call
+ * button. `+91 9000000000` is a placeholder. It was shown on all three degraded
+ * paths — offline, location denied, and care-lookup failed — which are exactly
+ * the paths a stranger standing over an injured dog is most likely to hit.
+ *
+ * So the one moment the page had nothing real to offer was the moment it made
+ * the strongest promise: an always-available emergency line that dials nothing.
+ * That is the precise failure this project's charter names — "The system is
+ * allowed to know less than it wants. It is not allowed to CLAIM more than it
+ * knows" — and on this surface the cost of the claim is measured in an animal's
+ * life, not a support ticket.
+ *
+ * Replaced with honest guidance and no dead Call button. If a real, verified,
+ * genuinely 24/7 number is ever secured, it belongs in `care_providers` with a
+ * non-null `phone_verified_at` like every other number the page shows — not as
+ * a constant in the client that no gate can check.
+ */
 
 let backdrop: HTMLElement | null = null;
 let sheetEl: HTMLElement | null = null;
@@ -210,13 +233,24 @@ function careRowHtml(p: CareProvider): string {
     </article>`;
 }
 
+/**
+ * What to show when we have no nearby providers to show.
+ *
+ * Deliberately carries NO phone number and NO Call button — see the note at the
+ * top of this file. A button that dials a fabricated number is worse than no
+ * button, because it consumes the seconds in which the person could have called
+ * someone real, and it does so while displaying the word "AVAILABLE".
+ *
+ * The report itself has already been filed by this point (or has failed loudly);
+ * this block is only about what a person can do with their own phone right now.
+ */
 function fallbackCareHtml(): string {
   return `
     <article class="care-row">
-      <div class="care-eyebrow"><span>ALWAYS AVAILABLE</span></div>
-      <div class="care-name">${escapeHtml(EMERGENCY_FALLBACK_NAME)}</div>
-      <div class="care-actions">
-        <a class="care-btn" href="tel:${EMERGENCY_FALLBACK_PHONE}">Call</a>
+      <div class="care-name">No nearby help loaded</div>
+      <div class="care-phone">
+        Call a local vet or animal helpline from your phone. If the dog is in
+        traffic and you can do so safely, move yourself out of the road first.
       </div>
     </article>`;
 }

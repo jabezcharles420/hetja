@@ -109,17 +109,30 @@ http://hetja.in {
 	#
 	# The path arithmetic is load-bearing: storage keys are `photos/<uuid>.<ext>`
 	# and storeLocal writes join(STORAGE_LOCAL_DIR, key), so with
-	# STORAGE_LOCAL_DIR=data/photos a file lands at data/photos/photos/<uuid>.<ext>.
-	# Rooting this handler at data/photos means URI /photos/<uuid>.<ext> resolves
-	# to exactly that. Change one and you must change the other.
+	# STORAGE_LOCAL_DIR=/srv/hetja/photos a file lands at
+	# /srv/hetja/photos/photos/<uuid>.<ext>. Rooting this handler at
+	# /srv/hetja/photos means URI /photos/<uuid>.<ext> resolves to exactly that.
+	# Change one and you must change the other.
 	#
-	# This is the ONLY absolute filesystem path in this file, and it is absolute
-	# because nothing templates the Caddyfile -- unlike ops/systemd/*.service,
-	# which bootstrap.sh renders __REPO_ROOT__ into, this file is installed
-	# verbatim. /root/hetja is where the API actually runs from (AGENTS.md §g:
-	# "api and worker run from the git checkout at /root/hetja"), and
-	# STORAGE_LOCAL_DIR is relative to the unit's WorkingDirectory, which is that
-	# same checkout. If the checkout ever moves, this line moves with it.
+	# /srv/hetja/photos, NOT /root/hetja/data/photos, and that is a correctness
+	# fix rather than a preference. Caddy runs as `User=caddy` (the distro unit),
+	# and /root is mode 0700 root:root — so the caddy user cannot even traverse
+	# into it, let alone read a file. Measured on the live box: with the handler
+	# pointed inside /root, every photo URL returned
+	#
+	#     HTTP 403, content-length 0
+	#
+	# which is indistinguishable from "no such photo" to a browser. The handler
+	# was correct, the storage layer was correct, and the bytes were unreachable
+	# because of a directory permission four levels up the path.
+	#
+	# /srv is the right home anyway: it already holds the release directories and
+	# the `current` symlink, it survives the checkout moving, and it can be made
+	# readable by a service user without opening up root's home. Nothing
+	# templates this file (unlike ops/systemd/*.service, which bootstrap.sh
+	# renders __REPO_ROOT__ into), so the path is written out in full.
+	#
+	# STORAGE_LOCAL_DIR in apps/api/.env.production must match this exactly.
 	#
 	# Long-lived cache is safe here in a way it is not for /d/*: the filename is a
 	# random UUID, so the bytes at a given URL never change. This is also the one
@@ -134,7 +147,7 @@ http://hetja.in {
 	handle /photos/* {
 		header Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
-		root * /root/hetja/data/photos
+		root * /srv/hetja/photos
 		file_server
 	}
 
@@ -185,7 +198,7 @@ http://api.hetja.in {
 	handle /photos/* {
 		header Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
-		root * /root/hetja/data/photos
+		root * /srv/hetja/photos
 		file_server
 	}
 

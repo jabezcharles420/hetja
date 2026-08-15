@@ -335,6 +335,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Destructive-change gate
+        # The gate itself lives in ops/check-destructive-migrations.sh so it can
+        # be run before pushing and negative-tested, instead of being 40 lines of
+        # untestable shell that only ever executes here. Its previous inline
+        # comment-stripper (`sed -e 's/--.*$//'`) deleted everything after the
+        # first `--` on a line, including real SQL following a `--` inside a
+        # string literal -- so `INSERT INTO t VALUES ('a -- b'); DROP TABLE
+        # medical_records;` passed the gate. See the script header.
         run: |
           set -euo pipefail
           FILES="${{ steps.new_migrations.outputs.files }}"
@@ -342,46 +349,8 @@ jobs:
             echo "no new migration files in this push -- nothing to gate"
             exit 0
           fi
-
-          fail=0
-          while IFS= read -r f; do
-            [ -n "$f" ] || continue
-            # Destructive STATEMENTS only -- not the mere appearance of the words.
-            # `GRANT ... DELETE`, `ON DELETE CASCADE`, `DROP DEFAULT`,
-            # `DROP NOT NULL` and a `deleted_at` column are all ordinary DDL and
-            # must not trip this, or the approval marker becomes noise that
-            # people paste in reflexively -- at which point the gate protects
-            # nothing. Two further exemptions, both learned from real migrations:
-            #
-            #   * `REVOKE TRUNCATE` / `BEFORE TRUNCATE` -- taking the privilege
-            #     away, or adding a trigger to forbid it, is the OPPOSITE of
-            #     destructive. So TRUNCATE only counts at the start of a
-            #     statement, which is the only place it can actually erase data.
-            #   * `DROP TRIGGER IF EXISTS` / `DROP FUNCTION IF EXISTS` followed
-            #     by CREATE is the standard idempotent-redefinition idiom and
-            #     carries no data. A DROP of either WITHOUT `IF EXISTS` still
-            #     counts, as does every DROP of a data-bearing object.
-            #
-            # Comments are stripped first, then newlines collapsed so a
-            # statement split across lines is still seen as one, with `;` as the
-            # statement boundary. Lowercased so the patterns can stay literal.
-            BODY="$(sed -e 's/--.*$//' "$f" | tr '\n' ' ' | tr '[:upper:]' '[:lower:]' \
-                    | sed -e 's/drop[[:space:]]\{1,\}trigger[[:space:]]\{1,\}if[[:space:]]\{1,\}exists/ /g' \
-                          -e 's/drop[[:space:]]\{1,\}function[[:space:]]\{1,\}if[[:space:]]\{1,\}exists/ /g')"
-            if printf '%s' "$BODY" | grep -qE '(^|;)[[:space:]]*truncate[[:space:]]|drop[[:space:]]+(table|column|schema|database|view|materialized|index|constraint|type|function|trigger|extension|sequence)|delete[[:space:]]+from'; then
-              if grep -qE -- '-- MIGRATION-APPROVED:[[:space:]]*\S' "$f"; then
-                echo "OK (approved): $f"
-                grep -nE -- '-- MIGRATION-APPROVED:' "$f"
-              else
-                echo "::error file=$f::destructive statement (DROP/TRUNCATE/DELETE) found with no '-- MIGRATION-APPROVED: <reason>' line in this file. medical_records is append-only and a bad migration against Supabase is not reversible -- this needs an explicit human sign-off marker in the SQL file itself, not just a passing test suite."
-                fail=1
-              fi
-            else
-              echo "OK (additive): $f"
-            fi
-          done <<< "$FILES"
-
-          exit "$fail"
+          # shellcheck disable=SC2086
+          echo "$FILES" | xargs -r ./ops/check-destructive-migrations.sh
 
       - name: Apply migrations to Supabase (session pooler)
         env:

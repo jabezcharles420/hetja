@@ -49,20 +49,43 @@ describe("ScanInput skew clamp", () => {
     type: "feed" as const,
   };
 
-  it("accepts capturedAt within the ±15min window", () => {
-    const result = ScanInput.safeParse({
-      ...base,
-      capturedAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    });
-    expect(result.success).toBe(true);
+  const at = (ms: number) =>
+    ScanInput.safeParse({ ...base, capturedAt: new Date(Date.now() + ms).toISOString() });
+
+  const MIN = 60 * 1000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  it("accepts capturedAt slightly in the future (ordinary phone clock drift)", () => {
+    expect(at(5 * MIN).success).toBe(true);
   });
 
   it("rejects capturedAt more than 15 minutes in the future", () => {
-    const result = ScanInput.safeParse({
-      ...base,
-      capturedAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-    });
-    expect(result.success).toBe(false);
+    // The direction that matters: applyLww keeps the greatest captured_at, so a
+    // future timestamp wins last-writer-wins indefinitely and pins
+    // last_seen_geo — the field the SOS geofence depends on.
+    expect(at(20 * MIN).success).toBe(false);
+  });
+
+  // The past direction had NO coverage, which is how a symmetric clamp survived
+  // in a schema whose invariant is explicitly about phones that are "offline for
+  // hours". Each of these was a permanent 400 before the clamp was made
+  // one-sided: the feed synced, was refused, and the client — correctly reading
+  // a 400 as final — dropped it along with the photo.
+  it.each([
+    ["16 minutes", 16 * MIN],
+    ["45 minutes", 45 * MIN],
+    ["3 hours", 3 * HOUR],
+    ["an afternoon out of signal", 8 * HOUR],
+    ["6 days", 6 * DAY],
+  ])("accepts a feed captured %s ago", (_label, ago) => {
+    expect(at(-ago).success).toBe(true);
+  });
+
+  it("still rejects a capturedAt from an implausibly distant past", () => {
+    // Not unbounded: a timestamp this old is a broken client, not a patient
+    // feeder, and applyLww should reason over a finite window.
+    expect(at(-60 * DAY).success).toBe(false);
   });
 });
 

@@ -4,11 +4,13 @@
  * scans, sos, push, medical, ledger, stories, moderation, trust, heatmap,
  * care, territories, gamification, metrics).
  */
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import compress from "@fastify/compress";
 import etag from "@fastify/etag";
+import { MAX_PHOTO_BASE64_CHARS } from "@hetja/contracts";
+import { pool } from "@hetja/db";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import deviceRoutes from "./routes/devices.js";
@@ -64,6 +66,16 @@ export function buildServer(config: AppConfig): FastifyInstance {
     // RESEARCH-2: trustProxy must be pinned to the real proxy, never `true`
     // (true lets any client forge X-Forwarded-For).
     trustProxy: config.TRUST_PROXY || false,
+    // Fastify's default body limit is 1 MiB, but `@hetja/contracts` accepts a
+    // photo up to MAX_PHOTO_BASE64_CHARS (~2.8 MB of base64 for 2 MiB decoded)
+    // and lib/exif-strip.ts enforces the same 2 MiB ceiling. So the contract
+    // promised roughly three times what the transport would accept: a scan
+    // carrying a photo over ~750 KB decoded was rejected by Fastify with
+    // FST_ERR_CTP_BODY_TOO_LARGE before any route saw it. That 413 is a
+    // permanent 4xx, and apps/web's offline queue drops permanent 4xx — so the
+    // feed and its photo were discarded rather than retried. Sized to the
+    // contract plus room for the surrounding JSON envelope.
+    bodyLimit: MAX_PHOTO_BASE64_CHARS + 64 * 1024,
   });
 
   void app.register(helmet);
@@ -91,6 +103,42 @@ export function buildServer(config: AppConfig): FastifyInstance {
     credentials: false,
   });
   app.decorate("config", config);
+
+  /**
+   * Anything a route throws instead of returning ends up here.
+   *
+   * There was no error handler at all, so Fastify's default applied: it echoes
+   * `error.message` in the 500 body. Two live paths reached it with
+   * attacker-controlled input — `medical.ts` let a `JwtError` escape (fixed
+   * separately, it should be a 401), and any route interpolating a `:id` path
+   * param into a `uuid` column turned `GET /api/v1/sos/cases/abc` into a
+   * PostgreSQL 22P02 whose message quotes the input back. Neither leak is
+   * catastrophic on its own; the pattern — internal errors rendered verbatim to
+   * unauthenticated callers — is worth closing once rather than per route.
+   *
+   * Client errors keep their status and message: those are deliberate, and a
+   * 400 that says only "error" is a support ticket. Anything >= 500 is logged
+   * in full and answered with a fixed body.
+   */
+  app.setErrorHandler((err: FastifyError, request, reply) => {
+    const status = err.statusCode ?? 500;
+    if (status >= 500) {
+      request.log.error({ err }, "unhandled error");
+      return reply.status(status).send({
+        ok: false,
+        error: { message: "internal server error", code: "INTERNAL" },
+      });
+    }
+    // Fastify's own 4xx (body too large, malformed JSON, unsupported media
+    // type) arrive with a machine-readable `code` like FST_ERR_CTP_*. Pass it
+    // through so a client can branch on it, in this API's envelope shape rather
+    // than Fastify's.
+    request.log.warn({ err }, "client error");
+    return reply.status(status).send({
+      ok: false,
+      error: { message: err.message, code: err.code ?? "BAD_REQUEST" },
+    });
+  });
 
   app.get("/healthz", async () => ({
     ok: true,
@@ -132,14 +180,51 @@ declare module "fastify" {
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop() ?? "")) {
   const config = loadConfig();
   const app = buildServer(config);
+  // Guards against a second signal re-entering shutdown while the first is
+  // still draining, which would call app.close() twice.
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     app.log.info({ signal }, "shutting down");
-    await app.close();
-    process.exit(0);
+    // A bounded drain. `app.close()` waits for in-flight requests, and without a
+    // ceiling one stuck request holds the process until systemd's
+    // TimeoutStopSec fires SIGKILL — which is the same outcome, minus the log
+    // line saying why. Previously this had no timeout AND no catch, so a
+    // rejecting close() left `process.exit(0)` unreachable inside a floating
+    // promise: the unit hung on every deploy restart with no diagnostic.
+    const FORCE_EXIT_MS = 10_000;
+    const timer = setTimeout(() => {
+      app.log.error(`shutdown did not complete within ${FORCE_EXIT_MS}ms — exiting anyway`);
+      process.exit(1);
+    }, FORCE_EXIT_MS);
+    timer.unref();
+    try {
+      await app.close();
+      // Release the pool explicitly. Without it the Postgres connections are
+      // torn down by process exit rather than closed, which shows up on the
+      // server as a burst of "unexpected EOF on client connection" on every
+      // deploy.
+      await pool.end();
+      process.exit(0);
+    } catch (err) {
+      app.log.error({ err }, "error during shutdown");
+      process.exit(1);
+    }
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
-  app.listen({ host: config.HOST, port: config.PORT }).then(() => {
-    app.log.info(`Hetja API listening on ${config.HOST}:${config.PORT}`);
-  });
+  app
+    .listen({ host: config.HOST, port: config.PORT })
+    .then(() => {
+      app.log.info(`Hetja API listening on ${config.HOST}:${config.PORT}`);
+    })
+    // Without this, a failure to bind (EADDRINUSE, EACCES on a privileged port)
+    // was an unhandled rejection: no log line, and the exit code depended on the
+    // Node version's unhandled-rejection policy. systemd would restart it into
+    // the same failure with nothing in the journal explaining it.
+    .catch((err: unknown) => {
+      app.log.error({ err }, `failed to listen on ${config.HOST}:${config.PORT}`);
+      process.exit(1);
+    });
 }

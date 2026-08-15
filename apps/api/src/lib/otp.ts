@@ -12,7 +12,7 @@
  * Every function here is therefore async where the old ones were sync —
  * callers (apps/api/src/routes/auth.ts) must await them.
  */
-import { createHash, randomInt } from "node:crypto";
+import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { query } from "@hetja/db";
 
 export const OTP_TTL_MS = 5 * 60 * 1000;
@@ -50,38 +50,65 @@ export async function verifyOtp(
   code: string,
   pepper: string,
 ): Promise<OtpVerifyResult> {
-  const res = await query<OtpRow>(
-    `SELECT code_hash, expires_at, attempts_used FROM otp_codes WHERE identity_hmac = $1`,
+  // Claim an attempt ATOMICALLY, before looking at anything.
+  //
+  // This was a SELECT of attempts_used, a comparison against OTP_MAX_ATTEMPTS,
+  // and a later UPDATE — three statements with no lock between them. Under
+  // concurrency every request read the same attempts_used, so N simultaneous
+  // POSTs to /api/v1/auth/verify each saw "0 attempts used" and the 3-attempt
+  // cap simply did not engage. A 6-digit code is 10^6 wide; a cap that can be
+  // bypassed by issuing requests in parallel is not a cap, and OTP issuance is
+  // itself unauthenticated and uncapped, so the code could be re-minted freely
+  // while guessing.
+  //
+  // `UPDATE ... RETURNING` takes a row lock and returns the post-increment
+  // value, so N concurrent callers serialise and see 1, 2, 3 … — each attempt
+  // is counted exactly once no matter how they interleave.
+  const claimed = await query<OtpRow>(
+    `UPDATE otp_codes
+        SET attempts_used = attempts_used + 1
+      WHERE identity_hmac = $1
+      RETURNING code_hash, expires_at, attempts_used`,
     [identityHmacVal],
   );
-  const record = res.rows[0];
+  const record = claimed.rows[0];
   if (!record) return "invalid_code";
 
   if (Date.now() > new Date(record.expires_at).getTime()) {
     await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
     return "expired";
   }
-  if (record.attempts_used >= OTP_MAX_ATTEMPTS) {
+  // attempts_used is now post-increment, so it counts THIS attempt: exceeding
+  // the budget means strictly greater than the maximum.
+  if (record.attempts_used > OTP_MAX_ATTEMPTS) {
     await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
     return "too_many_attempts";
   }
 
-  const candidate = hashCode(code, pepper);
-  if (candidate !== record.code_hash) {
-    const attemptsUsed = record.attempts_used + 1;
-    if (attemptsUsed >= OTP_MAX_ATTEMPTS) {
+  if (!hashesEqual(hashCode(code, pepper), record.code_hash)) {
+    if (record.attempts_used >= OTP_MAX_ATTEMPTS) {
       await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
-    } else {
-      await query(`UPDATE otp_codes SET attempts_used = $2 WHERE identity_hmac = $1`, [
-        identityHmacVal,
-        attemptsUsed,
-      ]);
     }
     return "invalid_code";
   }
 
   await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
   return "ok";
+}
+
+/**
+ * Constant-time comparison of two hex SHA-256 digests.
+ *
+ * `!==` on the hex strings short-circuits at the first differing character, so
+ * the rejection time leaks a prefix-match length. Both operands are digests of
+ * peppered input rather than the secret itself, which bounds what that leak is
+ * worth, but this is the login path and the codebase already compares HMACs,
+ * device tokens and JWT signatures in constant time.
+ */
+function hashesEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
 /** Test helper — forget an OTP without consuming an attempt. */

@@ -147,3 +147,57 @@ describe("QrScanner", () => {
     restore();
   });
 });
+
+/**
+ * Regression: an unmounted component must not publish `window.BarcodeDetector`.
+ *
+ * This is the defect that made the suite above fail on CI while passing
+ * locally, and it had nothing to do with the assertion that went red.
+ *
+ * The mount effect lazy-loads the ~13 KB WASM `barcode-detector` polyfill and
+ * assigns it to the global. The assignment was not guarded by the effect's
+ * `cancelled` flag, and the import can easily still be in flight after unmount
+ * on a loaded machine. So: the first test here renders with no detector and
+ * starts the import; its cleanup deletes the global; a later test installs a
+ * fake and clicks "Use camera"; then the stale import resolves and overwrites
+ * the fake with the real polyfill. The real polyfill dutifully tried to decode
+ * pixels out of a jsdom <video> that has none, so no barcode was ever found,
+ * `router.push` was never called, and the phase sat on "scanning" until the
+ * test timed out — while the DOM looked entirely healthy.
+ *
+ * The fix is the `!cancelled` guard on that assignment. The package's own
+ * side-effect write is a `??=`, which cannot overwrite a detector that is
+ * already there — unlike the bare assignment, which is why only that one
+ * needed guarding.
+ */
+describe("polyfill global hygiene", () => {
+  class UnrelatedDetector {
+    detect(): Promise<[]> {
+      return Promise.resolve([]);
+    }
+  }
+
+  it("does not let a stale in-flight import replace a detector installed since unmount", async () => {
+    delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
+    stubMediaDevices(vi.fn().mockResolvedValue(fakeStream()));
+
+    // Render with no detector present: this is what starts the dynamic import.
+    render(<QrScanner />);
+    cleanup();
+    delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
+
+    // Whatever runs next installs its own detector and depends on it.
+    Object.defineProperty(window, "BarcodeDetector", {
+      value: UnrelatedDetector,
+      configurable: true,
+      writable: true,
+    });
+
+    // Give the in-flight import time to settle, as a loaded runner would.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    expect((window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector).toBe(
+      UnrelatedDetector,
+    );
+  }, 10_000);
+});

@@ -61,10 +61,19 @@ export function clearAccessToken(): void {
   setAccessToken(null);
 }
 
+/**
+ * Default request deadline. Long enough that a slow-but-working 4G round trip
+ * with a photo attached still completes, short enough that a stalled socket
+ * surfaces as an error while the user is still looking at the screen.
+ */
+const DEFAULT_TIMEOUT_MS = 20_000;
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   auth?: boolean;
+  /** Override the deadline. `0` disables it — use only where a caller imposes its own. */
+  timeoutMs?: number;
 }
 
 interface ErrorEnvelope {
@@ -102,13 +111,30 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      // `fetch` does NOT time out on its own. A refused connection rejects
+      // quickly, but a socket that opens and then stalls — the normal failure on
+      // a congested cell network, rather than a clean refusal — hangs until the
+      // browser's own limit, which is minutes. On the SOS modal that meant the
+      // button sat disabled reading "Sending SOS…" indefinitely, on the one
+      // screen where the user has to learn it failed so they can phone a vet
+      // instead.
+      //
+      // AbortError is mapped to status 408 below so the offline queue's
+      // `isRetryable` already classifies it correctly as transient.
+      signal: opts.timeoutMs === 0 ? undefined : AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
   } catch (cause) {
-    throw new ApiError("Could not reach Hetja — check your connection.", {
-      status: 0,
-      code: "NETWORK_ERROR",
-      cause,
-    });
+    const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+    throw new ApiError(
+      timedOut
+        ? "Hetja took too long to respond — try again."
+        : "Could not reach Hetja — check your connection.",
+      {
+        status: timedOut ? 408 : 0,
+        code: timedOut ? "TIMEOUT" : "NETWORK_ERROR",
+        cause,
+      },
+    );
   }
 
   const payload: unknown = await res.json().catch(() => null);

@@ -98,6 +98,14 @@ concurrency:
 env:
   NODE_VERSION: 20
 
+# Least privilege for GITHUB_TOKEN. With no `permissions:` block the token
+# inherits the repository default, which on repos created before GitHub changed
+# it is read/write across every scope. Nothing in these workflows writes to the
+# repo through the API — they read code, run gates, and (in deploy.yml) reach
+# the box over SSH — so read-only on contents is the whole requirement.
+permissions:
+  contents: read
+
 jobs:
   # =========================================================================
   # GATE -- must be fully green before anything touches Supabase or the VPS.

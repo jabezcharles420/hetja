@@ -81,20 +81,31 @@ export async function extractExifGeo(file: File): Promise<{ lat: number; lng: nu
 export function compressPhoto(file: File): Promise<Blob> {
   const mimeType = supportsWebp() ? WEBP_MIME : JPEG_MIME;
   return new Promise((resolve, reject) => {
-    void import("compressorjs").then(({ default: Compressor }) => {
-      // eslint-disable-next-line no-new
-      new Compressor(file, {
-        quality: 0.8,
-        maxWidth: MAX_DIMENSION,
-        maxHeight: MAX_DIMENSION,
-        checkOrientation: true,
-        retainExif: false,
-        mimeType,
-        strict: false,
-        success: (result) => resolve(result),
-        error: (err) => reject(err),
-      });
-    });
+    import("compressorjs")
+      .then(({ default: Compressor }) => {
+        // eslint-disable-next-line no-new
+        new Compressor(file, {
+          quality: 0.8,
+          maxWidth: MAX_DIMENSION,
+          maxHeight: MAX_DIMENSION,
+          checkOrientation: true,
+          retainExif: false,
+          mimeType,
+          strict: false,
+          success: (result) => resolve(result),
+          error: (err) => reject(err),
+        });
+      })
+      // Without this the executor could finish having called NEITHER resolve nor
+      // reject, and a promise that never settles never rejects — it just hangs.
+      // `compressorjs` is a dynamic import, so on a flaky connection where the
+      // chunk is not already cached this fails with a ChunkLoadError, which is
+      // exactly the network the feeder is on. `prepareFeedPhoto`'s Promise.all
+      // hung with it, so FeedButton's `finally { setBusy(false) }` never ran and
+      // the primary action stayed stuck on "Logging…" until a full page reload,
+      // losing the photo and the feed. The `void` in front of the import chain
+      // was also swallowing the rejection into an unhandled promise.
+      .catch(reject);
   });
 }
 

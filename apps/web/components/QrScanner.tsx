@@ -242,6 +242,25 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
       }
       detectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
       setPhase("scanning");
+      // Try to decode straight away, then every 350ms.
+      //
+      // This used to be `setInterval` alone, so the FIRST decode attempt could
+      // not happen until a full interval after the camera was ready — a flat
+      // 350ms of live preview pointed at a collar with nothing being read. Most
+      // scans are of a QR already centred in frame by the time the camera
+      // opens, so that delay was pure latency on the common path.
+      //
+      // It also made the test for this the only timing-sensitive one in the
+      // suite: it had to outwait a 350ms timer inside Testing Library's default
+      // 1000ms waitFor budget, on a runner executing every package's suite in
+      // parallel. That went red intermittently — the same commit passed one CI
+      // job and failed two others, which is what blocked the deploy pipeline at
+      // its Gate.
+      //
+      // `tick` is safe to call before the first frame: it returns early unless
+      // both the video element and the detector exist, guards re-entrancy with
+      // detectingRef, and treats a mid-frame decode failure as routine.
+      void tick();
       intervalRef.current = setInterval(() => {
         void tick();
       }, 350);

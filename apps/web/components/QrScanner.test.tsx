@@ -129,9 +129,20 @@ describe("QrScanner", () => {
     await waitFor(() => screen.getByRole("button", { name: "Use camera" }));
     fireEvent.click(screen.getByRole("button", { name: "Use camera" }));
 
-    await waitFor(() => {
-      expect(push).toHaveBeenCalledWith("/dog/c3di5esh8?s=sig123");
-    });
+    // An explicit, generous budget. The default is 1000ms, and this is the one
+    // assertion in the suite that waits on the scanner's real timer while CI
+    // runs every package's tests in parallel — it failed intermittently on the
+    // loaded runner while passing locally and in other jobs on the same commit,
+    // which blocked the Deploy workflow at its Gate. The component now attempts
+    // a decode immediately rather than only on the interval, so this should
+    // resolve on the first attempt; the raised ceiling is here so a busy
+    // machine cannot turn latency into a red build.
+    await waitFor(
+      () => {
+        expect(push).toHaveBeenCalledWith("/dog/c3di5esh8?s=sig123");
+      },
+      { timeout: 5000 },
+    );
 
     restore();
   });

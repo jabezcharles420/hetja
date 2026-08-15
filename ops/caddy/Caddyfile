@@ -188,4 +188,29 @@ http://api.hetja.in {
 		root * /root/hetja/data/photos
 		file_server
 	}
+
+	# Catch-all. Everything not matched above goes to the API so it can answer
+	# for itself.
+	#
+	# Without this, Caddy has no route for an unmatched path on this vhost and
+	# returns an EMPTY 200 — no body, no content-type, not even the security
+	# headers from `common`. Measured live before this block existed:
+	#
+	#   GET /healthz                -> 200, 0 bytes   (never reached Fastify)
+	#   GET /                       -> 200, 0 bytes
+	#   GET /anything-at-all        -> 200, 0 bytes
+	#   GET /api/v1/nope            -> 404 JSON       (did reach Fastify)
+	#
+	# `/healthz` is the one that matters: apps/api/src/server.ts registers it and
+	# it never ran. Any uptime monitor pointed at https://api.hetja.in/healthz
+	# reported HEALTHY WITH THE API PROCESS DEAD — a false green on the only
+	# signal an operator watches. It also meant every unknown path returned 200
+	# to third-party clients, which every client-side error handler reads as
+	# success-with-no-data rather than as the 404 it is.
+	handle {
+		header Cache-Control "no-store"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
 }

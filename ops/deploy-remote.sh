@@ -220,6 +220,56 @@ restart_units() {
   systemctl restart "${UNITS[@]}"
 }
 
+# Installs the committed Caddyfile and reloads Caddy.
+#
+# NOTHING IN THIS REPOSITORY USED TO DO THIS. `ops/bootstrap.sh` checked that
+# ops/caddy/Caddyfile existed in the checkout and then `systemctl enable`d
+# Caddy, which reads /etc/caddy/Caddyfile -- an entirely different file. No
+# deploy touched Caddy at all. So the live routing was untracked, hand-edited
+# drift, and committing a routing fix did nothing to production.
+#
+# That was not theoretical. The running config had lost the `/photos/*` handler,
+# so EVERY dog photo 404'd on both hostnames, while the repo copy (which has had
+# that handler for a while, with a comment describing the outage it fixed) sat
+# unread. `ops/check-caddy-cache.sh` meanwhile gated the repo copy and reported
+# the life-safety no-store policy intact -- a green check over a file nobody
+# deployed.
+#
+# Reload, not restart: reload is graceful and keeps connections. Validate first,
+# and keep a timestamped backup, so a bad config fails here rather than taking
+# the site down.
+install_caddy_config() {
+  local src="$CHECKOUT_DIR/ops/caddy/Caddyfile"
+  local dst=/etc/caddy/Caddyfile
+
+  [ -f "$src" ] || { log "WARN: $src missing -- skipping Caddy config install"; return 0; }
+  command -v caddy >/dev/null 2>&1 || { log "WARN: caddy not installed -- skipping"; return 0; }
+
+  if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+    log "caddy config already current"
+    return 0
+  fi
+
+  if ! caddy validate --config "$src" --adapter caddyfile >/dev/null 2>&1; then
+    fail "committed Caddyfile FAILS validation -- refusing to install it. Run 'caddy validate --config ops/caddy/Caddyfile --adapter caddyfile' to see why."
+  fi
+
+  mkdir -p /etc/caddy
+  if [ -f "$dst" ]; then
+    cp -a "$dst" "${dst}.bak.$(date +%Y%m%d%H%M%S)"
+    log "backed up previous /etc/caddy/Caddyfile"
+  fi
+  install -m 0644 "$src" "$dst"
+
+  if systemctl reload caddy 2>/dev/null; then
+    log "caddy config installed and reloaded"
+  elif systemctl restart caddy 2>/dev/null; then
+    log "caddy config installed and restarted (reload unavailable)"
+  else
+    fail "installed the Caddyfile but could not reload caddy -- the site may be serving the old config"
+  fi
+}
+
 # Looks up one real collar slug from the database for the /d/<slug> check.
 # Best-effort only: prints nothing (and the caller treats that as "skip")
 # if PG env isn't set, psql isn't reachable, or the table is empty.
@@ -321,6 +371,13 @@ main() {
   fi
 
   point_current_at "$NEW_RELEASE"
+
+  # Before restarting: make the live routing match the committed routing. Failing
+  # here is correct -- a bad Caddyfile is caught by `caddy validate` and nothing
+  # is installed, whereas a stale one silently breaks whole features (see the
+  # function's header for the dog-photo outage it exists to prevent).
+  install_caddy_config
+
   restart_units
 
   log "waiting for services to settle"

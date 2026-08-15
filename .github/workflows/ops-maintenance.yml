@@ -1,0 +1,255 @@
+# Operator maintenance — run tasks on the production box WITHOUT needing SSH.
+#
+# WHY THIS EXISTS. Several real defects were reachable only by someone with a
+# shell on the VPS: the live Caddy config had drifted from the repo (dog photos
+# 404'd on both hostnames), the database password committed to this public
+# repository was the live one and needed rotating, and the worker's daily ledger
+# anchor had stopped without anyone noticing. The deploy pipeline already holds
+# SSH credentials for that box, so the access exists — what was missing was a
+# safe, auditable way to use it that did not require the operator to be
+# comfortable at a terminal.
+#
+# Every run is recorded in the Actions log, which is a better audit trail than
+# an interactive session nobody transcribes.
+#
+# SAFETY. The default task is read-only. Destructive tasks require typing a
+# confirmation phrase, so a mis-click cannot rotate a credential or reload a
+# proxy. Nothing here bypasses a gate: `caddy validate` runs before any config
+# is installed, and the password rotation verifies the new credential works
+# before it restarts anything.
+name: Ops maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "What to do"
+        required: true
+        default: diagnose
+        type: choice
+        options:
+          - diagnose                 # read-only: report what is actually wrong
+          - install-caddy-config     # fix drifted routing (dog photos, /healthz)
+          - rotate-db-password       # replace the password published in this repo
+          - restart-worker           # kick a stalled worker (e.g. ledger anchor)
+      confirm:
+        description: "Type EXACTLY: yes-i-mean-it   (required for anything except diagnose)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never let two maintenance runs touch the box at once, and never let one run
+  # while a deploy is mid-flight.
+  group: hetja-box-mutation
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Refuse destructive tasks without confirmation
+        if: inputs.task != 'diagnose'
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.confirm }}" != "yes-i-mean-it" ]; then
+            echo "::error::Task '${{ inputs.task }}' changes the production box."
+            echo "::error::Re-run it and type  yes-i-mean-it  in the confirm box."
+            exit 1
+          fi
+
+      - name: Open SSH to the box
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_SSH_PORT }}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ── READ-ONLY ────────────────────────────────────────────────────────────
+      - name: Diagnose
+        if: inputs.task == 'diagnose'
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        # Every command is `|| true`-tolerant so one missing tool does not hide
+        # the rest of the report. This step is meant to always complete and
+        # always print something useful.
+        run: |
+          set -uo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          echo "=================== SERVICES ==================="
+          systemctl is-active hetja-api hetja-worker hetja-web hetja-scan caddy 2>&1 | paste -d' ' \
+            <(echo -e "hetja-api\nhetja-worker\nhetja-web\nhetja-scan\ncaddy") - || true
+
+          echo
+          echo "=================== MEMORY ====================="
+          free -m 2>/dev/null | head -2 || true
+
+          echo
+          echo "=================== DISK ======================="
+          df -h / 2>/dev/null | tail -1 || true
+          echo "photos dir:"; du -sh /root/hetja/data/photos 2>/dev/null || echo "  (missing)"
+
+          echo
+          echo "============ CADDY CONFIG DRIFT ================"
+          if [ -f /etc/caddy/Caddyfile ] && [ -f /root/hetja/ops/caddy/Caddyfile ]; then
+            if cmp -s /etc/caddy/Caddyfile /root/hetja/ops/caddy/Caddyfile; then
+              echo "OK: live config matches the repo"
+            else
+              echo "DRIFTED: /etc/caddy/Caddyfile differs from the committed one"
+              echo "--- handlers live ---"; grep -cE '^\s*handle' /etc/caddy/Caddyfile || true
+              echo "--- handlers repo ---"; grep -cE '^\s*handle' /root/hetja/ops/caddy/Caddyfile || true
+              echo "photos handler live: $(grep -c 'photos' /etc/caddy/Caddyfile || echo 0)"
+            fi
+          else
+            echo "MISSING: /etc/caddy/Caddyfile or the repo copy is absent"
+          fi
+
+          echo
+          echo "============ LOCAL ENDPOINTS ==================="
+          for u in "http://127.0.0.1:8080/healthz" "http://127.0.0.1:8080/api/v1/heatmap?ward=A" \
+                   "http://127.0.0.1:3100/" "http://127.0.0.1:8081/"; do
+            printf '%-46s %s\n' "$u" "$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$u" 2>/dev/null || echo ERR)"
+          done
+
+          echo
+          echo "============ WORKER / LEDGER ==================="
+          echo "--- last 25 worker log lines ---"
+          journalctl -u hetja-worker -n 25 --no-pager 2>/dev/null || echo "(journalctl unavailable)"
+          echo "--- dead-lettered jobs ---"
+          cd /root/hetja 2>/dev/null && \
+            sudo -u postgres psql -d hetja -tAc \
+            "SELECT kind, count(*), max(last_error) FROM jobs WHERE failed_at IS NOT NULL GROUP BY kind" 2>/dev/null \
+            || echo "(could not query jobs)"
+          echo "--- latest ledger anchor ---"
+          sudo -u postgres psql -d hetja -tAc \
+            "SELECT published_at, record_count FROM ledger_anchors ORDER BY published_at DESC LIMIT 1" 2>/dev/null \
+            || echo "(could not query ledger_anchors)"
+          REMOTE
+
+      # ── FIX ROUTING ──────────────────────────────────────────────────────────
+      - name: Install the committed Caddy config
+        if: inputs.task == 'install-caddy-config'
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        # Validates before installing and keeps a timestamped backup, so a bad
+        # config cannot take the site down and the previous one is recoverable.
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          SRC=/root/hetja/ops/caddy/Caddyfile
+          DST=/etc/caddy/Caddyfile
+          [ -f "$SRC" ] || { echo "FATAL: $SRC missing — is the checkout up to date?"; exit 1; }
+
+          echo "==> validating the committed config"
+          caddy validate --config "$SRC" --adapter caddyfile
+
+          mkdir -p /etc/caddy
+          if [ -f "$DST" ]; then
+            cp -a "$DST" "${DST}.bak.$(date +%Y%m%d%H%M%S)"
+            echo "==> backed up the previous config"
+          fi
+          install -m 0644 "$SRC" "$DST"
+          echo "==> installed"
+
+          systemctl reload caddy || systemctl restart caddy
+          sleep 2
+          systemctl is-active caddy
+
+          echo "==> verifying photo + health routing through Caddy"
+          curl -s -o /dev/null -w 'local /healthz via caddy: %{http_code}\n' \
+            -H 'Host: api.hetja.in' --max-time 8 http://127.0.0.1/healthz || true
+          REMOTE
+
+      # ── ROTATE THE PUBLISHED CREDENTIAL ──────────────────────────────────────
+      - name: Rotate the database password
+        if: inputs.task == 'rotate-db-password'
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        # The new password is generated ON THE BOX and never leaves it — it is
+        # not printed, not returned, and not stored in GitHub. The app reads it
+        # from apps/api/.env.production, which is gitignored and stays on the
+        # box, so there is nowhere else it needs to go.
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          ENV_FILE=/root/hetja/apps/api/.env.production
+          [ -f "$ENV_FILE" ] || { echo "FATAL: $ENV_FILE not found"; exit 1; }
+
+          NEW="$(openssl rand -hex 32)"
+
+          echo "==> setting the new password on the app_user role"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c \
+            "ALTER ROLE app_user WITH PASSWORD '${NEW}';" >/dev/null
+
+          echo "==> verifying the new credential actually connects"
+          PGPASSWORD="$NEW" psql "host=127.0.0.1 port=5432 dbname=hetja user=app_user sslmode=disable connect_timeout=8" \
+            -tAc 'select 1' >/dev/null \
+            || { echo "FATAL: new password does not connect — NOT touching .env.production"; exit 1; }
+
+          echo "==> updating .env.production (backup kept)"
+          cp -a "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+          if grep -q '^PGPASSWORD=' "$ENV_FILE"; then
+            # Written via a temp file so a failure cannot leave a truncated env
+            # file — which would stop the API from booting at all.
+            awk -v p="$NEW" '/^PGPASSWORD=/{print "PGPASSWORD=" p; next} {print}' "$ENV_FILE" > "${ENV_FILE}.tmp"
+            mv "${ENV_FILE}.tmp" "$ENV_FILE"
+          else
+            printf 'PGPASSWORD=%s\n' "$NEW" >> "$ENV_FILE"
+          fi
+          chmod 600 "$ENV_FILE"
+
+          echo "==> restarting the services that hold pooled connections"
+          systemctl restart hetja-api hetja-worker
+          sleep 4
+          systemctl is-active hetja-api hetja-worker
+
+          echo "==> verifying the API can still reach the database"
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 'http://127.0.0.1:8080/api/v1/heatmap?ward=A' || echo ERR)"
+          echo "heatmap (db-backed): $code"
+          [ "$code" = "200" ] || { echo "FATAL: API cannot reach the database after rotation"; exit 1; }
+
+          echo
+          echo "ROTATED. The old password published in the public repo is now dead."
+          echo "The new one exists only in $ENV_FILE on this box."
+          REMOTE
+
+      # ── KICK THE WORKER ──────────────────────────────────────────────────────
+      - name: Restart the worker
+        if: inputs.task == 'restart-worker'
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          systemctl restart hetja-worker
+          sleep 5
+          systemctl is-active hetja-worker
+          echo "--- worker log since restart ---"
+          journalctl -u hetja-worker -n 30 --no-pager 2>/dev/null || true
+          REMOTE
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

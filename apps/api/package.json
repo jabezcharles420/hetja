@@ -8,7 +8,10 @@
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "admin:grant": "tsx src/cli/grant-admin.ts grant",
+    "admin:revoke": "tsx src/cli/grant-admin.ts revoke",
+    "admin:list": "tsx src/cli/grant-admin.ts list"
   },
   "dependencies": {
     "@fastify/compress": "^9.2.0",

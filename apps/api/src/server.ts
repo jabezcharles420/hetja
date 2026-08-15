@@ -15,6 +15,7 @@ import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import deviceRoutes from "./routes/devices.js";
 import dogRoutes from "./routes/dogs.js";
+import enrolmentRoutes from "./routes/enrolment.js";
 import scanRoutes from "./routes/scans.js";
 import sosRoutes from "./routes/sos.js";
 import pushRoutes from "./routes/push.js";
@@ -154,6 +155,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(authRoutes);
   void app.register(deviceRoutes);
   void app.register(dogRoutes);
+  void app.register(enrolmentRoutes);
   void app.register(scanRoutes);
   void app.register(sosRoutes);
   void app.register(pushRoutes);

@@ -197,10 +197,17 @@ const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   },
 
   escalate_sos: async (p) => {
-    // 8-minute escalation: unacked case → tier 2, notify BMC officers + nearest vets.
+    // 8-minute escalation: UNACKED case → tier 2, notify BMC officers + nearest vets.
     await withTx(async (client) => {
+      // `state = 'open'` only. This used to be `state IN ('open','acked')`, which
+      // escalated cases a responder had ALREADY claimed — the opposite of what
+      // this job is for, and of what the header above and ops/RUNBOOK.md both
+      // promise. A responder who acked within four minutes still triggered the
+      // full tier-2 page at minute eight.
       const caseRow = await client.query(
-        `SELECT id, tier FROM sos_cases WHERE id = $1 AND state IN ('open','acked') FOR UPDATE`,
+        `SELECT id, tier FROM sos_cases
+          WHERE id = $1 AND state = 'open' AND acked_by IS NULL
+          FOR UPDATE`,
         [p.caseId],
       );
       if (caseRow.rowCount === 0) return;
@@ -208,9 +215,29 @@ const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
         `UPDATE sos_cases SET tier = 2, escalated_at = now() WHERE id = $1`,
         [p.caseId],
       );
+      // THE NEAREST vets — which this did not previously return.
+      //
+      // It was `ORDER BY ST_Distance(geo, (SELECT geo FROM dogs WHERE id = $1))`.
+      // `dogs` has no column named `geo`; the column is `last_seen_geo`. Rather
+      // than erroring, PostgreSQL resolves the unqualified `geo` inside the
+      // subquery against the OUTER scope — `vets.geo` — so the sort key became
+      // ST_Distance(vets.geo, vets.geo) = 0 for every row. Confirmed by EXPLAIN:
+      //     Sort Key: (st_distance(vets.geo, (SubPlan 1), true))
+      // The effect was silent and total: tier-2 escalation paged three ARBITRARY
+      // vets, potentially across the city, for an injured animal.
+      //
+      // Both sides are now table-qualified so the same mistake cannot recur, and
+      // a dog with no recorded position no longer produces a NULL sort key that
+      // orders arbitrarily — it is excluded, because paging the wrong clinic is
+      // worse than paging none and is indistinguishable from success.
       const vets = await client.query(
-        `SELECT id, signing_key_pub FROM vets
-          ORDER BY ST_Distance(geo, (SELECT geo FROM dogs WHERE id = $1)) LIMIT 3`,
+        `SELECT v.id, v.signing_key_pub
+           FROM vets v, dogs d
+          WHERE d.id = $1
+            AND d.last_seen_geo IS NOT NULL
+            AND v.geo IS NOT NULL
+          ORDER BY v.geo <-> d.last_seen_geo
+          LIMIT 3`,
         [p.dogId],
       );
       for (const v of vets.rows) {

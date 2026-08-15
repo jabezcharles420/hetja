@@ -6,6 +6,7 @@ import {
   streakLabelFor,
   streakLevelFor,
   trustLabelFor,
+  type StreakData,
 } from "./streak";
 
 describe("lib/streak display mapping", () => {
@@ -64,5 +65,50 @@ describe("lib/streak display mapping", () => {
     const view = mapStreak({ trustScore: 30, streakDays: -4, badges: [] });
     expect(view.streakDays).toBe(0);
     expect(view.streakLevel).toBe("none");
+  });
+});
+
+/**
+ * Regression: /me must survive a streak payload missing fields.
+ *
+ * `StreakData` declares `badges` and `trustScore` as required, and the API did
+ * not send either. `mapStreak` called `data.badges.map(...)`, which threw on
+ * every render of /me — the page a feeder is redirected to the instant they
+ * sign in. With no error boundary in the app at the time, React unmounted the
+ * whole tree and the user got Next.js's bare "Application error: a client-side
+ * exception has occurred". A login that had just succeeded, ending on a blank
+ * error page, for every feeder, in every environment.
+ *
+ * The API now sends both fields and the app has error boundaries. This test
+ * pins the third defence: a payload gap must cost a number on a page, never
+ * the page.
+ */
+describe("mapStreak resilience to payload drift", () => {
+  it("does not throw when badges is missing", () => {
+    const partial = { streakDays: 3 } as unknown as StreakData;
+    expect(() => mapStreak(partial)).not.toThrow();
+    expect(mapStreak(partial).badges).toEqual([]);
+  });
+
+  it("does not throw when trustScore is missing", () => {
+    const partial = { streakDays: 3, badges: [] } as unknown as StreakData;
+    expect(() => mapStreak(partial)).not.toThrow();
+    expect(mapStreak(partial).trustScore).toBe(0);
+  });
+
+  it("survives an entirely empty payload", () => {
+    const empty = {} as unknown as StreakData;
+    expect(() => mapStreak(empty)).not.toThrow();
+    const out = mapStreak(empty);
+    expect(out.streakDays).toBe(0);
+    expect(out.badges).toEqual([]);
+  });
+
+  it("still maps a complete payload correctly", () => {
+    const full: StreakData = { streakDays: 7, trustScore: 55, badges: ["first_feed"] };
+    const out = mapStreak(full);
+    expect(out.streakDays).toBe(7);
+    expect(out.trustScore).toBe(55);
+    expect(out.badges).toEqual([{ key: "first_feed", label: "First Feed" }]);
   });
 });

@@ -57,6 +57,10 @@ export default async function gamificationRoutes(app: FastifyInstance): Promise<
           streakDays: view.streakDays,
           lastFeedDate: view.lastFeedDate,
           nextBadgeHint: view.nextBadgeHint,
+          // See StreakView: /me renders both, and their absence crashed the
+          // page for every signed-in feeder.
+          badges: view.badges,
+          trustScore: view.trustScore,
         },
       };
     } catch (err) {

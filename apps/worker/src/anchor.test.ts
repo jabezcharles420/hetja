@@ -110,7 +110,7 @@ describe("publishLedgerAnchor", () => {
       // publishing a freshly recomputed head would make GET /api/v1/ledger/verify
       // agree with the anchor by construction, including over doctored rows.
       const all = await client.query<{ hash_curr: string }>(
-        `SELECT hash_curr FROM medical_records ORDER BY created_at ASC, id ASC`,
+        `SELECT hash_curr FROM medical_records ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
       );
       expect(anchor.head_hash).toBe(all.rows[all.rows.length - 1].hash_curr);
       expect(Number(anchor.record_count)).toBe(all.rows.length);

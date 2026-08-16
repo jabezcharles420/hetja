@@ -18,7 +18,7 @@ import {
   type MerkleProof,
   type ProvenRecord,
 } from "@hetja/ledger";
-import { query } from "@hetja/db";
+import { query, CHAIN_ORDER_ASC } from "@hetja/db";
 
 /** hex SHA-256, the shape of every hash_curr and every Merkle node. */
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -61,7 +61,7 @@ const DOG_LEDGER_SQL = `
 SELECT id, hash_curr AS hash, merkle_root AS "attestedRoot"
   FROM medical_records
  WHERE dog_id = $1
- ORDER BY created_at ASC, id ASC
+ ORDER BY ${CHAIN_ORDER_ASC}
  LIMIT $2`;
 
 /**
@@ -72,7 +72,7 @@ SELECT id, hash_curr AS hash, merkle_root AS "attestedRoot"
 const GLOBAL_LEDGER_SQL = `
 SELECT id, hash_curr AS hash
   FROM medical_records
- ORDER BY created_at ASC, id ASC
+ ORDER BY ${CHAIN_ORDER_ASC}
  LIMIT $1`;
 
 type DogLeafRow = ProvenRecord & { attestedRoot: string | null };
@@ -193,7 +193,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
       `SELECT hash_prev AS prev, payload, hash_vet_id AS "vetId",
               hash_ts AS ts, hash_curr AS hash
          FROM medical_records
-        ORDER BY created_at ASC, id ASC
+        ORDER BY ${CHAIN_ORDER_ASC}
         LIMIT $1`,
       [n],
     );

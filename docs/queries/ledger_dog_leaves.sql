@@ -12,22 +12,31 @@
 --
 -- It is documented here so INVARIANT 12's gate (ops/check-queries.sh) EXPLAINs
 -- it against the committed schema on every CI run. The index it needs is
--- `medical_records_dog_chain_ix (dog_id, created_at, id)`, added by migration
--- 0014 — without it this is a filter + sort over the whole table on every
--- medical-record append, while holding a global advisory lock.
+-- `medical_records_dog_chain_seq_ix (dog_id, chain_seq, created_at, id)`, added
+-- by migration 0017 — without it this is a filter + sort over the whole table on
+-- every medical-record append, while holding a global advisory lock.
 --
 -- Only id and hash_curr are selected on purpose: a leaf is
 -- SHA256(0x00 || record.hash) and `id` only locates a leaf's index, so reading
 -- every `payload` JSONB would be pure I/O for bytes that are never hashed.
 --
--- (created_at, id) is the ordering the hash chain itself uses. Note the honest
--- caveat recorded in medical.ts: created_at is the TRANSACTION timestamp, so two
--- overlapping appends can be lock-ordered one way and created_at-ordered the
--- other. The chain's own recomputeHead already depends on this ordering, so the
--- Merkle tree is no more exposed than the chain is — which is exactly why the
--- ordering is spelled out identically here, in medical.ts, in ledger.ts and in
--- the worker rather than left to each query's convenience.
+-- THE ORDERING. This used to be `created_at ASC, id ASC`, with a comment
+-- describing the transaction-timestamp hazard as an accepted caveat. It was not
+-- survivable: `created_at` is stamped at BEGIN, one round trip before the
+-- advisory lock, so it cannot witness append order at all. Sixteen concurrent
+-- appends inverted 51 of 120 pairs and forked the chain three times.
+--
+-- `chain_seq` (0017) is allocated by nextval() at INSERT while the chain lock is
+-- held, so it IS append order. Rows predating 0017 carry NULL and sort first,
+-- among themselves by (created_at, id) — not a guess at their true order, but
+-- the order their stored merkle_root was already computed under, so historical
+-- attestations keep reproducing.
+--
+-- Keep this ORDER BY byte-identical to CHAIN_ORDER_ASC in
+-- packages/db/src/chain-order.ts, which is what medical.ts, ledger.ts and the
+-- worker all interpolate. A divergence between the append order and the proof
+-- order shows up as "tampered" on untampered data.
 SELECT id, hash_curr AS hash
   FROM medical_records
  WHERE dog_id = $1
- ORDER BY created_at ASC, id ASC
+ ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC

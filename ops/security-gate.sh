@@ -134,6 +134,52 @@ else
   echo "PASS: no JWK material in tracked files"
 fi
 
+# No high-entropy hex secret committed.
+#
+# This rule exists because the gate above reported PASS on a repository that
+# contained a real (since-rotated) PostgreSQL password in FOUR tracked files:
+# apps/api/src/config.ts, packages/db/src/pool.ts, ops/check-queries.sh and
+# apps/ai/worker.py. None of the checks above could see it -- it is not a PEM
+# block, not an sk- key, not a JWK, and not a file named .env. A 64-hex-char
+# credential pasted as a "default" is the shape a leaked secret actually takes
+# in this codebase, so it gets its own rule.
+#
+# 48+ hex characters is the threshold: `openssl rand -hex 32` (64 chars) is what
+# AGENTS.md section d tells you to generate for JWT_SECRET, HETJA_HMAC_PEPPER,
+# HETJA_QR_SECRET and HETJA_DEVICE_SECRET, so anything at or near that length
+# sitting in a tracked file is either a secret or something that looks exactly
+# like one -- and both deserve a human's attention.
+#
+# Deliberately NOT matched: git SHAs (40 hex, below the threshold),
+# ledger hash_curr / hash_prev values (SHA-256 hex appears in ledger tests and
+# fixtures), and the 32-hex `[0-9a-f]{32}` shapes used by asset ids. The
+# exclusions below name the files where long hex is legitimately expected.
+#
+# packages/ledger/ops/ is excluded by path: sample-ledger.json is a hash-chain
+# fixture, so 64-hex strings are its ENTIRE POINT -- every `prev`/`hash` member is
+# a SHA-256 digest, including the all-zero GENESIS_PREV_HASH. Excluding the
+# directory rather than raising the threshold keeps the rule at the length that
+# actually catches `openssl rand -hex 32` output elsewhere.
+#
+# If this fires on something genuinely benign, add it to the exclusion list with
+# a reason rather than lowering the threshold -- the threshold is the rule.
+hex_secret_hits() {
+  git ls-files -z -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.py' '*.sh' '*.json' '*.yml' '*.yaml' '*.md' \
+    | xargs -0 -r grep -InE "[0-9a-f]{48,}" 2>/dev/null \
+    | grep -viE '(test|spec|fixture|__snapshots__)' \
+    | grep -viE 'pnpm-lock|integrity|sha(256|384|512)-' \
+    | grep -viE '^packages/ledger/ops/' \
+    || true
+}
+
+if [ -n "$(hex_secret_hits)" ]; then
+  echo "FAIL: high-entropy hex string (>=48 chars) in a tracked file -- possible committed secret"
+  hex_secret_hits | sed 's/^/       /'
+  fail=1
+else
+  echo "PASS: no high-entropy hex secret in tracked files"
+fi
+
 # Env files must not be committed
 check "no .env committed" \
   bash -c "! git ls-files 2>/dev/null | grep -qE '(^|/)\.env$'"

@@ -98,7 +98,7 @@ export const pool = new Pool({
   port: Number(process.env.PGPORT ?? 5432),
   database: requiredInProd("PGDATABASE", "hetja"),
   user: requiredInProd("PGUSER", "app_user"),
-  password: requiredInProd("PGPASSWORD", "8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e"),
+  password: requiredInProd("PGPASSWORD", ""),
   max: Number(process.env.PGPOOL_MAX ?? 10),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

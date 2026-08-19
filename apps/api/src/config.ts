@@ -16,7 +16,17 @@ const EnvSchema = z.object({
   PGPORT: z.coerce.number().int().default(5432),
   PGDATABASE: z.string().default("hetja"),
   PGUSER: z.string().default("app_user"),
-  PGPASSWORD: z.string().default("8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e"),
+  // No default. The value that used to sit here was a REAL app_user password,
+  // rotated in c0bb63b -- whose commit message is literally "rotate PGPASSWORD"
+  // while leaving the old value behind as this default. It is dead (verified:
+  // authentication fails with it), but a 64-hex-char credential in a public
+  // AGPL repository is not something to keep, and ops/security-gate.sh could
+  // not see it -- that blind spot is now closed by its high-entropy rule.
+  //
+  // Empty rather than absent so local dev against a trust/peer-auth socket
+  // still works; requireInProd() below already refuses to boot production
+  // without a real value.
+  PGPASSWORD: z.string().default(""),
   // INVARIANT 3: identity_hmac pepper (was phone_hmac's before the email OTP
   // migration; same key, same algorithm). Production MUST inject via
   // KMS/secret manager — never a committed env file.

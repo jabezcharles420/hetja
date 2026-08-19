@@ -22,7 +22,9 @@ import psycopg2.extras
 
 PG_DSN = os.environ.get(
     "HETJA_PG_DSN",
-    "host=127.0.0.1 dbname=hetja user=app_user password=8ffe587d42b5b5a56109fc1234b4d59309e2a87efa1b3fe4e17a7141feea851e",
+    # No password here on purpose -- a rotated-but-committed credential used to
+    # live in this string. Supply HETJA_PG_DSN, or rely on ~/.pgpass / peer auth.
+    "host=127.0.0.1 dbname=hetja user=app_user",
 )
 
 POLL_S = 5

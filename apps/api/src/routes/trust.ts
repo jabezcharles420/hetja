@@ -22,6 +22,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { parseUuidParam } from "../lib/params.js";
 import {
   TrustError,
   type TrustEventRow,
@@ -124,11 +125,22 @@ export default async function trustRoutes(app: FastifyInstance): Promise<void> {
           .send({ ok: false, error: { message: "invalid resolve payload", code: "INVALID_DISPUTE" } });
       }
 
+      // trust_events.id is a uuid column; a non-UUID :id would raise 22P02
+      // inside the transaction and — since sendTrustError rethrows anything
+      // that is not a TrustError — surface as a 500. See lib/params.ts.
+      const eventId = parseUuidParam(req.params.id);
+      if (!eventId) {
+        return reply.status(400).send({
+          ok: false,
+          error: { message: "event id must be a UUID", code: "INVALID_TRUST_EVENT_ID" },
+        });
+      }
+
       try {
         // The admin check itself lives inside resolveDispute — the route only
         // authenticates who is calling, the lib enforces what they may do.
         const result = await withTx(async (client) =>
-          resolveDispute(req.params.id, auth.feederId, parsed.data.reason, client),
+          resolveDispute(eventId, auth.feederId, parsed.data.reason, client),
         );
         return {
           ok: true,

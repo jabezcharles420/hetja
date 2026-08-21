@@ -380,6 +380,20 @@ describe("disputes", () => {
     expect(ghost.statusCode).toBe(404);
     expect(ghost.json().error.code).toBe("TRUST_EVENT_NOT_FOUND");
   });
+
+  it("answers a non-UUID event id with 400, not a 500 from a raw 22P02", async () => {
+    // trust_events.id is a uuid column, and sendTrustError rethrows anything
+    // that is not a TrustError — so a non-UUID :id used to escape the route
+    // as PostgreSQL 22P02 and render as "internal server error".
+    const res = await fixture.app.inject({
+      method: "POST",
+      url: "/api/v1/trust/disputes/not-a-uuid/resolve",
+      headers: { authorization: bearerToken(fixture.adminId) },
+      payload: { reason: "malformed id" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_TRUST_EVENT_ID");
+  });
 });
 
 describe("no self-serve trust writes", () => {

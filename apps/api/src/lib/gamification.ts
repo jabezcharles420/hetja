@@ -8,8 +8,12 @@
  * STREAK rule: a 'feed' scan on day D extends the streak iff there was a feed
  * scan on day D-1 (consecutive days). A missed day (>1 day gap) resets the
  * streak to 0 — there is NO retroactive recovery. Multiple feed scans on the
- * same day are a no-op for the streak. The transition is a pure function of
- * {lastFeedDate, today} so the scans hook and the endpoints agree exactly.
+ * same day are a no-op for the streak. A feed whose day is EARLIER than the
+ * last recorded one (an offline queue syncing out of order — INVARIANT 4
+ * allows capturedAt up to 30 days in the past) is a no-op: an older
+ * observation never walks last_feed_date backwards. The transition is a pure
+ * function of {lastFeedDate, today} so the scans hook and the endpoints agree
+ * exactly.
  *
  * BADGES catalog (name, condition, description):
  *   first_feed     — 1 verified feed
@@ -90,6 +94,8 @@ export interface StreakState {
  * Deterministic streak transition given {lastFeedDate, today} (YYYY-MM-DD).
  * - same day already fed → no-op (idempotent, never double-increments)
  * - feed on the day after lastFeedDate → streak + 1
+ * - an OLDER observation loses: a `today` earlier than lastFeedDate leaves
+ *   the state untouched (see INVARIANT 4 note below)
  * - first feed ever, or a gap > 1 day → reset; today starts a 1-day streak
  */
 export function computeStreak(state: StreakState, today: string): StreakState {
@@ -97,6 +103,14 @@ export function computeStreak(state: StreakState, today: string): StreakState {
   if (state.lastFeedDate !== null && daysBetween(state.lastFeedDate, today) === 1) {
     return { streakDays: state.streakDays + 1, lastFeedDate: today };
   }
+  // INVARIANT 4 (out-of-order offline sync): capturedAt may legitimately sit
+  // up to 30 days in the past, and a queued feed can sync AFTER a later live
+  // one. Without this guard such a late arrival fell through to the reset
+  // branch below, walking last_feed_date BACKWARDS and clobbering a streak
+  // that was still alive -- the streak equivalent of applyLww (routes/scans.ts)
+  // overwriting a fresher last_seen_geo with an older observation. An older
+  // observation loses; it changes nothing.
+  if (state.lastFeedDate !== null && today < state.lastFeedDate) return state;
   return { streakDays: 1, lastFeedDate: today };
 }
 

@@ -21,10 +21,30 @@ async function upsertFeeder(
   consentVersion: number,
   isMinor: boolean,
 ): Promise<FeederRow> {
+  // `SET identity_hmac = EXCLUDED.identity_hmac` (a self-assignment) is what
+  // makes the conflict branch a deliberate no-op rather than an error, and
+  // what it protects is privilege: a returning user must never be able to
+  // change their own role or trust_score by re-verifying an OTP — re-login is
+  // authentication, not authorisation. Role changes happen only through the
+  // admin grant path; trust_score is derived from trust_events by
+  // recomputeScore and would be silently rewritten by the next replay if it
+  // were written here.
+  //
+  // What deliberately does advance on conflict: `consent_version` and
+  // `is_minor`. Freezing them made sense for nothing except brevity of the
+  // clause — but a consent version that can never move means a feeder who
+  // accepted DPDP notice v2 stays recorded as v1 forever, and a user who
+  // turns 18 stays flagged a minor (with whatever gating that drags behind
+  // it) for as long as the row lives. Both are facts ABOUT the account that
+  // the user themselves attests at each verify, like display_name; they are
+  // not privileges, so the no-op reasoning above does not apply to them.
   const res = await query<FeederRow>(
     `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
      VALUES ($1, 'Hetja Feeder', 'feeder', 30, $2, $3)
-     ON CONFLICT (identity_hmac) DO UPDATE SET identity_hmac = EXCLUDED.identity_hmac
+     ON CONFLICT (identity_hmac) DO UPDATE SET
+       identity_hmac = EXCLUDED.identity_hmac,
+       consent_version = EXCLUDED.consent_version,
+       is_minor = EXCLUDED.is_minor
      RETURNING id, display_name, role, trust_score, home_ward`,
     [identityHmacVal, String(consentVersion), isMinor],
   );

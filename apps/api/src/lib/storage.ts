@@ -93,6 +93,11 @@ export async function storePhoto(image: StrippedImage, config: StorageConfig): P
       return key;
     case "s3":
       // S3 PUT requires signed requests; wired in a production follow-up.
+      // Unreachable through normal boots — loadConfig() refuses
+      // STORAGE_BACKEND=s3 outright, because this throw used to land in
+      // persistScanAssets' warn-and-continue catch after the route had
+      // already answered {ok:true} (silent photo loss). Kept as defence in
+      // depth for any caller that bypasses config.
       throw new Error("STORAGE_BACKEND=s3 is not implemented in this build");
     default:
       throw new Error(`unknown STORAGE_BACKEND: ${String(config.STORAGE_BACKEND)}`);

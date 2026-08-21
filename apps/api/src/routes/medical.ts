@@ -24,10 +24,20 @@ import {
   type ProvenRecord,
 } from "@hetja/ledger";
 import { MedicalRecordInput } from "@hetja/contracts";
-import { pool, query } from "@hetja/db";
+import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 
 const CHAIN_LOCK_KEY = 420_001; // arbitrary, stable advisory lock for the chain
+
+/**
+ * Constraint names PostgreSQL generated for medical_records' two foreign keys.
+ * A well-formed but nonexistent reference arrives here as FK violation 23503
+ * with one of these attached; they are distinguished because the honest status
+ * differs -- a missing dog is a 404, a missing correction target a 400 (see
+ * the catch around the chain write below).
+ */
+const FK_DOG = "medical_records_dog_id_fkey";
+const FK_CORRECTS = "medical_records_corrects_record_id_fkey";
 
 /**
  * One dog's Merkle leaves, in canonical chain order. The WHERE and ORDER BY are
@@ -189,80 +199,90 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
     }
 
     // Chain write under an advisory lock (no forks, ever).
-    const client = await pool.connect();
+    //
+    // This used to hand-roll connect/BEGIN/COMMIT/ROLLBACK/release, which
+    // duplicated `withTx` -- including, unguarded, its failure mode: a
+    // ROLLBACK that itself threw (connection reset) would replace the real
+    // error, and `release()` with no argument would return a possibly
+    // transaction-poisoned connection to the pool. withTx owns that care now,
+    // so the route keeps only what is specific to it.
+    let data: {
+      id: string;
+      hashCurr: string;
+      isVerified: boolean;
+      prev: string;
+      merkleRoot: string;
+    };
     try {
-      await client.query("BEGIN");
-      await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
-      const head = await client.query<HeadRow>(
-        `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
-      );
-      const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
-      const hashCurr = computeHash(prev, { ...input }, vetId ?? "feeder", ts);
+      data = await withTx(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
+        const head = await client.query<HeadRow>(
+          `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
+        );
+        const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
+        const hashCurr = computeHash(prev, { ...input }, vetId ?? "feeder", ts);
 
-      // Merkle root over THIS DOG's whole ledger including the row about to be
-      // written (enhancement stack §D.1, Top-25 #15). Computed here, inside the
-      // same transaction and under the same advisory lock as the chain write,
-      // for two reasons: the root has to include the new leaf, and no concurrent
-      // append may land between "read the dog's rows" and "insert" or the stored
-      // root would describe a tree that never existed.
-      //
-      // The cost is real and worth stating plainly: this is O(n) rows read plus
-      // O(n) SHA-256 over one dog's history on EVERY insert, and it is paid
-      // while holding CHAIN_LOCK_KEY, which serialises all medical appends
-      // system-wide — so it is not just this writer's latency, it is everyone's.
-      // At pilot scale that is fine: a dog carries a handful of records (a
-      // vaccination, an ABC, the odd treatment), so n is single digits and the
-      // hashing is microseconds. It stops being fine somewhere in the low
-      // thousands of records for a single dog, which no dog will reach; if one
-      // ever does, the fix is to store each row's audit path incrementally
-      // rather than rebuilding the tree, not to drop the persistence.
-      const prior = await client.query<ProvenRecord>(DOG_LEDGER_SQL, [input.dogId]);
-      // `merkleRoot` is typed against the full `LedgerRecord` but reads only
-      // `hash` (and `merkleProof` additionally `id`), which is what the query
-      // above selects — so this asserts to a subtype whose extra fields are
-      // provably unused. See ledger.ts's `asLeaves` for the same note.
-      const leaves = [
-        ...prior.rows,
-        { id: PENDING_LEAF_ID, hash: hashCurr },
-      ] as LedgerRecord[];
-      const dogMerkleRoot = merkleRoot(leaves);
+        // Merkle root over THIS DOG's whole ledger including the row about to be
+        // written (enhancement stack §D.1, Top-25 #15). Computed here, inside the
+        // same transaction and under the same advisory lock as the chain write,
+        // for two reasons: the root has to include the new leaf, and no concurrent
+        // append may land between "read the dog's rows" and "insert" or the stored
+        // root would describe a tree that never existed.
+        //
+        // The cost is real and worth stating plainly: this is O(n) rows read plus
+        // O(n) SHA-256 over one dog's history on EVERY insert, and it is paid
+        // while holding CHAIN_LOCK_KEY, which serialises all medical appends
+        // system-wide — so it is not just this writer's latency, it is everyone's.
+        // At pilot scale that is fine: a dog carries a handful of records (a
+        // vaccination, an ABC, the odd treatment), so n is single digits and the
+        // hashing is microseconds. It stops being fine somewhere in the low
+        // thousands of records for a single dog, which no dog will reach; if one
+        // ever does, the fix is to store each row's audit path incrementally
+        // rather than rebuilding the tree, not to drop the persistence.
+        const prior = await client.query<ProvenRecord>(DOG_LEDGER_SQL, [input.dogId]);
+        // `merkleRoot` is typed against the full `LedgerRecord` but reads only
+        // `hash` (and `merkleProof` additionally `id`), which is what the query
+        // above selects — so this asserts to a subtype whose extra fields are
+        // provably unused. See ledger.ts's `asLeaves` for the same note.
+        const leaves = [
+          ...prior.rows,
+          { id: PENDING_LEAF_ID, hash: hashCurr },
+        ] as LedgerRecord[];
+        const dogMerkleRoot = merkleRoot(leaves);
 
-      const ins = await client.query(
-        `INSERT INTO medical_records
-           (dog_id, vet_id, record_type, vaccine_name, vaccine_date, abc_date,
-            diagnosis, treatment, severity, is_verified, vet_signature,
-            corrects_record_id, payload_len, hash_prev, hash_curr,
-            payload, hash_vet_id, hash_ts, merkle_root)
-         SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::uuid, $13, $14, $15,
-                $16::jsonb, $17, $18, $19
-         RETURNING id`,
-        [
-          input.dogId,
-          vetId,
-          input.recordType,
-          input.vaccineName ?? null,
-          input.vaccineDate ?? null,
-          input.abcDate ?? null,
-          input.diagnosis ?? null,
-          input.treatment ?? null,
-          input.severity ?? null,
-          isVerified,
-          vetSignature,
-          input.correctsRecordId ?? null,
-          Buffer.byteLength(payloadText, "utf8"),
-          prev,
-          hashCurr,
-          payloadText,
-          vetId ?? "feeder",
-          ts,
-          dogMerkleRoot,
-        ],
-      );
-      await client.query("COMMIT");
-      return {
-        ok: true,
-        data: {
-          id: ins.rows[0].id,
+        const ins = await client.query(
+          `INSERT INTO medical_records
+             (dog_id, vet_id, record_type, vaccine_name, vaccine_date, abc_date,
+              diagnosis, treatment, severity, is_verified, vet_signature,
+              corrects_record_id, payload_len, hash_prev, hash_curr,
+              payload, hash_vet_id, hash_ts, merkle_root)
+           SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::uuid, $13, $14, $15,
+                  $16::jsonb, $17, $18, $19
+           RETURNING id`,
+          [
+            input.dogId,
+            vetId,
+            input.recordType,
+            input.vaccineName ?? null,
+            input.vaccineDate ?? null,
+            input.abcDate ?? null,
+            input.diagnosis ?? null,
+            input.treatment ?? null,
+            input.severity ?? null,
+            isVerified,
+            vetSignature,
+            input.correctsRecordId ?? null,
+            Buffer.byteLength(payloadText, "utf8"),
+            prev,
+            hashCurr,
+            payloadText,
+            vetId ?? "feeder",
+            ts,
+            dogMerkleRoot,
+          ],
+        );
+        return {
+          id: ins.rows[0].id as string,
           hashCurr,
           isVerified,
           prev,
@@ -270,14 +290,31 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
           // what was attested without a second round trip. Verifiable against
           // GET /api/v1/ledger/proof?hash=<hashCurr>.
           merkleRoot: dogMerkleRoot,
-        },
-      };
+        };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
+      // A well-formed UUID that matches no row arrives here as FK violation
+      // 23503, which the error handler would otherwise render as a 500. The
+      // constraint name distinguishes the two references this INSERT makes,
+      // because they deserve different statuses: an unknown dog is a 404 (the
+      // resource the request is about does not exist); an unknown correction
+      // target is a 400 (a bad reference supplied by the client).
+      const pgErr = err as { code?: string; constraint?: string };
+      if (pgErr.code === "23503" && pgErr.constraint === FK_DOG) {
+        return reply
+          .status(404)
+          .send({ ok: false, error: { message: "dog not found", code: "DOG_NOT_FOUND" } });
+      }
+      if (pgErr.code === "23503" && pgErr.constraint === FK_CORRECTS) {
+        return reply.status(400).send({
+          ok: false,
+          error: { message: "corrected record not found", code: "CORRECTS_RECORD_NOT_FOUND" },
+        });
+      }
       throw err;
-    } finally {
-      client.release();
     }
+
+    return { ok: true, data };
   });
 
   app.get("/api/v1/dogs/:slug/medical", async (req: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {

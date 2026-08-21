@@ -414,6 +414,29 @@ describe("GET /api/v1/sos/cases/:id (feeder auth)", () => {
 
     await app.close();
   });
+
+  it("answers a non-UUID case id with 400, not a 500 from a raw 22P02", async () => {
+    // sos_cases.id is a uuid column; binding `abc` into it used to raise
+    // PostgreSQL 22P02 and render as "internal server error".
+    const app = buildServer(config);
+    const feederRes = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
+       VALUES ($1, 'Param Probe', 'feeder', 40, 'v1', FALSE) RETURNING id`,
+      [randomUUID()],
+    );
+    const accessToken = signAccessToken(feederRes.rows[0].id, config.JWT_SECRET, config.JWT_ACCESS_TTL);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/sos/cases/not-a-uuid",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_CASE_ID");
+
+    await query(`DELETE FROM feeders WHERE id = $1`, [feederRes.rows[0].id]);
+    await app.close();
+  });
 });
 
 describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
@@ -569,6 +592,19 @@ describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
       headers: { authorization: `Bearer ${feeder.accessToken}` },
     });
     expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("answers a non-UUID case id with 400, not a 500 from a raw 22P02", async () => {
+    const feeder = await makeFeeder("Param Probe");
+    const app = buildServer(config);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/sos/cases/not-a-uuid/ack",
+      headers: { authorization: `Bearer ${feeder.accessToken}` },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_CASE_ID");
     await app.close();
   });
 

@@ -149,6 +149,39 @@ describe("POST /api/v1/medical_records", () => {
     expect(res.json().data.isVerified).toBe(false);
   });
 
+  it("answers a well-formed but unknown dogId with 404, not a 500 from a raw FK violation", async () => {
+    // dog_id is uuid + REFERENCES dogs(id); a random UUID passes zod but
+    // fails the foreign key, and 23503 used to surface as "internal server
+    // error". The resource the request is about does not exist → 404.
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/medical_records",
+      headers: { authorization: `Bearer ${feederAccessToken}` },
+      payload: { dogId: randomUUID(), recordType: "feeding_observation", treatment: "no such dog" },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe("DOG_NOT_FOUND");
+  });
+
+  it("answers a well-formed but unknown correctsRecordId with 400", async () => {
+    // Same violation class as above (23503), but the missing reference is a
+    // client-supplied correction target rather than the subject of the
+    // request — a bad reference is a 400, not a 404.
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/medical_records",
+      headers: { authorization: `Bearer ${feederAccessToken}` },
+      payload: {
+        dogId,
+        recordType: "feeding_observation",
+        treatment: "correction to nothing",
+        correctsRecordId: randomUUID(),
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("CORRECTS_RECORD_NOT_FOUND");
+  });
+
   it("refuses anonymous writes", async () => {
     const res = await app.inject({
       method: "POST",

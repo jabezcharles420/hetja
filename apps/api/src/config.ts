@@ -81,6 +81,9 @@ const EnvSchema = z.object({
     .string()
     .default("https://hetja.in,https://www.hetja.in"),
   // Object storage (S3-compatible). Dev default: local disk backend.
+  //
+  // "s3" is parsed as a legal value only so the refusal below can name it
+  // precisely; see loadConfig.
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("data/photos"),
   S3_ENDPOINT: z.string().default(""),
@@ -132,6 +135,26 @@ function requireInProd(env: NodeJS.ProcessEnv, name: string, explanation: string
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = EnvSchema.parse(env);
+
+  // STORAGE_BACKEND=s3 is refused in EVERY environment, not just production,
+  // because the S3 backend is not implemented in this build (lib/storage.ts
+  // throws on first use) and that throw lands in persistScanAssets' catch —
+  // which only log.warns, AFTER the scan route has already answered
+  // {ok:true}. So a box configured for s3 accepts every photo, stores none,
+  // and reports success: silent data loss wearing a green dashboard. The
+  // retention job independently no-ops for non-local backends, so nothing
+  // would ever surface it. This is the same judgement as the SMTP refusal
+  // below — refuse to boot rather than run while looking like it works — but
+  // unconditional, because unlike mail there is no environment where s3
+  // currently functions.
+  if (parsed.STORAGE_BACKEND === "s3") {
+    throw new Error(
+      "STORAGE_BACKEND=s3 is not implemented in this build. The API refuses to " +
+        "start because every photo would be silently discarded after a " +
+        "successful response. Set STORAGE_BACKEND=local with STORAGE_LOCAL_DIR, " +
+        "or implement the S3 backend (lib/storage.ts) and remove this guard.",
+    );
+  }
 
   if (parsed.NODE_ENV === "production") {
     requireInProd(

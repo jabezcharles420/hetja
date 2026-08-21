@@ -144,6 +144,83 @@ describe("POST /api/v1/auth/otp + verify", () => {
     await app.close();
   });
 
+  it("advances consent_version and is_minor on re-login, but never role or trust_score", async () => {
+    // The ON CONFLICT clause used to be a total no-op, so a returning feeder's
+    // consent_version froze at their signup value (a DPDP compliance gap) and
+    // a user who turned 18 stayed flagged a minor forever. This test pins both
+    // halves of the contract: the facts about the account DO advance, and the
+    // privileges do NOT — re-login must not be able to grant or revoke either.
+    const app = buildServer(config);
+    const email = randomEmail();
+    usedEmails.push(email);
+
+    const otpRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/otp",
+      payload: { email },
+    });
+    const devCode = otpRes.json().data.devCode;
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/verify",
+      payload: {
+        email,
+        code: devCode,
+        deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET),
+        consentVersion: 1,
+        isMinor: true,
+      },
+    });
+    expect(first.statusCode).toBe(200);
+
+    const idHmac = identityHmac(email, config.HETJA_HMAC_PEPPER);
+    const afterSignup = await query<{ consent_version: string; is_minor: boolean; role: string; trust_score: number }>(
+      `SELECT consent_version::text AS consent_version, is_minor, role, trust_score
+         FROM feeders WHERE identity_hmac = $1`,
+      [idHmac],
+    );
+    expect(afterSignup.rows[0].consent_version).toBe("1");
+    expect(afterSignup.rows[0].is_minor).toBe(true);
+    expect(afterSignup.rows[0].role).toBe("feeder");
+    expect(afterSignup.rows[0].trust_score).toBe(30);
+
+    // Simulate state that only an operator should be able to cause, so the
+    // second login can prove it survives re-authentication.
+    await query(`UPDATE feeders SET role = 'admin', trust_score = 77 WHERE identity_hmac = $1`, [idHmac]);
+
+    const secondOtp = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/otp",
+      payload: { email },
+    });
+    const secondCode = secondOtp.json().data.devCode;
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/verify",
+      payload: {
+        email,
+        code: secondCode,
+        deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET),
+        consentVersion: 3,
+        isMinor: false,
+      },
+    });
+    expect(second.statusCode).toBe(200);
+
+    const afterRelogin = await query<{ consent_version: string; is_minor: boolean; role: string; trust_score: number }>(
+      `SELECT consent_version::text AS consent_version, is_minor, role, trust_score
+         FROM feeders WHERE identity_hmac = $1`,
+      [idHmac],
+    );
+    expect(afterRelogin.rows[0].consent_version).toBe("3");
+    expect(afterRelogin.rows[0].is_minor).toBe(false);
+    expect(afterRelogin.rows[0].role).toBe("admin");
+    expect(afterRelogin.rows[0].trust_score).toBe(77);
+
+    await app.close();
+  });
+
   it("survives a restart of the OTP store (Postgres-backed, not in-memory)", async () => {
     // The old in-memory Map lost every pending code the instant the process
     // that issued it exited. Simulate that boundary here: close the server

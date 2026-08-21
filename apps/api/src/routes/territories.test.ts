@@ -185,6 +185,19 @@ describe("GET /api/v1/territories/:feederId", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it("answers a non-UUID feederId with 400, not a 500 from a raw 22P02", async () => {
+    // feeder_territories.feeder_id is a uuid column; binding `not-a-uuid`
+    // into it used to raise PostgreSQL 22P02 and render as "internal server
+    // error" — and the 403 check ran first only by luck of ordering.
+    const res = await fixture.app.inject({
+      method: "GET",
+      url: "/api/v1/territories/not-a-uuid",
+      headers: { authorization: bearerToken(fixture.feeder1Id) },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_FEEDER_ID");
+  });
+
   it("allows an admin to read any feeder's territories", async () => {
     await fixture.app.inject({
       method: "POST",

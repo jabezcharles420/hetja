@@ -17,6 +17,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { parseUuidParam } from "../lib/params.js";
 import { logTrustEvent, recomputeScore } from "../lib/trust.js";
 
 const TRUST_PENALTY = 5;
@@ -117,8 +118,18 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
       const auth = await requireAdmin(req, reply);
       if (!auth) return reply;
 
+      // dog_stories.id is a uuid column; a non-UUID param used to raise 22P02
+      // → 500. See lib/params.ts.
+      const storyId = parseUuidParam(req.params.id);
+      if (!storyId) {
+        return reply.status(400).send({
+          ok: false,
+          error: { message: "story id must be a UUID", code: "INVALID_STORY_ID" },
+        });
+      }
+
       const existing = await query<{ id: string }>(`SELECT id FROM dog_stories WHERE id = $1`, [
-        req.params.id,
+        storyId,
       ]);
       if (existing.rowCount === 0) {
         return reply
@@ -130,7 +141,7 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
         `UPDATE dog_stories SET moderated_at = now()
           WHERE id = $1
           RETURNING id, dog_id, author_feeder_id, version, paragraph, moderated_at`,
-        [req.params.id],
+        [storyId],
       );
       const story = res.rows[0];
 
@@ -152,12 +163,21 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
       const auth = await requireAdmin(req, reply);
       if (!auth) return reply;
 
+      // Same 22P02 → 500 guard as approve above (see lib/params.ts).
+      const storyId = parseUuidParam(req.params.id);
+      if (!storyId) {
+        return reply.status(400).send({
+          ok: false,
+          error: { message: "story id must be a UUID", code: "INVALID_STORY_ID" },
+        });
+      }
+
       // Full delete (NOT append-only) + trust penalty, atomic.
       const result = await withTx(async (client) => {
         const storyRes = await client.query<StoryRow>(
           `SELECT id, dog_id, author_feeder_id, version, paragraph, moderated_at
              FROM dog_stories WHERE id = $1 FOR UPDATE`,
-          [req.params.id],
+          [storyId],
         );
         const story = storyRes.rows[0];
         if (!story) return null;

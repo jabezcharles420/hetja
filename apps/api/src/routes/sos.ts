@@ -19,6 +19,7 @@ import { SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { deviceTokenSubject } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { parseUuidParam } from "../lib/params.js";
 import { getNearbyCare } from "./care.js";
 
 // INVARIANT 7 — anonymous SOS is capped per attested device token.
@@ -323,7 +324,15 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
     }
 
-    const { id } = req.params as { id: string };
+    // Validate before the query: sos_cases.id is a uuid column, and binding a
+    // non-UUID here raw raised 22P02 → 500. See lib/params.ts.
+    const id = parseUuidParam((req.params as { id: string }).id);
+    if (!id) {
+      return reply.status(400).send({
+        ok: false,
+        error: { message: "case id must be a UUID", code: "INVALID_CASE_ID" },
+      });
+    }
     const res = await query<CaseRow>(
       `SELECT id, severity, state, tier, opened_at, acked_at, escalated_at, resolved_at, resolution
        FROM sos_cases WHERE id = $1`,
@@ -383,7 +392,14 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
     }
 
-    const { id } = req.params as { id: string };
+    // Same 22P02 → 500 guard as the GET above (see lib/params.ts).
+    const id = parseUuidParam((req.params as { id: string }).id);
+    if (!id) {
+      return reply.status(400).send({
+        ok: false,
+        error: { message: "case id must be a UUID", code: "INVALID_CASE_ID" },
+      });
+    }
 
     const outcome = await withTx(async (client) => {
       const claim = await client.query<{ acked_at: Date }>(

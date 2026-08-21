@@ -1,11 +1,31 @@
 /**
  * Hetja slug generator — INVARIANT 1: slugs are random, never sequential.
- * base32 (lowercase, no vowels/confusables) of 40 random bits + 1 check char.
+ * base32 (lowercase, confusables reduced) of 40 random bits + 1 check char.
  * Statistical property: no monotonic component (tested in slugs.test.ts).
  */
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
-const ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"; // 32 chars, no l/1/o/0
+// Documentation archaeology, recorded so nobody has to re-derive it: this
+// string is 33 characters — NOT 32 as its old comment claimed, and it does
+// contain `o` despite that same comment claiming "no l/1/o/0" (only l, 0 and
+// 1 are actually absent).
+//
+// It is also, functionally, one character too long, and that off-by-one is
+// deliberately left in place rather than "fixed": toBase32 masks with & 31
+// and the check digit reduces with % 32, so index 32 — the digit `9` — can
+// never be emitted. The generator's effective output alphabet is exactly the
+// 32 characters `2345678abcdefghijkmnopqrstuvwxyz`, which is what every
+// validator already accepts (/^[a-km-z2-9]{9}$/, here and in
+// apps/web/lib/collar.ts) and what every collar printed so far was drawn
+// from. Removing a character (dropping `o`) or otherwise reindexing the
+// alphabet would shift the value of nearly every letter and digit, silently
+// changing the check character of already-issued slugs and making valid,
+// glued-to-a-dog collar codes fail isValidSlug. Until there is a migration
+// story for physical collars, the honest options are: leave the arithmetic
+// alone and tell the truth about it (this comment), or break every issued
+// collar for a cosmetic gain. `9` remains accepted by validators even though
+// never generated, so hand-minted or legacy values keep resolving.
+const ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"; // 33 chars; see above
 
 function toBase32(bytes: Uint8Array): string {
   let out = "";
@@ -44,9 +64,17 @@ export function signSlug(slug: string, secret: string): string {
   return createHmac("sha256", secret).update(slug).digest("base64url");
 }
 
+/**
+ * Constant-time verification, matching apps/api/src/lib/hmac.ts's
+ * verifySlugSig. The string `.equals()` this used to be (`a.equals(b)`) is
+ * not constant-time. Nothing in the repo currently calls THIS copy — the API
+ * route verifies through its own lib/hmac.ts, and seed.ts only signs — but
+ * it is exported, so two verification functions for one credential scheme
+ * differing in exactly their resistance to a timing oracle was a trap waiting
+ * for the next importer.
+ */
 export function verifySlugSig(slug: string, sig: string, secret: string): boolean {
-  const expected = signSlug(slug, secret);
-  const a = Buffer.from(expected);
-  const b = Buffer.from(sig);
-  return a.length === b.length && a.equals(b);
+  const expected = Buffer.from(signSlug(slug, secret));
+  const provided = Buffer.from(sig);
+  return expected.length === provided.length && timingSafeEqual(expected, provided);
 }

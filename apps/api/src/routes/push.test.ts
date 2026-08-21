@@ -95,16 +95,15 @@ describe("POST /api/v1/push/subscribe", () => {
     await app.close();
   });
 
-  it("upserts on endpoint -- re-subscribing does not duplicate the row", async () => {
-    const first = await makeFeeder("Original Owner");
-    const second = await makeFeeder("New Owner");
+  it("upserts on endpoint for the SAME owner -- re-subscribing does not duplicate or change ownership", async () => {
+    const owner = await makeFeeder("Original Owner");
     const app = buildServer(config);
     const endpoint = `https://push.example.com/ep/${randomUUID()}`;
 
     const firstRes = await app.inject({
       method: "POST",
       url: "/api/v1/push/subscribe",
-      headers: { authorization: `Bearer ${first.accessToken}` },
+      headers: { authorization: `Bearer ${owner.accessToken}` },
       payload: { endpoint, keys: { p256dh: "p1", auth: "a1" } },
     });
     expect(firstRes.statusCode).toBe(200);
@@ -112,7 +111,7 @@ describe("POST /api/v1/push/subscribe", () => {
     const secondRes = await app.inject({
       method: "POST",
       url: "/api/v1/push/subscribe",
-      headers: { authorization: `Bearer ${second.accessToken}` },
+      headers: { authorization: `Bearer ${owner.accessToken}` },
       payload: { endpoint, keys: { p256dh: "p2", auth: "a2" } },
     });
     expect(secondRes.statusCode).toBe(200);
@@ -122,8 +121,48 @@ describe("POST /api/v1/push/subscribe", () => {
       [endpoint],
     );
     expect(rows.rows.length).toBe(1);
-    expect(rows.rows[0].feeder_id).toBe(second.id);
+    expect(rows.rows[0].feeder_id).toBe(owner.id);
     expect(rows.rows[0].p256dh).toBe("p2");
+
+    await app.close();
+  });
+
+  it("refuses to re-assign an endpoint owned by another feeder (subscription theft)", async () => {
+    // The unscoped upsert let anyone who learned another feeder's endpoint URL
+    // reassign that subscription to themselves with one request — and then
+    // receive their SOS pushes. Ownership is now frozen at first claim; a
+    // cross-account subscriber gets an explicit 409 rather than a silent
+    // no-op, and the row is left untouched.
+    const owner = await makeFeeder("Rightful Owner");
+    const attacker = await makeFeeder("Attacker");
+    const app = buildServer(config);
+    const endpoint = `https://push.example.com/ep/${randomUUID()}`;
+
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/push/subscribe",
+      headers: { authorization: `Bearer ${owner.accessToken}` },
+      payload: { endpoint, keys: { p256dh: "p-owner", auth: "a-owner" } },
+    });
+
+    const steal = await app.inject({
+      method: "POST",
+      url: "/api/v1/push/subscribe",
+      headers: { authorization: `Bearer ${attacker.accessToken}` },
+      payload: { endpoint, keys: { p256dh: "p-attacker", auth: "a-attacker" } },
+    });
+    expect(steal.statusCode).toBe(409);
+    expect(steal.json().error.code).toBe("PUSH_ENDPOINT_OWNED");
+
+    const rows = await query<{ feeder_id: string; p256dh: string; auth: string }>(
+      `SELECT feeder_id, p256dh, auth FROM push_subscriptions WHERE endpoint = $1`,
+      [endpoint],
+    );
+    expect(rows.rows.length).toBe(1);
+    expect(rows.rows[0].feeder_id).toBe(owner.id);
+    // Keys are untouched too: nothing about the subscription changed.
+    expect(rows.rows[0].p256dh).toBe("p-owner");
+    expect(rows.rows[0].auth).toBe("a-owner");
 
     await app.close();
   });

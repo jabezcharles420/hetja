@@ -13,6 +13,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { parseUuidParam } from "../lib/params.js";
 
 const DEFAULT_ALERT_RADIUS_M = 2000;
 
@@ -110,7 +111,15 @@ export default async function territoryRoutes(app: FastifyInstance): Promise<voi
     async (req: FastifyRequest<{ Params: { feederId: string } }>, reply: FastifyReply) => {
       const auth = await authenticate(req, reply);
       if (!auth) return reply;
-      const targetId = req.params.feederId;
+      // feeder_territories.feeder_id is a uuid column; a non-UUID param used
+      // to raise 22P02 → 500. See lib/params.ts.
+      const targetId = parseUuidParam(req.params.feederId);
+      if (!targetId) {
+        return reply.status(400).send({
+          ok: false,
+          error: { message: "feeder id must be a UUID", code: "INVALID_FEEDER_ID" },
+        });
+      }
       if (auth.feederId !== targetId && auth.role !== "admin") {
         return forbidden(reply);
       }

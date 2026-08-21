@@ -112,7 +112,28 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   return pool.query<T>(text, params as never[]);
 }
 
-/** Runs fn inside a transaction; rolls back on any error. */
+/**
+ * Runs fn inside a transaction; rolls back on any error.
+ *
+ * The error path is deliberately careful, because a naive catch loses
+ * information twice over:
+ *
+ *   1. ROLLBACK is not guaranteed to succeed. If the connection died under us
+ *      (reset by a restart, terminated by an admin, network drop), the
+ *      ROLLBACK itself throws, and letting that error escape the catch would
+ *      REPLACE the original -- so a bug that threw inside fn would surface as
+ *      "Connection terminated unexpectedly" and the actual diagnosis is gone.
+ *      The rollback failure is therefore swallowed into the release call and
+ *      the ORIGINAL error is always the one thrown.
+ *
+ *   2. A failed ROLLBACK may have left the session holding an open, aborted
+ *      transaction. Releasing without an argument returns the connection to
+ *      the pool as if healthy, so the next borrower inherits it and sees
+ *      "current transaction is aborted" on their first query -- an error that
+ *      looks like their bug and isn't. Releasing WITH the rollback failure
+ *      tells node-postgres to destroy this connection instead of reusing it,
+ *      which contains the damage to the one request that already failed.
+ */
 export async function withTx<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
@@ -121,11 +142,19 @@ export async function withTx<T>(
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
+    client.release();
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    let rollbackErr: Error | undefined;
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {
+      rollbackErr = e as Error;
+    }
+    // Passing a non-undefined error makes the pool discard this client rather
+    // than lend it out again (see point 2 above).
+    if (rollbackErr) client.release(rollbackErr);
+    else client.release();
     throw err;
-  } finally {
-    client.release();
   }
 }

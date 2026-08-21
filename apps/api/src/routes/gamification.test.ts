@@ -16,7 +16,7 @@ import { loadConfig } from "../config.js";
 import { query, generateSlug } from "@hetja/db";
 import { signAccessToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
-import { addDays, dateInKolkata } from "../lib/gamification.js";
+import { addDays, computeStreak, dateInKolkata } from "../lib/gamification.js";
 
 const config = loadConfig();
 // Slugs come from the real generator in @hetja/db, not a local alphabet.
@@ -193,6 +193,45 @@ describe("streak — a missed day resets it", () => {
 
     const state = await readStreakState(fixture.feederId);
     expect(state.streak_days).toBe(1);
+    expect(state.last_feed_date).toBe(today);
+  });
+});
+
+describe("streak — out-of-order offline sync (INVARIANT 4)", () => {
+  // The scenario: a feeder's phone queues a feed while offline; the queue
+  // syncs it AFTER a later feed was already logged live. capturedAt is up to
+  // 30 days in the past (contracts' clock-skew clamp), so without a
+  // monotonicity guard the late arrival hit computeStreak's reset branch,
+  // walked last_feed_date backwards and clobbered the live streak.
+  it("an older observation loses: pure transition leaves later state untouched", () => {
+    const state = { streakDays: 7, lastFeedDate: "2026-08-22" };
+
+    expect(computeStreak(state, "2026-08-19")).toEqual(state);
+    // Same-day replay is still the pre-existing no-op.
+    expect(computeStreak(state, "2026-08-22")).toEqual(state);
+    // A genuinely newer day still extends...
+    expect(computeStreak(state, "2026-08-23")).toEqual({ streakDays: 8, lastFeedDate: "2026-08-23" });
+    // ...and a real gap still resets — the guard only fires for out-of-order
+    // arrivals, never for an actual missed day.
+    expect(computeStreak(state, "2026-08-25")).toEqual({ streakDays: 1, lastFeedDate: "2026-08-25" });
+  });
+
+  it("a queued feed syncing after today's live feed does not walk the streak backwards", async () => {
+    const today = dateInKolkata(new Date());
+    await setStreakState(fixture.feederId, 7, today);
+
+    const staleCapturedAt = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const res = await fixture.app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { authorization: bearerToken(fixture.feederId) },
+      payload: { clientUuid: randomUUID(), dogSlug: fixture.dogSlug, type: "feed", capturedAt: staleCapturedAt },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.created).toBe(true);
+
+    const state = await readStreakState(fixture.feederId);
+    expect(state.streak_days).toBe(7);
     expect(state.last_feed_date).toBe(today);
   });
 });

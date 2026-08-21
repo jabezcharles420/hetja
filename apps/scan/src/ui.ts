@@ -1,4 +1,4 @@
-import type { DogProfile } from "./api";
+import type { DogProfile, VaccineStatus } from "./api";
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -27,9 +27,11 @@ function speakDog(p: DogProfile): void {
     // life-safety page, so it is the one place where the spoken text is the
     // whole feature.
     p.vaccine
-      ? p.vaccine.upToDate
-        ? "Vaccination is up to date."
-        : "Vaccination status is not confirmed."
+      ? p.vaccine.label
+        ? `Vaccination on record: ${p.vaccine.label}.`
+        : p.vaccine.upToDate
+          ? "Vaccination is up to date."
+          : "Vaccination status is not confirmed."
       : "",
     p.abcStatus ? `Sterilisation: ${p.abcStatus}.` : "",
     p.microStory ?? "",
@@ -151,11 +153,13 @@ function fmtAbc(v?: string): { text: string; ok: boolean } {
   return { text: ok ? "Yes" : v, ok };
 }
 
-function fmtVaccine(v?: { upToDate: boolean; rabvLast?: string; dhppLast?: string; lastUpdatedAt: string }): {
-  text: string;
-  ok: boolean;
-} {
+function fmtVaccine(v?: VaccineStatus): { text: string; ok: boolean } {
   if (!v) return { text: "Unknown", ok: false };
+  // The route's own rendering, verbatim — it carries the vaccine name and the
+  // date, which the parsed rabies/DHPP hints below can lose when the record's
+  // name is neither. The ✓ stays gated on upToDate ("a verified record
+  // exists"), not on the label being presentable.
+  if (v.label) return { text: v.label, ok: v.upToDate };
   if (!v.upToDate) return { text: "Unknown / pending", ok: false };
   const parts = [v.rabvLast ? `Rabies ${v.rabvLast}` : undefined, v.dhppLast ? `DHPP ${v.dhppLast}` : undefined].filter(
     (s): s is string => !!s,

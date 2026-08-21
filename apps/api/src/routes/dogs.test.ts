@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signSlug } from "../lib/hmac.js";
-import { query, generateSlug } from "@hetja/db";
+import { query, generateSlug, isValidSlug } from "@hetja/db";
 import { GENESIS_PREV_HASH, computeHash } from "@hetja/ledger";
 import { dogCache } from "./dogs.js";
 
@@ -45,8 +45,14 @@ async function setupDog(): Promise<TestDog> {
     ["test-story-author-feeder"],
   );
   await query(
-    `INSERT INTO dog_stories (dog_id, author_feeder_id, paragraph, version)
-     VALUES ($1, $2, 'Friendly soul with a happy tail.', 1)`,
+    // The profile endpoint serves MODERATED stories only, so the fixture story
+    // must arrive pre-approved to be visible at all. It used to be inserted
+    // unmoderated AND expected in the payload — which only held while the
+    // profile query ignored moderated_at. Seeding it approved keeps this suite
+    // about the profile contract rather than about moderation, which stories'
+    // own tests cover.
+    `INSERT INTO dog_stories (dog_id, author_feeder_id, paragraph, version, moderated_at)
+     VALUES ($1, $2, 'Friendly soul with a happy tail.', 1, now())`,
     [id, feederRes.rows[0].id],
   );
   await query(
@@ -107,6 +113,61 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
     await app.close();
   });
 
+  it("never serves an unmoderated story through the profile payload", async () => {
+    // The moderation bypass: dog_stories rows start unmoderated, and this
+    // endpoint used to take the newest row with no moderated_at filter while
+    // GET /dogs/:slug/stories filtered correctly — so posting a story and
+    // reading the profile published it to strangers with no moderator in the
+    // loop.
+    const app = buildServer(config);
+    const feederRes = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
+       VALUES ($1, 'Bypass Author', 'feeder', 50, 'v1', FALSE)
+       ON CONFLICT (identity_hmac) DO UPDATE SET identity_hmac = EXCLUDED.identity_hmac
+       RETURNING id`,
+      ["test-story-bypass-feeder"],
+    );
+    // Newer than the fixture's approved story on every ordering key.
+    await query(
+      `INSERT INTO dog_stories (dog_id, author_feeder_id, paragraph, version, created_at)
+       VALUES ($1, $2, 'UNMODERATED graffiti text', 2, now() + interval '1 hour')`,
+      [testDog!.id, feederRes.rows[0].id],
+    );
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/dogs/${testDog!.slug}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.microStory).toContain("Friendly soul");
+    expect(res.json().data.microStory).not.toContain("UNMODERATED");
+
+    await app.close();
+  });
+
+  it("serves no microStory when the only stories are unmoderated", async () => {
+    const app = buildServer(config);
+    await query(`DELETE FROM dog_stories WHERE dog_id = $1`, [testDog!.id]);
+    const feederRes = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
+       VALUES ($1, 'Pending Author', 'feeder', 50, 'v1', FALSE)
+       ON CONFLICT (identity_hmac) DO UPDATE SET identity_hmac = EXCLUDED.identity_hmac
+       RETURNING id`,
+      ["test-story-pending-feeder"],
+    );
+    await query(
+      `INSERT INTO dog_stories (dog_id, author_feeder_id, paragraph, version)
+       VALUES ($1, $2, 'awaiting a moderator', 1)`,
+      [testDog!.id, feederRes.rows[0].id],
+    );
+
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.microStory).toBeNull();
+
+    await app.close();
+  });
+
   it("404s on a tampered ?s= signature", async () => {
     const app = buildServer(config);
     const goodSig = signSlug(testDog!.slug, config.HETJA_QR_SECRET);
@@ -121,13 +182,47 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
     await app.close();
   });
 
-  it("404s when ?s= is missing", async () => {
+  it("resolves without ?s= when the slug's check character validates (typed code)", async () => {
+    // The typed-collar-code path: no signature at all. The slug from the real
+    // generator always carries a valid check character.
     const app = buildServer(config);
-    const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/dogs/${testDog!.slug}`,
-    });
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(res.json().data.slug).toBe(testDog!.slug);
+    expect(res.json().data.vaccineStatus).toContain("Anti-Rabies");
+
+    await app.close();
+  });
+
+  it("resolves an empty ?s= the same as an absent one (web typed-entry sends '?s=')", async () => {
+    const app = buildServer(config);
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}?s=` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.slug).toBe(testDog!.slug);
+
+    await app.close();
+  });
+
+  it("404s without ?s= when the check character is wrong (typo'd code)", async () => {
+    const app = buildServer(config);
+    // Break ONLY the check character, keeping the body intact: this is exactly
+    // what a mistyped collar entry looks like. It must die before any database
+    // work and never resolve to a profile.
+    const body = testDog!.slug.slice(0, 8);
+    const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
+    let badSlug = "";
+    for (const c of alphabet) {
+      if (c !== testDog!.slug[8] && !isValidSlug(body + c)) {
+        badSlug = body + c;
+        break;
+      }
+    }
+    expect(badSlug).toBeTruthy();
+
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${badSlug}` });
     expect(res.statusCode).toBe(404);
+    expect(res.json().ok).toBe(false);
 
     await app.close();
   });

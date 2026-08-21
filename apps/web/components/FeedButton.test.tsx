@@ -17,6 +17,14 @@ vi.mock("@/lib/photo", () => ({
   })),
 }));
 
+// FeedButton mints the device token at CAPTURE time (the capture-time
+// attestation fix) via bestEffortDeviceToken, which lazily imports this module.
+// Without the mock the real mint would run here — a network round trip plus a
+// proof-of-work solve — and every test would hang in "Logging feed…".
+vi.mock("@/lib/device", () => ({
+  getDeviceToken: vi.fn(async () => ({ ok: true, token: "tok-at-capture" })),
+}));
+
 import { captureGeo, enqueueFeed } from "@/lib/offline-queue";
 import { prepareFeedPhoto } from "@/lib/photo";
 
@@ -51,6 +59,7 @@ describe("FeedButton", () => {
       dogSlug: "abc234567",
       photo: "RAW_BASE64",
       geo: { lat: 19.07, lng: 72.88 },
+      deviceToken: "tok-at-capture",
     });
   });
 
@@ -67,6 +76,7 @@ describe("FeedButton", () => {
       dogSlug: "abc234567",
       photo: "RAW_BASE64",
       geo: { lat: 19.07, lng: 72.88 },
+      deviceToken: "tok-at-capture",
     });
   });
 
@@ -107,6 +117,7 @@ describe("FeedButton", () => {
       photo: "RAW_BASE64",
       // The consented fix from the captureGeo mock, NOT the coarsened photo geo.
       geo: { lat: 19.07, lng: 72.88 },
+      deviceToken: "tok-at-capture",
     });
   });
 
@@ -132,6 +143,7 @@ describe("FeedButton", () => {
       dogSlug: "abc234567",
       photo: "RAW_BASE64",
       geo: { lat: 19.07, lng: 72.87 },
+      deviceToken: "tok-at-capture",
     });
   });
 
@@ -153,6 +165,33 @@ describe("FeedButton", () => {
       dogSlug: "abc234567",
       photo: "RAW_BASE64",
       geo: undefined,
+      deviceToken: "tok-at-capture",
+    });
+  });
+
+  it("still queues the feed when no device token can be minted", async () => {
+    // Offline capture with nothing cached: bestEffortDeviceToken resolves
+    // undefined rather than blocking or throwing, the record queues without a
+    // token, and offline-queue's flush is the layer that reports it if no
+    // session can vouch for it later. Capture must never hard-fail here.
+    const { getDeviceToken } = await import("@/lib/device");
+    (getDeviceToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      reason: "challenge-unavailable",
+    });
+    enqueueFeedMock.mockResolvedValue({ offline: true, syncing: false, queued: {} });
+    const { container } = render(<FeedButton dogSlug="abc234567" />);
+
+    pickPhoto(container);
+
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toContain("saved offline");
+    });
+    expect(enqueueFeedMock).toHaveBeenCalledWith({
+      dogSlug: "abc234567",
+      photo: "RAW_BASE64",
+      geo: { lat: 19.07, lng: 72.88 },
+      deviceToken: undefined,
     });
   });
 });

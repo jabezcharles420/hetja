@@ -19,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
-import { generateSlug, pool, query } from "@hetja/db";
+import { generateSlug, isValidSlug, pool, query } from "@hetja/db";
 import type { FastifyInstance } from "fastify";
 
 const config = loadConfig();
@@ -138,7 +138,16 @@ describe("POST /api/v1/dogs — enrolment", () => {
     expect(slugs[0].slice(0, 4)).not.toBe(slugs[1].slice(0, 4));
   });
 
-  it("the returned URL 404s without its signature", async () => {
+  it("the enrolled slug resolves without a signature (typed-code path)", async () => {
+    // This used to assert the opposite — that ANY bare slug 404s — because the
+    // profile endpoint used to require ?s= unconditionally. That requirement is
+    // what made typing a collar code always fail: the client cannot compute the
+    // HMAC (it lives under HETJA_QR_SECRET), so a typed code can never arrive
+    // signed. routes/dogs.ts now resolves a signature-less lookup when the
+    // slug's check character validates, on the grounds recorded at length there:
+    // INVARIANT 1's concern is enumeration, the check character kills typo
+    // garbage before any database work, and the remaining barrier stays the
+    // slug's 40 random bits. What must STILL NOT resolve is asserted next.
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/dogs",
@@ -146,10 +155,38 @@ describe("POST /api/v1/dogs — enrolment", () => {
       payload: { wardId: "M-East" },
     });
     const { slug } = res.json().data as { slug: string };
-    // Bare slug, no ?s= — this is what a tag printed from the slug alone would
-    // produce, and it must not resolve.
     const bare = await app.inject({ method: "GET", url: `/api/v1/dogs/${slug}` });
+    expect(bare.statusCode).toBe(200);
+    expect(bare.json().data.slug).toBe(slug);
+  });
+
+  it("a typo'd code still 404s without its signature", async () => {
+    // The anti-enumeration half of the typed-code contract, kept from the old
+    // "bare slug must not resolve" test: corrupt ONLY the check character of an
+    // otherwise well-formed slug — what a mistyped collar entry looks like —
+    // and it must fail before any database work.
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/dogs",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { wardId: "M-East" },
+    });
+    const { slug } = res.json().data as { slug: string };
+    const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
+    const body = slug.slice(0, 8);
+    let typo = "";
+    for (const c of alphabet) {
+      if (c !== slug[8] && !isValidSlug(body + c)) {
+        typo = body + c;
+        break;
+      }
+    }
+    expect(typo).toBeTruthy();
+    const bare = await app.inject({ method: "GET", url: `/api/v1/dogs/${typo}` });
     expect(bare.statusCode).toBe(404);
+    // …and the real dog behind the mistyped body must not leak either way.
+    const leaked = await app.inject({ method: "GET", url: `/api/v1/dogs/${slug}` });
+    expect(leaked.json().data.slug).not.toBe(typo);
   });
 });
 

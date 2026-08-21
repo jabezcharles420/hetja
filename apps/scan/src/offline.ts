@@ -1,6 +1,8 @@
 import { queueScan, listQueued } from "./idb";
 import type { QueuedScan } from "./idb";
 import { flushQueue } from "./flush";
+import { getDeviceToken } from "./device";
+import { recordDroppedFeed } from "./dropped";
 
 const UUID_KEY = "hetja.clientUuid";
 const SYNC_TAG = "log-feed";
@@ -50,20 +52,38 @@ async function registerSync(): Promise<boolean> {
   return true;
 }
 
-async function enqueueFeed(dogSlug: string, photoBlob: Blob, geo?: { lat: number; lng: number }): Promise<{ queued: QueuedScan; syncing: boolean }> {
+/** Persist one captured feed. Exported for flush.test.ts, which pins the
+ * capture-time attestation contract; logFeed is the UI-facing caller. */
+export async function enqueueFeed(dogSlug: string, photoBlob: Blob, geo?: { lat: number; lng: number }): Promise<{ queued: QueuedScan; syncing: boolean }> {
+  // Mint the device token NOW, at capture time, and persist it with the
+  // queued record — not at flush time. This mirrors sheet.ts's SOS path (lazy
+  // getDeviceToken() at the moment of the action) and fixes the shape apps/web's
+  // api.ts flagged as "the wrong shape" for years: minting per queued record
+  // during a flush re-solves a proof-of-work on every replay and still sends
+  // nothing for records that predate it. getDeviceToken() caches in
+  // localStorage after its first success, so this costs one challenge/PoW
+  // round-trip ever, and it resolves undefined rather than throwing when it
+  // cannot mint (offline capture with no cached token) — such a record is
+  // queued anyway and flush.ts reports it through the dropped-feeds path
+  // instead of retrying it forever.
+  const deviceToken = await getDeviceToken();
   const queued = await queueScan({
     clientUuid: getClientUuid(),
     dogSlug,
     photoBlob,
     geo,
     capturedAt: new Date().toISOString(),
+    deviceToken,
   });
   let syncing = false;
   if (navigator.onLine) {
     if (await hasBackgroundSync()) {
       syncing = await registerSync();
     } else {
-      syncing = (await flushQueue()) > 0;
+      // recordDroppedFeed, not a bare flush(): a feed refused permanently here
+      // is the one the visitor just tapped, so it is the LAST place that
+      // should discard it without a word.
+      syncing = (await flushQueue(recordDroppedFeed)) > 0;
     }
   }
   return { queued, syncing };
@@ -88,7 +108,10 @@ export async function logFeed(dogSlug: string): Promise<LogFeedOutcome> {
 export async function flushOnOpen(): Promise<void> {
   try {
     if (!navigator.onLine) return;
-    await flushQueue();
+    // recordDroppedFeed, not a bare flush(): permanently-undeliverable feeds
+    // are removed AND reported, so main.ts can tell the visitor on this very
+    // page open rather than the queue quietly shrinking.
+    await flushQueue(recordDroppedFeed);
   } catch {
     /* offline / db error — retry next open */
   }

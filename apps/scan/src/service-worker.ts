@@ -1,4 +1,5 @@
 import { flushQueue } from "./flush";
+import { recordDroppedFeed } from "./dropped";
 
 const CACHE = "scan-shell-v2";
 const API_PREFIX = "/api/v1";
@@ -84,7 +85,7 @@ scope.addEventListener("sync", (ev: Event) => {
   const syncEv = ev as ExtendableEvent & { tag?: string };
   if (syncEv.tag !== SYNC_TAG) return;
   syncEv.waitUntil(
-    flushQueue()
+    flushQueue(recordDroppedFeed)
       .then((n) => {
         if (n > 0) {
           void scope.registration.showNotification("Hetja", {

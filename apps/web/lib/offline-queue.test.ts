@@ -52,6 +52,7 @@ import {
   clearDroppedFeeds,
   DROPPED_FEEDS_KEY,
 } from "./offline-queue";
+import { setAccessToken, clearAccessToken } from "./api";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -118,6 +119,9 @@ describe("lib/offline-queue", () => {
   beforeEach(() => {
     idbMock.store.clear();
     clearDroppedFeeds();
+    // Tokenless queued records are dropped when no session exists, so a token
+    // left in localStorage by an earlier test would change which path runs.
+    clearAccessToken();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -127,8 +131,10 @@ describe("lib/offline-queue", () => {
   });
 
   it("enqueues and flushes scans in FIFO order", async () => {
-    const a = await enqueueOffline({ dogSlug: "abc234567" });
-    const b = await enqueueOffline({ dogSlug: "cde345678" });
+    // Post-schema-v2, every capture persists a device token with the record —
+    // fixtures carry one so the suite exercises the path real records take.
+    const a = await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
+    const b = await enqueueOffline({ dogSlug: "cde345678", deviceToken: "tok-b" });
 
     fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
 
@@ -143,7 +149,7 @@ describe("lib/offline-queue", () => {
   });
 
   it("drops a replay that returns created:false — it is not re-queued", async () => {
-    await enqueueOffline({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
 
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: false } }));
 
@@ -158,7 +164,7 @@ describe("lib/offline-queue", () => {
   });
 
   it("keeps records queued on failure, then sends them on a later flush", async () => {
-    await enqueueOffline({ dogSlug: "abc234567", geo: { lat: 19.07, lng: 72.88 } });
+    await enqueueOffline({ dogSlug: "abc234567", geo: { lat: 19.07, lng: 72.88 }, deviceToken: "tok-a" });
 
     fetchMock.mockRejectedValueOnce(new TypeError("offline"));
 
@@ -180,7 +186,7 @@ describe("lib/offline-queue", () => {
   // offline queue exists to serve. It then re-uploaded its photo bytes over
   // Mumbai 4G on every app open, forever, to be rejected again every time.
   it("drops a permanently-rejected record instead of retrying it forever", async () => {
-    await enqueueOffline({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { ok: false, error: { message: "invalid scan payload", code: "INVALID_SCAN" } }),
@@ -207,7 +213,7 @@ describe("lib/offline-queue", () => {
   // in fact running correctly (verified separately: the warning fires, the queue
   // entry is removed, and the JSON lands in localStorage). Seeding the store
   // keeps the test about the thing it is testing.
-  function seedQueued(dogSlug: string): void {
+  function seedQueued(dogSlug: string, overrides: Partial<QueuedScan> = {}): void {
     const now = new Date().toISOString();
     idbMock.store.set(dogSlug + now, {
       id: dogSlug + now,
@@ -215,12 +221,13 @@ describe("lib/offline-queue", () => {
       dogSlug,
       capturedAt: now,
       queuedAt: now,
+      ...overrides,
     } as QueuedScan);
   }
 
   it("flushOnOpen records a dropped feed instead of discarding it silently", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    seedQueued("abc234567");
+    seedQueued("abc234567", { deviceToken: "tok-a" });
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { ok: false, error: { message: "nope", code: "INVALID_PHOTO" } }),
@@ -241,7 +248,7 @@ describe("lib/offline-queue", () => {
   it("bounds the dropped-feed list so it cannot grow without limit", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     for (let i = 0; i < 25; i++) {
-      seedQueued(`abc23456${i % 10}`);
+      seedQueued(`abc23456${i % 10}`, { deviceToken: "tok-a" });
       fetchMock.mockResolvedValueOnce(
         jsonResponse(400, { ok: false, error: { message: "nope", code: "INVALID_SCAN" } }),
       );
@@ -258,7 +265,7 @@ describe("lib/offline-queue", () => {
     ["throttling", 429, "RATE_LIMITED"],
     ["an expired session", 401, "UNAUTHENTICATED"],
   ])("keeps the record queued on %s, which can still succeed later", async (_label, status, code) => {
-    await enqueueOffline({ dogSlug: "abc234567" });
+    await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
 
     fetchMock.mockResolvedValueOnce(jsonResponse(status, { ok: false, error: { message: "nope", code } }));
 
@@ -266,5 +273,64 @@ describe("lib/offline-queue", () => {
     expect(await flush(() => dropped.push(1))).toBe(0);
     expect(idbMock.store.size).toBe(1);
     expect(dropped).toEqual([]);
+  });
+
+  // The capture-time attestation contract: FeedButton mints a device token
+  // when the feed is captured, it is persisted with the queued record
+  // (IndexedDB schema v2), and flush replays it as x-device-token. Before this
+  // fix the replay sent NO credential at all — POST /api/v1/scans answered 401
+  // UNAUTHENTICATED_DEVICE every time and the queue re-uploaded photo bytes on
+  // every app open forever.
+  it("persists the capture-time device token with the queued record", async () => {
+    const { queued } = await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-at-capture" });
+    expect(queued.deviceToken).toBe("tok-at-capture");
+    expect(idbMock.store.get(queued.id)!.deviceToken).toBe("tok-at-capture");
+  });
+
+  it("sends the persisted token as x-device-token when replaying an anonymous feed", async () => {
+    await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-at-capture" });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: true } }));
+
+    expect(await flush()).toBe(1);
+    const headers = fetchMock.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers["x-device-token"]).toBe("tok-at-capture");
+    // No session in play: no Bearer was attached either.
+    expect(headers.authorization).toBeUndefined();
+  });
+
+  it("drops a tokenless record with no session instead of retrying it forever", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    seedQueued("abc234567"); // pre-schema-v2 record: no deviceToken
+
+    // flushOnOpen, not a bare flush(): it is the caller that wires
+    // recordDroppedFeed in, and the assertion below checks that path end to end.
+    const sent = await flushOnOpen();
+
+    // It cannot be retroactively attested, so it must never reach the wire —
+    // that is what made the old queue a forever-retry loop.
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sent).toBe(0);
+    expect(idbMock.store.size).toBe(0); // removed, not retried
+    // …and not silently: it lands in the dropped-feeds path like any other
+    // permanent refusal.
+    const dropped = listDroppedFeeds();
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toMatchObject({ dogSlug: "abc234567", code: "UNAUTHENTICATED_DEVICE", status: 401 });
+    warn.mockRestore();
+  });
+
+  it("gives a tokenless record one attempt while a session exists (the Bearer may deliver it)", async () => {
+    setAccessToken("sess-token");
+    seedQueued("abc234567"); // legacy record, but a feeder is signed in
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: true } }));
+
+    expect(await flush()).toBe(1);
+    const headers = fetchMock.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers.authorization).toBe("Bearer sess-token");
+    expect(headers["x-device-token"]).toBeUndefined();
+    expect(idbMock.store.size).toBe(0);
+    clearAccessToken();
   });
 });

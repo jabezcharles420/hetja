@@ -90,8 +90,13 @@ interface RequestOptions {
  *
  * Imported lazily so that `lib/api` stays usable in contexts (tests, SSR) where
  * the device module's browser dependencies are absent.
+ *
+ * Exported since the capture-time attestation fix: FeedButton needs exactly
+ * this best-effort semantics when a feed is captured offline (never throw,
+ * never block, undefined on failure), and duplicating the lazy-import dance
+ * would drift from it.
  */
-async function bestEffortDeviceToken(): Promise<string | undefined> {
+export async function bestEffortDeviceToken(): Promise<string | undefined> {
   try {
     const { getDeviceToken } = await import("./device");
     const outcome = await getDeviceToken();
@@ -344,23 +349,26 @@ export const api = {
   /**
    * Log a feed.
    *
-   * KNOWN GAP, deliberately not patched here. The API accepts a feeder Bearer
-   * token OR an `x-device-token` header (apps/api/src/routes/scans.ts), and this
-   * client sends only the Bearer — so an ANONYMOUS feed returns 401
-   * UNAUTHENTICATED_DEVICE. It presents badly: FeedButton branches only on
-   * `offline`, so the user is told "Feed logged ♥" regardless, and the offline
-   * queue treats 401 as retryable, so the record stays in IndexedDB and
-   * re-uploads its photo on every app open.
+   * The server accepts a feeder Bearer OR an `x-device-token` header
+   * (apps/api/src/routes/scans.ts). This client used to send ONLY the Bearer,
+   * so an ANONYMOUS feed returned 401 UNAUTHENTICATED_DEVICE — and because the
+   * offline queue treated that as retryable, every queued record re-uploaded
+   * its photo bytes on every app open, forever, and was never accepted once.
    *
-   * It is not fixed by attaching a token here, because this function's callers
-   * are the offline queue's REPLAY path: minting is a network round trip plus a
-   * proof-of-work solve, and doing it per queued record during a flush is the
-   * wrong shape. The fix belongs one level up — mint once when the feed is
-   * captured, store it with the queued record, and replay it — which changes the
-   * queue's persisted schema and its tests. Tracked rather than rushed.
+   * FIXED at CAPTURE time, exactly as this comment long prescribed: FeedButton
+   * mints a device token when the feed is captured (bestEffortDeviceToken),
+   * enqueueFeed persists it with the queued record (IndexedDB schema v2), and
+   * flush replays it via `opts.deviceToken`. Minting here, on the REPLAY path,
+   * would still be the wrong shape — a proof-of-work round trip per queued
+   * record per flush — so the replay only ever presents what capture stored.
+   * Tokenless records queued before schema v2 cannot be retroactively
+   * attested; offline-queue drops them through recordDroppedFeed instead of
+   * retrying them forever. See lib/offline-queue.ts and components/FeedButton.tsx.
    */
-  createScan: (input: { clientUuid: string; dogSlug: string; type: "feed"; geo?: GeoPoint; photoBase64?: string; capturedAt: string }) =>
-    request<ScanResult>(`/scans`, { method: "POST", body: input }),
+  createScan: (
+    input: { clientUuid: string; dogSlug: string; type: "feed"; geo?: GeoPoint; photoBase64?: string; capturedAt: string },
+    opts: { deviceToken?: string } = {},
+  ) => request<ScanResult>(`/scans`, { method: "POST", body: input, deviceToken: opts.deviceToken }),
 
   /**
    * Open an SOS report (minor / serious / critical).

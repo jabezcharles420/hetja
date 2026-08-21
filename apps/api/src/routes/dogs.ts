@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
 import { coarsenToWard, type DogStatus } from "@hetja/contracts";
 import { timingSafeEqual } from "node:crypto";
-import { query } from "@hetja/db";
+import { query, isValidSlug } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
 
 interface DogRow {
@@ -125,17 +125,92 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
   return verifySlugSig(slug, sig, secret);
 }
 
+/**
+ * TYPED COLLAR CODES: a signature-less lookup is accepted when the slug's
+ * check character validates.
+ *
+ * THE PROBLEM. The landing hero and the /scan page advertise typing the code
+ * printed on the collar, and that is the path that matters when the QR is
+ * scratched off. But `?s=` is an HMAC under HETJA_QR_SECRET, so the CLIENT
+ * cannot compute it — by design (INVARIANT 1; see enrolment.ts' header). A
+ * typed code therefore cannot be turned into a signed URL client-side, and
+ * every typed entry 404'd. QrScanner forwards the signature fine; only typing
+ * was broken.
+ *
+ * THE CHOICE, of the two shapes available:
+ *
+ *   (a) this — accept a signature-less lookup on the SAME endpoint when
+ *       isValidSlug(slug) passes, i.e. the slug is well-formed AND its check
+ *       character matches the body;
+ *   (b) a separate /resolve endpoint with its own rate limit.
+ *
+ * (a) was chosen. The reasoning has to start from what `?s=` actually buys,
+ * because it is less than it looks like:
+ *
+ * - INVARIANT 1's concern is ENUMERATION, not authentication. Nothing here
+ *   authenticates a reader — the QR URL is printed on a public collar and any
+ *   stranger can scan it. What the system must never allow is walking the
+ *   register dog by dog. That protection comes from the slug itself: 40 random
+ *   bits (INVARIANT 1: "40 random bits + a check character closes that off").
+ *   The HMAC adds provenance — proof this URL came off a collar WE etched,
+ *   which defeats pattern-crawling around one leaked link — but it adds no
+ *   entropy against guessing slugs, and the slug is only ever as secret as the
+ *   plate it is printed on.
+ * - A typed code comes from a human reading that same plate. Whoever can type
+ *   the code correctly is standing in front of (or photographing) the collar —
+ *   they already had everything the signature would have attested. Requiring
+ *   ?s= on the typed path protects nothing a scanner-based reader doesn't
+ *   already have.
+ * - The check character is doing real work on this path: a mistyped or
+ *   fabricated candidate fails isValidSlug 31 times out of 32 BEFORE any
+ *   database work, so typo-driven enumeration dies cheaply, exactly as
+ *   INVARIANT 1 says it should ("the check character exists purely to catch a
+ *   mistyped collar entry before it becomes a query for the wrong dog"). A
+ *   presented-but-WRONG signature still fails hard below — only ABSENCE of
+ *   ?s= falls back to the check-character path, so a tampered link gains
+ *   nothing.
+ *
+ * WHAT THIS DOES NOT PROTECT, stated plainly:
+ * - Bulk online guessing. Valid slugs remain ~2^40 apart, but nothing here
+ *   rate-limits the guesses. INVARIANT 6 forbids per-IP limits (carrier CGNAT
+ *   puts hundreds of real subscribers behind one address), and gating a READ
+ *   of a public profile behind device attestation would put a proof-of-work
+ *   solve between a stranger and an injured dog's vaccination record. At pilot
+ *   scale (thousands of dogs) hitting even one live profile by brute force
+ *   takes on the order of 2^40/10^4 ≈ 10^8 requests; that is the honest margin,
+ *   not a proof of safety. If abuse is ever observed in the logs, the fix is a
+ *   measured decision for a human, not a silent tightening here.
+ * - It widens "who can read a profile" from whoever holds the etched URL to
+ *   whoever knows the exact slug. Given the slug is stamped next to the QR on
+ *   the collar itself, the marginal exposure is small — but it is not zero, and
+ *   this comment exists so the widening is a recorded decision rather than an
+ *   accident.
+ * - The payload returned is identical either way: ward-level geo only
+ *   (INVARIANT 2), no contact information anywhere (INVARIANT 3), moderated
+ *   stories only.
+ */
 export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
     const { s: sig } = req.query as { s?: string };
-    if (!sig || !(await verifyCollarSignature(slug, sig, app.config.HETJA_QR_SECRET))) {
+    // An EMPTY sig counts as absent: apps/web's dog page sends `?s=` verbatim
+    // when its URL carried no signature (the typed-entry case), and treating
+    // "" as a presented-and-failed credential would keep that path broken.
+    if (sig) {
+      if (!(await verifyCollarSignature(slug, sig, app.config.HETJA_QR_SECRET))) {
+        return notFound(reply);
+      }
+    } else if (!isValidSlug(slug)) {
+      // Typed path: no signature to verify, so the check character is the
+      // gate. Failing candidates are rejected before the DB and before the
+      // cache (which stores successes only).
       return notFound(reply);
     }
 
     // 5s read-through cache keyed on the slug (the payload is identical for
-    // any valid signature on the same slug). A signature failure above — and
-    // every 404 below — skips the cache entirely, so errors are never cached.
+    // any valid signature on the same slug, and identical again for the
+    // signature-less typed path). A signature failure above — and every 404
+    // below — skips the cache entirely, so errors are never cached.
     const cached = dogCache.get(slug);
     if (cached) return { ok: true, data: cached };
 
@@ -152,7 +227,16 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
 
     const [storyRes, vaccineRes, photoRes] = await Promise.all([
       query<StoryRow>(
-        `SELECT paragraph FROM dog_stories WHERE dog_id = $1 ORDER BY created_at DESC, version DESC LIMIT 1`,
+        // MODERATED only — same rule as GET /api/v1/dogs/:slug/stories
+        // (stories.ts: "New stories start UNMODERATED and stay hidden from the
+        // public feed until a moderator approves them"). This query used to
+        // omit the filter, which made the moderation queue bypassable by
+        // reading the profile instead of the stories list: any authenticated
+        // feeder could POST a 2000-char paragraph to any dog (stories have no
+        // ownership check) and it appeared here on a public, unauthenticated
+        // endpoint immediately. The profile and the stories list are two doors
+        // into the same table; they must enforce one policy.
+        `SELECT paragraph FROM dog_stories WHERE dog_id = $1 AND moderated_at IS NOT NULL ORDER BY created_at DESC, version DESC LIMIT 1`,
         [dog.id],
       ),
       query<VaccineRow>(

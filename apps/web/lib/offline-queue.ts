@@ -13,7 +13,7 @@
 
 import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
-import { api, ApiError } from "./api";
+import { api, ApiError, getAccessToken } from "./api";
 
 export const SYNC_TAG = "hetja-feed-flush";
 
@@ -21,6 +21,15 @@ export interface EnqueueInput {
   dogSlug: string;
   photo?: string;
   geo?: { lat: number; lng: number };
+  /**
+   * Attested device token minted by the CALLER at capture time
+   * (FeedButton → bestEffortDeviceToken). Persisted with the record so a
+   * flush days later can present a credential minted in the capture's
+   * context. Deliberately NOT minted here: this module's flush is the replay
+   * path, and a challenge/PoW round trip per queued record per flush is the
+   * wrong shape — see api.ts's createScan note.
+   */
+  deviceToken?: string;
 }
 
 export interface FeedOutcome {
@@ -82,6 +91,7 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     photo: input.photo,
     geo: input.geo,
     capturedAt: new Date().toISOString(),
+    deviceToken: input.deviceToken,
   });
 
   const offline = !isOnLine();
@@ -145,6 +155,15 @@ function isRetryable(err: unknown): boolean {
  * happening silently: the caller is the only layer that can tell the feeder
  * their feed did not count, and INVARIANT 14's reasoning ("a flag nobody looks
  * at is a silent rejection with extra steps") applies here too.
+ *
+ * Tokenless records (queued before schema v2) get one extra rule: with no
+ * session they can never be accepted — a token minted now would attest this
+ * device at flush time, not when the photo was taken — so they are dropped
+ * through onDrop immediately instead of re-uploading their photo bytes on
+ * every app open, forever, to be 401'd again. With a live session they are
+ * still worth ONE attempt: the Bearer path attributes scans server-side
+ * without any device token, so a signed-in feeder's legacy record may yet be
+ * delivered; if it isn't, the normal retry/drop rules take over from there.
  */
 export async function flush(
   onDrop?: (item: QueuedScan, err: ApiError) => void,
@@ -152,15 +171,29 @@ export async function flush(
   const items = await listQueued();
   let sent = 0;
   for (const item of items) {
+    if (!item.deviceToken && !getAccessToken()) {
+      await removeQueued(item.id);
+      onDrop?.(
+        item,
+        new ApiError("attested device token required", { status: 401, code: "UNAUTHENTICATED_DEVICE" }),
+      );
+      continue;
+    }
     try {
-      await api.createScan({
-        clientUuid: item.clientUuid,
-        dogSlug: item.dogSlug,
-        type: "feed",
-        geo: item.geo,
-        photoBase64: item.photo,
-        capturedAt: item.capturedAt,
-      });
+      await api.createScan(
+        {
+          clientUuid: item.clientUuid,
+          dogSlug: item.dogSlug,
+          type: "feed",
+          geo: item.geo,
+          photoBase64: item.photo,
+          capturedAt: item.capturedAt,
+        },
+        // The capture-time credential. Harmless alongside a Bearer: the route
+        // prefers the Bearer for attribution, and this token is what makes an
+        // anonymous replay acceptable at all.
+        { deviceToken: item.deviceToken },
+      );
       // `created: false` = already recorded server-side (idempotent replay).
       // Either way the record is handled and must not be re-queued.
       await removeQueued(item.id);

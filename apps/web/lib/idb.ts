@@ -16,10 +16,28 @@ export interface QueuedScan {
   geo?: { lat: number; lng: number };
   capturedAt: string;
   queuedAt: string;
+  /**
+   * Attested device token, minted when the feed was CAPTURED and persisted
+   * with the record (schema v2). POST /api/v1/scans needs a feeder Bearer OR
+   * this header token (routes/scans.ts); replay used to send neither, so an
+   * anonymous queued feed 401'd forever and re-uploaded its photo bytes on
+   * every app open. Records queued before v2 carry none and cannot be
+   * retroactively attested — offline-queue's flush drops them through the
+   * dropped-feeds path rather than retrying them forever.
+   */
+  deviceToken?: string;
 }
 
 const DB_NAME = "hetja-feeder";
-const DB_VERSION = 1;
+/**
+ * v2: queued records gained `deviceToken`. Object stores are schemaless apart
+ * from the key path, so the upgrade itself migrates nothing — deliberately NO
+ * backfill, because a token minted now would attest this device at FLUSH time,
+ * not at capture time, and attaching it to old records would publish photos
+ * nobody vouched for when they were taken. Tokenless leftovers are handled by
+ * the flush-time drop path.
+ */
+const DB_VERSION = 2;
 const STORE = "scan-queue";
 
 let dbPromise: Promise<IDBDatabase> | undefined;

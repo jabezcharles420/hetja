@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { enqueueFeed, blobToBase64, stripDataPrefix, captureGeo } from "@/lib/offline-queue";
+import { bestEffortDeviceToken } from "@/lib/api";
 import { prepareFeedPhoto } from "@/lib/photo";
 import styles from "./FeedButton.module.css";
 
@@ -79,10 +80,22 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
         // wait on a denied prompt is worth a correctly-centred SOS radius.
         const consentedGeo = await captureGeo();
         const geo = consentedGeo ?? photoGeo;
+        // Mint the device token HERE, at capture time, not during a later
+        // flush. POST /api/v1/scans needs a Bearer OR this token, and the
+        // replay path cannot know whether the feeder will still be signed in
+        // when connectivity returns — an anonymous queued feed without one
+        // was 401'd on every flush forever, re-uploading its photo bytes each
+        // time. bestEffortDeviceToken never throws and resolves undefined on
+        // failure (offline capture with nothing cached): such a record still
+        // queues, and if a session can't vouch for it at flush time either,
+        // offline-queue drops it through recordDroppedFeed so the feeder is
+        // told rather than left retrying.
+        const deviceToken = await bestEffortDeviceToken();
         const { offline: wentOffline } = await enqueueFeed({
           dogSlug,
           photo: stripDataPrefix(dataUrl),
           geo,
+          deviceToken,
         });
         if (wentOffline) {
           setStatus({

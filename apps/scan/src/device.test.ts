@@ -57,18 +57,33 @@ async function expectedDerivedKey(p: Params, counter: number): Promise<string> {
 }
 
 describe("apps/scan device attestation", () => {
-  it("solves the production difficulty inside this app's own budget", async () => {
-    const p = params();
-    const started = Date.now();
-    const solution = await solveAltchaPoW({ parameters: p, signature: "x" }, SOLVE_TIMEOUT_MS);
-    expect(solution).toBeDefined();
-    expect(Date.now() - started).toBeLessThan(SOLVE_TIMEOUT_MS);
-    // The (counter, derivedKey) pair must be internally consistent against an
-    // independent from-spec derivation, or the server re-derives a different key
-    // and answers BAD_POW.
-    expect(solution!.derivedKey).toBe(await expectedDerivedKey(p, solution!.counter));
-    expect(solution!.derivedKey.startsWith(p.keyPrefix)).toBe(true);
-  });
+  it(
+    "solves the production difficulty inside this app's own budget",
+    async () => {
+      const p = params();
+      const started = Date.now();
+      const solution = await solveAltchaPoW({ parameters: p, signature: "x" }, SOLVE_TIMEOUT_MS);
+      expect(solution).toBeDefined();
+      expect(Date.now() - started).toBeLessThan(SOLVE_TIMEOUT_MS);
+      // The (counter, derivedKey) pair must be internally consistent against an
+      // independent from-spec derivation, or the server re-derives a different key
+      // and answers BAD_POW.
+      expect(solution!.derivedKey).toBe(await expectedDerivedKey(p, solution!.counter));
+      expect(solution!.derivedKey.startsWith(p.keyPrefix)).toBe(true);
+    },
+    // Explicit vitest timeout for THIS test only — it is not a loosening of the
+    // budget above, which the two assertions still enforce at exactly
+    // SOLVE_TIMEOUT_MS (20 s). Vitest's default testTimeout is 5 s, and this
+    // test measures a 20 s budget, so on a loaded runner — the gate executes
+    // every workspace suite in parallel on 2 vCPUs — a CPU-bound solve that
+    // merely runs slow gets killed by the harness before its own assertions
+    // can judge it, turning a healthy solve into a red gate for the wrong
+    // reason. The margin covers scheduler starvation around the async batch
+    // loop; the solver additionally enforces its own wall-clock deadline and
+    // resolves undefined past it, so any solve that genuinely blows the budget
+    // still fails `toBeDefined()` below rather than timing out opaquely.
+    SOLVE_TIMEOUT_MS + 10_000,
+  );
 
   // The regression guard for the shipped-and-unfinishable configuration.
   //

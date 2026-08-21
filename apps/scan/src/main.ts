@@ -3,6 +3,7 @@ import { fetchDogProfile } from "./api";
 import { setStatus, setSub, renderProfile, renderError, setNote, clearNote } from "./ui";
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
+import { listDroppedFeeds, clearDroppedFeeds } from "./dropped";
 import { wirePanel, setPanelProfile } from "./panel";
 
 const SLUG = parseSlug(location.pathname);
@@ -48,16 +49,28 @@ function registerServiceWorker(): void {
 async function checkQueue(): Promise<void> {
   try {
     await flushOnOpen();
+    // Feeds the flush just gave up on (queued before captures carried a
+    // device token — they cannot be retroactively attested). Told here, once,
+    // then cleared: the visitor is standing on the page the feed was logged
+    // from, which is the only moment the message can land.
+    const dropped = listDroppedFeeds();
+    if (dropped.length > 0) clearDroppedFeeds();
     const queued = await listQueued();
-    if (queued.length === 0) return;
-    const soon = await evictionSoonCount();
-    if (soon > 0) {
-      setNote(
-        `${queued.length} feed log${queued.length === 1 ? "" : "s"} waiting to upload — cleared from this device after ~7 days. Get online to sync.`,
-      );
-    } else {
-      setNote(`${queued.length} feed log${queued.length === 1 ? "" : "s"} queued — will upload when you're online.`);
+    let message = "";
+    if (dropped.length > 0) {
+      const s = dropped.length === 1 ? "" : "s";
+      message +=
+        `${dropped.length} earlier feed log${s} couldn't be uploaded and ${dropped.length === 1 ? "was" : "were"} ` +
+        `removed rather than retried — please log ${dropped.length === 1 ? "it" : "them"} again. `;
     }
+    if (queued.length > 0) {
+      const soon = await evictionSoonCount();
+      const s = queued.length === 1 ? "" : "s";
+      message += soon > 0
+        ? `${queued.length} feed log${s} waiting to upload — cleared from this device after ~7 days. Get online to sync.`
+        : `${queued.length} feed log${s} queued — will upload when you're online.`;
+    }
+    if (message) setNote(message.trim());
   } catch {
     /* ignore */
   }

@@ -238,18 +238,49 @@ in the table above:
   being well above the casual-scan noise floor; a Phase-0 escape hatch (a
   field-lead co-signature) covers a feeder who hasn't reached even that.
 
-  **Known defect in this reasoning (recorded 2026-08-22).** Both the argument
-  and the gate it defends assume trust accrues roughly a point per action. The
-  shipped catalog is nothing like that: `TRUST_BASELINE = 30` and
-  `TRUST_EVENTS.feed = 60` (`apps/api/src/lib/trust.ts` — `verified_scan` is
-  +10, not +1, and `feed` dwarfs everything else), so **one** logged feed takes
-  a brand-new feeder from 30 to 90. That clears every trust threshold in the
+  **Defect found and fixed (recorded 2026-08-22).** Both the argument and the
+  gate it defends assume trust accrues roughly a point per action. The shipped
+  catalog was nothing like that: `TRUST_BASELINE = 30` and
+  `TRUST_EVENTS.feed = 60` (`apps/api/src/lib/trust.ts` — `verified_scan` was
+  +10, not +1, and `feed` dwarfed everything else), so **one** logged feed took
+  a brand-new feeder from 30 to 90. That cleared every trust threshold in the
   system in one step — the 40/60 SOS fan-out floors (`sos.ts`) and this 50
-  re-tag gate alike — which makes the "45 scans of tenure" arithmetic above a
-  description of a catalog that does not exist, and every gate decorative
-  against a single feed event. Recalibrating the catalog is scheduled for a
-  later wave; until it lands, these are the numbers the code actually applies,
-  and this note rather than the paragraph above describes reality.
+  re-tag gate alike — which made the "45 scans of tenure" arithmetic above a
+  description of a catalog that did not exist.
+
+  **Recalibrated the same day.** `feed` is now **+1**, making it the smallest
+  positive unit and every gate a count of ordinary actions from the 30
+  baseline:
+
+  | Gate | Trust | Feeds required |
+  |---|---|---|
+  | SOS fan-out floor, minor/serious (`sos.ts`) | 40 | 10 |
+  | Re-tag gate (this section) | 50 | 20 |
+  | SOS fan-out floor, critical (`sos.ts`) | 60 | 30 |
+
+  This restores the "+1 per action" economics the paragraph above reasons
+  from: a feed scan is self-reported (review_status starts `'pending'`), so it
+  earns less than any verification-backed event, and a rescue ack
+  (`sos_ack +20`) stays worth twenty routine feeds. Because scores are derived
+  — `recomputeScore()` replays `trust_events` from `TRUST_BASELINE` — the
+  correction needed no migration; and zero feeder rows existed in production,
+  so nothing rescaled mid-flight.
+
+  Two adjacent holes closed in the same pass, both of which also made gates
+  decorative:
+
+  - **`POST /api/v1/trust/events` is gone.** It let any feeder mint any
+    catalog delta for themselves, for their own feeder id, with no admin check
+    and no relation to a real scan — one request reached trust 90, two hit the
+    clamp of 100. Every legitimate producer logs server-side
+    (`scans.ts`, `moderation.ts`, the dispute path), so an HTTP write path had
+    only illegitimate callers.
+  - **Disputes no longer self-reverse.** Opening a dispute sets
+    `dispute_state='open'` and nothing else; the delta reversal moved into
+    `resolveDispute()`, which requires an admin. Previously the feeder a
+    penalty constrained could negate that penalty with one more call.
+    Resolution *restores* exactly the disputed delta and awards nothing on
+    top — an extra credit would reward collecting penalties to dispute them.
 
 ## Spec corrections (documented deviations)
 

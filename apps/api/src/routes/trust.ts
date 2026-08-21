@@ -1,37 +1,41 @@
 /**
  * Hetja TRUST endpoints (feeder-authed).
  *
- * POST /api/v1/trust/events      — log a trust event (event_type from the
- *   TRUST_EVENTS catalog, delta derived from the catalog) with a reason.
- * POST /api/v1/trust/disputes    — {eventId, reason}: sets the event's
- *   dispute_state='open' and reverses its delta exactly via a reversing
- *   event (reverses_event_id).
- * GET  /api/v1/feeders/:id/trust — self-service: score + verification tier +
- *   pause state + recent events. Also triggers the INVARIANT 15 gate.
+ * POST /api/v1/trust/disputes            — {eventId, reason}: the event's
+ *   OWNER sets dispute_state='open'. No score change; a human reviews.
+ * POST /api/v1/trust/disputes/:id/resolve — ADMIN adjudicates an open
+ *   dispute: the original delta is reversed exactly and the score recomputed.
+ * GET  /api/v1/feeders/:id/trust          — self-service: score + verification
+ *   tier + pause state + recent events. Also evaluates the INVARIANT 15 gate
+ *   (see getFeederTrust for why a read may write once, transactionally).
+ *
+ * There is deliberately no "log a trust event" endpoint. One used to live here
+ * (POST /api/v1/trust/events) and it let any feeder mint any catalog delta for
+ * themselves — feed alone took a fresh account from 30 to 90 in one request,
+ * clearing every trust gate in the system. Every legitimate producer logs
+ * server-side (scans.ts on feed creation, moderation.ts on story rejection,
+ * the dispute path below), so an HTTP write path had only illegitimate
+ * callers, and an endpoint whose only callers are illegitimate is not an
+ * endpoint.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import {
-  TRUST_EVENTS,
   TrustError,
   type TrustEventRow,
   getFeederTrust,
-  logTrustEvent,
   openDispute,
-  recomputeScore,
-  type TrustEventType,
+  resolveDispute,
 } from "../lib/trust.js";
-
-const TrustEventInput = z.object({
-  eventType: z.string().min(1).max(64),
-  reason: z.string().min(1).max(200),
-  refScanId: z.string().uuid().optional(),
-});
 
 const DisputeInput = z.object({
   eventId: z.string().uuid(),
+  reason: z.string().min(1).max(200),
+});
+
+const ResolveInput = z.object({
   reason: z.string().min(1).max(200),
 });
 
@@ -80,36 +84,6 @@ function toEventPayload(row: TrustEventRow) {
 }
 
 export default async function trustRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/api/v1/trust/events", async (req: FastifyRequest, reply: FastifyReply) => {
-    const auth = feederAuth(req, reply);
-    if (!auth) return reply;
-
-    const parsed = TrustEventInput.safeParse(req.body);
-    if (!parsed.success || !(parsed.data.eventType in TRUST_EVENTS)) {
-      return reply
-        .status(400)
-        .send({ ok: false, error: { message: "unknown or invalid trust event type", code: "INVALID_TRUST_EVENT" } });
-    }
-    const { eventType, reason, refScanId } = parsed.data;
-
-    const { event, score } = await withTx(async (client) => {
-      const row = await logTrustEvent(
-        { feederId: auth.feederId, eventType: eventType as TrustEventType, reason, refScanId },
-        client,
-      );
-      const next = await recomputeScore(auth.feederId, client);
-      return { event: row, score: next };
-    });
-
-    return {
-      ok: true,
-      data: {
-        event: toEventPayload(event),
-        score,
-      },
-    };
-  });
-
   app.post("/api/v1/trust/disputes", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = feederAuth(req, reply);
     if (!auth) return reply;
@@ -123,19 +97,52 @@ export default async function trustRoutes(app: FastifyInstance): Promise<void> {
     const { eventId, reason } = parsed.data;
 
     try {
+      // Opens the dispute only. The score does not move here — that is the
+      // whole point of the split; see resolveDispute.
       const result = await withTx(async (client) => openDispute(eventId, auth.feederId, reason, client));
       return {
         ok: true,
         data: {
           event: toEventPayload(result.original),
-          reversal: toEventPayload(result.reversal),
-          score: result.score,
         },
       };
     } catch (err) {
       sendTrustError(reply, err);
     }
   });
+
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/trust/disputes/:id/resolve",
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const auth = feederAuth(req, reply);
+      if (!auth) return reply;
+
+      const parsed = ResolveInput.safeParse(req.body);
+      if (!parsed.success) {
+        return reply
+          .status(400)
+          .send({ ok: false, error: { message: "invalid resolve payload", code: "INVALID_DISPUTE" } });
+      }
+
+      try {
+        // The admin check itself lives inside resolveDispute — the route only
+        // authenticates who is calling, the lib enforces what they may do.
+        const result = await withTx(async (client) =>
+          resolveDispute(req.params.id, auth.feederId, parsed.data.reason, client),
+        );
+        return {
+          ok: true,
+          data: {
+            event: toEventPayload(result.original),
+            reversal: toEventPayload(result.reversal),
+            score: result.score,
+          },
+        };
+      } catch (err) {
+        sendTrustError(reply, err);
+      }
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/api/v1/feeders/:id/trust",

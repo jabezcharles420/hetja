@@ -11,10 +11,18 @@
  * when the last recomputation happened.
  *
  * TRUST_EVENTS catalog (event_type -> delta):
- *   feed 60, sos_ack +20, verified_scan +10, photo_accepted +10,
- *   photo_rejected -5, serial_rejects -15, dispute_resolved +5.
- * Reversals are the delta NEGATED of the disputed event. auto_paused is a
- * flag event (delta 0) written by the INVARIANT 15 verification gate.
+ *   feed +1, sos_ack +20, verified_scan +10, photo_accepted +10,
+ *   photo_rejected -5, serial_rejects -15, story_rejected -5.
+ * Reversals are the delta NEGATED of the disputed event — see the catalog
+ * comment for why `reversal` itself carries 0. auto_paused is a flag event
+ * (delta 0) written by the INVARIANT 15 verification gate.
+ *
+ * DISPUTES split in two steps, only one of which a feeder can reach:
+ *   openDispute()    — the event's owner marks dispute_state='open'; no
+ *                      score change. A human reviews.
+ *   resolveDispute() — an ADMIN adjudicates: the original delta is reversed
+ *                      exactly and the score recomputed. A feeder can never
+ *                      revoke their own penalty.
  *
  * INVARIANT 15 — verification gates: provisional feeders are gated. Rejected
  * /flagged scans accumulate; at >= 3 SERIAL rejects (consecutive, newest
@@ -22,23 +30,56 @@
  * trust_event 'auto_paused' is written. The pause is observable via
  * applyVerificationGate()/getFeederTrust().
  */
-import { query } from "@hetja/db";
+import { query, withTx } from "@hetja/db";
 
 export const TRUST_BASELINE = 30;
 export const TRUST_MIN = 0;
 export const TRUST_MAX = 100;
 export const SERIAL_REJECT_PAUSE_THRESHOLD = 3;
 
-/** Catalog of event_type -> score delta. Reversals negate the original. */
+/**
+ * Catalog of event_type -> score delta. Reversals negate the original.
+ *
+ * GATE ARITHMETIC — why `feed` is +1. The trust gates must measure tenure in
+ * ordinary, self-reported actions, so `feed` (one logged feed scan) is the
+ * smallest positive unit and every gate is reachable only by a count of them.
+ * With TRUST_BASELINE = 30 and feed = +1, counted in feeds from a
+ * brand-new account:
+ *
+ *     trust 40 — SOS fan-out floor, minor/serious (sos.ts) → 10 feeds
+ *     trust 50 — the re-tag gate (docs/INVARIANTS.md)      → 20 feeds
+ *     trust 60 — SOS fan-out floor, critical (sos.ts)      → 30 feeds
+ *
+ * It used to be +60 — a 3× outlier against every neighbour (sos_ack +20,
+ * verified_scan +10, photo_accepted +10), reading like a typo for 6 — but even
+ * 6 leaves the critical-SOS floor five farmable requests deep, which is not
+ * tenure. A feed is self-reported (review_status starts 'pending'), so it earns
+ * less than any verification-backed event; a rescue ack stays worth twenty
+ * routine feeds.
+ *
+ * Scores are DERIVED (recomputeScore replays this stream from TRUST_BASELINE),
+ * so correcting a delta needs no migration: existing scores fall to their
+ * honest value at the next recompute. Zero feeder rows existed in production
+ * when feed went 60 → 1 (2026-08-22), so nothing rescaled mid-flight.
+ *
+ * `reversal` and `auto_paused` carry a catalog delta of 0 because neither ever
+ * contributes its own value: a reversal's delta is always the negation of the
+ * event it reverses (passed explicitly to logTrustEvent), and auto_paused is a
+ * flag. They exist as keys so that every event_type this code writes IS a
+ * catalog key — writer and catalog are not allowed to disagree; that exact
+ * disagreement is how `feed` sat at 60 unnoticed while the docs reasoned from
+ * +1-per-action economics.
+ */
 export const TRUST_EVENTS: Readonly<Record<string, number>> = {
-  feed: 60,
+  feed: 1,
   sos_ack: 20,
   verified_scan: 10,
   photo_accepted: 10,
   photo_rejected: -5,
   serial_rejects: -15,
-  dispute_resolved: 5,
+  story_rejected: -5,
   auto_paused: 0,
+  reversal: 0,
 } as const;
 
 export type TrustEventType = keyof typeof TRUST_EVENTS;
@@ -149,23 +190,26 @@ export async function recomputeScore(feederId: string, client?: TxClient): Promi
   return score;
 }
 
-export interface DisputeResult {
+export interface OpenDisputeResult {
   original: TrustEventRow;
-  reversal: TrustEventRow;
-  score: number;
 }
 
 /**
- * DISPUTE flow: mark the target event dispute_state='open' and reverse its
- * delta exactly via a reversing event (delta negated, reverses_event_id set).
- * Returns the updated original + the reversal + the new score.
+ * DISPUTE flow, step 1 — the only step a feeder can reach.
+ *
+ * Marks the target event dispute_state='open' and NOTHING else. This used to
+ * reverse the delta in the same call, which made INVARIANT 15's penalty
+ * self-revocable: exactly the feeder a `photo_rejected`/`serial_rejects`
+ * penalty constrains could negate it with one more HTTP call, no human in the
+ * loop. The score change now lives exclusively in resolveDispute(), which
+ * requires an admin.
  */
 export async function openDispute(
   eventId: string,
   feederId: string,
   reason: string,
   client?: TxClient,
-): Promise<DisputeResult> {
+): Promise<OpenDisputeResult> {
   const c = client ?? trustDb;
   const origRes = await c.query<TrustEventRow>(
     `SELECT ${TRUST_EVENT_COLUMNS} FROM trust_events WHERE id = $1 FOR UPDATE`,
@@ -185,9 +229,61 @@ export async function openDispute(
 
   await c.query(`UPDATE trust_events SET dispute_state = 'open' WHERE id = $1`, [eventId]);
 
+  return { original: { ...original, dispute_state: "open" } };
+}
+
+/**
+ * Resolve a previously open dispute, adjudicating it in the feeder's favour:
+ * the event is marked 'resolved' and its delta reversed EXACTLY via a
+ * reversing event (delta negated, reverses_event_id set), then recomputed.
+ *
+ * ADMIN-only, and the check lives here rather than only in the route because
+ * lib functions are callable from anywhere — a future caller must not be able
+ * to skip the human-review requirement by forgetting a gate (the same class of
+ * hole this file closed when the self-serve POST /trust/events route died).
+ *
+ * Resolution RESTORES; it does not award. An earlier dead-code version of this
+ * function also granted a dispute_resolved +5 credit on top of the reversal,
+ * which would have paid a wrongly-penalised feeder more than they lost and
+ * rewards collecting penalties to dispute them. The credit and its catalog key
+ * are gone.
+ */
+export async function resolveDispute(
+  eventId: string,
+  adminId: string,
+  reason: string,
+  client?: TxClient,
+): Promise<{ original: TrustEventRow; reversal: TrustEventRow; score: number }> {
+  const c = client ?? trustDb;
+  const adminRes = await c.query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1`, [
+    adminId,
+  ]);
+  if ((adminRes.rowCount ?? 0) === 0 || adminRes.rows[0].role !== "admin") {
+    throw new TrustError("admin role required to resolve a dispute", "TRUST_DISPUTE_FORBIDDEN", 403);
+  }
+
+  const origRes = await c.query<TrustEventRow>(
+    `SELECT ${TRUST_EVENT_COLUMNS} FROM trust_events WHERE id = $1 FOR UPDATE`,
+    [eventId],
+  );
+  const original = origRes.rows[0];
+  if (!original) throw new TrustError("trust event not found", "TRUST_EVENT_NOT_FOUND", 404);
+  if (original.reverses_event_id) {
+    throw new TrustError("reversal events cannot be disputed", "TRUST_REVERSAL_NOT_DISPUTABLE", 409);
+  }
+  if (original.dispute_state !== "open") {
+    throw new TrustError("event is not under an open dispute", "TRUST_NO_OPEN_DISPUTE", 409);
+  }
+
+  await c.query(`UPDATE trust_events SET dispute_state = 'resolved' WHERE id = $1`, [eventId]);
+
+  // The reversal's event_type is a real catalog key (`reversal`, delta 0 — the
+  // actual delta is always the negation passed explicitly). It used to write
+  // the bare string "reversal" while no such key existed, so the catalog and
+  // the writer disagreed about what the row meant.
   const reversal = await logTrustEvent(
     {
-      feederId,
+      feederId: original.feeder_id,
       eventType: "reversal",
       delta: -original.delta,
       reason,
@@ -195,50 +291,9 @@ export async function openDispute(
     },
     c,
   );
-  const score = await recomputeScore(feederId, c);
+  const score = await recomputeScore(original.feeder_id, c);
 
-  return {
-    original: { ...original, dispute_state: "open" },
-    reversal,
-    score,
-  };
-}
-
-/**
- * Resolve a previously open dispute in the feeder's favour: the event is
- * marked 'resolved' and the feeder earns the catalog dispute_resolved +5.
- */
-export async function resolveDispute(
-  eventId: string,
-  feederId: string,
-  reason: string,
-  client?: TxClient,
-): Promise<{ original: TrustEventRow; credit: TrustEventRow; score: number }> {
-  const c = client ?? trustDb;
-  const origRes = await c.query<TrustEventRow>(
-    `SELECT ${TRUST_EVENT_COLUMNS} FROM trust_events WHERE id = $1 FOR UPDATE`,
-    [eventId],
-  );
-  const original = origRes.rows[0];
-  if (!original) throw new TrustError("trust event not found", "TRUST_EVENT_NOT_FOUND", 404);
-  if (original.feeder_id !== feederId) {
-    throw new TrustError("you can only resolve your own trust events", "TRUST_DISPUTE_FORBIDDEN", 403);
-  }
-  if (original.dispute_state !== "open") {
-    throw new TrustError("event is not under an open dispute", "TRUST_NO_OPEN_DISPUTE", 409);
-  }
-  await c.query(`UPDATE trust_events SET dispute_state = 'resolved' WHERE id = $1`, [eventId]);
-  const credit = await logTrustEvent(
-    {
-      feederId,
-      eventType: "dispute_resolved",
-      reason,
-      refScanId: original.ref_scan_id,
-    },
-    c,
-  );
-  const score = await recomputeScore(feederId, c);
-  return { original: { ...original, dispute_state: "resolved" }, credit, score };
+  return { original: { ...original, dispute_state: "resolved" }, reversal, score };
 }
 
 export interface GateStatus {
@@ -247,14 +302,22 @@ export interface GateStatus {
   autoPausedEventId: string | null;
 }
 
-/** Count consecutive rejected/flagged scans (newest first) for a feeder. */
+/**
+ * Count consecutive rejected/flagged scans (newest first) for a feeder.
+ *
+ * LIMIT 3 because SERIAL_REJECT_PAUSE_THRESHOLD is 3 — only a leading run of
+ * at most three can ever change the outcome, so reading further back is waste
+ * on a query that runs on every trust-profile read. The loop below still
+ * stops at the first non-reject; the limit just bounds how far it can look.
+ */
 export async function countSerialRejects(feederId: string, client?: TxClient): Promise<number> {
   const c = client ?? trustDb;
   const res = await c.query<{ review_status: string }>(
     `SELECT review_status
        FROM scans
       WHERE feeder_id = $1
-      ORDER BY received_at DESC, id DESC`,
+      ORDER BY received_at DESC, id DESC
+      LIMIT 3`,
     [feederId],
   );
   let count = 0;
@@ -268,11 +331,16 @@ export async function countSerialRejects(feederId: string, client?: TxClient): P
 /**
  * INVARIANT 15: provisional feeders with >= 3 serial rejects get auto-paused
  * (role unchanged; a flag trust_event 'auto_paused' written once). Idempotent.
+ *
+ * Takes `FOR UPDATE` on the feeder row first so that two concurrent
+ * evaluations serialize before the check-then-insert below: both reading "no
+ * flag yet" and each writing one would otherwise produce duplicate
+ * auto_paused rows.
  */
 export async function applyVerificationGate(feederId: string, client?: TxClient): Promise<GateStatus> {
   const c = client ?? trustDb;
   const feeder = await c.query<{ verification_tier: string }>(
-    `SELECT verification_tier FROM feeders WHERE id = $1`,
+    `SELECT verification_tier FROM feeders WHERE id = $1 FOR UPDATE`,
     [feederId],
   );
   if (feeder.rowCount === 0) {
@@ -368,7 +436,25 @@ export interface FeederTrustView {
   events: TrustEventRow[];
 }
 
-/** Score + verification tier + pause state + recent events (self-service). */
+/**
+ * Score + verification tier + pause state + recent events (self-service).
+ *
+ * This is a read endpoint that can WRITE once: the INVARIANT 15 gate runs
+ * here and may insert the auto_paused flag event. That is deliberate, and it
+ * is worth recording why rather than leaving it looking like an accident:
+ *
+ *   No scan-review transition exists in this codebase yet — scans are created
+ *   'pending', and the worker's validate_scan stub keeps them 'pending'
+ *   (INVARIANT 14's human-review queue is unbuilt), so `onScanReject()` has no
+ *   caller and nothing else ever observes accumulated rejects. Until a review
+ *   path exists to call the gate where a scan is actually judged, this read is
+ *   the only enforcement point INVARIANT 15 has.
+ *
+ * The write is therefore explicit and safe rather than incidental: it happens
+ * inside one transaction (with a feeder-row lock in applyVerificationGate) so
+ * concurrent readers cannot double-insert the flag, and the flag itself is a
+ * delta-0 event — idempotent by construction.
+ */
 export async function getFeederTrust(feederId: string): Promise<FeederTrustView> {
   const feeder = await query<{ trust_score: number; verification_tier: string }>(
     `SELECT trust_score, verification_tier FROM feeders WHERE id = $1`,
@@ -377,7 +463,7 @@ export async function getFeederTrust(feederId: string): Promise<FeederTrustView>
   if (feeder.rowCount === 0) {
     throw new TrustError("feeder not found", "FEEDER_NOT_FOUND", 404);
   }
-  const gate = await applyVerificationGate(feederId);
+  const gate = await withTx((client) => applyVerificationGate(feederId, client));
   const events = await query<TrustEventRow>(
     `SELECT ${TRUST_EVENT_COLUMNS}
        FROM trust_events

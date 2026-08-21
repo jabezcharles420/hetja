@@ -4,6 +4,7 @@ import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { query, generateSlug } from "@hetja/db";
+import { logTrustEvent } from "../lib/trust.js";
 
 const config = loadConfig();
 
@@ -306,6 +307,12 @@ describe("moderation queue (admin only)", () => {
 
 describe("admin rejection: full delete + trust penalty", () => {
   it("deletes the story row and writes a -5 trust_event for the author", async () => {
+    // The author's 50 is now EARNED through the event stream (+20 of acks on
+    // the 30 baseline), not hand-set: trust_score is derived, and the
+    // rejection recomputes from the stream — a value planted directly in the
+    // column would simply be overwritten. 50 − 5 = 45.
+    await logTrustEvent({ feederId: fx.feederId, eventType: "sos_ack", reason: "test seed" });
+
     const app = buildServer(config);
     const post = await app.inject({
       method: "POST",
@@ -342,6 +349,8 @@ describe("admin rejection: full delete + trust penalty", () => {
     const feeder = await query<{ trust_score: number }>(`SELECT trust_score FROM feeders WHERE id = $1`, [
       fx.feederId,
     ]);
+    // 30 baseline + 20 seeded ack − 5 penalty = 45: the recompute replayed the
+    // whole stream, not just the new penalty.
     expect(feeder.rows[0].trust_score).toBe(45);
 
     const anon = await app.inject({ method: "GET", url: `/api/v1/dogs/${fx.dogSlug}/stories` });
@@ -350,9 +359,13 @@ describe("admin rejection: full delete + trust penalty", () => {
     await app.close();
   });
 
-  it("clamps trust_score at 0 when the penalty would go negative", async () => {
+  it("clamps trust_score at 0 when the penalties outweigh the baseline", async () => {
+    // Seeded through the stream (-15 × 2), not the column: the rejection's
+    // -5 lands on a score already clamped at 0.
+    await logTrustEvent({ feederId: fx.feederId, eventType: "serial_rejects", reason: "test seed 1" });
+    await logTrustEvent({ feederId: fx.feederId, eventType: "serial_rejects", reason: "test seed 2" });
+
     const app = buildServer(config);
-    await query(`UPDATE feeders SET trust_score = 2 WHERE id = $1`, [fx.feederId]);
 
     const post = await app.inject({
       method: "POST",
@@ -373,6 +386,40 @@ describe("admin rejection: full delete + trust penalty", () => {
       fx.feederId,
     ]);
     expect(feeder.rows[0].trust_score).toBe(0);
+
+    await app.close();
+  });
+
+  it("rejecting recomputes from the stream, so a drifted stored score cannot survive", async () => {
+    // The defect this pins: the old code decremented whatever number sat in
+    // feeders.trust_score alongside writing the event, so a score that had
+    // drifted from its stream (here: hand-set to 100 with nothing behind it)
+    // absorbed the penalty and stayed wrong — and conversely, a feeder
+    // clamped at 100 had their penalty silently restored by the next
+    // recompute elsewhere. Recompute-from-stream makes drift un-survivable:
+    // 30 baseline − 5 penalty, whatever the column used to say.
+    await query(`UPDATE feeders SET trust_score = 100 WHERE id = $1`, [fx.feederId]);
+
+    const app = buildServer(config);
+    const post = await app.inject({
+      method: "POST",
+      url: `/api/v1/dogs/${fx.dogSlug}/stories`,
+      headers: { authorization: `Bearer ${fx.feederToken}` },
+      payload: { paragraph: "drift correction case" },
+    });
+    const storyId = post.json().data.id as string;
+
+    const reject = await app.inject({
+      method: "POST",
+      url: `/api/v1/moderation/${storyId}/reject`,
+      headers: { authorization: `Bearer ${fx.adminToken}` },
+    });
+    expect(reject.statusCode).toBe(200);
+
+    const feeder = await query<{ trust_score: number }>(`SELECT trust_score FROM feeders WHERE id = $1`, [
+      fx.feederId,
+    ]);
+    expect(feeder.rows[0].trust_score).toBe(25);
 
     await app.close();
   });

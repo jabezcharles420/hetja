@@ -8,12 +8,16 @@
  * POST /api/v1/moderation/:id/reject      — DELETES the story row outright
  *   (stories are NOT append-only). The deletion is audited via
  *   app.log (no moderation_audit table yet) and the author loses 5 trust
- *   points: a trust_event (delta -5, reason 'story_rejected') is inserted and
- *   feeders.trust_score is decremented (clamped at 0).
+ *   points: a trust_event ('story_rejected', catalog delta -5) is inserted
+ *   via logTrustEvent and trust_score is recomputed from the event stream by
+ *   recomputeScore — never written directly. A hand-maintained decrement
+ *   diverges from the stream recomputeScore replays, and for a feeder clamped
+ *   at 100 the penalty silently evaporated on the next recompute.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { logTrustEvent, recomputeScore } from "../lib/trust.js";
 
 const TRUST_PENALTY = 5;
 
@@ -160,16 +164,17 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
 
         await client.query(`DELETE FROM dog_stories WHERE id = $1`, [story.id]);
 
-        // Trust coupling: the author loses 5 points.
-        await client.query(
-          `INSERT INTO trust_events (feeder_id, event_type, delta, reason)
-           VALUES ($1, 'story_rejected', $2, 'story_rejected')`,
-          [story.author_feeder_id, -TRUST_PENALTY],
+        // Trust coupling: the author loses 5 points, through the same path as
+        // every other producer — a catalog event + recompute, in this
+        // transaction. The old direct `UPDATE feeders SET trust_score = …`
+        // wrote a value the event stream disagreed with: the next
+        // recomputeScore replayed the stream and silently undid (or doubled)
+        // the penalty.
+        await logTrustEvent(
+          { feederId: story.author_feeder_id, eventType: "story_rejected", reason: "story_rejected" },
+          client,
         );
-        await client.query(
-          `UPDATE feeders SET trust_score = GREATEST(0, trust_score - $1) WHERE id = $2`,
-          [TRUST_PENALTY, story.author_feeder_id],
-        );
+        await recomputeScore(story.author_feeder_id, client);
 
         return story;
       });

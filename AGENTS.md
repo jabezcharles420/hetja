@@ -155,6 +155,14 @@ psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user
 psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
 # INVARIANT 9: re-applied after the blanket GRANT, which would hand DELETE back
 psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
+# ...and TRUNCATE too. `GRANT ALL` grants it and no REVOKE above takes it away:
+# followed as originally written (without this line), the recipe leaves app_user
+# holding INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE on medical_records — verified
+# live. The statement-level BEFORE TRUNCATE trigger from 0012 still blocks an
+# actual TRUNCATE by any role, so omitting this is weakened defence-in-depth
+# rather than an open hole; but production revokes it (0012), and the point of
+# this recipe is to reproduce production's privilege set exactly.
+psql -v ON_ERROR_STOP=1 -c "REVOKE TRUNCATE ON medical_records FROM app_user;"
 ```
 
 Then run the suite as `app_user` — always with `PGDATABASE` set; unset it

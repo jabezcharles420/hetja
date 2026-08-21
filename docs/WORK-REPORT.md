@@ -59,11 +59,15 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 | AI | Python worker, pluggable detector (YOLO Phase 1) | flag, never auto-reject (INVARIANT 14) |
 
 ### 2.3 Database (migrations 0001–0005)
-- 15 tables: dogs, collars, feeders, scans (client_uuid UNIQUE — idempotent offline
-  replays), sos_cases/sos_notifications, medical_records (**append-only**, REVOKE
-  UPDATE/DELETE — tests prove it), ledger_anchors, trust_events, geofences,
-  feeder_territories (single-primary partial index), dog_stories, jobs (autovacuum
-  tuned), vets (linked to feeders).
+- **19 domain tables** (plus `schema_migrations`): dogs, collars, feeders, scans
+  (client_uuid UNIQUE — idempotent offline replays), sos_cases/sos_notifications,
+  medical_records (**append-only**, REVOKE UPDATE/DELETE — tests prove it),
+  ledger_anchors, trust_events, geofences, feeder_territories (single-primary
+  partial index), dog_stories, jobs (autovacuum tuned), vets (linked to feeders)
+  — fifteen of them from `0001_init.sql`, joined by `care_providers` (0008),
+  `otp_codes` (0010), `push_subscriptions` (0011) and `web_vitals` (0013). This
+  section previously said "15 tables", which was true only within its stated
+  scope (migrations 0001–0005) and stale as a description of the schema since.
 - Seed: Phase-0 dogs + collars + feeder with random non-sequential slugs (INVARIANT 1).
 - **3 documented spec corrections** (in `docs/INVARIANTS.md`): scans partitioning
   (unique-on-partitioned impossible in PG — hash-partition strategy for Phase 2),

@@ -148,6 +148,12 @@ spec PDFs directly. Migrated here so it survives independently of them.
    fallback on desktop web) and are capped at 2/day and 5/week per token.
    Without this, the SOS fan-out — which pages real people's phones — becomes
    a free mechanism for paging strangers at will.
+
+   The caps are **calendar** windows, not rolling ones: `sos.ts` counts rows
+   with `received_at >= date_trunc('day'|'week', now())`, so a token can file
+   two reports at 23:58 IST and two more at 00:01. The route's own comment
+   calls them "rolling" — that comment is wrong about its own code; switching
+   to true rolling windows is tracked as a fix for a later wave.
 8. **`medical_records` accepts INSERT and nothing else — no UPDATE, no
    DELETE, no TRUNCATE.** A dog's treatment history is evidence: it is what a
    cruelty prosecution or a municipal audit rests on, and a record that can be
@@ -231,6 +237,19 @@ in the table above:
   replacing. 50 keeps re-tagging reachable during the pilot while still
   being well above the casual-scan noise floor; a Phase-0 escape hatch (a
   field-lead co-signature) covers a feeder who hasn't reached even that.
+
+  **Known defect in this reasoning (recorded 2026-08-22).** Both the argument
+  and the gate it defends assume trust accrues roughly a point per action. The
+  shipped catalog is nothing like that: `TRUST_BASELINE = 30` and
+  `TRUST_EVENTS.feed = 60` (`apps/api/src/lib/trust.ts` — `verified_scan` is
+  +10, not +1, and `feed` dwarfs everything else), so **one** logged feed takes
+  a brand-new feeder from 30 to 90. That clears every trust threshold in the
+  system in one step — the 40/60 SOS fan-out floors (`sos.ts`) and this 50
+  re-tag gate alike — which makes the "45 scans of tenure" arithmetic above a
+  description of a catalog that does not exist, and every gate decorative
+  against a single feed event. Recalibrating the catalog is scheduled for a
+  later wave; until it lands, these are the numbers the code actually applies,
+  and this note rather than the paragraph above describes reality.
 
 ## Spec corrections (documented deviations)
 

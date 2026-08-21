@@ -109,37 +109,57 @@ person editing that provider.
 
 `ops/backup/restic-backup.sh` exists and works: it takes a `pg_dump -Fc` of the
 production database plus `.env.production` and the Caddy/PostgreSQL/systemd
-configs, and stores encrypted restic snapshots. It is scheduled daily at 02:15
-IST by `ops/systemd/hetja-restic.timer`.
+configs, and stores encrypted restic snapshots wherever `RESTIC_REPOSITORY`
+inside `/root/.backup-env` points. The unit files are committed under
+`ops/systemd/` (`hetja-restic.{service,timer}`, daily 02:15 IST), and
+`ops/bootstrap.sh` renders them into `/etc/systemd/system` when provisioning a
+box.
 
-Two things are **not** true yet, and were previously documented as though they
+**Verified live on this box, 2026-08-22:** backups ARE running. Nine restic
+snapshots sit on the Google Drive remote (`rclone:gdrive:hetja-backups`) —
+one per night at ~02:15 IST from 2026-08-14 23:20 through 2026-08-21, checked
+at 00:35 IST before that morning's firing (`restic snapshots`, with
+`/root/.backup-env` sourced, is the ground truth). But the mechanism actually
+firing is not quite the committed one, and the difference is worth spelling
+out rather than papering over:
+
+1. **The running timer is a hand-installed systemd *user* unit** under
+   `/root/.config/systemd/user/` (enabled in its `timers.target.wants`,
+   2026-08-14; root's user manager lingers, so it fires without a login). It
+   predates the committed templates and differs from them — it carries none of
+   their memory caps against this 2 GB box (`MemoryMax=350M`) or
+   `NoNewPrivileges` hardening. What runs and what git reviews have drifted
+   apart. Closing that means reinstalling from the committed templates; until
+   then, read the installed files, not just these, when reasoning about backup
+   behaviour under memory pressure.
+2. **`ops/check-systemd.sh` cannot catch any of this.** It proves the repo
+   agrees with itself — every committed unit is referenced by `bootstrap.sh`
+   and vice versa — because CI can see the repo but not this box. Whether a
+   given machine has the units installed, enabled and firing is checkable only
+   on the machine: `systemctl --user list-timers` and `restic snapshots`.
+
+The history, kept because it is instructive: until 2026-08-14 this section,
+and `docs/CREDITS.md`, described a `hetja-restic.timer` running daily at
+02:15 IST that existed in no committed file — so a box provisioned from this
+repository had **no backups at all** while two documents said it had daily
+ones, which is the worst version of that mistake: you discover it when you
+reach for a restore. That afternoon the units were committed; that evening the
+Drive remote was configured in `/root/.backup-env`, and the first real
+snapshot landed at 23:20. An earlier draft of this very correction asserted the timer was
+"still not installed"; by the time it was written down that was already false
+again — which is the second lesson. Backup claims are cheap to write and
+expensive to verify, so verify: one `restic snapshots` invocation beats any
+paragraph in this file, including everything above.
+
+One thing is **still** not true, and was previously documented as though it
 were:
 
-1. **The repository is still local — `/srv/hetja-backups/restic`, on the same
-   disk it is backing up.** Until `/root/.backup-env` carries a remote destination
-   this protects against a bad migration or an `rm`, and against nothing that
-   takes the box or its disk with it. It is not an off-box backup and should not
-   be counted as one in any RTO estimate.
-2. **WAL archiving with wal-g is staged but dormant**, so there is no
-   point-in-time recovery — only the nightly dump, i.e. up to 24 h of loss. On
-   the chosen destination it stays dormant: backups go to Google Drive via
-   rclone, and wal-g has no Drive backend. `ops/backup/BACKUPS.md` §5 documents
-   the middle option and is honest that it is worse than WAL going straight
-   off-box.
-
-Until 2026-08-14 this section, and `docs/CREDITS.md`, described a
-`hetja-restic.timer` running daily at 02:15 IST. The timer was real, but it
-existed only on the live box: it was in no committed file, and neither
-`ops/bootstrap.sh` nor `ops/deploy-remote.sh` installed it. A box provisioned
-from this repository therefore had **no backups at all** while two documents
-said it had daily ones. Both units are now committed under `ops/systemd/`,
-installed by `bootstrap.sh`, and `ops/check-systemd.sh` fails CI if a committed
-unit is ever again left un-installed.
-
-**To finish this, the operator needs to do one thing:** configure an rclone
-Google Drive remote and create `/root/.backup-env` pointing at it, then run the
-timer once by hand and confirm `restic snapshots` lists a snapshot. Full steps in
-`ops/backup/BACKUPS.md`. That turns item 1 above from false into true.
+- **WAL archiving with wal-g is staged but dormant** (`archive_mode = off`,
+  verified live 2026-08-22), so there is no point-in-time recovery — only the
+  nightly dump, i.e. up to 24 h of loss. It stays dormant on this destination:
+  backups go to Google Drive via rclone, and wal-g has no Drive backend.
+  `ops/backup/BACKUPS.md` §5 documents the middle option and is honest that it
+  is worse than WAL going straight off-box.
 
 Google Drive rather than Cloudflare R2 because R2 requires a payment method on
 file even for its free tier, and this project runs on nothing. restic encrypts

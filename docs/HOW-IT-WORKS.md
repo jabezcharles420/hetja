@@ -127,7 +127,7 @@ shown *as unconfirmed* rather than either hidden or presented as fact. About
 thirty of the seeded NGO numbers are still `NULL` here. Someone has to pick up
 a phone and call them; there is no way to shortcut that.
 
-**It opens an SOS case.** In parallel, `POST /api/v1/sos/report` creates a
+**It opens an SOS case.** In parallel, `POST /api/v1/reports` creates a
 case and the worker fans out push notifications to responders whose geofence
 contains the dog — rate-capped, because an unauthenticated endpoint that can
 notify unbounded numbers of people is a harassment vector (INVARIANT 7). If no
@@ -183,8 +183,13 @@ lock out the pilot staff who have to retag on day one.
 
 ## 5. Data
 
-Eighteen tables in PostgreSQL 16, with PostGIS for geography and pgvector for
-image embeddings. The ones to know:
+Nineteen domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
+for geography and pgvector for image embeddings. Fifteen of them come from
+`0001_init.sql`; `care_providers` (0008), `otp_codes` (0010),
+`push_subscriptions` (0011) and `web_vitals` (0013) arrived later. An earlier
+version of this paragraph said "eighteen" while `WORK-REPORT.md` said "15" —
+neither matched the database, which `\dt` counts even higher because PostGIS
+ships its own `spatial_ref_sys`. The ones to know:
 
 | Table | What it holds |
 |---|---|

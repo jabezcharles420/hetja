@@ -64,7 +64,7 @@ Hetja's trust score is currently a tally of `trust_events` rows. INVARIANT 9 enf
 - **paulmillr/noble-hashes ★897** — MIT, active. Audited pure-JS hashes for `packages/ledger` browser code (where `Buffer`/`node:crypto` aren't available). **Phase 2.**
 
 ### D.4 Anti-abuse / proof-of-work (replaces hand-rolled PoW)
-- **altcha-org/altcha ★2.7k** — [canonical](https://github.com/altcha-org/altcha) — MIT, active. Maintained PoW widget, replaces Hetja's hand-rolled PoW on `/api/v1/sos/report`. **Closes the documented "challenge token can be reused" gap.** PoW has documented bypass techniques — treat as a throttle, not a gate. Server-side rate caps remain the real defence. **Phase 1.**
+- **altcha-org/altcha ★2.7k** — [canonical](https://github.com/altcha-org/altcha) — MIT, active. Maintained PoW widget, replaces Hetja's hand-rolled PoW on `/api/v1/reports`. **Closes the documented "challenge token can be reused" gap.** PoW has documented bypass techniques — treat as a throttle, not a gate. Server-side rate caps remain the real defence. **Phase 1.**
 - **fingerprintjs/BotD ★1.4k** — MIT. Browser-side bot-detection boolean. Transmit only the boolean `bot: true/false`, never the raw fingerprint (INVARIANT 3 tension). Server-side or authenticated-side only; never on `apps/scan`.
 - **thumbmarkjs/thumbmarkjs ★1.1k** — MIT. Authenticated-side device fingerprint for multi-device feeder detection. Hash under pepper before persistence.
 

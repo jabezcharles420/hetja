@@ -1,8 +1,16 @@
 /**
  * Minimal HS256 JWT implementation (no runtime deps) — access tokens (15m)
- * and rotating refresh tokens (30d). Refresh rotation is achieved by minting
- * a fresh `jti` on every issuance; `type` is embedded so tokens can't be
- * used across scopes.
+ * and rotating refresh tokens (30d). Refresh rotation mints a fresh `jti` on
+ * every issuance; `type` is embedded so tokens can't be used across scopes.
+ *
+ * The jti alone was never enough: until migration 0017 nothing recorded
+ * issuance, so rotation could not be one-time-use and a replayed token was
+ * undetectable for its whole 30-day life. The refresh_tokens table (see the
+ * migration) is now the consumer: every minted refresh token's jti is stored
+ * at issue time, POST /auth/refresh exchanges a row exactly once via a
+ * conditional UPDATE, and any presentation of an already-used or unknown jti
+ * is treated as theft and revokes every live token that feeder holds.
+ * routes/auth.ts owns those rules.
  */
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
@@ -99,3 +107,22 @@ export const verifyAccessToken = (token: string, secret: string): JwtPayload =>
 
 export const verifyRefreshToken = (token: string, secret: string): JwtPayload =>
   verifyToken(token, secret, "refresh");
+
+/**
+ * Decode a token's payload WITHOUT verifying it.
+ *
+ * Only for tokens this process itself just signed, where the signature is
+ * known good and the caller needs what signToken generated — the `jti` to
+ * record in refresh_tokens, the `exp` to store alongside it. Never use this
+ * on a token received from outside: it performs no signature, algorithm or
+ * expiry check, which is exactly what verifyToken exists to do.
+ */
+export function decodeJwtPayload(token: string): JwtPayload {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new JwtError("malformed token");
+  try {
+    return JSON.parse(fromB64url(parts[1])) as JwtPayload;
+  } catch {
+    throw new JwtError("bad payload");
+  }
+}

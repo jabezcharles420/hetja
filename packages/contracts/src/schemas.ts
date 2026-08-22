@@ -16,7 +16,13 @@ export type ScanType = z.infer<typeof ScanType>;
 export const ReviewStatus = z.enum(["pending", "auto_passed", "flagged", "human_passed", "rejected"]);
 export type ReviewStatus = z.infer<typeof ReviewStatus>;
 
-export const FeederRole = z.enum(["feeder", "vet", "bmc_officer", "admin"]);
+// `registrator` precedes the migration that adds it to the feeders.role PG
+// enum (the registrator surface wave). No feeder row can hold it until then;
+// it is declared here first because the capability map (apps/api
+// lib/require-role.ts) is where "a user holds both surfaces" is expressed,
+// and that map must know the value before any account can. Additive: a wider
+// enum accepts every value the narrower one did.
+export const FeederRole = z.enum(["feeder", "registrator", "vet", "bmc_officer", "admin"]);
 export type FeederRole = z.infer<typeof FeederRole>;
 
 export const SosSeverity = z.enum(["minor", "serious", "critical"]);
@@ -197,6 +203,22 @@ export const AuthOtpVerify = z.object({
   isMinor: z.boolean(),
 });
 export type AuthOtpVerify = z.infer<typeof AuthOtpVerify>;
+
+// POST /auth/refresh carries no auth header — the refresh token IS the
+// credential. A JWT is at most a few hundred bytes; the cap is abuse hygiene
+// for an unauthenticated endpoint, not a real constraint. The response mirrors
+// /auth/verify's shape exactly so clients can treat both as "here is a fresh
+// session".
+export const AuthRefresh = z.object({
+  refreshToken: z.string().min(1).max(4096),
+});
+export type AuthRefresh = z.infer<typeof AuthRefresh>;
+
+export const AuthRefreshResult = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+});
+export type AuthRefreshResult = z.infer<typeof AuthRefreshResult>;
 
 export function apiEnvelope<T extends z.ZodType>(dataSchema: T) {
   return z.discriminatedUnion("ok", [

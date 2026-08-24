@@ -114,6 +114,7 @@ import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
 import { createPoWChallenge, effectivePowDifficulty, issueDeviceToken, verifyPoW } from "../lib/device.js";
+import { deviceTokenGlobal, GLOBAL_SUBJECT } from "../lib/rate-limit.js";
 
 // Short-lived on purpose -- see the replay note above. Long enough for a
 // desktop-web PoW solve at any difficulty this route is actually configured
@@ -249,6 +250,34 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
         .send({ ok: false, error: { message: "challenge already used", code: "CHALLENGE_REUSED" } });
     }
     spentChallenges.set(spentKey, true);
+
+    // INVARIANT 7 backstop: a global cap on SUCCESSFUL mints. Checked after
+    // verification on purpose, twice over: a failed or replayed attempt has
+    // already been rejected above and must not drain a bucket shared by every
+    // anonymous visitor, and rejecting here -- before `issueDeviceToken` --
+    // means a capped mint never comes into existence at all. A solved
+    // challenge that lands on a full bucket is burned (the LRU above already
+    // marked it spent), which is acceptable: the client re-requests a
+    // challenge and solves again, and a full bucket is by construction an
+    // abnormal condition an operator needs to know about. See lib/rate-limit.ts
+    // for why the PoW alone cannot be the bound.
+    const mintBudget = deviceTokenGlobal.consume(GLOBAL_SUBJECT);
+    if (!mintBudget.allowed) {
+      req.log.warn(
+        { retryAfterSec: mintBudget.retryAfterSec },
+        "device token global mint budget exhausted — refusing further mints",
+      );
+      return reply
+        .status(429)
+        .header("retry-after", String(mintBudget.retryAfterSec))
+        .send({
+          ok: false,
+          error: {
+            message: "device attestation is temporarily unavailable. Try again shortly.",
+            code: "DEVICE_TOKEN_RATE_LIMITED",
+          },
+        });
+    }
 
     const deviceToken = issueDeviceToken(app.config.HETJA_DEVICE_SECRET);
     return { ok: true, data: { deviceToken } };

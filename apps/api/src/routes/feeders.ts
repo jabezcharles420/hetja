@@ -1,5 +1,6 @@
 /**
  * GET /api/v1/feeders/me — the caller's own account, as the server sees it.
+ * PATCH /api/v1/feeders/me { sosOptIn } — the SOS responder consent surface.
  *
  * WHY THIS EXISTS. The client learns its role exactly once today — in the
  * /auth/verify response — and throws it away, so after a refresh or a page
@@ -21,6 +22,16 @@
  * `can_register` flag: the flag is the real kill switch (the role is
  * self-elected, so removing it would be a preference the account re-sets),
  * and /me must say "no" when either half says no.
+ *
+ * sosOptIn is the consent half of the SOS fan-out (routes/sos.ts). Paging
+ * someone's phone requires it, and until wave 7 NOTHING could set it: the
+ * column existed in 0001, the fan-out filtered on it, and every feeder row
+ * therefore answered FALSE forever — one half of why the fan-out never
+ * notified anyone. The PATCH accepts exactly one field, deliberately: the
+ * old design expected feeders.last_known_geo to ride along with consent,
+ * which would have turned a consent checkbox into a location-tracking
+ * surface. Proximity is now derived from scan history instead (sos.ts), so
+ * consent stays consent and carries no position.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -35,6 +46,7 @@ interface MeRow {
   verification_tier: string;
   home_ward: string | null;
   can_register: boolean;
+  sos_opt_in: boolean;
 }
 
 export default async function feederRoutes(app: FastifyInstance): Promise<void> {
@@ -46,7 +58,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     // this SELECT cannot come back empty barring a concurrent erasure — in
     // which case answering FEEDER_GONE is again the honest response.
     const res = await query<MeRow>(
-      `SELECT display_name, trust_score, verification_tier, home_ward, can_register
+      `SELECT display_name, trust_score, verification_tier, home_ward, can_register, sos_opt_in
          FROM feeders WHERE id = $1`,
       [auth.feederId],
     );
@@ -84,8 +96,50 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         homeWard: feeder.home_ward ?? null,
         canRegister: holdsRegister && feeder.can_register,
         registrationBudget: { pending, max: REGISTRATION_BUDGET_MAX },
+        sosOptIn: feeder.sos_opt_in,
       },
     };
+  });
+
+  /**
+   * PATCH /api/v1/feeders/me { sosOptIn: boolean } — SOS responder consent.
+   *
+   * This is THE consent surface for being paged (routes/sos.ts filters the
+   * fan-out on feeders.sos_opt_in). The schema is one optional field and
+   * nothing else — `strictObject` rather than a loose object, because a
+   * consent endpoint that silently ignored extra fields would let a client
+   * believe it had updated something (a display name, a ward) that this
+   * route does not handle. Unknown fields are a 400, not a no-op.
+   *
+   * Deliberately NOT location-shaped. The column this write feeds was
+   * designed alongside feeders.last_known_geo, and the original intent was
+   * for opt-in to carry the feeder's position with it. Wave 7 removed the
+   * fan-out's dependency on last_known_geo (proximity now derives from scan
+   * history), so consent is all this route accepts or stores.
+   *
+   * Idempotent by nature: re-asserting the current value is a successful
+   * no-op, which is what a checkbox PUT/PATCH should be.
+   */
+  app.patch("/api/v1/feeders/me", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+
+    const parsed = z.strictObject({ sosOptIn: z.boolean() }).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          message: "body must be exactly { sosOptIn: boolean }",
+          code: "INVALID_SOS_OPT_IN",
+        },
+      });
+    }
+
+    await query(`UPDATE feeders SET sos_opt_in = $2 WHERE id = $1`, [
+      auth.feederId,
+      parsed.data.sosOptIn,
+    ]);
+    return { ok: true, data: { sosOptIn: parsed.data.sosOptIn } };
   });
 
   /**

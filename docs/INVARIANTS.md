@@ -14,7 +14,7 @@ external build guide that lived outside the repo.
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
-| 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check per device token |
+| 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check — per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
 | 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`** — the head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
@@ -149,11 +149,17 @@ spec PDFs directly. Migrated here so it survives independently of them.
    Without this, the SOS fan-out — which pages real people's phones — becomes
    a free mechanism for paging strangers at will.
 
-   The caps are **calendar** windows, not rolling ones: `sos.ts` counts rows
-   with `received_at >= date_trunc('day'|'week', now())`, so a token can file
-   two reports at 23:58 IST and two more at 00:01. The route's own comment
-   calls them "rolling" — that comment is wrong about its own code; switching
-   to true rolling windows is tracked as a fix for a later wave.
+    The caps are **rolling** windows as of wave 7 (2026-08-24): `sos.ts` counts
+    rows with `received_at >= now() - interval '1 day' / '7 days'`. They were
+    **calendar** windows for most of the system's life —
+    `received_at >= date_trunc('day'|'week', now())` — which let a token file
+    two reports at 23:58 IST and two more at 00:01; the route's comment claimed
+    "rolling" the whole time, so the comment was wrong about its own code until
+    the code was made to match it. Wave 7 also added what INVARIANT 6 always
+    required but this route never had: a per-ACCOUNT cap for feeder-authed
+    callers (previously exempt from every cap), and a global token-bucket on
+    `/devices/token` mints (`lib/rate-limit.ts`), because token minting was
+    itself uncapped and a native solver clears the PoW in ~0.09 s.
 8. **`medical_records` accepts INSERT and nothing else — no UPDATE, no
    DELETE, no TRUNCATE.** A dog's treatment history is evidence: it is what a
    cruelty prosecution or a municipal audit rests on, and a record that can be

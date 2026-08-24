@@ -134,5 +134,31 @@ export const otpPerIdentity = new RateLimiter({ refillPerSec: 1 / 60, burst: 5 }
  */
 export const otpGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 40 }, 1);
 
+/**
+ * Device-token mints, whole system.
+ *
+ * INVARIANT 7's 2/day + 5/week SOS cap is keyed on the attested device, but
+ * the token minting itself was uncapped: token issuance costs one proof-of-work
+ * solve, and at DEVICE_POW_DIFFICULTY=16 a native solver does that in ~0.09 s
+ * (config.ts records the measurement) — so ~950 fresh devices per hour, each
+ * carrying its own untouched SOS budget. The PoW is a throttle, not a bound
+ * (devices.ts says this in its SECURITY NOTES); this bucket is part of what
+ * actually bounds it.
+ *
+ * 200/day sustained against a burst of 20 — deliberately the same scale as
+ * `otpGlobal`, because it answers the same question ("how many anonymous
+ * credentials does a pilot-scale system legitimately need per day?"). Real
+ * demand is a handful of strangers' phones; an attacker burning the whole
+ * budget still faces the per-device SOS caps and has spent real hashing work
+ * for every one of those mints. Like `otpGlobal`, this is per PROCESS — one
+ * API process runs today; see that limiter's note before adding a second.
+ *
+ * Consumed ONLY after a solution verifies (see routes/devices.ts): garbage or
+ * failed attempts must not drain a pool shared by every anonymous visitor, or
+ * one noisy client could lock everyone out of attestation. What is capped is
+ * successful mints — the thing an attacker actually wants.
+ */
+export const deviceTokenGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 20 }, 1);
+
 /** Fixed key for a limiter with a single global bucket. */
 export const GLOBAL_SUBJECT = "global";

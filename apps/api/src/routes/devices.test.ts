@@ -30,6 +30,7 @@ import {
   solvePoW,
   verifyDeviceToken,
 } from "../lib/device.js";
+import { deviceTokenGlobal, GLOBAL_SUBJECT } from "../lib/rate-limit.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -326,5 +327,43 @@ describe("device token canonical encoding (INVARIANT 6/7)", () => {
     // Non-canonical in the signature half too: the signature is compared
     // against a canonically-encoded expected value, so padding it mismatches.
     expect(verifyDeviceToken(`${token}=`, config.HETJA_DEVICE_SECRET)).toBe(false);
+  });
+
+  /**
+   * INVARIANT 7's backstop (wave 7): successful mints draw from one global
+   * bucket, because token minting was itself uncapped and a native solver
+   * clears the PoW in ~0.09 s — the per-device SOS caps are only as good as
+   * the number of devices an attacker can mint. Draining the bucket directly
+   * (rather than solving 20 PoWs) keeps this test about the ROUTE WIRING:
+   * a verified solution with an empty bucket is refused with 429 and mints
+   * nothing.
+   */
+  it("refuses to mint once the global mint budget is exhausted (DEVICE_TOKEN_RATE_LIMITED)", async () => {
+    deviceTokenGlobal.reset();
+    try {
+      for (let i = 0; i < 20; i++) {
+        const decision = deviceTokenGlobal.consume(GLOBAL_SUBJECT);
+        expect(decision.allowed, `drain consume ${i} should succeed`).toBe(true);
+      }
+
+      const app = buildServer(config);
+      const { challenge } = await fetchChallenge(app);
+      const solution = await solvePoW(challenge);
+
+      // The solution is VALID — every check before the bucket would pass.
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/devices/token",
+        payload: { challenge, solution },
+      });
+      expect(res.statusCode).toBe(429);
+      expect(res.json().error.code).toBe("DEVICE_TOKEN_RATE_LIMITED");
+
+      await app.close();
+    } finally {
+      // The bucket is per-process module state shared by this file's other
+      // tests; leaving it drained would turn their happy paths into 429s.
+      deviceTokenGlobal.reset();
+    }
   });
 });

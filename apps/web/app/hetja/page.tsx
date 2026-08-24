@@ -63,14 +63,14 @@ const SONGS: Record<string, Song> = {
   earth: {
     numeral: "ii. earth",
     name: "earth",
-    track: "Ólafur Arnalds · Saman",
-    videoId: "jzcWhWrDnAY",
+    track: "Ólafur Arnalds · Þú ert jörðin",
+    videoId: "dpmxL93Hg_M",
   },
   someday: {
     numeral: "iii. someday",
     name: "someday",
-    track: "Ólafur Arnalds",
-    videoId: "dpmxL93Hg_M",
+    track: "Ólafur Arnalds · Saman",
+    videoId: "jzcWhWrDnAY",
   },
 };
 

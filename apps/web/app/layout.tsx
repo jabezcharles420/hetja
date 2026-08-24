@@ -5,7 +5,7 @@ import { WebVitalsReporter } from "@/components/WebVitalsReporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hetja — Every street has a hero",
+  title: "Hetja · Every street has a hero",
   description:
     "Every street has a hero. Scan a collar, log a feed, and join the feeders, vets, and neighbours who show up for Mumbai's stray dogs.",
   manifest: "/manifest.webmanifest",

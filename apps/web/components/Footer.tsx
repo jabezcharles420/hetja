@@ -32,7 +32,7 @@ export default function Footer({
       <div className="h-container h-footer-inner">
         <Logo href="/" small />
         <p className="h-footer-muted">
-          Every street has a hero — the feeders, vets, and neighbours who show
+          Every street has a hero: the feeders, vets, and neighbours who show
           up for Mumbai&rsquo;s stray dogs.
         </p>
         <nav className="h-footer-links" aria-label="Footer">

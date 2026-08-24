@@ -77,7 +77,7 @@ COMMENT ON COLUMN feeders.can_register IS
   'Exists separately from feeders.role because registrator is self-elected: '
   'revoking the role would be a demotion of a surface the account can simply '
   're-elect, so the real control lives here — disabling it leaves the '
-  ''account''s feeder surface, streak and trust untouched.';
+  'account''s feeder surface, streak and trust untouched.';
 
 -- ---------------------------------------------------------------------------
 -- THE BACKFILL — the most important statement in this file.

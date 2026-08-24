@@ -56,6 +56,104 @@ async function persistScanAssets(
   }
 }
 
+/**
+ * ACTIVATION — flip a self-serve registration out of its inert state.
+ *
+ * A registration made through POST /api/v1/registrations is born
+ * 'pending_activation' and stays invisible to every public surface until
+ * somebody stands at a location with the printed tag and scans it. This
+ * conditional UPDATE is the whole mechanism — the same first-writer-wins
+ * idiom as the sos_cases ack: only the first geotagged scan to reach the row
+ * while it is still pending (or expired) claims it; everyone else's affects
+ * zero rows.
+ *
+ * 'expired' IS INCLUDED DELIBERATELY. A registrator who prints on day 1 and
+ * attaches on day 32 must not have a tag that resolves to a dead record
+ * forever. "Never reused" forbids reassigning a slug to a DIFFERENT dog;
+ * reactivating the same row is not reuse.
+ *
+ * Only geotagged scans activate (the caller gates on `geo`), because the
+ * anti-abuse value of this entire flow is PHYSICAL PRESENCE — proof somebody
+ * was standing next to the animal with the tag. Activation deliberately does
+ * NOT require the same feeder who registered: the first geotagged scan by any
+ * authenticated feeder or attested device counts, and `registered_by` may be
+ * NULL after a DPDP erasure anyway.
+ *
+ * Uses the existing `retag` value of scan_type — its meaning (a tag being
+ * attached/replaced on an animal) is exactly right, and reusing it avoids a
+ * third enum migration.
+ *
+ * Returns the activated dog's slug, or NULL when the dog had nothing to
+ * activate from (already active, deceased, adopted…).
+ */
+async function activatePendingRegistration(
+  client: TxClient,
+  dogId: string,
+  scanId: string,
+): Promise<string | null> {
+  const res = await client.query<{ slug: string }>(
+    `UPDATE dogs
+        SET status = 'active', activated_at = now(), activation_scan_id = $2
+      WHERE id = $1 AND status IN ('pending_activation', 'expired')
+      RETURNING slug`,
+    [dogId, scanId],
+  );
+  return res.rows[0]?.slug ?? null;
+}
+
+/**
+ * CORROBORATION — stamp `dogs.sos_eligible_at` once physical presence has been
+ * demonstrated well enough to page real responders about this dog later.
+ *
+ * Reached when the dog accumulates EITHER two geotagged scans from distinct
+ * subjects OR one geotagged scan by a verified feeder. A "subject" is
+ * `COALESCE(feeder_id::text, 'dev:' || device_token)` — one identity per
+ * account or attested device — so one phone scanning twice does not
+ * corroborate anything. "Verified feeder" resolves to role IN
+ * ('admin','vet','bmc_officer') OR verification_tier = 'verified' (settable
+ * only from the box via cli/grant-verified.ts); trust_score is deliberately
+ * NOT consulted here — see INVARIANTS.md's recorded defect where a single
+ * feed moved a score by 60, making any score-based gate decorative.
+ *
+ * MATERIALISED, NOT DERIVED PER READ. Wave 7 gates the SOS responder fan-out
+ * on `sos_eligible_at IS NOT NULL`. Deriving eligibility at fan-out time would
+ * let it flip back to FALSE — retention NULLs a photo key, a review status
+ * changes — and a fan-out that silently turns itself off is precisely the
+ * failure class docs/INVARIANTS.md keeps recording. So: set once, never
+ * cleared, and the canonical derivation is committed beside the other
+ * documented queries in docs/queries/sos_corroboration.sql so the two cannot
+ * drift apart unobserved (INVARIANT 12 EXPLAINs that file in CI).
+ *
+ * The `sos_eligible_at IS NULL` guard means the aggregate runs only while it
+ * can still change the answer: after the stamp, this is a single-row index
+ * lookup that updates nothing.
+ */
+async function corroborateSosEligibility(client: TxClient, dogId: string): Promise<Date | null> {
+  const res = await client.query<{ sos_eligible_at: Date }>(
+    `UPDATE dogs d
+        SET sos_eligible_at = now()
+      WHERE d.id = $1
+        AND d.sos_eligible_at IS NULL
+        AND (
+              (SELECT count(DISTINCT COALESCE(s.feeder_id::text, 'dev:' || s.device_token))
+                 FROM scans s
+                WHERE s.dog_id = d.id
+                  AND s.geo IS NOT NULL) >= 2
+              OR EXISTS (
+                   SELECT 1
+                     FROM scans s
+                     JOIN feeders f ON f.id = s.feeder_id
+                    WHERE s.dog_id = d.id
+                      AND s.geo IS NOT NULL
+                      AND (f.role IN ('admin', 'vet', 'bmc_officer')
+                           OR f.verification_tier = 'verified'))
+            )
+      RETURNING sos_eligible_at`,
+    [dogId],
+  );
+  return res.rows[0]?.sos_eligible_at ?? null;
+}
+
 export default async function scanRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/scans", async (req: FastifyRequest, reply: FastifyReply) => {
     const deviceToken = req.headers["x-device-token"];
@@ -180,7 +278,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       );
 
       const created = (insertRes.rowCount ?? 0) === 1;
-      if (!created) return { created: false as const, scanId: undefined };
+      if (!created) return { created: false as const, scanId: undefined, activatedSlug: null, sosEligibleAt: null };
 
       const scanId = insertRes.rows[0].id;
       if (geo) await applyLww(client, dog.id, geoWkt(geo.lat, geo.lng), captured, receivedAt);
@@ -192,11 +290,33 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
         );
         await recomputeScore(feederId, client);
       }
-      return { created: true as const, scanId };
+
+      // Activation + corroboration live INSIDE this transaction and INSIDE the
+      // `created` branch, on purpose. INVARIANT 5's replay idempotency then
+      // covers them free of charge: a replayed scan yields created:false above
+      // and can never re-stamp activated_at or re-run corroboration. Both are
+      // geotagged-only — an ungeotagged scan proves a camera, not a location.
+      let activatedSlug: string | null = null;
+      let sosEligibleAt: Date | null = null;
+      if (geo) {
+        activatedSlug = await activatePendingRegistration(client, dog.id, scanId);
+        sosEligibleAt = await corroborateSosEligibility(client, dog.id);
+      }
+      return { created: true as const, scanId, activatedSlug, sosEligibleAt };
     });
 
     if (result.created && result.scanId && photo) {
       void persistScanAssets(app, result.scanId, photo);
+    }
+
+    if (result.activatedSlug) {
+      req.log.info(
+        { dogSlug: result.activatedSlug, scanId: result.scanId },
+        "registration activated by geotagged scan",
+      );
+    }
+    if (result.sosEligibleAt) {
+      req.log.info({ dogId: dog.id }, "sos eligibility corroborated");
     }
 
     return {

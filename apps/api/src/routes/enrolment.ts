@@ -34,9 +34,12 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { generateSlug, isValidSlug, query, withTx } from "@hetja/db";
+import { isValidSlug, query, withTx } from "@hetja/db";
 import { signSlug } from "../lib/hmac.js";
 import { verifyAccessToken } from "../lib/jwt.js";
+// The mint/insert half lives in lib/enrol.ts so this route and the public
+// registrations route cannot drift apart — see that file's header.
+import { collarUrl, createDogWithCollar } from "../lib/enrol.js";
 
 const DogCreateInput = z.object({
   /** BMC ward code, e.g. "K-West". The one field with no sensible default. */
@@ -57,21 +60,6 @@ const CollarReissueInput = z.object({
   /** Why the previous collar is being replaced. Recorded, not enforced. */
   reason: z.string().max(200).optional(),
 });
-
-/**
- * The public origin a collar URL points at.
- *
- * Deliberately NOT derived from the request's Host header: a collar is etched
- * once and glued to an animal, so the URL must be the canonical public origin
- * regardless of which hostname the operator happened to call the API on. An
- * admin who ran this against `127.0.0.1:8080` would otherwise print a thousand
- * tags pointing at loopback.
- */
-const PUBLIC_ORIGIN = (process.env.HETJA_PUBLIC_ORIGIN ?? "https://hetja.in").replace(/\/+$/, "");
-
-function collarUrl(slug: string, sig: string): string {
-  return `${PUBLIC_ORIGIN}/d/${slug}?s=${encodeURIComponent(sig)}`;
-}
 
 /** Bearer auth plus an admin role check. Mirrors moderation.ts exactly. */
 async function requireAdmin(
@@ -104,23 +92,6 @@ async function requireAdmin(
   return { feederId };
 }
 
-/**
- * A slug that is not already taken.
- *
- * `generateSlug` draws from 5 random bytes, so a collision is remote — but
- * "remote" is not "impossible", and the failure mode of a collision here is
- * that two physical collars resolve to the same dog. Retrying a handful of
- * times costs nothing and removes the case entirely.
- */
-async function mintUnusedSlug(attempts = 5): Promise<string> {
-  for (let i = 0; i < attempts; i++) {
-    const slug = generateSlug();
-    const clash = await query(`SELECT 1 FROM dogs WHERE slug = $1`, [slug]);
-    if (clash.rowCount === 0) return slug;
-  }
-  throw new Error(`could not mint an unused slug in ${attempts} attempts`);
-}
-
 export default async function enrolmentRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/dogs", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireAdmin(req, reply);
@@ -134,35 +105,29 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
       });
     }
     const input = parsed.data;
-    const slug = await mintUnusedSlug();
-    const sig = signSlug(slug, app.config.HETJA_QR_SECRET);
 
     // One transaction: a dog without a collar is an unreachable row, and a
     // collar without a dog violates its foreign key. Either both exist or
-    // neither does.
-    const created = await withTx(async (client) => {
-      const dog = await client.query<{ id: string }>(
-        `INSERT INTO dogs (slug, name, sex, approx_age, coat_pattern, temperament, ward_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
-         RETURNING id`,
-        [
-          slug,
-          input.name ?? null,
-          input.sex ?? null,
-          input.approxAge ?? null,
-          input.coatPattern ?? null,
-          input.temperament ?? null,
-          input.wardId,
-        ],
-      );
-      const dogId = dog.rows[0].id;
-      await client.query(
-        `INSERT INTO collars (dog_id, qr_code, hmac_sig, batch_no, material)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [dogId, slug, sig, input.batchNo, input.material],
-      );
-      return dogId;
-    });
+    // neither does. The slug is minted inside the insert (ON CONFLICT retry in
+    // lib/enrol.ts), so uniqueness is the constraint's job, not a SELECT's.
+    const { dogId: created, slug, sig } = await withTx((client) =>
+      createDogWithCollar(
+        client,
+        {
+          name: input.name ?? null,
+          sex: input.sex ?? null,
+          approxAge: input.approxAge ?? null,
+          coatPattern: input.coatPattern ?? null,
+          temperament: input.temperament ?? null,
+          wardId: input.wardId,
+          status: "active",
+          registeredBy: null,
+          registeredDeviceId: null,
+        },
+        { batchNo: input.batchNo, material: input.material },
+        app.config.HETJA_QR_SECRET,
+      ),
+    );
 
     req.log.info({ dogId: created, slug, wardId: input.wardId }, "dog enrolled");
 

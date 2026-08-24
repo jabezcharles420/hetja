@@ -1,8 +1,8 @@
 /**
  * Hetja API — Fastify bootstrap with health endpoint, CORS, and
  * graceful shutdown. Routes are registered per module (auth, devices, dogs,
- * scans, sos, push, medical, ledger, stories, moderation, trust, heatmap,
- * care, territories, gamification, metrics).
+ * enrolment, registrations, scans, sos, push, medical, ledger, stories,
+ * moderation, trust, heatmap, care, territories, gamification, metrics).
  */
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
@@ -13,9 +13,11 @@ import { MAX_PHOTO_BASE64_CHARS } from "@hetja/contracts";
 import { pool } from "@hetja/db";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
+import feederRoutes from "./routes/feeders.js";
 import deviceRoutes from "./routes/devices.js";
 import dogRoutes from "./routes/dogs.js";
 import enrolmentRoutes from "./routes/enrolment.js";
+import registrationRoutes from "./routes/registrations.js";
 import scanRoutes from "./routes/scans.js";
 import sosRoutes from "./routes/sos.js";
 import pushRoutes from "./routes/push.js";
@@ -153,9 +155,13 @@ export function buildServer(config: AppConfig): FastifyInstance {
   }));
 
   void app.register(authRoutes);
+  // routes/feeders.ts was written (GET /feeders/me) but never registered —
+  // the module was dead until the registrator wave needed its surface route.
+  void app.register(feederRoutes);
   void app.register(deviceRoutes);
   void app.register(dogRoutes);
   void app.register(enrolmentRoutes);
+  void app.register(registrationRoutes);
   void app.register(scanRoutes);
   void app.register(sosRoutes);
   void app.register(pushRoutes);

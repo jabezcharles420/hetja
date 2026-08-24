@@ -25,6 +25,57 @@ export type ReviewStatus = z.infer<typeof ReviewStatus>;
 export const FeederRole = z.enum(["feeder", "registrator", "vet", "bmc_officer", "admin"]);
 export type FeederRole = z.infer<typeof FeederRole>;
 
+/**
+ * The raw code tuple, exported beside `BmcWard` for CONSUMERS ON THE OTHER
+ * SIDE OF THE ZOD SPLIT: this package runs zod v4 while apps/api pins
+ * zod@^3.23 (the two never share a runtime instance — see the email-OTP note
+ * below), so an api-side schema cannot embed the v4 `BmcWard` object itself.
+ * Building `z.enum(BMC_WARD_CODES)` locally in apps/api keeps one canonical
+ * list without forcing either side to change its zod major.
+ */
+export const BMC_WARD_CODES = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F-North",
+  "F-South",
+  "G-North",
+  "G-South",
+  "H-East",
+  "H-West",
+  "K-East",
+  "K-West",
+  "L",
+  "M-East",
+  "M-West",
+  "N",
+  "P-North",
+  "P-South",
+  "R-Central",
+  "R-North",
+  "R-South",
+  "S",
+  "T",
+] as const;
+
+// The 24 BMC ward codes, fixed here rather than accepted free-form.
+//
+// dogs.ward_id is free TEXT in the schema, and until this enum existed a
+// registration form let a member of the public type whatever they believed
+// their ward was called: "kwest", "K West", "Kandivali" — three spellings of
+// one place, none of them equal to "K-West", and therefore invisible to every
+// query that filters on the canonical spelling. That matters because the
+// public heatmap keys on this exact column (docs/queries/heatmap.sql,
+// routes/heatmap.ts, and the dogs_ward_ix predicate): a dog filed under a
+// creative spelling simply does not exist as far as the heatmap is concerned.
+// Requiring the enum at the public write path makes ward_id mean something
+// for the first time. The column itself stays free TEXT so existing rows and
+// the admin enrolment path are untouched.
+export const BmcWard = z.enum(BMC_WARD_CODES);
+export type BmcWard = z.infer<typeof BmcWard>;
+
 export const SosSeverity = z.enum(["minor", "serious", "critical"]);
 export type SosSeverity = z.infer<typeof SosSeverity>;
 

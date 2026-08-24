@@ -11,7 +11,10 @@
     "test": "vitest run",
     "admin:grant": "tsx src/cli/grant-admin.ts grant",
     "admin:revoke": "tsx src/cli/grant-admin.ts revoke",
-    "admin:list": "tsx src/cli/grant-admin.ts list"
+    "admin:list": "tsx src/cli/grant-admin.ts list",
+    "verified:grant": "tsx src/cli/grant-verified.ts grant",
+    "verified:revoke": "tsx src/cli/grant-verified.ts revoke",
+    "verified:list": "tsx src/cli/grant-verified.ts list"
   },
   "dependencies": {
     "@fastify/compress": "^9.2.0",

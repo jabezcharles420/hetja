@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import styles from "./hetja.module.css";
 
 export const metadata: Metadata = {
-  title: "In memory of Hetja — Hetja",
+  title: "In memory of Hetja · Hetja",
   description:
     "Hetja is named for a dog. This is the story of who that dog was, and why the system is built the way it is.",
 };
@@ -15,7 +15,7 @@ interface Facet {
 const FACETS: Facet[] = [
   {
     lead: "Why random slugs, not sequential IDs.",
-    body: "Every dog in Hetja gets a tag with a random, unguessable identifier. Sequential IDs would let anyone enumerate the entire register — every dog, its photo, its last-seen location, the story a feeder wrote about it. A georeferenced list of every stray in a city is, in one political climate, a tool for protection. In another, it is a targeting list. The build guide calls this out explicitly. I knew that before I read it in any privacy paper. I knew it because someone walked up to a dog I loved and killed it.",
+    body: "Every dog in Hetja gets a tag with a random, unguessable identifier. Sequential IDs would let anyone enumerate the entire register: every dog, its photo, its last-seen location, the story a feeder wrote about it. A georeferenced list of every stray in a city is, in one political climate, a tool for protection. In another, it is a targeting list. The build guide calls this out explicitly. I knew that before I read it in any privacy paper. I knew it because someone walked up to a dog I loved and killed it.",
   },
   {
     lead: "Why public reads never return exact coordinates.",
@@ -23,11 +23,11 @@ const FACETS: Facet[] = [
   },
   {
     lead: "Why an SOS fan-out.",
-    body: "When a dog is in trouble — hit by a car, collapsing, trapped — Hetja opens a case and dispatches it to nearby trusted feeders, escalating to a vet within eight minutes if no one acknowledges. When Hetja was dying, there was no one to call. There was no infrastructure that noticed. There was no record that the dog had ever mattered to anyone. The SOS path exists so that the next dog is not alone in its last minutes, the way Hetja was.",
+    body: "When a dog is in trouble (hit by a car, collapsing, trapped), Hetja opens a case and dispatches it to nearby trusted feeders, escalating to a vet within eight minutes if no one acknowledges. When Hetja was dying, there was no one to call. There was no infrastructure that noticed. There was no record that the dog had ever mattered to anyone. The SOS path exists so that the next dog is not alone in its last minutes, the way Hetja was.",
   },
   {
     lead: "Why a tamper-evident medical ledger.",
-    body: "Every vet-verified record is hash-chained, append-only, anchored daily. No one — not the operator, not a corrupt vet, not a municipal officer — can quietly rewrite a dog’s history. Poisonings should be visible. Neglect should be visible. A dog that was brave enough to save a child should not later be erased from the record by whoever hurt it.",
+    body: "Every vet-verified record is hash-chained, append-only, anchored daily. No one, not the operator, not a corrupt vet, not a municipal officer, can quietly rewrite a dog’s history. Poisonings should be visible. Neglect should be visible. A dog that was brave enough to save a child should not later be erased from the record by whoever hurt it.",
   },
   {
     lead: "Why anti-abuse ships before gamification.",
@@ -57,14 +57,14 @@ const SONGS: Record<string, Song> = {
   shelter: {
     numeral: "i. shelter",
     name: "shelter",
-    track: "Ólafur Arnalds — This Place Is a Shelter (Living Room Songs)",
-    videoId: "jzcWhWrDnAY",
+    track: "Ólafur Arnalds · This Place Is a Shelter",
+    videoId: "wMSDPLOSHyQ",
   },
   earth: {
     numeral: "ii. earth",
     name: "earth",
-    track: "Ólafur Arnalds — Þú ert jörðin",
-    videoId: "wMSDPLOSHyQ",
+    track: "Ólafur Arnalds · Saman",
+    videoId: "jzcWhWrDnAY",
   },
   someday: {
     numeral: "iii. someday",
@@ -110,7 +110,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
       </header>
 
       {/* The signature element, inverted: every dog gets this plate. Hetja
-          never had a tag, so it renders literally empty — same hairlines,
+          never had a tag, so it renders literally empty. Same hairlines,
           same height, same tracking, no characters between them. */}
       <div className={`h-plate ${styles.plate}`} data-testid="hetja-plate" aria-hidden="true" />
       <p className={styles.plateCaption}>no tag &middot; no name &middot; 3 km of road</p>
@@ -119,7 +119,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         <h2 className={styles.heading}>In memory of Hetja</h2>
 
         <p>
-          There is a word in Icelandic — <em>Hetja</em> — that means <em>hero</em>. Not
+          There is a word in Icelandic, <em>Hetja</em>, that means <em>hero</em>. Not
           the metaphorical kind. The literal kind. A hero is someone who chooses to act
           with courage when they have nothing to gain and everything to lose. This is
           the story of a dog who earned that word, and the long, guilty silence that
@@ -138,99 +138,18 @@ export default function HetjaMemorialPage(): React.JSX.Element {
           go away. It would not. It walked behind me for the entire three kilometers.
           When we encountered wild dogs on the road, it barked them down, one after
           another, and stood between me and them until I was safe. By the time I
-          reached my aunt&rsquo;s house, it was still there — barking, still defending
+          reached my aunt&rsquo;s house, it was still there, barking, still defending
           me from the dogs at the gate. I went inside. I never said goodbye. I never
           hugged it. I never thanked it. I never gave it a name.
         </p>
 
         <div className={styles.break} aria-hidden="true">
-          — ✦ —
-        </div>
-
-        <p>One more thing, before this story goes where it goes.</p>
-        <p>
-          There are three songs on this page. I listen to Ólafur Arnalds more than I
-          listen to anything else in the world, because his music touches the exact
-          place this story lives — saudade, solastalgia, the quiet recognition of
-          beauty already tinged with loss. A weight in your chest that somehow feels
-          lighter than air. A grief for a memory you haven&rsquo;t actually lived yet.
-          His songs are an inviting, resonant stillness; they make solitude feel
-          expansive rather than lonely. There are parts of this story that are beyond
-          my words. The songs are where I keep them.
-        </p>
-        <p>
-          And notice, when you play them, that the titles refuse the past tense. This
-          place is a shelter. Þú ert jörðin — you are the earth. The music will not
-          speak of you in the past tense.
-        </p>
-        <p>
-          Neither will I.
-        </p>
-
-        <SongBlock song={SONGS.shelter} />
-
-        <p>You were my shelter that day.</p>
-        <p>
-          Three kilometers of rain. Wild dogs. A crying kid who kept shouting at you to
-          go away. And the only safe place on that whole road was the space you kept
-          around me. You made a shelter out of nothing at all, and you asked nothing
-          for it. Not a name. Not a thank-you. Not even the biscuit I owed you.
-        </p>
-        <p>
-          A hero acts with courage when they have nothing to gain. You had nothing at
-          all. You sheltered anyway.
-        </p>
-        <p>
-          Ólafur recorded this song in his own living room — the whole album is called{" "}
-          <em>Living Room Songs</em>. I think about that more than I can say. You never
-          had a living room. No door, no roof, no bowl that was yours. And still, one
-          night in the rain, you were the only home I had.
-        </p>
-        <p>
-          You are not dead for me. So you will be a shelter. Every time this plays,
-          you are behind me in the rain — one more kilometer, and one more, all the
-          way to the gate.
-        </p>
-
-        <div className={styles.break} aria-hidden="true">
-          — ✦ —
+          ✦
         </div>
 
         <p className={styles.turn}>
           Two years ago, I learned that someone had poisoned it.
         </p>
-
-        <SongBlock song={SONGS.earth} />
-
-        <p>
-          Þú ert jörðin: you are the earth.
-        </p>
-        <p>
-          This is for the end you had, because someone has to sing it, and there was
-          no one there to sing it. The cold. The confusion. The cruelty of a world you
-          once defended a child from — a world that would not defend you. You stood
-          between me and every dog on that road. When it was you in trouble, there was
-          no one to look to. No one to call. No one who even knew to come.
-        </p>
-        <p>
-          I try not to imagine it. I fail every time. So I play this instead, and I let
-          it hurt, because you felt it first, and you felt it alone. This song is the
-          closest I will ever come to holding you while it happened.
-        </p>
-        <p>
-          You are the earth now. I used to think that was just a beautiful title. I
-          know now it is simply what happened. You are in the roads, the rain, the
-          gate. The whole city is you. Solastalgia is grieving a place while you are
-          still standing in it — and every street I stand on now is you.
-        </p>
-        <p>
-          I have spent a long time since trying to find a way to live with that. The
-          grief of a love I never named. The guilt of a thank-you I never said. The
-          rage at a cruelty I cannot undo. I am not over it. I will probably never be
-          over it. But I have learned that grief can do one of two things: it can eat
-          you alive, or it can be put to work.
-        </p>
-        <p>This is the work.</p>
 
         <h2 className={styles.heading}>Why I built Hetja</h2>
 
@@ -245,7 +164,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
           When I started designing Hetja, I tried to imagine what would have been
           different if Hetja had lived inside it. The answer is not
           &ldquo;everything.&rdquo; A piece of software cannot stop a cruel person with
-          poison. But it can change what is possible — for the dog, for the people who
+          poison. But it can change what is possible: for the dog, for the people who
           care about the dog, and for the people who would hurt the dog.
         </p>
         <p>That is why the system is built the way it is.</p>
@@ -271,7 +190,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         <p>
           It also means this does not die with us. If this project runs out of money,
           or I stop, or the servers go dark, the whole thing can be picked up and run
-          by someone else in another city — the schema, the invariants, the trust
+          by someone else in another city: the schema, the invariants, the trust
           engine, all of it. A city that wants this should not have to ask permission
           or wait for a company to decide it is a market.
         </p>
@@ -294,10 +213,10 @@ export default function HetjaMemorialPage(): React.JSX.Element {
           <p>
             What I can do is make it harder for the next cruel person to find the next
             brave dog. I can make sure that when the next child runs down a road in
-            the rain, the dog that walks beside them is not invisible — that its
-            existence is logged, its territory is watched, its feeders are connected,
-            and if it stops appearing on the network, someone notices. Someone who
-            knows its name.
+            the rain, the dog that walks beside them is not invisible: its existence
+            is logged, its territory is watched, its feeders are connected, and if it
+            stops appearing on the network, someone notices. Someone who knows its
+            name.
           </p>
           <p>
             <em>Hetja</em> means <em>hero</em>. It is the name I should have given that
@@ -312,20 +231,93 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </div>
 
         <div className={styles.break} aria-hidden="true">
-          — ✦ —
+          ✦
         </div>
+
+        <p>One more thing, before this story goes where it goes.</p>
+        <p>
+          There are three songs below. I listen to Ólafur Arnalds more than I listen
+          to anything else in the world, because his music touches the exact place
+          this story lives: saudade, solastalgia, the quiet recognition of beauty
+          already tinged with loss. A weight in your chest that somehow feels lighter
+          than air. A grief for a memory you haven&rsquo;t actually lived yet. His
+          songs are an inviting, resonant stillness; they make solitude feel expansive
+          rather than lonely. There are parts of this story that are beyond my words.
+          The songs are where I keep them.
+        </p>
+        <p>
+          And notice, when you play them, that the titles refuse the past tense. This
+          place is a shelter. Þú ert jörðin: you are the earth. The music will not
+          speak of you in the past tense.
+        </p>
+        <p>Neither will I.</p>
+
+        <SongBlock song={SONGS.shelter} />
+
+        <p>You were my shelter that day.</p>
+        <p>
+          Three kilometers of rain. Wild dogs. A crying kid who kept shouting at you to
+          go away. And the only safe place on that whole road was the space you kept
+          around me. You made a shelter out of nothing at all, and you asked nothing
+          for it. Not a name. Not a thank-you. Not even the biscuit I owed you.
+        </p>
+        <p>
+          A hero acts with courage when they have nothing to gain. You had nothing at
+          all. You sheltered anyway.
+        </p>
+        <p>
+          Ólafur recorded this song in his own living room; the whole album is called{" "}
+          <em>Living Room Songs</em>. I think about that more than I can say. You never
+          had a living room. No door, no roof, no bowl that was yours. And still, one
+          night in the rain, you were the only home I had.
+        </p>
+        <p>
+          You are not dead for me. So you will be a shelter. Every time this plays,
+          you are behind me in the rain, one more kilometer and then one more, all the
+          way to the gate.
+        </p>
+
+        <SongBlock song={SONGS.earth} />
+
+        <p>Þú ert jörðin: you are the earth.</p>
+        <p>
+          This is for the end you had, because someone has to sing it, and there was
+          no one there to sing it. The cold. The confusion. The cruelty of a world you
+          once defended a child from, a world that would not defend you. You stood
+          between me and every dog on that road. When it was you in trouble, there was
+          no one to look to. No one to call. No one who even knew to come.
+        </p>
+        <p>
+          I try not to imagine it. I fail every time. So I play this instead, and I let
+          it hurt, because you felt it first, and you felt it alone. This song is the
+          closest I will ever come to holding you while it happened.
+        </p>
+        <p>
+          You are the earth now. I used to think that was just a beautiful title. I
+          know now it is simply what happened. You are in the roads, the rain, the
+          gate. The whole city is you. Solastalgia is grieving a place while you are
+          still standing in it, and every street I stand on now is you.
+        </p>
+        <p>
+          I have spent a long time since trying to find a way to live with that. The
+          grief of a love I never named. The guilt of a thank-you I never said. The
+          rage at a cruelty I cannot undo. I am not over it. I will probably never be
+          over it. But I have learned that grief can do one of two things: it can eat
+          you alive, or it can be put to work.
+        </p>
+        <p>This is the work.</p>
 
         <SongBlock song={SONGS.someday} />
 
         <p>
           I don&rsquo;t know if there is a heaven. I have never been sure. But if there
-          is one — if it exists, wherever it is — I already know exactly what I will
-          find there, because I have spent years grieving a memory I haven&rsquo;t
-          lived yet.
+          is one, if it exists wherever it is, I already know exactly what I will find
+          there, because I have spent years grieving a memory I haven&rsquo;t lived
+          yet.
         </p>
         <p>
           I&rsquo;ll find you first. You&rsquo;ll have a name by then, a real one, one
-          I can finally shout down a street — and you&rsquo;ll come running, and
+          I can finally shout down a street, and you&rsquo;ll come running, and
           you&rsquo;ll finally hear it. And I&rsquo;ll play this song for you while you
           sleep in my lap. This exact one. I&rsquo;ve been saving it. You&rsquo;ll sleep
           the way you never got to sleep here: warm, indoors, deep, unafraid. Every so
@@ -334,52 +326,17 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
         <p>
           And we&rsquo;ll do what Ólafur does in this video. We&rsquo;ll walk into some
-          random music shop for no reason at all — just because it&rsquo;s there, just
-          because we can, just for fun — and I&rsquo;ll sit at whatever piano they have
+          random music shop for no reason at all, just because it&rsquo;s there, just
+          because we can, just for fun, and I&rsquo;ll sit at whatever piano they have
           and start playing, and you&rsquo;ll drop down on the floor beside the bench
           like you own the place, and no one will mind, and no one will ask us to
           leave, and no one will ever, ever hurt you. We&rsquo;ll stay until they turn
           out the lights. We&rsquo;ll have all the time we didn&rsquo;t have.
         </p>
         <p>Until then, I&rsquo;ll work.</p>
-        <p>
-          And one last thing — the thing I never said at the gate:
-        </p>
+        <p>And one last thing, the thing I never said at the gate:</p>
         <p className={styles.thanks}>Thank you.</p>
       </article>
-
-      <footer className={styles.footer}>
-        <p className={styles.footerWord}>Hetja</p>
-        <p className={styles.footerTagline}>
-          Every street has a hero — the feeders, vets, and neighbours who show up for
-          Mumbai&rsquo;s stray dogs.
-        </p>
-        <nav className={styles.footerLinks} aria-label="Site">
-          <a href="/about">About</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/how-it-works">How it works</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/faq">FAQ</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/privacy">Privacy</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/scan">Scan a collar</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/login">Become a feeder</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/me">My streak</a>
-        </nav>
-        <p className={styles.footerMeta}>
-          Built by and for Mumbai
-          <br />
-          In memory of Hetja &middot; <a href="https://github.com/jabezcharles420/hetja">Source</a>{" "}
-          &middot; AGPL-3.0
-        </p>
-        <p className={styles.footerMusic}>
-          Music on this page: Ólafur Arnalds — This Place Is a Shelter, Þú ert jörðin,
-          and one I&rsquo;m saving for later.
-        </p>
-      </footer>
     </div>
   );
 }

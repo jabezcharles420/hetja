@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Hetja">
-  <rect width="512" height="512" fill="#ffffff"/>
-  <circle cx="256" cy="256" r="220" fill="none" stroke="#111111" stroke-width="10"/>
-  <g fill="#111111">
+  <circle cx="256" cy="256" r="248" fill="#ffffff"/>
+  <circle cx="256" cy="256" r="236" fill="#111111"/>
+  <g fill="#ffffff">
     <circle cx="176" cy="192" r="42" />
     <circle cx="256" cy="154" r="45" />
     <circle cx="336" cy="192" r="42" />

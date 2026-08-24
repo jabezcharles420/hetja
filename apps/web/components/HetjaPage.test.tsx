@@ -26,5 +26,26 @@ describe("Hetja memorial page", () => {
     expect(plate.textContent).toBe("");
     expect(plate.children.length).toBe(0);
     expect(screen.getByText(/no tag/)).toBeTruthy();
+    // The road was three kilometers. It has always been three kilometers.
+    expect(screen.getByText(/3 km of road/)).toBeTruthy();
+  });
+
+  it("scores the three songs, each with a privacy-hardened embed", () => {
+    render(createElement(HetjaMemorialPage));
+    for (const name of ["shelter", "earth", "someday"]) {
+      expect(screen.getByTestId(`song-${name}`)).toBeTruthy();
+    }
+    const iframes = screen.getAllByTitle(/Ólafur Arnalds/);
+    expect(iframes.length).toBe(3);
+    for (const frame of iframes) {
+      const el = frame as HTMLIFrameElement;
+      expect(el.getAttribute("src")).toMatch(/^https:\/\/www\.youtube-nocookie\.com\/embed\//);
+      expect(el.getAttribute("loading")).toBe("lazy");
+    }
+  });
+
+  it("closes with the thank-you that was never said at the gate", () => {
+    render(createElement(HetjaMemorialPage));
+    expect(screen.getByText("Thank you.")).toBeTruthy();
   });
 });

@@ -132,3 +132,114 @@
   margin-top: var(--h-s7);
   text-align: center;
 }
+
+/* --- Movements ---
+ * The essay is scored, not sectioned: a centred ✦ hairline marks each
+ * movement the way a recording side turns over. Ink-muted; never an accent. */
+.break {
+  text-align: center;
+  color: var(--h-ink-muted);
+  letter-spacing: 0.35em;
+  font-size: var(--h-t-sm);
+  margin: var(--h-s8) auto;
+}
+
+/* The sentence that turns the story — given its own silence around it. */
+.turn {
+  font-size: var(--h-t-lg);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* --- Songs --- */
+
+.song {
+  margin: var(--h-s7) 0;
+}
+
+.songHeading {
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
+  color: var(--h-ink);
+  margin: 0 0 var(--h-s2);
+}
+
+/* The ▶ track line doubles as the accessible name of the iframe below it. */
+.songTrack {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  letter-spacing: 0.02em;
+  margin: 0 0 var(--h-s3);
+}
+
+.embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: var(--h-hairline) solid var(--h-rule);
+  background: transparent;
+}
+
+.embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.thanks {
+  font-size: var(--h-t-xl);
+  font-style: italic;
+  text-align: center;
+  margin: var(--h-s7) 0;
+}
+
+/* --- Footer --- */
+
+.footer {
+  margin-top: var(--h-s8);
+  padding-top: var(--h-s7);
+  border-top: var(--h-hairline) solid var(--h-rule);
+  text-align: center;
+}
+
+.footerWord {
+  font-family: var(--h-font);
+  font-size: var(--h-t-xl);
+  font-weight: var(--h-w-semibold);
+  color: var(--h-ink);
+  margin: 0;
+}
+
+.footerTagline {
+  color: var(--h-ink);
+  font-size: var(--h-t-md);
+  max-width: 44ch;
+  margin: var(--h-s3) auto 0;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: var(--h-s3);
+  row-gap: var(--h-s2);
+  margin-top: var(--h-s5);
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+}
+
+.footerMeta {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-sm);
+  line-height: 1.7;
+  margin-top: var(--h-s5);
+}
+
+.footerMusic {
+  color: var(--h-ink-muted);
+  font-size: var(--h-t-xs);
+  letter-spacing: 0.02em;
+  margin-top: var(--h-s4);
+}

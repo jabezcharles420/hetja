@@ -1,0 +1,133 @@
+.page {
+  padding: var(--h-s7) var(--h-gutter);
+}
+
+.muted {
+  color: var(--h-ink-muted);
+  padding: var(--h-s6) var(--h-gutter);
+}
+
+.error {
+  color: var(--h-accent);
+  font-weight: var(--h-w-semibold);
+}
+
+.back {
+  color: var(--h-ink-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sheetPage {
+  padding: var(--h-s5) var(--h-gutter) var(--h-s7);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--h-s3);
+  margin-bottom: var(--h-s5);
+  align-items: center;
+}
+
+.printBtn {
+  min-height: var(--h-target);
+  background: var(--h-accent);
+  color: var(--h-base);
+  border: none;
+  border-radius: var(--h-radius-fill);
+  padding: 0 var(--h-s5);
+  font-weight: var(--h-w-semibold);
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  border: var(--h-hairline) solid var(--h-rule);
+  padding: var(--h-s6);
+  max-width: 420px;
+  background: var(--h-base);
+  color: var(--h-ink);
+}
+
+/* Cut lines: hairline cross at corners */
+.cutLines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.qrWrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--h-s4) 0;
+}
+
+.qr {
+  line-height: 0;
+}
+
+.qr svg {
+  display: block;
+}
+
+.plate {
+  --h-num-tabular: "tnum" 1, "lnum" 1;
+  margin-top: var(--h-s4);
+  justify-content: center;
+  text-align: center;
+  letter-spacing: 0.12em;
+}
+
+.meta {
+  font-size: var(--h-t-xs);
+  color: var(--h-ink-muted);
+  word-break: break-all;
+  margin-top: var(--h-s3);
+  text-align: center;
+}
+
+.selfCheck {
+  font-size: var(--h-t-xs);
+  color: var(--h-ink-muted);
+  margin-top: var(--h-s2);
+  text-align: center;
+}
+
+.note {
+  font-size: var(--h-t-sm);
+  color: var(--h-ink-muted);
+  margin-top: var(--h-s4);
+  text-align: center;
+}
+
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  .toolbar {
+    display: none !important;
+  }
+
+  .sheetPage {
+    padding: 0;
+  }
+
+  .sheet {
+    border: none;
+    max-width: none;
+  }
+
+  /* Hide site chrome that can still mount as client components */
+  :global(header),
+  :global(footer),
+  :global(nav) {
+    display: none !important;
+  }
+}
+
+/* Ensure colours print as specified */
+.sheet {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}

@@ -291,6 +291,56 @@ export interface StreakData {
   badges: string[];
 }
 
+export type RegistrationStatus = "pending_activation" | "active" | "expired" | "lost" | "deceased" | "adopted" | "relocated";
+
+export interface RegistrationSummary {
+  slug: string;
+  status: string;
+  wardId: string;
+  registeredAt?: string;
+  expiresAt?: string;
+}
+
+export interface RegistrationDetail {
+  slug: string;
+  status: string;
+  wardId: string;
+  registeredAt: string | null;
+  expiresAt?: string;
+  collarUrl: string;
+}
+
+export interface CreateRegistrationInput {
+  wardId: string;
+  name?: string;
+  sex?: "male" | "female" | "unknown";
+  approxAge?: number;
+  coatPattern?: string;
+  temperament?: string;
+  batchNo?: string;
+  material?: string;
+}
+
+export interface CreateRegistrationResult {
+  slug: string;
+  status: RegistrationStatus;
+  wardId: string;
+  registeredAt: string;
+  expiresAt: string;
+  collarUrl: string;
+  budget: { pending: number; max: number };
+}
+
+export interface FeederMe {
+  feederId: string;
+  email: string;
+  role: string;
+  verificationTier: string;
+  canRegister: boolean;
+  registrationBudget: { pending: number; max: number };
+  capabilities: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Typed endpoints
 // ---------------------------------------------------------------------------
@@ -366,7 +416,7 @@ export const api = {
    * retrying them forever. See lib/offline-queue.ts and components/FeedButton.tsx.
    */
   createScan: (
-    input: { clientUuid: string; dogSlug: string; type: "feed"; geo?: GeoPoint; photoBase64?: string; capturedAt: string },
+    input: { clientUuid: string; dogSlug: string; type: "feed" | "retag"; geo?: GeoPoint; photoBase64?: string; capturedAt: string },
     opts: { deviceToken?: string } = {},
   ) => request<ScanResult>(`/scans`, { method: "POST", body: input, deviceToken: opts.deviceToken }),
 
@@ -394,4 +444,30 @@ export const api = {
 
   /** Feeder self-service: trust score, streak days and badges. */
   getStreak: () => request<StreakData>(`/feeders/me/streak`),
+
+  /** Registration: create a new dog registration (needs x-device-token). */
+  createRegistration: (input: CreateRegistrationInput, deviceToken?: string) =>
+    request<CreateRegistrationResult>(`/registrations`, {
+      method: "POST",
+      body: input,
+      deviceToken,
+    }),
+
+  /** Caller’s own registrations (ward + status). */
+  getRegistrations: () => request<{ registrations: RegistrationSummary[] }>(`/registrations`),
+
+  /** One registration including the signed collar URL (behind auth, ownership-checked). */
+  getRegistration: (slug: string) =>
+    request<RegistrationDetail>(`/registrations/${encodeURIComponent(slug)}`),
+
+  /** Feeder self (role, canRegister, budgets). */
+  getFeederMe: () =>
+    request<FeederMe>(`/feeders/me`),
+
+  /** Self-elect the registrator surface. */
+  electRegisterSurface: () =>
+    request<{ role: string }>(`/feeders/me/surface`, {
+      method: "POST",
+      body: { surface: "register" },
+    }),
 };

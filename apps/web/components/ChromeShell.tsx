@@ -23,7 +23,13 @@ import { InstallBanner } from "./InstallBanner";
  * to reserve the nav's height. Hence clearBottomNav below.
  */
 function isBareRoute(pathname: string): boolean {
-  return pathname.startsWith("/dog/");
+  if (pathname.startsWith("/dog/")) return true;
+  // Print sheet is a physical artefact — a fixed bottom nav printed across a
+  // collar sheet is a wasted sheet of TPU. Hide chrome on the print route
+  // (and in print CSS — InstallBanner is a client component that can still
+  // mount after hydration).
+  if (pathname.startsWith("/register/") && pathname.endsWith("/print")) return true;
+  return false;
 }
 
 export function ChromeShell({

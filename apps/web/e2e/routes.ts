@@ -20,6 +20,7 @@ export const STATIC_ROUTES = [
   "/faq",
   "/how-it-works",
   "/contact",
+  "/register",
 ] as const;
 
 /* The absolute floor for a horizontal gutter, independent of what the design

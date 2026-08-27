@@ -52,7 +52,67 @@ function Step({
   );
 }
 
-export default function LandingPage(): React.JSX.Element {
+/**
+ * Live Impact stats for the landing strip.
+ *
+ * Fetched server-side with ISR (revalidate 60s) so a DB hiccup never
+ * breaks the landing — the catch returns null and the caller renders
+ * honest placeholders "—" instead (docs/HOW-IT-WORKS.md §10: "the
+ * system is allowed to know less than it wants to, but not allowed to
+ * claim more than it knows"). The API itself is also cached 60s
+ * (apps/api/src/routes/stats.ts) so the two layers age out together.
+ *
+ * No auth, no geo — the endpoint returns three integers only
+ * (INVARIANT 2 coarsening), so this fetch carries no PII and needs no
+ * header.
+ */
+interface ImpactStats {
+  dogsTracked: number;
+  feedsLogged: number;
+  livesTouched: number;
+}
+
+async function getImpactStats(): Promise<ImpactStats | null> {
+  // NEXT_PUBLIC_API_URL is inlined at build time for the browser, but
+  // on the server we can also read it at runtime. Fall back to the
+  // local dev default so `next dev` works without env.
+  const origin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
+  const url = `${origin}/api/v1/stats/impact`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      ok?: boolean;
+      data?: ImpactStats;
+    };
+    if (json.ok !== true || !json.data) return null;
+    const { dogsTracked, feedsLogged, livesTouched } = json.data;
+    // Defensive: ensure they are finite numbers before rendering.
+    if (
+      typeof dogsTracked !== "number" ||
+      typeof feedsLogged !== "number" ||
+      typeof livesTouched !== "number" ||
+      !Number.isFinite(dogsTracked) ||
+      !Number.isFinite(feedsLogged) ||
+      !Number.isFinite(livesTouched)
+    ) {
+      return null;
+    }
+    return { dogsTracked, feedsLogged, livesTouched };
+  } catch {
+    return null;
+  }
+}
+
+export default async function LandingPage(): Promise<React.JSX.Element> {
+  const stats = await getImpactStats();
+
+  // Fallback to "—" on any fetch failure so a DB hiccup does not break
+  // the landing. Matches the previous hardcoded placeholders exactly.
+  const dogsTracked = stats ? String(stats.dogsTracked) : "—";
+  const feedsLogged = stats ? String(stats.feedsLogged) : "—";
+  const livesTouched = stats ? String(stats.livesTouched) : "—";
+
   return (
     <>
       <section className="h-hero">
@@ -94,9 +154,9 @@ export default function LandingPage(): React.JSX.Element {
 
       <section className="h-stats" aria-label="Impact">
         <div className="h-container h-stats-row">
-          <Stat value="—" label="dogs tracked" />
-          <Stat value="—" label="feeds logged" />
-          <Stat value="—" label="lives touched" />
+          <Stat value={dogsTracked} label="dogs tracked" />
+          <Stat value={feedsLogged} label="feeds logged" />
+          <Stat value={livesTouched} label="lives touched" />
         </div>
       </section>
 

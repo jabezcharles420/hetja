@@ -31,6 +31,7 @@ import careRoutes from "./routes/care.js";
 import territoryRoutes from "./routes/territories.js";
 import gamificationRoutes from "./routes/gamification.js";
 import metricsRoutes from "./routes/metrics.js";
+import statsRoutes from "./routes/stats.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -175,6 +176,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(territoryRoutes);
   void app.register(gamificationRoutes);
   void app.register(metricsRoutes);
+  void app.register(statsRoutes);
 
   return app;
 }

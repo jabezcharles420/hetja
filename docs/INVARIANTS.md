@@ -264,10 +264,15 @@ in the table above:
   | Re-tag gate (this section) | 50 | 20 |
   | SOS fan-out floor, critical (`sos.ts`) | 60 | 30 |
 
-  This restores the "+1 per action" economics the paragraph above reasons
+   This restores the "+1 per action" economics the paragraph above reasons
   from: a feed scan is self-reported (review_status starts `'pending'`), so it
   earns less than any verification-backed event, and a rescue ack
-  (`sos_ack +20`) stays worth twenty routine feeds. Because scores are derived
+  (`sos_ack +20`) stays worth twenty routine feeds. Full catalog now
+  (exactly `apps/api/src/lib/trust.ts` `TRUST_EVENTS`): `TRUST_BASELINE=30`,
+  `feed +1`, `verified_scan +10`, `photo_accepted +10`, `sos_ack +20`,
+  `photo_rejected -5`, `story_rejected -5`, `serial_rejects -15`,
+  `auto_paused 0`, `reversal 0` (`TRUST_MIN=0`, `TRUST_MAX=100`,
+  `SERIAL_REJECT_PAUSE_THRESHOLD=3`). Because scores are derived
   — `recomputeScore()` replays `trust_events` from `TRUST_BASELINE` — the
   correction needed no migration; and zero feeder rows existed in production,
   so nothing rescaled mid-flight.

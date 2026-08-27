@@ -289,6 +289,13 @@ coordinates unreachable from the anon key, writes only through
 `SECURITY DEFINER` RPCs that check the slug signature. It is not currently
 serving reads; the plan is to repoint after the VPS itself moves to India, so
 the app and its database are not on opposite sides of the planet.
+`ops/supabase/01_schema.sql` is a hand-maintained mirror and is currently
+several migrations behind `packages/db/migrations` (last synchronized through
+`0009_care_geo_precision.sql`; does not include `0010` through `0020` and later)
+— the authoritative schema is the migrations applied to the local cluster.
+The drift is tolerated because the mirror serves no reads (see also
+`docs/FEATURE-GUIDE.md` §1), but it must be regenerated (`pg_dump
+--no-privileges`, requalified per `ops/supabase/README.md`) before repointing.
 
 Four systemd units (`hetja-api`, `hetja-web`, `hetja-worker`, `hetja-scan`)
 keep things alive. They exist because the web app was previously running inside
@@ -441,13 +448,33 @@ for macOS.
 - The first-aid instruction card is behind `FIRST_AID_ENABLED=false` until a
   practising vet signs off the wording. Bad first-aid advice given to a
   frightened stranger can kill a dog faster than doing nothing.
+- `validate_scan` has **no producer**. Nothing enqueues it, so `ai_validation`
+  stays `NULL`, `review_status` stays `pending` forever, and INVARIANT 15's
+  gate can never fire from real AI output. It is recorded in
+  `apps/worker/src/index.ts` `JOB_PRODUCERS` as `NONE -- see docs/INVARIANTS.md`
+  rather than pretended.
+- `ledger_anchors.published_url` is **`''`**, so INVARIANT 10 is not satisfied.
+  The daily anchor is computed, Merkle-rooted and signed when a key is
+  configured, but only ever held by us — and the invariant's whole point is a
+  head published somewhere the operator does not solely control. `anchorMessage()`
+  in `@hetja/ledger` exists to give a deterministic payload for that still-missing
+  third-party publication.
+- `STORAGE_BACKEND=s3` has **no delete path** in this build. The retention
+  handler logs and returns, so photos are retained forever when that backend is
+  selected. The `local` path is the only one that actually deletes.
 - 93 `care_providers` are listed (25 curated + 68 imported from the maintainer's
   2026-08 verified Mumbai CSV); 43 carry phone numbers, none claimed verified
   (`phone_verified_at` stays NULL — the honesty rule in migration 0008).
 - Most `care_providers` coordinates are locality estimates, not geocoded
-  points (12 exact-geocoded as of the 2026-08-14 import).
-  See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap the
-  incoming government vet database is meant to close.
+  points (12 exact as of the 2026-08-14 import, 81 `locality`). Every
+  `phone_verified_at` is `NULL` — nobody has called these numbers — and
+  every `locality` row's `distanceM` is `null` by contract rather than a
+  confident 0 m. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap
+  the incoming government vet database is meant to close.
+- All four databases are **`SQL_ASCII` / `C` collation**. The Supabase
+  mirror's `glibc` collation on the live box is `C`; moving to Devanagari
+  dog or feeder names will bite on ordering and case-folding. It is recorded
+  rather than fixed: changing collation is a dump-and-restore.
 - `DEVICE_POW_DIFFICULTY` is **16**, capped at 20. It went 14 → 18 on 2026-08-13 (enhancement stack Phase 0 #6) and 18 → 16 on 2026-08-14, which needs explaining because it reads like a retreat.
 
   ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits — so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead — the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.

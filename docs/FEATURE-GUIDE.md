@@ -163,9 +163,15 @@ exists and where.*
 Caddy (`ops/caddy/Caddyfile`) is the only thing reachable from outside and is
 fronted by a Cloudflare Tunnel — the box has no inbound ports open. The
 authoritative database is local PostgreSQL (PostGIS, pgvector, pgcrypto);
-Supabase holds a hardened mirror schema whose `01_schema.sql` is currently
-several migrations behind `packages/db/migrations` (see header there) and serves
-no reads.
+Supabase holds a hardened mirror schema whose `ops/supabase/01_schema.sql` is
+hand-maintained and is currently several migrations behind
+`packages/db/migrations` — last synchronized through
+`0009_care_geo_precision.sql`; it does not include `0010_identity_email.sql`
+through `0020_sos_network_indexes.sql` and later (authoritative schema is
+`packages/db/migrations/*.sql`). It serves no reads (see `docs/HOW-IT-WORKS.md`
+§7), so the drift does not break production but must be reconciled before
+repointing (regenerate via `pg_dump --no-privileges` per
+`ops/supabase/README.md` § "Schema differences").
 
 ### 2. Every API route
 

@@ -183,26 +183,43 @@ interface PushSubRow {
 }
 
 /**
- * Sends one VAPID-signed push. Writes delivered_at on success. A 404/410
- * response means the push service itself says this endpoint is dead (the
- * user uninstalled, cleared storage, or the browser rotated it) -- that
- * subscription is deleted so it is never retried again. Any other failure
- * leaves delivered_at null: an honest "not delivered", not an error to
- * retry-loop on here (the 8-min escalation job is the real safety net).
+ * Low-level VAPID send — honours PUSH_ENABLED and cleans up dead endpoints.
+ *
+ * Separated so reminder pushes (`send_registration_reminder`) can share the
+ * same delivery logic without fabricating an `sos_notifications` row. The
+ * SOS path layers its receipt on top via `sendOnePush` below.
+ *
+ * Returns true on a successful send, false otherwise (including PUSH_ENABLED
+ * degrade — missing VAPID → do not send, do not crash the queue).
  */
-async function sendOnePush(sub: PushSubRow, notificationId: string, payload: string): Promise<void> {
+async function sendPush(sub: PushSubRow, payload: string): Promise<boolean> {
+  if (!PUSH_ENABLED) return false;
   try {
     await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
-    await query(`UPDATE sos_notifications SET delivered_at = now() WHERE id = $1`, [notificationId]);
+    return true;
   } catch (err) {
     const statusCode = (err as { statusCode?: number } | null | undefined)?.statusCode;
     if (statusCode === 404 || statusCode === 410) {
       await query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]);
     }
+    return false;
   }
 }
 
-const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
+/**
+ * Sends one VAPID-signed push for the SOS fan-out. Writes delivered_at on
+ * success. Thin wrapper around `sendPush` that adds the sos_notifications
+ * receipt — kept separate so the reminder path does not fabricate an SOS
+ * notification row.
+ */
+async function sendOnePush(sub: PushSubRow, notificationId: string, payload: string): Promise<void> {
+  const delivered = await sendPush(sub, payload);
+  if (delivered) {
+    await query(`UPDATE sos_notifications SET delivered_at = now() WHERE id = $1`, [notificationId]);
+  }
+}
+
+export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   validate_scan: async (p) => {
     // Phase 0 stub: AI worker (apps/ai) performs YOLO validation asynchronously.
     // Production: enqueue to the AI worker and write back ai_validation JSONB.
@@ -428,6 +445,118 @@ const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   anchor_ledger: async () => {
     await withTx(publishLedgerAnchor);
   },
+
+  /**
+   * Expiry sweep for stale self-serve registrations (wave 9).
+   *
+   * One withTx, three passes — reminders before expiry, so a registration
+   * crossing day 30 in the same run has already had both:
+   *   1. day  7: activation_reminders_sent 0 → 1
+   *   2. day 21: activation_reminders_sent 1 → 2
+   *   3. expire: status='pending_activation' AND registered_at <= now()-30d
+   *              → status='expired', registered_device_id=NULL, retire collar
+   *
+   * Each reminder pass carries AND activation_reminders_sent = N-1 so a job
+   * that runs twice reminds once. Reminders are handed off as their own
+   * send_registration_reminder jobs, not sent inline, so a push failure retries
+   * independently — the shape sos.ts already uses for send_sos_push.
+   */
+  expire_stale_registrations: async () => {
+    await withTx(async (client) => {
+      // Pass 1: day 7 — first reminder (0 → 1)
+      const r7 = await client.query<{ id: string; slug: string }>(
+        `UPDATE dogs
+            SET activation_reminders_sent = 1
+          WHERE status = 'pending_activation'
+            AND registered_at <= now() - interval '7 days'
+            AND activation_reminders_sent = 0
+          RETURNING id, slug`,
+      );
+      for (const row of r7.rows) {
+        await client.query(
+          `INSERT INTO jobs (kind, payload, run_after)
+           VALUES ('send_registration_reminder', $1::jsonb, now())`,
+          [JSON.stringify({ dogId: row.id, slug: row.slug, reminder: 1 })],
+        );
+      }
+
+      // Pass 2: day 21 — second reminder (1 → 2)
+      const r21 = await client.query<{ id: string; slug: string }>(
+        `UPDATE dogs
+            SET activation_reminders_sent = 2
+          WHERE status = 'pending_activation'
+            AND registered_at <= now() - interval '21 days'
+            AND activation_reminders_sent = 1
+          RETURNING id, slug`,
+      );
+      for (const row of r21.rows) {
+        await client.query(
+          `INSERT INTO jobs (kind, payload, run_after)
+           VALUES ('send_registration_reminder', $1::jsonb, now())`,
+          [JSON.stringify({ dogId: row.id, slug: row.slug, reminder: 2 })],
+        );
+      }
+
+      // Pass 3: expire — 30 days without activation
+      const expired = await client.query<{ id: string }>(
+        `UPDATE dogs
+            SET status = 'expired', registered_device_id = NULL
+          WHERE status = 'pending_activation'
+            AND registered_at <= now() - interval '30 days'
+          RETURNING id`,
+      );
+      for (const row of expired.rows) {
+        await client.query(
+          `UPDATE collars SET retired_at = now(), status = 'retired'
+            WHERE dog_id = $1 AND retired_at IS NULL`,
+          [row.id],
+        );
+      }
+      if (r7.rowCount || r21.rowCount || expired.rowCount) {
+        console.log(
+          `expire_stale_registrations: reminders day7=${r7.rowCount} day21=${r21.rowCount} expired=${expired.rowCount}`,
+        );
+      }
+    });
+  },
+
+  /**
+   * Sends a registration reminder push to the registrator who filed the
+   * pending registration. Handed off from expire_stale_registrations so a
+   * push failure retries independently.
+   *
+   * Honours PUSH_ENABLED degrade: missing VAPID → do not send, do not crash.
+   * Does NOT fabricate an sos_notifications row — uses sendPush directly.
+   */
+  send_registration_reminder: async (p) => {
+    if (!PUSH_ENABLED) return;
+    const dogId = (p as { dogId?: string })?.dogId;
+    if (!dogId) return;
+    const dogRes = await query<{ registered_by: string | null; slug: string }>(
+      `SELECT registered_by, slug FROM dogs WHERE id = $1`,
+      [dogId],
+    );
+    const dog = dogRes.rows[0];
+    if (!dog?.registered_by) return;
+    const subs = await query<PushSubRow>(
+      `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE feeder_id = $1`,
+      [dog.registered_by],
+    );
+    if (subs.rowCount === 0) return;
+    const reminder = (p as { reminder?: number })?.reminder ?? 1;
+    const isSecond = reminder === 2;
+    const payload = JSON.stringify({
+      title: "Hetja reminder",
+      body: isSecond
+        ? `Your tag for ${dog.slug} is still not attached after 21 days — it expires in 9 days. Scan it at the dog to activate.`
+        : `Your tag for ${dog.slug} is still pending — scan it at the dog to activate before it expires.`,
+      url: `/register/${dog.slug}/print`,
+      tag: `registration-${dogId}-${reminder}`,
+    });
+    for (const sub of subs.rows) {
+      await sendPush(sub, payload);
+    }
+  },
 };
 
 /** What one anchor run published, for logs and tests. */
@@ -607,6 +736,56 @@ export async function enqueueRetentionJobIfDue(client: PoolClient): Promise<bool
   return enqueued;
 }
 
+/** Advisory lock for the expiry scheduler. Distinct from the other two. */
+const REGISTRATION_SCHEDULE_LOCK_KEY = 420_012;
+
+/**
+ * Enqueues `expire_stale_registrations` once per 24h, line-for-line mirror of
+ * `enqueueRetentionJobIfDue` including the load-bearing `failed_at IS NULL`
+ * filter. Without it, one dead-lettered sweep (migration 0016 parks failures
+ * forever) satisfies the guard and silently stops expiry for good — trading a
+ * loud repeated failure for a silent permanent one. That is 0016's own
+ * recorded lesson.
+ */
+export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise<boolean> {
+  const lock = await client.query<{ locked: boolean }>(
+    "SELECT pg_try_advisory_xact_lock($1) AS locked",
+    [REGISTRATION_SCHEDULE_LOCK_KEY],
+  );
+  if (!lock.rows[0].locked) return false;
+  const res = await client.query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT 'expire_stale_registrations', '{}'::jsonb, now()
+      WHERE NOT EXISTS (
+              SELECT 1 FROM jobs
+               WHERE kind = 'expire_stale_registrations'
+                 AND failed_at IS NULL
+                 AND run_after > now() - interval '24 hours'
+            )`,
+  );
+  const enqueued = (res.rowCount ?? 0) > 0;
+  if (enqueued) console.log("expire_stale_registrations: enqueued (no sweep in the last 24h)");
+  return enqueued;
+}
+
+/**
+ * Producer map: every handler kind → human-readable producer. A mechanical
+ * guard (a test) fails if a handler has no entry. Cheaper than remembering.
+ *
+ * `validate_scan` has no producer — nothing enqueues it, so ai_validation
+ * stays NULL, review_status stays pending forever, and INVARIANT 15's gate
+ * can never fire. Recorded honestly rather than pretended.
+ */
+export const JOB_PRODUCERS: Record<string, string> = {
+  validate_scan: "NONE -- see docs/INVARIANTS.md",
+  escalate_sos: "apps/api/src/routes/sos.ts (POST /api/v1/reports)",
+  send_sos_push: "apps/api/src/routes/sos.ts (dispatchFanout enqueues send_sos_push)",
+  retention: "apps/worker/src/index.ts (enqueueRetentionJobIfDue via tick)",
+  anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
+  expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",
+  send_registration_reminder: "apps/worker/src/index.ts (expire_stale_registrations handler enqueues send_registration_reminder)",
+};
+
 /** `enqueueRetentionJobIfDue`, throttled, on its own transaction. */
 let lastRetentionScheduleCheck = 0;
 async function ensureDailyRetentionJob(): Promise<void> {
@@ -622,6 +801,15 @@ async function ensureDailyAnchorJob(): Promise<void> {
   if (now - lastAnchorScheduleCheck < ANCHOR_SCHEDULE_CHECK_MS) return;
   lastAnchorScheduleCheck = now;
   await withTx(enqueueAnchorJobIfDue);
+}
+
+/** `enqueueRegistrationSweepIfDue`, throttled, on its own transaction. */
+let lastRegistrationSweepCheck = 0;
+async function ensureDailyRegistrationSweep(): Promise<void> {
+  const now = Date.now();
+  if (now - lastRegistrationSweepCheck < ANCHOR_SCHEDULE_CHECK_MS) return;
+  lastRegistrationSweepCheck = now;
+  await withTx(enqueueRegistrationSweepIfDue);
 }
 
 export async function runWorker(once = false): Promise<void> {
@@ -641,6 +829,11 @@ export async function runWorker(once = false): Promise<void> {
       await ensureDailyRetentionJob();
     } catch (err) {
       console.error("retention: could not evaluate the daily schedule:", err);
+    }
+    try {
+      await ensureDailyRegistrationSweep();
+    } catch (err) {
+      console.error("expire_stale_registrations: could not evaluate the daily schedule:", err);
     }
     let processed = 0;
     while (processed < BATCH) {

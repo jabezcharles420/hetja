@@ -173,11 +173,17 @@ treated as a factual document: when the login moved from phone to email, that
 page had to change in the same commit, because a privacy notice that describes
 storage you no longer do is simply false.
 
-`apps/field`, the tagger portal, is **designed but not built**. It needs
-`POST /api/v1/dogs` and a retag route, neither of which exists yet. Access
-there will be gated on `feeder_role` (`admin`/`vet`/`bmc_officer`), not on trust
-score — the trust ≥ 50 gate is roughly forty-five scans of tenure, which would
-lock out the pilot staff who have to retag on day one.
+`apps/field`, the tagger portal, was the original name for a bulk-enrolment
+surface gated on `feeder_role` (`admin`/`vet`/`bmc_officer`). It is not a
+separate app. The **registrator surface that ships in `apps/web` plus
+`POST /api/v1/registrations` *is* that portal**: sign up → register the dog you
+look after → print the collar (`docs/MAKING-A-COLLAR.md`) → attach it → scan it
+to activate. `POST /api/v1/dogs` (admin enrolment, `apps/api/src/routes/enrolment.ts`)
+exists and is the operator counterpart. What remains unbuilt from the original
+`apps/field` scope is the **re-tag route** — a replacement collar keeps the same
+slug (`GET /api/v1/registrations/:slug` returns the same `collarUrl` forever), but
+there is no dedicated retag endpoint yet. Trust ≥ 50 would have locked out pilot
+staff who need to retag on day one, which is why access gates on role, not score.
 
 ---
 
@@ -425,7 +431,10 @@ for macOS.
 
 ## 9. What is deliberately not finished
 
-- `apps/field`, the tagger portal, plus `POST /dogs` and the retag route.
+- The dedicated **re-tag route** (replacement collar keeps the same slug; no
+  separate re-tag endpoint yet). `apps/field` as a standalone app is not
+  planned — its scope is delivered as the registrator surface in `apps/web`
+  (`POST /api/v1/registrations` + `POST /api/v1/dogs` for the operator path).
 - `apps/shell` — the native wrapper. iOS requires add-to-home-screen before Web
   Push works at all, so until this exists, iOS responders are not reliably
   reachable. The UI says so rather than implying a safety net that isn't there.

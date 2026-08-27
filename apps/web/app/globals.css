@@ -714,7 +714,7 @@ button:active,
     margin: 10mm;
   }
 
-  /* ChromeShell's isBareRoute hides chrome on /register/*/print for the
+  /* ChromeShell's isBareRoute hides chrome on /register/[slug]/print for the
    * initial render, but InstallBanner is a client component that can still
    * mount after hydration — and a fixed bottom nav printed across a collar
    * sheet is a wasted sheet of TPU. Hide chrome in print CSS as well. */

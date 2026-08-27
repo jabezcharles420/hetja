@@ -5,27 +5,19 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
-// Documentation archaeology, recorded so nobody has to re-derive it: this
-// string is 33 characters — NOT 32 as its old comment claimed, and it does
-// contain `o` despite that same comment claiming "no l/1/o/0" (only l, 0 and
-// 1 are actually absent).
-//
-// It is also, functionally, one character too long, and that off-by-one is
-// deliberately left in place rather than "fixed": toBase32 masks with & 31
-// and the check digit reduces with % 32, so index 32 — the digit `9` — can
-// never be emitted. The generator's effective output alphabet is exactly the
-// 32 characters `2345678abcdefghijkmnopqrstuvwxyz`, which is what every
-// validator already accepts (/^[a-km-z2-9]{9}$/, here and in
-// apps/web/lib/collar.ts) and what every collar printed so far was drawn
-// from. Removing a character (dropping `o`) or otherwise reindexing the
-// alphabet would shift the value of nearly every letter and digit, silently
-// changing the check character of already-issued slugs and making valid,
-// glued-to-a-dog collar codes fail isValidSlug. Until there is a migration
-// story for physical collars, the honest options are: leave the arithmetic
-// alone and tell the truth about it (this comment), or break every issued
-// collar for a cosmetic gain. `9` remains accepted by validators even though
-// never generated, so hand-minted or legacy values keep resolving.
-const ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"; // 33 chars; see above
+// 32 characters: lowercase base32 with confusables `l`, `0`, `1` removed
+// (but `o` is kept — only those three are absent). Previously this string
+// was 33 chars ("...789") while the comment claimed 32 and toBase32 masks
+// with & 31 / % 32, so index 32 (`9`) was never emitted — the generator's
+// effective alphabet was the 32 chars without `9`. The fix drops the
+// unreachable trailing `9` so length matches the mask (32) WITHOUT reindexing
+// any other character: every value 0..31 keeps the same letter/digit, so
+// already-issued slugs keep the same check character. Validators still accept
+// `9` (`/^[a-km-z2-9]{9}$/` here and in apps/web/lib/collar.ts) for
+// hand-minted compatibility — `isValidSlug` therefore stays permissive for
+// 9 via VALIDATOR_ALPHABET — but the generator never emits `9`.
+const ALPHABET = "abcdefghijkmnopqrstuvwxyz2345678"; // 32 chars
+const VALIDATOR_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"; // 33 chars, includes 9 for compatibility
 
 function toBase32(bytes: Uint8Array): string {
   let out = "";
@@ -55,8 +47,12 @@ const SLUG_RE = /^[a-km-z2-9]{9}$/;
 export function isValidSlug(slug: string): boolean {
   if (!SLUG_RE.test(slug)) return false;
   const body = slug.slice(0, 8);
-  const check = [...body].reduce((s, c) => s + ALPHABET.indexOf(c), 0) % 32;
-  return ALPHABET[check] === slug[8];
+  // Use VALIDATOR_ALPHABET so a hand-minted body containing `9` (accepted by
+  // SLUG_RE but never emitted by the generator) still validates — see the test
+  // "keeps validating slugs whose body contains 9". For bodies without `9`,
+  // both alphabets give the same sum.
+  const check = [...body].reduce((s, c) => s + VALIDATOR_ALPHABET.indexOf(c), 0) % 32;
+  return VALIDATOR_ALPHABET[check] === slug[8];
 }
 
 /** HMAC signature for QR codes (INVARIANT: laser-etched QR is HMAC-signed). */

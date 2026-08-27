@@ -217,6 +217,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "the SMTP host is set but authentication would fail without this, " +
         "which surfaces only when the first OTP email silently fails to send.",
     );
+    requireInProd(
+      env,
+      "HOST",
+      "in production this must be 127.0.0.1 (Caddy terminates TLS and reverse-proxies to it on loopback). The default 0.0.0.0 would bind the API to the public interface, and without this guard a missing HOST silently falls back to that default — AGENTS.md §h flags this as a silent-failure class like TRUST_PROXY.",
+    );
+    requireInProd(
+      env,
+      "TRUST_PROXY",
+      "in production this must be 1 (one hop through Caddy's trusted_proxies cloudflare → X-Forwarded-For). The default 0 makes Fastify ignore X-Forwarded-For entirely, so request.ip stays loopback, per-IP rate limits see one client, and Caddy's CF-Connecting-IP rewrite is inert — a silent failure with no boot error, as AGENTS.md §h warns.",
+    );
   }
 
   return parsed;

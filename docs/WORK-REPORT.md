@@ -186,5 +186,20 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
 All suites green, 0 typecheck errors across api/worker/packages, security gate
 7/7, EXPLAIN gate 3/3, production builds passing.
 
+## Wave 11 — backend integrity leftovers (2026-08-27)
+
+- **collars.bound_once** — `BOOLEAN DEFAULT TRUE` added in `0001_init.sql:41`
+  is DEAD: zero reads/writes (`grep -rn bound_once apps/` empty beyond schema).
+  Left in place, documented with `COMMENT ON COLUMN collars.bound_once` in
+  `0021_spent_challenges.sql` — dropping would need `MIGRATION-APPROVED` for no
+  benefit and would break old backups. The binding is enforced by
+  `collars.qr_code` uniqueness + `status`, not this flag.
+- **feeders.display_name** — was hardcoded to `'Hetja Feeder'` on every
+  `INSERT` in `routes/auth.ts:50`. Now derived from the email local-part via
+  `displayNameFromEmail()` on signup (plus-address stripped, dot/underscore
+  split, title-cased, 64-char cap) and updatable via
+  `PATCH /api/v1/feeders/me { displayName }`. Existing rows keep their current
+  value on `ON CONFLICT`.
+
 *— End of report. Full commit history in the local repo (24 commits) and the
 private backup (Hermes_aic).*

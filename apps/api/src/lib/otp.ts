@@ -86,7 +86,13 @@ export async function verifyOtp(
   }
 
   if (!hashesEqual(hashCode(code, pepper), record.code_hash)) {
-    if (record.attempts_used >= OTP_MAX_ATTEMPTS) {
+    // Delete only when the budget is EXCEEDED, not when merely reached:
+    // with OTP_MAX_ATTEMPTS=3, wrong codes on attempts 1,2,3 return
+    // invalid_code and keep the row; attempt 4 exceeds and returns
+    // too_many_attempts (handled above). Deleting at >= would evict on the
+    // 3rd wrong code and make the 4th's `attempts_used > MAX` branch
+    // unreachable (it would see no row → invalid_code).
+    if (record.attempts_used > OTP_MAX_ATTEMPTS) {
       await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
     }
     return "invalid_code";

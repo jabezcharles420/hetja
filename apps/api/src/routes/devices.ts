@@ -31,56 +31,29 @@
  *   already be in the spent-challenge registry. Only then does
  *   issueDeviceToken() run.
  *
- * SINGLE-USE (enhancement stack D.4): the hand-rolled design this replaces
- * embedded expiry in the challenge but had NO server-side store of spent
- * challenges, so a solved (challenge, nonce) pair stayed valid for whoever
- * held it until expiry -- replayable to mint more than one token. That is
- * closed here by `spentChallenges`, an in-process LRU keyed on the challenge
- * signature (unique per issuance because every challenge draws a fresh
- * random nonce+salt): the registry is consulted and updated synchronously
- * (no `await` between the has/check and the set, so the check-then-set is
- * atomic within this process) immediately after a solution verifies, and a
- * challenge already present is rejected with CHALLENGE_REUSED. Entries live
- * in the cache for CHALLENGE_TTL_MS plus slack, so a spent challenge stays
- * rejected for the rest of its own validity -- as long as this process keeps
- * running.
+ * SINGLE-USE (enhancement stack D.4): durable via `spent_challenges`
+ * (migration 0021). The old design had NO server-side store and the previous
+ * file revision used a per-process LRU (`spentChallenges` via `lru-cache`)
+ * keyed on the challenge signature (unique per issuance because every
+ * challenge draws a fresh nonce+salt). That LRU was "single-use per process
+ * lifetime": a restart, deploy or OOM-kill inside the 120s challenge TTL
+ * emptied it and a held (challenge, solution) pair minted a second token.
+ * AGENTS.md §g records `next build` OOM-killing live services on this box,
+ * so the window was not theoretical.
  *
- * That last clause is the actual guarantee, and this comment used to overstate
- * it: it said "a spent challenge cannot be replayed even in the last moments
- * before it expires" flat out, which is stronger than the code delivers.
- * `spentChallenges` is a plain in-process LRU with no durability. A restart, a
- * deploy, or an OOM kill inside the 120s challenge TTL empties it, and a held
- * (challenge, solution) pair then mints a second token. That is not
- * theoretical on this box -- AGENTS.md §g records `next build` OOM-killing
- * live services on 2 GB -- so the honest property is "single-use per process
- * lifetime", and a mint straddling a restart can double.
+ * Durable now: `spent_challenges(challenge_hash TEXT PRIMARY KEY, spent_at,
+ * expires_at)` — one row per spent challenge signature, `expires_at = now()
+ * + 150s` (CHALLENGE_TTL 120s + 30s slack so a challenge spent near expiry
+ * stays rejected until it expires). The check is one atomic
+ * `INSERT ... ON CONFLICT (challenge_hash) DO NOTHING RETURNING` — the PK
+ * makes check-then-set atomic across processes AND restarts with no advisory
+ * lock. A stale sweep `DELETE WHERE expires_at < now()` keeps the table
+ * small (also done by the worker retention job). Cost is one extra write per
+ * mint, on a path that already costs the client a PoW solve.
  *
- * Why that is documented rather than fixed here: the blast radius is one extra
- * token per held solution per restart, and what a token actually buys is
- * bounded by INVARIANT 7's 2/day + 5/week cap keyed on the canonical deviceId
- * (lib/device.ts's `deviceTokenSubject`, routes/sos.ts). A duplicate mint buys
- * one extra budget for the price of a fresh PoW solve. Until 2026-08-14 the
- * same file's non-canonical-base64url bug bought *unlimited* budget off ONE
- * solve with no restart involved, so restart-durability is the far smaller of
- * the two holes.
- *
- * Making it genuinely durable needs a table, which needs a migration this file
- * cannot carry: `app_user` holds USAGE on schema `public` but not CREATE
- * (AGENTS.md §f), so a lazy `CREATE TABLE IF NOT EXISTS` at boot would fail as
- * the application role -- and a durability mechanism that silently does
- * nothing is worse than a comment that admits the gap. The shape when someone
- * adds it: `spent_challenges (signature TEXT PRIMARY KEY, expires_at
- * TIMESTAMPTZ NOT NULL)`, then replace the has/set pair below with one
- * `INSERT ... ON CONFLICT (signature) DO NOTHING RETURNING signature` -- the
- * primary key makes the check-then-set atomic across processes AND restarts
- * with no advisory lock needed -- and sweep `expires_at < now()` from the
- * worker's retention job. One extra write per mint, on a path that already
- * costs the client a proof-of-work solve, so the cost is noise.
- *
- * The registry being process-local is otherwise the right trade-off: the API
- * runs as a single service (one systemd unit, one process), the entries live
- * only as long as the challenge is valid (~2 minutes), and there is no Redis
- * in the stack. A multi-replica deployment would need the shared store above.
+ * What a duplicate mint buys is still bounded by INVARIANT 7's 2/day + 5/week
+ * cap keyed on canonical deviceId (lib/device.ts deviceTokenSubject,
+ * routes/sos.ts), but now the duplicate cannot happen at all.
  *
  * SECURITY NOTES (read before touching DEVICE_POW_DIFFICULTY, config.ts):
  *
@@ -112,24 +85,18 @@
  */
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { LRUCache } from "lru-cache";
+import { query } from "@hetja/db";
 import { createPoWChallenge, effectivePowDifficulty, issueDeviceToken, verifyPoW } from "../lib/device.js";
 import { deviceTokenGlobal, GLOBAL_SUBJECT } from "../lib/rate-limit.js";
 
-// Short-lived on purpose -- see the replay note above. Long enough for a
-// desktop-web PoW solve at any difficulty this route is actually configured
-// with, short enough to keep the reuse window small.
+// Short-lived on purpose -- long enough for a desktop-web PoW solve at any
+// difficulty this route is actually configured with, short enough to keep the
+// reuse window small.
 const CHALLENGE_TTL_MS = 120_000;
 
 // Entries survive a little longer than the challenge itself so a challenge
 // spent near the end of its life stays rejected until it expires.
 const SPENT_TTL_MS = CHALLENGE_TTL_MS + 30_000;
-
-// 100k spent signatures at SPENT_TTL_MS ≈ 1,500s of budget ≈ ~66 mints/sec
-// sustained before the LRU evicts oldest -- well past any legitimate burst,
-// and past that the only effect is a very old challenge becoming reusable,
-// which the 120s expiry independently forbids.
-const spentChallenges = new LRUCache<string, true>({ max: 100_000, ttl: SPENT_TTL_MS });
 
 const ChallengeParametersSchema = z.object({
   algorithm: z.string().min(1),
@@ -239,28 +206,43 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
         .send({ ok: false, error: { message: "proof of work invalid", code: "BAD_POW" } });
     }
 
-    // Single-use: the signature is unique per issuance (fresh nonce+salt every
-    // challenge), so it is the registry key. The has/check and set run with no
-    // await between them -- atomic within this process -- so two concurrent
-    // replays of the same challenge cannot both pass.
+    // Single-use durable: the signature is unique per issuance (fresh
+    // nonce+salt every challenge), so it is the PK of spent_challenges
+    // (migration 0021). The PK makes check-then-set atomic across processes
+    // AND restarts via one `INSERT ... ON CONFLICT DO NOTHING RETURNING` —
+    // no advisory lock, no race window, unlike the old in-process LRU.
     const spentKey = challenge.signature;
-    if (spentChallenges.has(spentKey)) {
+    const expiresAt = new Date(Date.now() + SPENT_TTL_MS).toISOString();
+    // Best-effort sweep of already-expired entries so the table does not grow
+    // without bound between worker retention runs. Failure is non-fatal:
+    // correctness is the PK insert below, not the sweep.
+    try {
+      await query(`DELETE FROM spent_challenges WHERE expires_at < now()`);
+    } catch {}
+    const spentInsert = await query(
+      `INSERT INTO spent_challenges (challenge_hash, spent_at, expires_at)
+        VALUES ($1, now(), $2)
+        ON CONFLICT (challenge_hash) DO NOTHING
+        RETURNING challenge_hash`,
+      [spentKey, expiresAt],
+    );
+    if ((spentInsert.rowCount ?? 0) === 0) {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "challenge already used", code: "CHALLENGE_REUSED" } });
     }
-    spentChallenges.set(spentKey, true);
 
     // INVARIANT 7 backstop: a global cap on SUCCESSFUL mints. Checked after
-    // verification on purpose, twice over: a failed or replayed attempt has
-    // already been rejected above and must not drain a bucket shared by every
-    // anonymous visitor, and rejecting here -- before `issueDeviceToken` --
-    // means a capped mint never comes into existence at all. A solved
-    // challenge that lands on a full bucket is burned (the LRU above already
-    // marked it spent), which is acceptable: the client re-requests a
-    // challenge and solves again, and a full bucket is by construction an
-    // abnormal condition an operator needs to know about. See lib/rate-limit.ts
-    // for why the PoW alone cannot be the bound.
+    // verification and after the durable single-use insert on purpose, twice
+    // over: a failed or replayed attempt has already been rejected above and
+    // must not drain a bucket shared by every anonymous visitor, and rejecting
+    // here -- before `issueDeviceToken` -- means a capped mint never comes into
+    // existence at all. A solved challenge that lands on a full bucket is
+    // burned (the durable row above already marked it spent), which is
+    // acceptable: the client re-requests a challenge and solves again, and a
+    // full bucket is by construction an abnormal condition an operator needs to
+    // know about. See lib/rate-limit.ts for why the PoW alone cannot be the
+    // bound.
     const mintBudget = deviceTokenGlobal.consume(GLOBAL_SUBJECT);
     if (!mintBudget.allowed) {
       req.log.warn(

@@ -128,22 +128,46 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
         });
       }
 
-      const existing = await query<{ id: string }>(`SELECT id FROM dog_stories WHERE id = $1`, [
-        storyId,
-      ]);
-      if (existing.rowCount === 0) {
+      // Approve: idempotent, guarded, transactional. The SELECT-then-UPDATE
+      // without a tx and without `WHERE moderated_at IS NULL` let a second
+      // approve bump moderated_at to now() again (and racy callers could
+      // interleave). Now: FOR UPDATE locks the row, already-moderated is
+      // returned as-is (idempotent 200), and the UPDATE is conditional on
+      // `moderated_at IS NULL` — matching the reject path's withTx+FOR UPDATE.
+      const story = await withTx(async (client) => {
+        const existing = await client.query<{ id: string; moderated_at: Date | null }>(
+          `SELECT id, moderated_at FROM dog_stories WHERE id = $1 FOR UPDATE`,
+          [storyId],
+        );
+        if ((existing.rowCount ?? 0) === 0) return null;
+        if (existing.rows[0].moderated_at !== null) {
+          const already = await client.query<StoryRow>(
+            `SELECT id, dog_id, author_feeder_id, version, paragraph, moderated_at
+               FROM dog_stories WHERE id = $1`,
+            [storyId],
+          );
+          return already.rows[0];
+        }
+        const updated = await client.query<StoryRow>(
+          `UPDATE dog_stories SET moderated_at = now()
+            WHERE id = $1 AND moderated_at IS NULL
+           RETURNING id, dog_id, author_feeder_id, version, paragraph, moderated_at`,
+          [storyId],
+        );
+        if (updated.rows[0]) return updated.rows[0];
+        // Lost race — another caller approved between SELECT and UPDATE.
+        const fallback = await client.query<StoryRow>(
+          `SELECT id, dog_id, author_feeder_id, version, paragraph, moderated_at
+             FROM dog_stories WHERE id = $1`,
+          [storyId],
+        );
+        return fallback.rows[0];
+      });
+      if (!story) {
         return reply
           .status(404)
           .send({ ok: false, error: { message: "story not found", code: "STORY_NOT_FOUND" } });
       }
-
-      const res = await query<StoryRow>(
-        `UPDATE dog_stories SET moderated_at = now()
-          WHERE id = $1
-          RETURNING id, dog_id, author_feeder_id, version, paragraph, moderated_at`,
-        [storyId],
-      );
-      const story = res.rows[0];
 
       return {
         ok: true,

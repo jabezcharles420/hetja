@@ -26,6 +26,7 @@ import { parseUuidParam } from "../lib/params.js";
 import {
   TrustError,
   type TrustEventRow,
+  applyVerificationGate,
   getFeederTrust,
   openDispute,
   resolveDispute,
@@ -180,6 +181,43 @@ export default async function trustRoutes(app: FastifyInstance): Promise<void> {
             serialRejects: view.serialRejects,
             autoPausedEventId: view.autoPausedEventId ?? undefined,
             events: view.events.map(toEventPayload),
+          },
+        };
+      } catch (err) {
+        sendTrustError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/feeders/:id/trust/evaluate — explicit INVARIANT 15 gate.
+   *
+   * Moves the write out of GET for callers that care: evaluates
+   * applyVerificationGate transactionally (FOR UPDATE + idempotent
+   * compare-and-set) and returns the same gate payload. GET still evaluates
+   * the same gate idempotently, but this endpoint is the honest write path.
+   */
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/feeders/:id/trust/evaluate",
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const auth = feederAuth(req, reply);
+      if (!auth) return reply;
+
+      if (auth.feederId !== req.params.id) {
+        return reply
+          .status(403)
+          .send({ ok: false, error: { message: "you can only evaluate your own trust", code: "FORBIDDEN" } });
+      }
+
+      try {
+        const gate = await withTx((client) => applyVerificationGate(auth.feederId, client));
+        return {
+          ok: true,
+          data: {
+            feederId: auth.feederId,
+            paused: gate.paused,
+            serialRejects: gate.serialRejects,
+            autoPausedEventId: gate.autoPausedEventId ?? undefined,
           },
         };
       } catch (err) {

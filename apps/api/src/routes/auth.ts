@@ -24,8 +24,28 @@ interface FeederRow {
   home_ward: string | null;
 }
 
+/**
+ * Derive a display_name from the email local-part. This replaces the previous
+ * hardcoded `'Hetja Feeder'` that every account received (BUGS P2-11). The
+ * name is only set on INSERT; ON CONFLICT preserves whatever the account
+ * already has — a returning user must not have their display_name (or role /
+ * trust_score) rewritten by re-verifying an OTP. If the local part is empty
+ * or unusable, fall back to the generic placeholder.
+ */
+function displayNameFromEmail(email: string): string {
+  const local = (email.split("@")[0] ?? "").trim();
+  if (!local) return "Hetja Feeder";
+  // Strip plus-addressing, split on common separators, drop empty parts.
+  const base = local.split("+")[0] ?? local;
+  const parts = base.split(/[._-]+/).filter(Boolean);
+  if (parts.length === 0) return "Hetja Feeder";
+  const titled = parts.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+  return titled.slice(0, 64) || "Hetja Feeder";
+}
+
 async function upsertFeeder(
   identityHmacVal: string,
+  email: string,
   consentVersion: number,
   isMinor: boolean,
 ): Promise<FeederRow> {
@@ -46,15 +66,16 @@ async function upsertFeeder(
   // it) for as long as the row lives. Both are facts ABOUT the account that
   // the user themselves attests at each verify, like display_name; they are
   // not privileges, so the no-op reasoning above does not apply to them.
+  const displayName = displayNameFromEmail(email);
   const res = await query<FeederRow>(
     `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
-     VALUES ($1, 'Hetja Feeder', 'feeder', 30, $2, $3)
+     VALUES ($1, $2, 'feeder', 30, $3, $4)
      ON CONFLICT (identity_hmac) DO UPDATE SET
        identity_hmac = EXCLUDED.identity_hmac,
        consent_version = EXCLUDED.consent_version,
        is_minor = EXCLUDED.is_minor
      RETURNING id, display_name, role, trust_score, home_ward`,
-    [identityHmacVal, String(consentVersion), isMinor],
+    [identityHmacVal, displayName, String(consentVersion), isMinor],
   );
   return res.rows[0];
 }
@@ -199,7 +220,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(status).send({ ok: false, error: { message: result, code: result.toUpperCase() } });
     }
 
-    const feeder = await upsertFeeder(idHmac, consentVersion, isMinor);
+    const feeder = await upsertFeeder(idHmac, email, consentVersion, isMinor);
 
     const accessToken = signAccessToken(feeder.id, app.config.JWT_SECRET, app.config.JWT_ACCESS_TTL);
     const refreshToken = signRefreshToken(feeder.id, app.config.JWT_SECRET, app.config.JWT_REFRESH_TTL);

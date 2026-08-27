@@ -439,21 +439,19 @@ export interface FeederTrustView {
 /**
  * Score + verification tier + pause state + recent events (self-service).
  *
- * This is a read endpoint that can WRITE once: the INVARIANT 15 gate runs
- * here and may insert the auto_paused flag event. That is deliberate, and it
- * is worth recording why rather than leaving it looking like an accident:
+ * This READ can still trigger the INVARIANT 15 gate (applyVerificationGate)
+ * once: until a scan-review transition exists, `onScanReject()` has no caller
+ * and nothing else observes accumulated rejects — so `validate_scan` stays
+ * pending and this read is the only enforcement point INVARIANT 15 has. The
+ * write is idempotent with a compare-and-set: applyVerificationGate takes
+ * FOR UPDATE on the feeder row, checks serialRejects, checks for an existing
+ * auto_paused event, and only then inserts — so concurrent GETs serialize and
+ * at most one flag row is ever created (delta 0, idempotent).
  *
- *   No scan-review transition exists in this codebase yet — scans are created
- *   'pending', and the worker's validate_scan stub keeps them 'pending'
- *   (INVARIANT 14's human-review queue is unbuilt), so `onScanReject()` has no
- *   caller and nothing else ever observes accumulated rejects. Until a review
- *   path exists to call the gate where a scan is actually judged, this read is
- *   the only enforcement point INVARIANT 15 has.
- *
- * The write is therefore explicit and safe rather than incidental: it happens
- * inside one transaction (with a feeder-row lock in applyVerificationGate) so
- * concurrent readers cannot double-insert the flag, and the flag itself is a
- * delta-0 event — idempotent by construction.
+ * An explicit POST is also available (`POST /api/v1/feeders/:id/trust/evaluate`
+ * → evaluateTrustGate) so callers that need to force the gate without relying
+ * on a GET side-effect have a non-idempotent-read-breaking path. The GET's
+ * write will be removable once validate_scan actually calls onScanReject().
  */
 export async function getFeederTrust(feederId: string): Promise<FeederTrustView> {
   const feeder = await query<{ trust_score: number; verification_tier: string }>(

@@ -120,26 +120,56 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
    * Idempotent by nature: re-asserting the current value is a successful
    * no-op, which is what a checkbox PUT/PATCH should be.
    */
+  /**
+   * PATCH /api/v1/feeders/me { sosOptIn?, displayName? } — SOS consent + profile.
+   *
+   * Initially this route accepted only `{ sosOptIn: boolean }` (strict), so
+   * every account's display_name stayed the literal 'Hetja Feeder' seeded at
+   * signup (BUGS P2-11). Now it accepts an optional `displayName` (1..64 chars,
+   * trimmed) alongside sosOptIn — at least one must be present, unknown fields
+   * still 400. display_name is set properly at signup via
+   * displayNameFromEmail() in routes/auth.ts, and this PATCH lets the feeder
+   * correct it without an admin.
+   */
   app.patch("/api/v1/feeders/me", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireFeeder(req, reply);
     if (!auth) return reply;
 
-    const parsed = z.strictObject({ sosOptIn: z.boolean() }).safeParse(req.body ?? {});
+    const parsed = z
+      .strictObject({
+        sosOptIn: z.boolean().optional(),
+        displayName: z.string().trim().min(1).max(64).optional(),
+      })
+      .refine((v) => v.sosOptIn !== undefined || v.displayName !== undefined, {
+        message: "body must contain at least one of { sosOptIn, displayName }",
+      })
+      .safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({
         ok: false,
         error: {
-          message: "body must be exactly { sosOptIn: boolean }",
+          message: "body must contain { sosOptIn?: boolean, displayName?: string (1..64) } and no unknown fields",
           code: "INVALID_SOS_OPT_IN",
         },
       });
     }
 
-    await query(`UPDATE feeders SET sos_opt_in = $2 WHERE id = $1`, [
-      auth.feederId,
-      parsed.data.sosOptIn,
-    ]);
-    return { ok: true, data: { sosOptIn: parsed.data.sosOptIn } };
+    const sets: string[] = [];
+    const vals: unknown[] = [auth.feederId];
+    let idx = 2;
+    if (parsed.data.sosOptIn !== undefined) {
+      sets.push(`sos_opt_in = $${idx++}`);
+      vals.push(parsed.data.sosOptIn);
+    }
+    if (parsed.data.displayName !== undefined) {
+      sets.push(`display_name = $${idx++}`);
+      vals.push(parsed.data.displayName);
+    }
+    await query(`UPDATE feeders SET ${sets.join(", ")} WHERE id = $1`, vals);
+    const out: Record<string, unknown> = {};
+    if (parsed.data.sosOptIn !== undefined) out.sosOptIn = parsed.data.sosOptIn;
+    if (parsed.data.displayName !== undefined) out.displayName = parsed.data.displayName;
+    return { ok: true, data: out };
   });
 
   /**

@@ -101,10 +101,6 @@
 }
 
 @media print {
-  @page {
-    margin: 10mm;
-  }
-
   .toolbar {
     display: none !important;
   }
@@ -116,13 +112,6 @@
   .sheet {
     border: none;
     max-width: none;
-  }
-
-  /* Hide site chrome that can still mount as client components */
-  :global(header),
-  :global(footer),
-  :global(nav) {
-    display: none !important;
   }
 }
 

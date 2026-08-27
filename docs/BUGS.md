@@ -24,8 +24,8 @@ what would prove it. Keep under 300 lines — fixer waves consume this.
 - [ ] Impact stats hardcoded — `apps/web/app/page.tsx:97` — UNFIXED — three `<Stat value="—" label="dogs tracked/feeds logged/lives touched" />`; no `GET /api/v1/stats` route and no `lib/api.ts` call.
 - [ ] `/me` SOS opt-in has no UI — `apps/web/app/me/page.tsx:1` — UNFIXED — page queries `getStreak()` + trust only; `PATCH /api/v1/feeders/me {sosOptIn}` exists at `apps/api/src/routes/feeders.ts:123` (tested `sos.test.ts:1081`) but web never surfaces it (`grep sos_opt_in apps/web` zero hits outside tests).
 - [ ] Manual collar entry drops signature — `apps/web/components/ScanEntry.tsx:60` — UNFIXED — `router.push(`/dog/${result.slug}`)` without `?s=`; `app/dog/[slug]/page.tsx:41` reads `?s=` and calls `api.getDog(slug,sig)` → empty sig → 401 on typed entry while QR scan forwards sig.
-- [ ] Slug alphabet off-by-one (33 chars) — `packages/db/src/slugs.ts:8` — UNFIXED — `ALPHABET` 33 chars comment says 32, mask `&31`/`%32` → index 32 (`9`) unreachable; validators `^[a-km-z2-9]{9}$` accept `9` so fixing reindexes collars; deliberately left per header `:10`.
-- [ ] `verifySlugSig` not constant-time — `packages/db/src/slugs.ts:76` — UNFIXED — `a.equals(b)` at seed path while `apps/api/src/lib/hmac.ts` uses `timingSafeEqual`.
+- [x] Slug alphabet off-by-one (33 chars) — `packages/db/src/slugs.ts:19` — FIXED — `ALPHABET` now 32 chars (`abcdefghijkmnopqrstuvwxyz2345678`), `VALIDATOR_ALPHABET` retains 33 for hand-minted `9` compat; masks `&31`/`%32` now index fully.
+- [x] `verifySlugSig` not constant-time — `packages/db/src/slugs.ts:72` — FIXED — unified on `timingSafeEqual` with length guard, matching `apps/api/src/lib/hmac.ts:24`.
 
 ## Ops / watchdogs
 - [ ] Supabase mirror drift — `docs/HOW-IT-WORKS.md:292` — UNFIXED — `ops/supabase/01_schema.sql` behind through `0009` (migrations now at `0020`); mirror serves no reads today but repoint is unsafe without `pg_dump --no-privileges` regen per `ops/supabase/README.md`.
@@ -72,3 +72,5 @@ what would prove it. Keep under 300 lines — fixer waves consume this.
 - [x] `scan` size gate walks `dist/` — `apps/scan/scripts/size-gate.mjs:46` — FIXED — walks `dist/`, excludes `.map`, split `main.js`/`service-worker.js`/`telemetry.js`.
 - [x] `HOW-IT-WORKS §3.2` wrong SOS route — `docs/HOW-IT-WORKS.md:130` — FIXED — `POST /api/v1/reports`.
 - [x] Table-count drift 18 vs 15 — `docs/HOW-IT-WORKS.md:192` — FIXED — "Nineteen domain tables plus schema_migrations".
+- [x] `verifySlugSig` timing-safe — `packages/db/src/slugs.ts:72` / `apps/api/src/lib/hmac.ts:24` — FIXED — both use `timingSafeEqual` with length guard (unified constant-time).
+- [x] Slug alphabet 33→32 — `packages/db/src/slugs.ts:19` — FIXED — `ALPHABET` 32 chars, `VALIDATOR_ALPHABET` 33 for `9` compat; masks `&31`/`%32` now index fully without reindexing.

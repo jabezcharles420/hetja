@@ -17,7 +17,7 @@
     "db:migrate": "pnpm -C packages/db migrate",
     "db:seed": "pnpm -C packages/db seed",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

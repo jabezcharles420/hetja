@@ -245,7 +245,13 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Unit tests (all packages)
-        run: pnpm -r test
+        # Serial across packages, on purpose. apps/api, apps/worker and packages/db
+        # all hit the same hetja_test database; with pnpm's default concurrency of
+        # 4 the worker suite's processOneJob() claimed and deleted the send_sos_push
+        # jobs sos.test.ts was asserting on, and api-enqueued jobs surfaced inside
+        # the worker's retry test. That race is why this step failed on a
+        # docs-only commit and passed/failed the same SHA twice (2026-08-27).
+        run: pnpm -r --workspace-concurrency=1 test
 
       - name: Security gate
         run: bash ops/security-gate.sh

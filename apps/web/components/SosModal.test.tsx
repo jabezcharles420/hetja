@@ -82,4 +82,66 @@ describe("SosModal", () => {
       expect(screen.getByRole("status").textContent).toContain("network down");
     });
   });
+
+  // Focus management. The dialog is `aria-modal="true"`, which promises AT
+  // users that focus lives inside it; before these existed the modal kept
+  // focus on the trigger behind the backdrop, Tab walked into the page, and
+  // Escape did nothing. apps/scan/src/sheet.ts has had the same contract for
+  // months; this brings the PWA's SOS dialog to parity.
+  it("moves focus into the dialog when it opens", () => {
+    render(<SosModal open dogSlug="abc234567" onClose={() => {}} />);
+    const dialog = screen.getByRole("dialog", { name: "Report SOS" });
+    expect(document.activeElement).toBe(dialog);
+  });
+
+  it("traps Tab inside the dialog", () => {
+    render(<SosModal open dogSlug="abc234567" onClose={() => {}} />);
+    const dialog = screen.getByRole("dialog", { name: "Report SOS" });
+    const focusables = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    // No visibility filter here on purpose: jsdom computes no layout, so
+    // offsetParent is null for everything. The controls are visible by
+    // construction in this render.
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+
+    // Tab from the last control wraps to the first; Shift+Tab from the first
+    // wraps to the last. Either direction, focus never leaves the dialog.
+    last.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("closes on Escape and returns focus to the trigger", () => {
+    const trigger = document.createElement("button");
+    trigger.textContent = "This dog needs help";
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const onClose = vi.fn();
+    const { unmount } = render(<SosModal open dogSlug="abc234567" onClose={onClose} />);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it("moves focus to the confirmation dialog once the report is accepted", async () => {
+    createReportMock.mockResolvedValue({ created: true, caseId: "case_1234567890", tier: 1 });
+    render(<SosModal open dogSlug="abc234567" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "SOS confirmed" })).toBeTruthy();
+    });
+    expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "SOS confirmed" }));
+  });
 });

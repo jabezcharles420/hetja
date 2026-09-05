@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type SosReportResult, type SosSeverity } from "@/lib/api";
 import PawIllustration from "./PawIllustration";
 import styles from "./SosModal.module.css";
@@ -39,6 +39,88 @@ export default function SosModal({
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState<SosReportResult | null>(null);
+
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // The element that had focus when the dialog opened; focus returns to it on
+  // close. Without this, a keyboard user who opened SOS lands back at the top
+  // of the page instead of on the "This dog needs help" button they just used.
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  const focusDialog = useCallback(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  }, []);
+
+  // Focus management for the emergency dialog — the one a blind or motor-
+  // impaired user may open standing over a hurt dog. The scan page's sheet
+  // (apps/scan/src/sheet.ts) already does all of this; this modal had none of
+  // it: focus stayed on the trigger behind an `aria-modal="true"` dialog, Tab
+  // walked straight past the modal into the page behind it, and Escape did
+  // nothing. A modal that fails to trap focus is a modal a screen-reader user
+  // can silently find themselves outside, mid-report.
+  useEffect(() => {
+    if (!open) return;
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const el = modalRef.current;
+      if (!el) return;
+      const focusables = Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((f) => !f.hasAttribute("hidden") && getComputedStyle(f).display !== "none");
+      if (focusables.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active !== null && el.contains(active);
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    focusDialog();
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      const trigger = triggerRef.current;
+      if (trigger) {
+        try {
+          trigger.focus({ preventScroll: true });
+        } catch {
+          trigger.focus();
+        }
+      }
+    };
+  }, [open, focusDialog]);
+
+  // The confirmed view replaces the form view mid-open; move focus into the new
+  // dialog so a screen reader announces "SOS confirmed" instead of leaving the
+  // reader where the form's Send button used to be.
+  useEffect(() => {
+    if (open && confirmed) focusDialog();
+  }, [open, confirmed, focusDialog]);
 
   if (!open) return null;
 
@@ -86,6 +168,8 @@ export default function SosModal({
           role="dialog"
           aria-modal="true"
           aria-label="SOS confirmed"
+          tabIndex={-1}
+          ref={modalRef}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className={styles.confirmBadge}>
@@ -113,6 +197,8 @@ export default function SosModal({
         role="dialog"
         aria-modal="true"
         aria-label="Report SOS"
+        tabIndex={-1}
+        ref={modalRef}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <span className={styles.kicker}>Neighbour needs help</span>

@@ -60,13 +60,24 @@ export default function RequireCapability({
     };
   }, [capability]);
 
+  // Every pre-children state sits inside `.h-container`, the same gutter the
+  // rest of the page uses. These used to be bare elements carrying the gutter
+  // as inline padding on themselves, so the element's own border box began at
+  // x=0 -- and e2e/mobile-layout.spec.ts measures text elements by their box,
+  // not their ink. It flagged /register whenever it happened to sample the
+  // "Checking access…" frame, which made that spec flaky (2 of 3 runs) rather
+  // than red. Same convention as every other page: container owns the gutter.
   if (state.kind === "loading") {
-    return <p style={{ padding: "var(--h-s6) var(--h-gutter)" }}>Checking access…</p>;
+    return (
+      <div className="h-container" style={{ paddingBlock: "var(--h-s5)" }}>
+        <p>Checking access…</p>
+      </div>
+    );
   }
 
   if (state.kind === "signed_out") {
     return (
-      <div style={{ padding: "var(--h-s6) var(--h-gutter)", maxWidth: 560 }}>
+      <div className="h-container" style={{ paddingBlock: "var(--h-s5)", maxWidth: 560 }}>
         <p style={{ marginBottom: 12 }}>Sign in as a feeder to use registration.</p>
         <Link className="h-btn h-btn-primary" href="/login">
           Sign in
@@ -77,7 +88,7 @@ export default function RequireCapability({
 
   if (state.kind === "no_capability") {
     return (
-      <div style={{ padding: "var(--h-s6) var(--h-gutter)", maxWidth: 560 }}>
+      <div className="h-container" style={{ paddingBlock: "var(--h-s5)", maxWidth: 560 }}>
         <p style={{ marginBottom: 12 }}>
           Your account does not have the registrator capability. Tap to enable it (self-serve).
         </p>

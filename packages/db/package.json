@@ -16,10 +16,10 @@
     "geocode:care": "GEOCODE=1 tsx src/import-care-verified.ts"
   },
   "dependencies": {
-    "libphonenumber-js": "^1.13.10",
+    "libphonenumber-js": "^1.13.12",
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.21.0"
+    "@types/pg": "^8.23.1"
   }
 }

@@ -97,6 +97,15 @@ concurrency:
 
 env:
   NODE_VERSION: 20
+  # Supabase schema mirror. "true" applies each push's migrations to the
+  # Supabase project through its session pooler; "false" skips that step and
+  # only the destructive-change gate runs. Set to "false" on 2026-09-05 because
+  # the Supabase database is paused — with it on, a green Gate was followed by
+  # a Migrate job failing to connect, which blocked every deploy to the box even
+  # though production reads the LOCAL PostgreSQL (AGENTS.md §b). Flip back to
+  # "true" when the project is resumed, then re-run the workflow once: the
+  # migration runner is idempotent and will apply everything the mirror missed.
+  SUPABASE_MIGRATE: "false"
 
 # Least privilege for GITHUB_TOKEN. With no `permissions:` block the token
 # inherits the repository default, which on repos created before GitHub changed
@@ -367,6 +376,7 @@ jobs:
           echo "$FILES" | xargs -r ./ops/check-destructive-migrations.sh
 
       - name: Apply migrations to Supabase (session pooler)
+        if: env.SUPABASE_MIGRATE == 'true'
         env:
           PGHOST: ${{ secrets.SUPABASE_POOLER_HOST }}
           PGPORT: ${{ secrets.SUPABASE_POOLER_PORT }}
@@ -375,6 +385,13 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGSSLMODE: require
         run: pnpm --filter @hetja/db migrate
+
+      - name: Supabase mirror skipped
+        if: env.SUPABASE_MIGRATE != 'true'
+        run: |
+          echo "SUPABASE_MIGRATE=${SUPABASE_MIGRATE}: not applying migrations to the Supabase mirror."
+          echo "Production migrations still run on the box in ops/deploy-remote.sh (local PostgreSQL)."
+          echo "When the Supabase project is resumed, set SUPABASE_MIGRATE to \"true\" in deploy.yml."
 
   # =========================================================================
   # DEPLOY -- build once here, ship the artifact, flip a symlink on the box.

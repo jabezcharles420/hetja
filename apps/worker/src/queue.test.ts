@@ -67,6 +67,31 @@ async function cleanup(ids: string[]) {
 }
 
 /**
+ * Would `claimNext` pick THIS row up right now? Same predicate as the worker's
+ * claim query, scoped to one id.
+ *
+ * Asserting this instead of `expect(await processOneJob()).toBe("idle")` is
+ * what makes the retry test deterministic. `processOneJob()` claims across the
+ * whole table, and `isolateQueue()` can only park the jobs that exist when it
+ * runs: under `pnpm -r test` the apps/api suite is running at the same moment
+ * against the same database and enqueues jobs of its own (SOS fan-out, expiry).
+ * One of those landing between the two calls made the second `processOneJob()`
+ * return "done" for a job this test never queued — the CI flake that failed
+ * `main` on docs-only commits and passed/failed the same SHA twice.
+ */
+async function isClaimable(id: string): Promise<boolean> {
+  const res = await query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM jobs
+      WHERE id = $1
+        AND run_after <= now()
+        AND (locked_until IS NULL OR locked_until < now())
+        AND failed_at IS NULL`,
+    [id],
+  );
+  return (res.rows[0]?.n ?? 0) > 0;
+}
+
+/**
  * Park every job this database already holds so a test's `processOneJob()` can
  * only pick up the row the test just queued. Returns a restore function.
  *
@@ -105,8 +130,9 @@ describe("processOneJob", () => {
       expect(job!.locked_until).toBeNull();
       expect(job!.run_after.getTime()).toBeGreaterThan(Date.now());
 
-      // And it is genuinely not claimable right now.
-      expect(await processOneJob()).toBe("idle");
+      // And it is genuinely not claimable right now. Checked on the row itself,
+      // not via a second processOneJob(): see isClaimable().
+      expect(await isClaimable(id)).toBe(false);
     } finally {
       await cleanup([id]);
       await restore();

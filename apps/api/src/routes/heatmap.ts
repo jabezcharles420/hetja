@@ -2,18 +2,36 @@
  * Hetja HEATMAP endpoint (public).
  *
  * GET /api/v1/heatmap?ward=<id>&days=7 — public hunger heatmap per the
- * canonical query (docs/queries/heatmap.sql). 200m ST_SnapToGrid cells;
- * fed_ratio = feed scans / active dogs in the last N days.
+ * canonical query (docs/queries/heatmap.sql, kept byte-for-byte in step with
+ * CELL_SQL below; ops/check-queries.sh EXPLAINs that file, so it must be the
+ * query that actually ships).
+ *
+ * Cells are 500 m ST_SnapToGrid squares, snapped in EPSG:3857 so the size is
+ * metres rather than degrees. 500 m is INVARIANT 2's floor ("snaps geo to ward
+ * or a ≥500 m grid cell") — this used to be 200 m, which the invariant forbids
+ * outright; coarsening the *output* to 2 decimals did not repair that, because
+ * the k-anonymity floor was still being applied per 200 m cell.
+ *
+ * fed_ratio = feed scans / (distinct dogs fed × days in the window), clamped
+ * to [0, 1]: the share of dog-days in the window that saw a feed. 1 means
+ * every dog in the cell was fed every day; 0.14 means roughly once a week.
+ * It used to be feeds ÷ dogs, which is feeds-per-dog and climbs past 1 as
+ * soon as any dog is fed twice — while `@hetja/contracts` HeatmapCell declares
+ * `fedRatio: z.number().min(0).max(1)`. A ratio that violates its own
+ * contract cannot be rendered as a colour scale, which is the only thing a
+ * heatmap consumer does with it. feedCount and dogCount stay raw.
+ *
  * INVARIANT 2: only cell centroids are exposed (never point geometry) and
  * coordinates carry at most 2 decimals.
- * RESEARCH-1 E2 (k-anonymity): cells with fewer than 3 active dogs are
+ * RESEARCH-1 E2 (k-anonymity): cells with fewer than 3 distinct dogs are
  * dropped so a single dog's feeding route cannot be re-derived.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { query } from "@hetja/db";
 
-const CELL_SIZE_M = 200;
+// INVARIANT 2 floor. Do not lower without changing the invariant first.
+const CELL_SIZE_M = 500;
 const K_ANON_MIN_ACTIVE_DOGS = 3;
 
 const HeatmapQuery = z.object({
@@ -33,7 +51,13 @@ const CELL_SQL = `
 SELECT
   round(ST_Y(ST_Centroid(cell))::numeric, 2) AS lat,
   round(ST_X(ST_Centroid(cell))::numeric, 2) AS lng,
-  round((count(*)::numeric / NULLIF(count(DISTINCT dog_id)::numeric, 0)), 3) AS fed_ratio,
+  round(
+    LEAST(
+      1,
+      count(*)::numeric / (NULLIF(count(DISTINCT dog_id), 0) * $2)::numeric
+    ),
+    3
+  ) AS fed_ratio,
   count(*)::int AS feed_count,
   count(DISTINCT dog_id)::int AS dog_count
 FROM (

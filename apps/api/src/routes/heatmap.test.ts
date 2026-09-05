@@ -2,10 +2,12 @@
  * Public hunger heatmap route tests.
  *
  * 1. a ward with a cluster of active dogs + feed scans returns exactly one
- *    cell: centroid only (≤2 decimals), correct fedRatio, and a lone dog's
- *    cell is dropped (k-anonymity floor of 3 active dogs, RESEARCH-1 E2).
- * 2. a ward with no feed scans returns empty cells.
- * 3. invalid query params are rejected.
+ *    500 m cell: centroid only (≤2 decimals), correct fedRatio, and a lone
+ *    dog's cell is dropped (k-anonymity floor of 3 active dogs, RESEARCH-1 E2).
+ * 2. fedRatio is a share of dog-days fed, clamped to the contract's [0, 1] —
+ *    a cell whose dogs are fed more than daily reports 1, never 3.33.
+ * 3. a ward with no feed scans returns empty cells.
+ * 4. invalid query params are rejected.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -119,7 +121,39 @@ describe("GET /api/v1/heatmap", () => {
     expect(atMostTwoDecimals(cell.lng)).toBe(true);
     expect(cell.feedCount).toBe(3);
     expect(cell.dogCount).toBe(3);
-    expect(cell.fedRatio).toBe(1);
+    // 3 feeds over 3 dogs × 7 days = 3/21 of the dog-days saw a feed.
+    expect(cell.fedRatio).toBe(0.143);
+  });
+
+  it("clamps fedRatio to 1 when dogs are fed more than once a day (contract max(1))", async () => {
+    // Three dogs, eight feeds each, in a one-day window → 24 / (3 × 1) = 8
+    // feeds per dog-day. The old feeds÷dogs formula returned 8 here, which
+    // violates HeatmapCell's `fedRatio: z.number().min(0).max(1)`.
+    const cluster: Array<[number, number]> = [
+      [19.08, 72.87],
+      [19.0802, 72.8702],
+      [19.0798, 72.8698],
+    ];
+    for (const [lat, lng] of cluster) {
+      const dog = await insertDog(fixture.wardId);
+      fixture.dogIds.push(dog.id);
+      for (let i = 0; i < 8; i++) {
+        await insertFeedScan(dog.id, lat, lng);
+      }
+    }
+
+    const res = await fixture.app.inject({
+      method: "GET",
+      url: `/api/v1/heatmap?ward=${fixture.wardId}&days=7`,
+    });
+    expect(res.statusCode).toBe(200);
+    const cells = res.json().data.cells as Array<{ fedRatio: number; feedCount: number; dogCount: number }>;
+    expect(cells).toHaveLength(1);
+    expect(cells[0].feedCount).toBe(24);
+    expect(cells[0].dogCount).toBe(3);
+    // 24 / (3 × 7) = 1.14 → clamped.
+    expect(cells[0].fedRatio).toBe(1);
+    expect(cells[0].fedRatio).toBeLessThanOrEqual(1);
   });
 
   it("returns empty cells for a ward with no feed scans", async () => {

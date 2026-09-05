@@ -31,6 +31,8 @@ sample_args() {  # per-query sample parameters (count must match $n)
     # dog_id is uuid, so the default 'x' literal fails the cast rather than the
     # query -- which would report a schema problem that is really a fixture one.
     ledger_dog_leaves.sql) echo "'00000000-0000-0000-0000-000000000000'::uuid" ;;
+    # ward_id text + window in days (mirrors routes/heatmap.ts's [ward, days]).
+    heatmap.sql) echo "'x', 7" ;;
     *) echo "'x'" ;;
   esac
 }

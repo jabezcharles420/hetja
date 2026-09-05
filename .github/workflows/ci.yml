@@ -38,7 +38,7 @@ jobs:
       # Password given to app_user when CI creates the role.
       PGPASSWORD_APP: hetja_dev_2026
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       # No `version:` here on purpose: pnpm/action-setup@v4 reads
       # `packageManager` from package.json, and passing both makes it

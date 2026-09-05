@@ -150,7 +150,14 @@ psql -d hetja_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE
 # migrations MUST run as postgres, never as app_user — see the ownership note in §h
 PGHOST=/var/run/postgresql PGUSER=postgres pnpm --filter @hetja/db migrate
 
-# post-migration grants = production's privilege set, applied after the tables exist
+# post-migration grants = production's privilege set, applied after the tables exist.
+# Since 0022_app_user_grants.sql the migrations themselves grant app_user what
+# the API needs on every table, so this blanket GRANT is belt-and-braces for
+# clusters that predate it. It is NOT sufficient on its own: a blanket grant
+# only covers tables that exist when it runs -- production had it applied
+# before 0017 created refresh_tokens, so app_user had no rights on that table
+# and every OTP verify would have failed on its INSERT. Re-running migrations
+# (idempotent) is the right fix for that class of gap, not another GRANT ALL.
 psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;"
 psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
 # INVARIANT 9: re-applied after the blanket GRANT, which would hand DELETE back

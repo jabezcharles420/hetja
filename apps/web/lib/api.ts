@@ -333,12 +333,16 @@ export interface CreateRegistrationResult {
 
 export interface FeederMe {
   feederId: string;
-  email: string;
+  displayName: string;
   role: string;
+  trustScore: number;
   verificationTier: string;
+  homeWard: string | null;
   canRegister: boolean;
   registrationBudget: { pending: number; max: number };
   capabilities: string[];
+  /** SOS responder consent — the ONLY gate on being paged (routes/sos.ts fan-out). */
+  sosOptIn: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,6 +467,15 @@ export const api = {
   /** Feeder self (role, canRegister, budgets). */
   getFeederMe: () =>
     request<FeederMe>(`/feeders/me`),
+
+  /**
+   * Update own profile. `PATCH /api/v1/feeders/me` is strict: at least one of
+   * the two fields, nothing else. `sosOptIn` is THE consent surface for the SOS
+   * fan-out — `feeders.sos_opt_in` defaults to false and nothing else writes
+   * it, so until the web exposed this no feeder could ever be paged.
+   */
+  updateFeederMe: (input: { sosOptIn?: boolean; displayName?: string }) =>
+    request<{ sosOptIn?: boolean; displayName?: string }>(`/feeders/me`, { method: "PATCH", body: input }),
 
   /** Self-elect the registrator surface. */
   electRegisterSurface: () =>

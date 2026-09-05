@@ -174,9 +174,10 @@ describe("processOneJob", () => {
       expect(job!.last_error).toContain(POISON_KIND);
       expect(job!.locked_until).toBeNull();
 
-      // A dead letter is never claimed again, however long you wait.
+      // A dead letter is never claimed again, however long you wait. Checked
+      // on the row (see isClaimable) rather than by draining the queue.
       await query(`UPDATE jobs SET run_after = now() - interval '1 day' WHERE id = $1`, [id]);
-      expect(await processOneJob()).toBe("idle");
+      expect(await isClaimable(id)).toBe(false);
     } finally {
       await cleanup([id]);
       await restore();

@@ -131,7 +131,10 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     //
     // Both limits are checked before either is consumed, so a request refused
     // by the global cap does not also burn the user's personal allowance.
-    const perIdentity = otpPerIdentity.consume(idHmac);
+    // `peek` first, then `consume`: the previous form consumed the personal
+    // bucket and only then looked at the global one, which is the opposite of
+    // what this comment has always claimed.
+    const perIdentity = otpPerIdentity.peek(idHmac);
     if (!perIdentity.allowed) {
       return reply
         .status(429)
@@ -144,7 +147,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
           },
         });
     }
-    const global = otpGlobal.consume(GLOBAL_SUBJECT);
+    const global = otpGlobal.peek(GLOBAL_SUBJECT);
     if (!global.allowed) {
       // Deliberately vague to the caller and loud in the log: this is either an
       // attack in progress or a genuine surge, and both need an operator to see
@@ -162,6 +165,13 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
           error: { message: "Sign-in is temporarily busy. Try again shortly.", code: "RATE_LIMITED" },
         });
     }
+
+    // Both allowed: charge both. Two peeks then two consumes are not atomic
+    // across concurrent requests, but this API is one process and each bucket
+    // is consulted once per request, so the worst case is one extra send at
+    // the boundary — not a bypass.
+    otpPerIdentity.consume(idHmac);
+    otpGlobal.consume(GLOBAL_SUBJECT);
 
     const { code, expiresAt } = await issueOtp(idHmac, app.config.HETJA_HMAC_PEPPER);
 

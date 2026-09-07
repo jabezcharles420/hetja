@@ -1,7 +1,21 @@
-# Supabase — Hetja's database
+# Supabase — Hetja's schema mirror
 
-Managed Postgres is the authoritative database. There is no local Postgres to
-install; `AGENTS.md` covers the rest of the bootstrap.
+> **Status (2026-09):** the AUTHORITATIVE database is the local PostgreSQL 16
+> cluster on the box (`PGHOST=127.0.0.1`, `PGDATABASE=hetja` — AGENTS.md §b).
+> The Supabase project holds a mirror of the schema, receives every migration
+> from the deploy pipeline's Migrate job, and **serves no reads today**. The
+> plan is to repoint after the VPS itself moves to India. The rest of this file
+> describes standing up and cutting over to that project; the opening sentence
+> it used to carry ("Managed Postgres is the authoritative database. There is no
+> local Postgres to install") was the stale claim AGENTS.md §b calls out.
+>
+> `01_schema.sql` was generated from the pilot database at migration 0009 and
+> is not regenerated per migration — the Migrate job applies
+> `packages/db/migrations/*.sql` to the project directly, so a live project is
+> current; a project bootstrapped from `01_schema.sql` alone is not. Regenerate
+> it (`pg_dump --schema-only --no-owner --no-privileges` from a fully migrated
+> database, then requalify for the `extensions` schema) before relying on the
+> cutover script for a fresh project.
 
 ## Region matters more than you'd expect
 

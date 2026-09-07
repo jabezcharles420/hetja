@@ -58,7 +58,7 @@ fail() { printf 'FATAL: %s\n' "$*" >&2; exit 1; }
 log "checking prerequisites"
 
 command -v node >/dev/null 2>&1 || fail \
-  "node is not installed. Install Node 20+ (see .nvmrc) — no Postgres/PostGIS/pgvector install is needed, the database is managed Supabase (AGENTS.md section b)."
+  "node is not installed. Install Node 20+ (see .nvmrc). This box also needs a LOCAL PostgreSQL 16 with PostGIS, pgvector and pgcrypto — the authoritative database is local, not Supabase (AGENTS.md sections b and c)."
 command -v pnpm >/dev/null 2>&1 || fail \
   "pnpm is not installed. Run 'corepack enable' or install pnpm matching the 'packageManager' field in package.json."
 command -v caddy >/dev/null 2>&1 || fail \

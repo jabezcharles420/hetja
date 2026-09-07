@@ -13,7 +13,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { StoryInput } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
-import { verifyAccessToken } from "../lib/jwt.js";
+import { requireFeeder } from "../lib/require-role.js";
 
 interface DogIdRow {
   id: string;
@@ -30,29 +30,6 @@ interface StoryRow {
 
 const STORIES_MAX = 3;
 
-function requireFeeder(
-  req: FastifyRequest,
-  reply: FastifyReply,
-): { feederId: string } | null {
-  const auth = req.headers.authorization ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) {
-    void reply
-      .status(401)
-      .send({ ok: false, error: { message: "feeder auth required", code: "UNAUTHENTICATED" } });
-    return null;
-  }
-  try {
-    const payload = verifyAccessToken(token, req.server.config.JWT_SECRET);
-    return { feederId: payload.sub as string };
-  } catch {
-    void reply
-      .status(401)
-      .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
-    return null;
-  }
-}
-
 function toStoryPayload(row: StoryRow) {
   return {
     id: row.id,
@@ -67,7 +44,11 @@ export default async function storyRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { slug: string } }>(
     "/api/v1/dogs/:slug/stories",
     async (req: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {
-      const auth = requireFeeder(req, reply);
+      // The shared live-role gate (lib/require-role.ts), not a local JWT-only
+      // copy: dog_stories.author_feeder_id references feeders, so a still-valid
+      // token for an erased account used to reach the INSERT, hit FK 23503 and
+      // surface as a 500. It is a 401 FEEDER_GONE now, like every other route.
+      const auth = await requireFeeder(req, reply);
       if (!auth) return reply;
 
       const parsed = StoryInput.safeParse(req.body);

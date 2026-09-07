@@ -39,18 +39,19 @@
  * crash.
  */
 import { isPowChallenge, solveAltchaPoW, type PowChallenge, type PowSolution } from "@hetja/pow";
+import { DEVICE_TOKEN_KEY as TOKEN_KEY } from "./token-key";
 
-/**
- * Shared with apps/web deliberately. In production Caddy serves the feeder PWA
- * and this page from ONE hostname (hetja.in/* and hetja.in/d/*), so both read
- * the same localStorage -- and a device token is not app-specific: the same
- * endpoint mints it and the same secret verifies it. A feeder who scanned a
- * collar before signing in therefore pays for the proof-of-work once, not
- * twice. Nothing server-side links a token to a feeder identity (auth.ts
- * verifies it and discards it; only anonymous writes ever store the derived
- * deviceId), so sharing the key does not join those two records.
+/*
+ * TOKEN_KEY is shared with apps/web deliberately (see token-key.ts). In
+ * production Caddy serves the feeder PWA and this page from ONE hostname
+ * (hetja.in/* and hetja.in/d/*), so both read the same localStorage -- and a
+ * device token is not app-specific: the same endpoint mints it and the same
+ * secret verifies it. A feeder who scanned a collar before signing in therefore
+ * pays for the proof-of-work once, not twice. Nothing server-side links a token
+ * to a feeder identity (auth.ts verifies it and discards it; only anonymous
+ * writes ever store the derived deviceId), so sharing the key does not join
+ * those two records.
  */
-const TOKEN_KEY = "hetja.deviceToken.v1";
 
 /**
  * Wall-clock budget for one solve on this page. Deliberately generous: the

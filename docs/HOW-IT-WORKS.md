@@ -189,13 +189,17 @@ staff who need to retag on day one, which is why access gates on role, not score
 
 ## 5. Data
 
-Nineteen domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
+Twenty-two domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
 for geography and pgvector for image embeddings. Fifteen of them come from
 `0001_init.sql`; `care_providers` (0008), `otp_codes` (0010),
-`push_subscriptions` (0011) and `web_vitals` (0013) arrived later. An earlier
-version of this paragraph said "eighteen" while `WORK-REPORT.md` said "15" —
-neither matched the database, which `\dt` counts even higher because PostGIS
-ships its own `spatial_ref_sys`. The ones to know:
+`push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
+`spent_challenges` (0021) and `collar_reissues` (0023) arrived later. Earlier
+versions of this paragraph said "eighteen", then "nineteen" (which omitted the
+0017 and 0021 tables), while `WORK-REPORT.md` said "15" — none matched the
+database, which `\dt` counts even higher because PostGIS ships its own
+`spatial_ref_sys`. The count is checkable:
+`SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN
+('schema_migrations', 'spatial_ref_sys')`. The ones to know:
 
 | Table | What it holds |
 |---|---|

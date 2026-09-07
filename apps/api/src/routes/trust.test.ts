@@ -190,6 +190,15 @@ describe("trust feed scan callback", () => {
   });
 });
 
+/** The explicit write path for the gate — GET /trust only reads. */
+async function evaluateTrust(fixture: Fixture) {
+  return fixture.app.inject({
+    method: "POST",
+    url: `/api/v1/feeders/${fixture.feederId}/trust/evaluate`,
+    headers: { authorization: bearerToken(fixture.feederId) },
+  });
+}
+
 describe("INVARIANT 15 — verification gates", () => {
   it("auto-pauses a provisional feeder after 3 serial rejects, role unchanged", async () => {
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
@@ -200,13 +209,28 @@ describe("INVARIANT 15 — verification gates", () => {
     expect(before.json().data.paused).toBe(false);
 
     await insertScan(fixture.feederId, fixture.dogId, "flagged");
+    // GET is a READ: it reports the pause the moment the third reject lands,
+    // and writes nothing — so no flag row exists yet. (It used to insert the
+    // auto_paused flag from inside a GET; docs/BUGS.md P3.)
     const paused = await getTrust(fixture);
     expect(paused.statusCode).toBe(200);
     expect(paused.json().data.paused).toBe(true);
     expect(paused.json().data.serialRejects).toBe(3);
-    expect(paused.json().data.autoPausedEventId).toBeTruthy();
+    expect(paused.json().data.autoPausedEventId).toBeUndefined();
+    expect(
+      paused.json().data.events.filter((e: { eventType: string }) => e.eventType === "auto_paused"),
+    ).toHaveLength(0);
 
-    const flagEvents = paused
+    // The flag is written by a WRITE path — here the explicit evaluate; in
+    // production also by POST /scans refusing the paused feeder (scans.test.ts).
+    const evaluated = await evaluateTrust(fixture);
+    expect(evaluated.statusCode).toBe(200);
+    expect(evaluated.json().data.paused).toBe(true);
+    expect(evaluated.json().data.autoPausedEventId).toBeTruthy();
+
+    const recorded = await getTrust(fixture);
+    expect(recorded.json().data.autoPausedEventId).toBe(evaluated.json().data.autoPausedEventId);
+    const flagEvents = recorded
       .json()
       .data.events.filter((e: { eventType: string }) => e.eventType === "auto_paused");
     expect(flagEvents).toHaveLength(1);
@@ -224,11 +248,12 @@ describe("INVARIANT 15 — verification gates", () => {
     // something new happened when it had not.
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
+    await evaluateTrust(fixture);
     const still = await getTrust(fixture);
     expect(still.statusCode).toBe(200);
     expect(still.json().data.paused).toBe(true);
     expect(still.json().data.serialRejects).toBe(3);
-    expect(still.json().data.autoPausedEventId).toBe(paused.json().data.autoPausedEventId);
+    expect(still.json().data.autoPausedEventId).toBe(evaluated.json().data.autoPausedEventId);
     const stillFlags = still
       .json()
       .data.events.filter((e: { eventType: string }) => e.eventType === "auto_paused");

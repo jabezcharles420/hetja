@@ -1,10 +1,9 @@
-import { queueScan, listQueued } from "./idb";
+import { queueScan, listQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
 import { flushQueue } from "./flush";
 import { getDeviceToken } from "./device";
 import { recordDroppedFeed } from "./dropped";
 
-const UUID_KEY = "hetja.clientUuid";
 const SYNC_TAG = "log-feed";
 const EVICT_WINDOW_MS = 7 * 24 * 3600 * 1000;
 const WARN_BEFORE_MS = 24 * 3600 * 1000;
@@ -18,22 +17,6 @@ export interface LogFeedOutcome {
   evictionSoon: boolean;
 }
 
-export function getClientUuid(): string {
-  try {
-    let u = localStorage.getItem(UUID_KEY);
-    if (!u) {
-      u = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID?.() ?? fallbackUuid();
-      localStorage.setItem(UUID_KEY, u);
-    }
-    return u;
-  } catch {
-    return fallbackUuid();
-  }
-}
-
-function fallbackUuid(): string {
-  return "c0000000-0000-4000-8000-" + Math.random().toString(16).slice(2, 14).padEnd(12, "0");
-}
 
 export async function hasBackgroundSync(): Promise<boolean> {
   if (!("serviceWorker" in navigator)) return false;
@@ -67,8 +50,16 @@ export async function enqueueFeed(dogSlug: string, photoBlob: Blob, geo?: { lat:
   // queued anyway and flush.ts reports it through the dropped-feeds path
   // instead of retrying it forever.
   const deviceToken = await getDeviceToken();
+  // A FRESH clientUuid PER FEED. INVARIANT 5 makes scans.client_uuid UNIQUE so
+  // an offline replay of the same feed is idempotent — and this used to pass
+  // one uuid per BROWSER, persisted in localStorage and reused for every feed
+  // this device ever logged. The server answered the second feed (and every
+  // one after it) with `created: false` on a 200, flush read the 200 as
+  // success and removed the record, and the feed was silently lost: the scan
+  // page could log exactly one feed per phone, ever. apps/web has always
+  // minted per record (lib/idb.ts: "per scan, not per device").
   const queued = await queueScan({
-    clientUuid: getClientUuid(),
+    clientUuid: uuid(),
     dogSlug,
     photoBlob,
     geo,

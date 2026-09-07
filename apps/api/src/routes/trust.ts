@@ -6,8 +6,11 @@
  * POST /api/v1/trust/disputes/:id/resolve — ADMIN adjudicates an open
  *   dispute: the original delta is reversed exactly and the score recomputed.
  * GET  /api/v1/feeders/:id/trust          — self-service: score + verification
- *   tier + pause state + recent events. Also evaluates the INVARIANT 15 gate
- *   (see getFeederTrust for why a read may write once, transactionally).
+ *   tier + pause state + recent events. A pure read: the INVARIANT 15 pause is
+ *   DERIVED here (readVerificationGate) and ENFORCED by routes/scans.ts, which
+ *   is where the `auto_paused` flag gets written.
+ * POST /api/v1/feeders/:id/trust/evaluate — records the gate explicitly
+ *   (applyVerificationGate) without submitting a scan.
  *
  * There is deliberately no "log a trust event" endpoint. One used to live here
  * (POST /api/v1/trust/events) and it let any feeder mint any catalog delta for
@@ -192,10 +195,11 @@ export default async function trustRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /api/v1/feeders/:id/trust/evaluate — explicit INVARIANT 15 gate.
    *
-   * Moves the write out of GET for callers that care: evaluates
-   * applyVerificationGate transactionally (FOR UPDATE + idempotent
-   * compare-and-set) and returns the same gate payload. GET still evaluates
-   * the same gate idempotently, but this endpoint is the honest write path.
+   * Evaluates applyVerificationGate transactionally (FOR UPDATE + idempotent
+   * compare-and-set) and returns the gate payload, recording the `auto_paused`
+   * flag if the feeder has crossed the threshold. The other writer is
+   * routes/scans.ts, which runs the same gate before accepting a feeder's
+   * scan; GET /feeders/:id/trust only reads.
    */
   app.post<{ Params: { id: string } }>(
     "/api/v1/feeders/:id/trust/evaluate",

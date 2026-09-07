@@ -152,7 +152,9 @@ export function buildServer(config: AppConfig): FastifyInstance {
 
   app.get("/", async () => ({
     service: "Hetja API",
-    docs: "/docs",
+    // There is no /docs route and never was; a third-party client following
+    // the old value got a 404 from the one URL that claimed to explain the API.
+    docs: "https://github.com/jabezcharles420/hetja/blob/main/docs/HOW-IT-WORKS.md",
   }));
 
   void app.register(authRoutes);

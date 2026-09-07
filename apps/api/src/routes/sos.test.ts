@@ -1068,6 +1068,98 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
     expect(res.statusCode).toBe(404);
     await app.close();
   });
+
+  /**
+   * The ack predicate used to be `acked_by IS NULL` alone. A case a moderator
+   * closed without anyone claiming it has acked_by NULL and resolved_at set, so
+   * a later ack matched, wrote acked_by/acked_at and flipped `state` back to
+   * 'acked' — a terminal state silently reopened by a responder who never went
+   * anywhere.
+   */
+  it("an ack cannot reopen a case a moderator already resolved (409 SOS_CASE_CLOSED)", async () => {
+    const caseId = await openCase("critical");
+    const admin = await makeFeeder("Closing Admin", "admin");
+    const late = await makeFeeder("Late Responder");
+    const app = buildServer(config);
+
+    const closed = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/resolve`,
+      headers: { authorization: `Bearer ${admin.accessToken}` },
+      payload: { resolution: "handled by the clinic directly", outcome: "false_alarm" },
+    });
+    expect(closed.statusCode).toBe(200);
+
+    const ack = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${caseId}/ack`,
+      headers: { authorization: `Bearer ${late.accessToken}` },
+    });
+    expect(ack.statusCode).toBe(409);
+    expect(ack.json().error.code).toBe("SOS_CASE_CLOSED");
+
+    const row = await query<{ state: string; acked_by: string | null; resolved_at: Date | null }>(
+      `SELECT state, acked_by, resolved_at FROM sos_cases WHERE id = $1`,
+      [caseId],
+    );
+    // Terminal state untouched: nobody owns it, and it stays closed.
+    expect(row.rows[0].state).toBe("false_alarm");
+    expect(row.rows[0].acked_by).toBeNull();
+    expect(row.rows[0].resolved_at).toBeTruthy();
+
+    await app.close();
+  });
+
+  /**
+   * INVARIANT 7 is a cap on what pages people — cases — not on scans rows. The
+   * dedupe key is deterministic, so re-filing a report after its case closed
+   * reuses the scans row and opens a NEW case; counting scans let that path open
+   * a fresh case every time the last one was resolved, without ever touching the
+   * 2/day budget.
+   */
+  it("counts re-filed reports against the cap once their earlier case is resolved", async () => {
+    const admin = await makeFeeder("Cap Admin", "admin");
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const report = (note: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/v1/reports",
+        payload: { dogSlug, severity: "serious", note, deviceToken: token },
+      });
+
+    const first = await report("same words");
+    expect(first.statusCode).toBe(200);
+    const firstCase = first.json().data.caseId as string;
+
+    const resolved = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${firstCase}/resolve`,
+      headers: { authorization: `Bearer ${admin.accessToken}` },
+      payload: { resolution: "dog seen, fine" },
+    });
+    expect(resolved.statusCode).toBe(200);
+
+    // Same subject, same words: not a replay of an OPEN case, so a new case —
+    // and the second of this device's two for the day.
+    const refiled = await report("same words");
+    expect(refiled.statusCode).toBe(200);
+    expect(refiled.json().data.created).toBe(true);
+    expect(refiled.json().data.caseId).not.toBe(firstCase);
+
+    const third = await report("different words");
+    expect(third.statusCode).toBe(429);
+    expect(third.json().error.code).toBe("SOS_RATE_LIMITED");
+
+    const cases = await query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM sos_cases c JOIN scans s ON s.id = c.scan_id
+        WHERE s.device_token = $1`,
+      [deviceTokenSubject(token, config.HETJA_DEVICE_SECRET)],
+    );
+    expect(cases.rows[0].n).toBe(2);
+
+    await app.close();
+  });
 });
 
 describe("PATCH /api/v1/feeders/me — SOS responder consent (wave 7)", () => {

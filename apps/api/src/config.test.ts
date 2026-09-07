@@ -25,3 +25,38 @@ describe("loadConfig — STORAGE_BACKEND", () => {
     );
   });
 });
+
+/**
+ * HOST in production must be loopback. The check used to be presence-only —
+ * docs/BUGS.md recorded it as "refuses anything but 127.0.0.1" while
+ * HOST=0.0.0.0 set explicitly booted fine and exposed the API past Caddy.
+ */
+describe("loadConfig — HOST in production", () => {
+  const prodEnv = {
+    ...process.env,
+    NODE_ENV: "production",
+    PGPASSWORD: "x".repeat(20),
+    HETJA_HMAC_PEPPER: "p".repeat(32),
+    HETJA_QR_SECRET: "q".repeat(32),
+    HETJA_DEVICE_SECRET: "d".repeat(32),
+    JWT_SECRET: "j".repeat(32),
+    BREVO_SMTP_HOST: "smtp.example.test",
+    BREVO_SMTP_USER: "user",
+    BREVO_SMTP_PASS: "pass",
+    TRUST_PROXY: "1",
+  };
+
+  it("boots on 127.0.0.1", () => {
+    expect(loadConfig({ ...prodEnv, HOST: "127.0.0.1" }).HOST).toBe("127.0.0.1");
+  });
+
+  it("refuses a non-loopback bind address", () => {
+    expect(() => loadConfig({ ...prodEnv, HOST: "0.0.0.0" })).toThrow(/not a loopback address/);
+    expect(() => loadConfig({ ...prodEnv, HOST: "10.0.0.5" })).toThrow(/not a loopback address/);
+  });
+
+  it("still refuses an unset HOST rather than falling back to 0.0.0.0", () => {
+    const { HOST: _drop, ...noHost } = prodEnv as Record<string, string>;
+    expect(() => loadConfig(noHost)).toThrow(/HOST is not set/);
+  });
+});

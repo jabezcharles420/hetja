@@ -26,6 +26,7 @@ import {
 import { MedicalRecordInput } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
+import { capabilitiesFor } from "../lib/require-role.js";
 
 const CHAIN_LOCK_KEY = 420_001; // arbitrary, stable advisory lock for the chain
 
@@ -156,7 +157,16 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
     const auth = requireFeeder(req, reply);
     if (!auth) return reply;
     const role = await loadFeederRole(auth.feederId);
-    if (!role || (role !== "feeder" && role !== "vet")) {
+    // Any account that holds the `feed` capability may file a self-report
+    // (is_verified = false); only a vet's write is verified below. This used to
+    // be `role !== "feeder" && role !== "vet"`, written before the registrator
+    // surface existed: the moment a feeder self-elected registrator
+    // (POST /api/v1/feeders/me/surface) they lost the ability to record a
+    // treatment they had just paid for, and admins and BMC officers never had
+    // it at all. The capability map in lib/require-role.ts is the one place
+    // "what may this role do" lives — an unknown role yields an empty set and
+    // is refused here, and an erased account (no row) is refused with it.
+    if (!role || !capabilitiesFor(role).has("feed")) {
       return reply
         .status(403)
         .send({ ok: false, error: { message: "feeder or vet role required", code: "FORBIDDEN" } });

@@ -68,6 +68,25 @@ describe("RateLimiter", () => {
     expect(rl.consume("a", t0 + denied.retryAfterSec * 1000).allowed).toBe(true);
   });
 
+  it("peek reports the decision without spending a token", () => {
+    // routes/auth.ts gates one send on two limiters and must be able to ask
+    // both before charging either — otherwise a user refused by the global
+    // cap also loses one of their personal codes for nothing.
+    const rl = new RateLimiter({ refillPerSec: 1 / 60, burst: 2 });
+    const t = 1_000_000;
+    expect(rl.peek("a", t).allowed).toBe(true); // unknown subject: full bucket
+    expect(rl.peek("a", t).allowed).toBe(true); // still full — peek spent nothing
+    expect(rl.consume("a", t).allowed).toBe(true);
+    expect(rl.consume("a", t).allowed).toBe(true);
+    const denied = rl.peek("a", t);
+    expect(denied.allowed).toBe(false);
+    expect(denied.retryAfterSec).toBeGreaterThan(0);
+    // Peek agrees with what consume would do, and consume still refuses.
+    expect(rl.consume("a", t).allowed).toBe(false);
+    // Refill is visible to peek too.
+    expect(rl.peek("a", t + 60_000).allowed).toBe(true);
+  });
+
   it("never returns a retry-after of zero when it refuses", () => {
     // 0 would read as "retry immediately", producing a hot loop against the
     // very endpoint being protected.

@@ -22,7 +22,7 @@ external build guide that lived outside the repo.
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
 | 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
 | 14 | AI validation flags, never silently rejects | ✅ | `apps/ai/worker.py` stub → `flagged`; test asserted |
-| 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate + `trust.test.ts` (serial rejects pause provisional feeder) |
+| 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate, **enforced** by `routes/scans.ts` (a paused feeder's scan answers 403 `FEEDER_PAUSED`); `trust.test.ts` + `scans.test.ts` |
 
 Legend: ✅ done + tested · 🔄 in flight · 🔶 designed/documented
 
@@ -225,6 +225,22 @@ spec PDFs directly. Migrated here so it survives independently of them.
     clear it) — the point is to stop repeat bad-faith or malfunctioning
     submissions from accumulating before a human looks, not to punish a
     feeder for one bad photo.
+
+    **Defect found and fixed (recorded 2026-09-07).** For the whole life of
+    this row the pause was a flag nothing read. `applyVerificationGate` wrote
+    an `auto_paused` trust event — from inside `GET /feeders/:id/trust`, a read
+    that inserted rows (docs/BUGS.md P3) — and no write path ever consulted it:
+    a paused feeder's next `POST /api/v1/scans` was accepted like any other, so
+    "paused rather than left free to keep submitting" described nothing the
+    code did. Now `routes/scans.ts` evaluates the gate before accepting a
+    feeder-authed scan and refuses a paused account with 403 `FEEDER_PAUSED`
+    (the offline queue treats that as final and tells the feeder); the flag is
+    written there and by the explicit `POST /feeders/:id/trust/evaluate`, and
+    the GET is a pure read again. SOS reporting is deliberately NOT gated — an
+    emergency report from a paused account is still an emergency. "A human
+    review can clear it" remains true in the same shape as before: the gate
+    re-derives from the last three scans' `review_status`, so passing one of
+    them (or promoting the account's `verification_tier`) lifts the pause.
 
 Two more decisions worth carrying over even though they aren't numbered rows
 in the table above:

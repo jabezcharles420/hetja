@@ -4,7 +4,10 @@ import {
   ApiError,
   API_BASE,
   getAccessToken,
+  getRefreshToken,
   setAccessToken,
+  setRefreshToken,
+  setSession,
   type DogProfile,
 } from "./api";
 
@@ -82,6 +85,90 @@ describe("lib/api", () => {
 
     await expect(api.getStreak()).rejects.toBeInstanceOf(ApiError);
     expect(getAccessToken()).toBeNull();
+  });
+
+  /**
+   * The server had a refresh route and a one-time-use token store (migration
+   * 0017) built for exactly this; the client stored only the access token and
+   * never called it, so every session died after JWT_ACCESS_TTL. The 401 that
+   * used to sign the feeder out is now the trigger for one exchange + retry.
+   */
+  it("refreshes the session once on a 401 and retries the request with the new token", async () => {
+    setSession({ accessToken: "stale-access", refreshToken: "refresh-1" });
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(401, { ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          ok: true,
+          data: { accessToken: "fresh-access", refreshToken: "refresh-2", feeder: { displayName: "F", trustScore: 30, role: "feeder" } },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { trustScore: 31, streakDays: 2, badges: [] } }));
+
+    const streak = await api.getStreak();
+    expect(streak.streakDays).toBe(2);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [refreshUrl, refreshInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(refreshUrl).toBe(`${API_BASE}/auth/refresh`);
+    expect(refreshInit.method).toBe("POST");
+    expect(JSON.parse(refreshInit.body as string)).toEqual({ refreshToken: "refresh-1" });
+    // The refresh token IS the credential: no Authorization header rides along.
+    expect(refreshInit.headers).not.toHaveProperty("authorization");
+
+    const [, retryInit] = fetchMock.mock.calls[2] as [string, RequestInit];
+    expect((retryInit.headers as Record<string, string>).authorization).toBe("Bearer fresh-access");
+    // The rotated pair is what is stored now.
+    expect(getAccessToken()).toBe("fresh-access");
+    expect(getRefreshToken()).toBe("refresh-2");
+  });
+
+  it("clears both tokens and throws when the refresh is refused", async () => {
+    setSession({ accessToken: "stale-access", refreshToken: "refresh-used" });
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(401, { ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(401, { ok: false, error: { message: "refresh token already used", code: "REFRESH_REUSED" } }),
+      );
+
+    await expect(api.getStreak()).rejects.toMatchObject({ status: 401, code: "BAD_ACCESS_TOKEN" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getAccessToken()).toBeNull();
+    expect(getRefreshToken()).toBeNull();
+  });
+
+  it("does not loop: a 401 on the retried request signs out instead of refreshing again", async () => {
+    setSession({ accessToken: "stale-access", refreshToken: "refresh-1" });
+    const denied = () =>
+      jsonResponse(401, { ok: false, error: { message: "account no longer exists", code: "FEEDER_GONE" } });
+    fetchMock
+      .mockResolvedValueOnce(denied())
+      .mockResolvedValueOnce(
+        jsonResponse(200, { ok: true, data: { accessToken: "fresh-access", refreshToken: "refresh-2" } }),
+      )
+      .mockResolvedValueOnce(denied());
+
+    await expect(api.getStreak()).rejects.toMatchObject({ code: "FEEDER_GONE" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getAccessToken()).toBeNull();
+    expect(getRefreshToken()).toBeNull();
+  });
+
+  it("does not refresh for a 401 on a request that sent no session", async () => {
+    // e.g. /devices/token answering BAD_POW while a refresh token happens to be stored.
+    setRefreshToken("refresh-1");
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { ok: false, error: { message: "proof of work invalid", code: "BAD_POW" } }),
+    );
+    await expect(
+      api.requestDeviceToken({ challenge: { parameters: {} as never }, solution: { counter: 1, derivedKey: "x" } }),
+    ).rejects.toMatchObject({ code: "BAD_POW" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getRefreshToken()).toBe("refresh-1");
   });
 
   it("throws on HTTP errors without a JSON envelope", async () => {

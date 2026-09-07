@@ -219,6 +219,36 @@ describe("POST /api/v1/dogs/:slug/collar — re-issue", () => {
       url: `/api/v1/dogs/${original.slug}${new URL(original.collarUrl).search}`,
     });
     expect(still.statusCode).toBe(200);
+
+    // The provenance the overwrite destroyed is kept in collar_reissues
+    // (migration 0023): the previous batch, what replaced it, why, and who.
+    // Until this table existed the route's own comment promised an auditable
+    // tag history and the reason went to the log only (BUGS P2-8).
+    const history = await query<{
+      previous_batch_no: string;
+      new_batch_no: string;
+      reason: string | null;
+      reissued_by: string | null;
+    }>(
+      `SELECT previous_batch_no, new_batch_no, reason, reissued_by
+         FROM collar_reissues WHERE slug = $1`,
+      [original.slug],
+    );
+    expect(history.rowCount).toBe(1);
+    expect(history.rows[0].previous_batch_no).toBe("manual");
+    expect(history.rows[0].new_batch_no).toBe("P2-0007");
+    expect(history.rows[0].reason).toBe("tag chewed through");
+    expect(history.rows[0].reissued_by).toBeTruthy();
+    expect((reissued.json().data as { reissueId?: string }).reissueId).toBeTruthy();
+
+    // Still exactly one collars row for the slug — history is a side table,
+    // never a second row under a UNIQUE qr_code.
+    const collars = await query<{ n: number; batch_no: string }>(
+      `SELECT count(*)::int AS n, min(batch_no) AS batch_no FROM collars WHERE qr_code = $1`,
+      [original.slug],
+    );
+    expect(collars.rows[0].n).toBe(1);
+    expect(collars.rows[0].batch_no).toBe("P2-0007");
   });
 
   it("404s for a well-formed slug that belongs to no dog", async () => {

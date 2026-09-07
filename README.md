@@ -60,8 +60,10 @@ enforced in CI — a framework runtime alone would exceed it.
 ## Running it
 
 **[AGENTS.md](AGENTS.md) is the authoritative setup guide**, written so a coding
-agent on a fresh Ubuntu box can bring the whole stack up unattended. The database
-is managed Postgres, so there is no PostGIS or pgvector to install locally.
+agent on a fresh Ubuntu box can bring the whole stack up unattended. The
+authoritative database is a **local PostgreSQL 16 with PostGIS, pgvector and
+pgcrypto** on the box (AGENTS.md §b–§c); the Supabase project is a schema mirror
+that serves no reads today.
 
 ```sh
 git clone <this repo> && cd hetja

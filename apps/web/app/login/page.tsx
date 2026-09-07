@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, ApiError, setAccessToken } from "@/lib/api";
+import { api, ApiError, setSession } from "@/lib/api";
 import {
   clearCachedDeviceToken,
   deviceTokenFailureMessage,
@@ -117,7 +117,9 @@ export default function LoginPage(): React.JSX.Element {
 
       setStatus("Verifying…");
       const res = await submitVerify(device.token);
-      setAccessToken(res.accessToken);
+      // BOTH halves. This used to keep only the access token, so every session
+      // ended after JWT_ACCESS_TTL with nothing to renew it — see lib/api.ts.
+      setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
       router.push("/me");
     } catch (err) {
       setStatus(err instanceof ApiError ? err.message : "Verification failed.");

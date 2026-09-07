@@ -133,6 +133,13 @@ function requireInProd(env: NodeJS.ProcessEnv, name: string, explanation: string
   );
 }
 
+/** 127.0.0.0/8, ::1 (with or without brackets) and `localhost`. */
+export function isLoopbackHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h === "::1" || h === "::ffff:127.0.0.1") return true;
+  return /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(h);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = EnvSchema.parse(env);
 
@@ -222,6 +229,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "HOST",
       "in production this must be 127.0.0.1 (Caddy terminates TLS and reverse-proxies to it on loopback). The default 0.0.0.0 would bind the API to the public interface, and without this guard a missing HOST silently falls back to that default — AGENTS.md §h flags this as a silent-failure class like TRUST_PROXY.",
     );
+    // Presence is not enough: docs/BUGS.md recorded this guard as "production
+    // boot refuses anything but 127.0.0.1", and until now it refused only an
+    // EMPTY value — HOST=0.0.0.0 set explicitly booted fine and bound the API
+    // to every interface. Loopback is the contract (AGENTS.md §b: "all bound to
+    // loopback"; Caddy is the only thing reachable from outside), so anything
+    // else is refused with the same posture as every other requireInProd.
+    if (!isLoopbackHost(parsed.HOST)) {
+      throw new Error(
+        `HOST=${parsed.HOST} is not a loopback address. Refusing to start in production: the API ` +
+          "must bind to 127.0.0.1 (or ::1) behind Caddy — AGENTS.md §b. Binding a wider " +
+          "interface exposes the API past the reverse proxy with no boot error and nothing in " +
+          "any dashboard.",
+      );
+    }
     requireInProd(
       env,
       "TRUST_PROXY",

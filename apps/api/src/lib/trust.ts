@@ -27,10 +27,13 @@
  * INVARIANT 15 — verification gates: provisional feeders are gated. Rejected
  * /flagged scans accumulate; at >= 3 SERIAL rejects (consecutive, newest
  * first) the feeder is auto-paused: role is unchanged, and a flag
- * trust_event 'auto_paused' is written. The pause is observable via
- * applyVerificationGate()/getFeederTrust().
+ * trust_event 'auto_paused' is written. The pause is ENFORCED by
+ * routes/scans.ts (a paused feeder's scans answer 403 FEEDER_PAUSED), written
+ * by applyVerificationGate() on that write path and on the explicit
+ * POST /feeders/:id/trust/evaluate, and merely READ by getFeederTrust()
+ * (readVerificationGate — no side effects on GET).
  */
-import { query, withTx } from "@hetja/db";
+import { query } from "@hetja/db";
 
 export const TRUST_BASELINE = 30;
 export const TRUST_MIN = 0;
@@ -377,6 +380,47 @@ export async function applyVerificationGate(feederId: string, client?: TxClient)
   return { paused: true, serialRejects, autoPausedEventId: flag.id };
 }
 
+/**
+ * The gate as a pure READ: the same decision applyVerificationGate() makes,
+ * with no lock and no insert. `paused` is derived (provisional AND >= 3 serial
+ * rejects), so it is true the moment the third reject lands whether or not a
+ * write path has recorded the `auto_paused` flag yet; `autoPausedEventId` is
+ * the flag if one exists and null otherwise — a null here means "not yet
+ * recorded", never "not paused".
+ *
+ * This is what GET /feeders/:id/trust reports. The GET used to CALL
+ * applyVerificationGate inside a transaction, i.e. an idempotent read that
+ * inserted a row (docs/BUGS.md P3). The write belongs on the paths that act on
+ * the pause — routes/scans.ts refusing a paused feeder's scan, and the explicit
+ * POST /feeders/:id/trust/evaluate — not on a profile read.
+ */
+export async function readVerificationGate(feederId: string, client?: TxClient): Promise<GateStatus> {
+  const c = client ?? trustDb;
+  const feeder = await c.query<{ verification_tier: string }>(
+    `SELECT verification_tier FROM feeders WHERE id = $1`,
+    [feederId],
+  );
+  if (feeder.rowCount === 0) {
+    throw new TrustError("feeder not found", "FEEDER_NOT_FOUND", 404);
+  }
+  if (feeder.rows[0].verification_tier !== "provisional") {
+    return { paused: false, serialRejects: 0, autoPausedEventId: null };
+  }
+  const serialRejects = await countSerialRejects(feederId, c);
+  const existing = await c.query<{ id: string }>(
+    `SELECT id FROM trust_events
+      WHERE feeder_id = $1 AND event_type = 'auto_paused'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [feederId],
+  );
+  return {
+    paused: serialRejects >= SERIAL_REJECT_PAUSE_THRESHOLD,
+    serialRejects,
+    autoPausedEventId: existing.rows[0]?.id ?? null,
+  };
+}
+
 export interface ScanReviewStatus {
   paused: boolean;
   serialRejects: number;
@@ -439,19 +483,16 @@ export interface FeederTrustView {
 /**
  * Score + verification tier + pause state + recent events (self-service).
  *
- * This READ can still trigger the INVARIANT 15 gate (applyVerificationGate)
- * once: until a scan-review transition exists, `onScanReject()` has no caller
- * and nothing else observes accumulated rejects — so `validate_scan` stays
- * pending and this read is the only enforcement point INVARIANT 15 has. The
- * write is idempotent with a compare-and-set: applyVerificationGate takes
- * FOR UPDATE on the feeder row, checks serialRejects, checks for an existing
- * auto_paused event, and only then inserts — so concurrent GETs serialize and
- * at most one flag row is ever created (delta 0, idempotent).
- *
- * An explicit POST is also available (`POST /api/v1/feeders/:id/trust/evaluate`
- * → evaluateTrustGate) so callers that need to force the gate without relying
- * on a GET side-effect have a non-idempotent-read-breaking path. The GET's
- * write will be removable once validate_scan actually calls onScanReject().
+ * A READ, and only a read. Until 2026-09-07 this called applyVerificationGate
+ * inside a transaction — a GET that could INSERT the `auto_paused` flag —
+ * because it was the only place INVARIANT 15's gate was ever evaluated
+ * (docs/BUGS.md P3). The enforcement point is now routes/scans.ts, which
+ * evaluates the gate (and writes the flag) before accepting a feeder's scan,
+ * and the explicit POST /api/v1/feeders/:id/trust/evaluate remains for a
+ * caller that wants the flag recorded without submitting anything. This
+ * function reports the derived state (readVerificationGate) and writes
+ * nothing, so `autoPausedEventId` may be null for a feeder who is paused but
+ * has not yet tried to submit since crossing the threshold.
  */
 export async function getFeederTrust(feederId: string): Promise<FeederTrustView> {
   const feeder = await query<{ trust_score: number; verification_tier: string }>(
@@ -461,7 +502,7 @@ export async function getFeederTrust(feederId: string): Promise<FeederTrustView>
   if (feeder.rowCount === 0) {
     throw new TrustError("feeder not found", "FEEDER_NOT_FOUND", 404);
   }
-  const gate = await withTx((client) => applyVerificationGate(feederId, client));
+  const gate = await readVerificationGate(feederId);
   const events = await query<TrustEventRow>(
     `SELECT ${TRUST_EVENT_COLUMNS}
        FROM trust_events

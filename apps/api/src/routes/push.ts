@@ -25,7 +25,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { query } from "@hetja/db";
-import { verifyAccessToken } from "../lib/jwt.js";
+import { requireFeeder } from "../lib/require-role.js";
 
 const PushSubscribeInput = z.object({
   endpoint: z.string().url().max(2048),
@@ -39,16 +39,6 @@ const PushUnsubscribeInput = z.object({
   endpoint: z.string().url().max(2048),
 });
 
-/** Bearer feeder auth, same verification lib.ts already uses elsewhere (sos.ts, scans.ts). */
-function requireFeeder(req: FastifyRequest, app: FastifyInstance): string | null {
-  const rawAuth = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
-  if (!rawAuth.startsWith("Bearer ")) return null;
-  try {
-    return verifyAccessToken(rawAuth.slice(7), app.config.JWT_SECRET).sub;
-  } catch {
-    return null;
-  }
-}
 
 export default async function pushRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/push/vapid-public-key", async (_req: FastifyRequest, reply: FastifyReply) => {
@@ -63,12 +53,12 @@ export default async function pushRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/api/v1/push/subscribe", async (req: FastifyRequest, reply: FastifyReply) => {
-    const feederId = requireFeeder(req, app);
-    if (!feederId) {
-      return reply
-        .status(401)
-        .send({ ok: false, error: { message: "feeder auth required", code: "UNAUTHENTICATED" } });
-    }
+    // Live role read (lib/require-role.ts): push_subscriptions.feeder_id is a
+    // foreign key, so a still-valid token for an erased account used to reach
+    // the INSERT, fail with 23503 and render as a 500. Now 401 FEEDER_GONE.
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const feederId = auth.feederId;
     const parsed = PushSubscribeInput.safeParse(req.body);
     if (!parsed.success) {
       return reply
@@ -112,12 +102,9 @@ export default async function pushRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/api/v1/push/unsubscribe", async (req: FastifyRequest, reply: FastifyReply) => {
-    const feederId = requireFeeder(req, app);
-    if (!feederId) {
-      return reply
-        .status(401)
-        .send({ ok: false, error: { message: "feeder auth required", code: "UNAUTHENTICATED" } });
-    }
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const feederId = auth.feederId;
     const parsed = PushUnsubscribeInput.safeParse(req.body);
     if (!parsed.success) {
       return reply

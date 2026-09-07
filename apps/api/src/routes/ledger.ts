@@ -3,9 +3,10 @@
  *
  * GET /api/v1/ledger/anchor        — latest published anchor (head hash, global
  *   Merkle root, record count, and the signature over them when one exists)
- * GET /api/v1/ledger/verify?n=…    — recompute the head from the last n
- *   medical_records and compare against the latest published anchor.
- *   Tamper-evidence anyone can run.
+ * GET /api/v1/ledger/verify        — recompute the head over exactly the
+ *   records the latest published anchor covers (its record_count, in canonical
+ *   chain order) and compare against that anchor; also re-walk the chain's
+ *   prev-links over the same rows. Tamper-evidence anyone can run.
  * GET /api/v1/ledger/proof?hash=…  — RFC 6962 inclusion proof for one medical
  *   record, so an external auditor can check that record in O(log n) without
  *   being handed the table.
@@ -14,6 +15,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   merkleProof,
   recomputeHead,
+  verifyChain,
   type LedgerRecord,
   type MerkleProof,
   type ProvenRecord,
@@ -36,6 +38,14 @@ const HASH_RE = /^[0-9a-f]{64}$/;
  * medical.ts is now due, and either way a clear answer beats a slow one.
  */
 const MAX_PROOF_LEDGER_ROWS = 10_000;
+
+/**
+ * Ceiling for GET /verify, which reads full payloads (it re-hashes them) rather
+ * than the two-column projection the proofs use — so it is the more expensive
+ * anonymous read and gets the same kind of hard stop, at the value the old
+ * `?n=` parameter capped at.
+ */
+const MAX_VERIFY_LEDGER_ROWS = 50_000;
 
 /**
  * Leaves of one dog's tree, in canonical chain order, plus the root each row
@@ -161,6 +171,63 @@ interface ProofResponse {
   verify: string;
 }
 
+/** What GET /api/v1/ledger/verify says about one anchor. */
+export interface AnchorVerdict {
+  /** Records actually compared (min of what exists and what the anchor covers). */
+  records: number;
+  /** The anchor's own record_count. */
+  anchoredRecords: number;
+  recomputedHead?: string;
+  publishedHead: string;
+  /** Every prev-link and stored hash over the compared prefix re-verified. */
+  chainIntact?: boolean;
+  /** First 0-based index that failed the chain walk, when it did. */
+  brokenAt?: number;
+  /** The ledger has grown since the anchor — expected, never tampering. */
+  newerRecords?: boolean;
+  verdict: "valid" | "TAMPERED";
+  note?: string;
+}
+
+/**
+ * The pure half of GET /verify: `rows` are the ledger's first
+ * `anchor.recordCount + 1` records in canonical chain order (one extra so
+ * growth is visible), and the verdict is about exactly the prefix the anchor
+ * claims. Exported so the decision table is unit-testable against synthetic
+ * chains — the shared test database's own ledger prefix is not guaranteed
+ * chain-valid (fixtures in other suites insert rows with placeholder hashes),
+ * so the route-level test can only assert agreement with the data it finds.
+ */
+export function verifyAgainstAnchor(
+  rows: LedgerRecord[],
+  anchor: { headHash: string; recordCount: number },
+): AnchorVerdict {
+  const claimed = Math.max(0, anchor.recordCount);
+  const covered = rows.slice(0, claimed);
+  if (covered.length < claimed) {
+    return {
+      records: covered.length,
+      anchoredRecords: claimed,
+      publishedHead: anchor.headHash,
+      verdict: "TAMPERED",
+      note: `the anchor covers ${claimed} records but only ${covered.length} exist — records have been removed`,
+    };
+  }
+  const head = recomputeHead(covered);
+  const chain = verifyChain(covered);
+  const valid = head === anchor.headHash && chain.valid;
+  return {
+    records: covered.length,
+    anchoredRecords: claimed,
+    recomputedHead: head,
+    publishedHead: anchor.headHash,
+    chainIntact: chain.valid,
+    ...(chain.valid ? {} : { brokenAt: chain.brokenAt }),
+    newerRecords: rows.length > claimed,
+    verdict: valid ? "valid" : "TAMPERED",
+  };
+}
+
 const VERIFY_HINT =
   "verifyInclusion(record, proof, proof.root) from @hetja/ledger, or any RFC 6962 audit-path " +
   "verifier: leaf = SHA256(0x00 || record.hash), node = SHA256(0x01 || left || right). Then " +
@@ -187,31 +254,62 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
     return { ok: true, data: { anchor: res.rows[0] } };
   });
 
-  app.get<{ Querystring: { n?: string } }>("/api/v1/ledger/verify", async (req) => {
-    const n = Math.min(Math.max(Number(req.query.n ?? 1000) || 1000, 1), 50_000);
+  /**
+   * The comparison is cut at the ANCHOR's record_count, not at "the first n
+   * rows" or "every row now". A published head is the hash of one specific
+   * record — the record_count-th in chain order at publish time — so it can
+   * only ever equal a head recomputed over exactly that prefix. This endpoint
+   * used to recompute over `LIMIT n` (default 1000) rows and compare that to
+   * whatever anchor was newest, which was wrong in both directions on healthy
+   * data: an anchor published yesterday over N records is compared against
+   * today's N+3 records and reports TAMPERED, and once the ledger passes n
+   * rows the prefix head never matches any anchor again. A tamper-evidence
+   * endpoint that cries wolf on every quiet day teaches its auditors to ignore
+   * it, which is the one thing INVARIANT 10 cannot afford.
+   *
+   * Two checks over the same prefix, both required for "valid":
+   *   * the recomputed head equals the published head (the anchor claim), and
+   *   * every row's prev-link and stored hash re-verify (verifyChain), which is
+   *     what catches a rewritten payload whose row still carries the old hash.
+   * Fewer rows than the anchor counts is TAMPERED too: records the anchor
+   * attested have gone missing, which append-only forbids.
+   */
+  app.get("/api/v1/ledger/verify", async () => {
+    const anchorRes = await query<{ head_hash: string; record_count: number; published_at: Date | string }>(
+      `SELECT head_hash, record_count, published_at
+         FROM ledger_anchors ORDER BY published_at DESC LIMIT 1`,
+    );
+    const anchor = anchorRes.rows[0];
+    if (!anchor) {
+      return { ok: true, data: { records: 0, verdict: "insufficient_data", note: "no anchor published yet" } };
+    }
+    const claimed = Math.max(0, Number(anchor.record_count) || 0);
+    if (claimed > MAX_VERIFY_LEDGER_ROWS) {
+      return {
+        ok: true,
+        data: {
+          records: claimed,
+          verdict: "insufficient_data",
+          note: `anchor covers ${claimed} records, above the inline verification ceiling of ${MAX_VERIFY_LEDGER_ROWS}`,
+        },
+      };
+    }
+    // LIMIT claimed + 1 so "the ledger has MORE rows than the anchor covers"
+    // is visible (and expected: records appended since publish are not
+    // covered), while "fewer" is detected rather than silently compared.
     const rows = await query<LedgerRecord>(
       `SELECT hash_prev AS prev, payload, hash_vet_id AS "vetId",
               hash_ts AS ts, hash_curr AS hash
          FROM medical_records
         ORDER BY created_at ASC, id ASC
         LIMIT $1`,
-      [n],
+      [claimed + 1],
     );
-    const anchor = await query<{ head_hash: string }>(
-      `SELECT head_hash FROM ledger_anchors ORDER BY published_at DESC LIMIT 1`,
-    );
-    if (rows.rowCount === 0 || anchor.rowCount === 0) {
-      return { ok: true, data: { records: rows.rowCount, verdict: "insufficient_data" } };
-    }
-    const head = recomputeHead(rows.rows);
-    const valid = head === anchor.rows[0].head_hash;
     return {
       ok: true,
       data: {
-        records: rows.rowCount,
-        recomputedHead: head,
-        publishedHead: anchor.rows[0].head_hash,
-        verdict: valid ? "valid" : "TAMPERED",
+        ...verifyAgainstAnchor(rows.rows, { headHash: anchor.head_hash, recordCount: claimed }),
+        publishedAt: new Date(anchor.published_at).toISOString(),
       },
     };
   });

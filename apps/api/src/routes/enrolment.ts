@@ -149,9 +149,17 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
    *
    * The slug does NOT change. It identifies the dog, not the piece of plastic,
    * so a replacement tag carries the same code and the same signature and every
-   * previously-printed tag for that dog keeps working. The old collar row is
-   * retired rather than deleted, so the physical history of a dog's tags stays
-   * auditable.
+   * previously-printed tag for that dog keeps working.
+   *
+   * HISTORY IS A SEPARATE TABLE, NOT A SECOND COLLAR ROW. `collars.qr_code` is
+   * UNIQUE and equals the slug, so there can only ever be one collars row per
+   * slug — an earlier version of this comment claimed the old row was "retired
+   * rather than deleted" while the code overwrote that one row in place and
+   * sent the admin's `reason` to the pino log only (BUGS P2-8). Every re-issue
+   * now writes a `collar_reissues` row (migration 0023) carrying the provenance
+   * about to be overwritten — previous batch, material and issue date — plus
+   * what replaced it, why, and which admin did it. Tracing a bad print run six
+   * months later is a query, not a log search.
    */
   app.post("/api/v1/dogs/:slug/collar", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireAdmin(req, reply);
@@ -180,32 +188,78 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
     }
 
     const sig = signSlug(slug, app.config.HETJA_QR_SECRET);
-    await withTx(async (client) => {
+    const reissueId = await withTx(async (client) => {
+      // Any OTHER collar row this dog still holds active (a legacy row under a
+      // different qr_code) is retired; the row for this slug is handled below.
       await client.query(
         `UPDATE collars SET status = 'retired', retired_at = now()
-          WHERE dog_id = $1 AND status = 'active'`,
-        [dog.id],
+          WHERE dog_id = $1 AND qr_code <> $2 AND status = 'active'`,
+        [dog.id, slug],
       );
+
+      // The one row this slug can have, locked so two concurrent re-issues
+      // record two history rows in a definite order rather than racing.
+      const current = await client.query<{
+        id: string;
+        batch_no: string;
+        material: string;
+        issued_at: Date;
+      }>(
+        `SELECT id, batch_no, material, issued_at FROM collars
+          WHERE dog_id = $1 AND qr_code = $2
+          FOR UPDATE`,
+        [dog.id, slug],
+      );
+      const prev = current.rows[0];
+
+      if (!prev) {
+        // A dog with no collar row for its own slug (seeded by hand, or a row
+        // that was never minted). This is a first issue, not a re-issue: there
+        // is no provenance to record, so no history row is written.
+        await client.query(
+          `INSERT INTO collars (dog_id, qr_code, hmac_sig, batch_no, material)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [dog.id, slug, sig, input.batchNo, input.material],
+        );
+        return null;
+      }
+
+      // History first, then the overwrite — same transaction, so a re-issue
+      // can never exist without its provenance row or vice versa.
+      const history = await client.query<{ id: string }>(
+        `INSERT INTO collar_reissues
+           (collar_id, dog_id, slug, previous_batch_no, previous_material, previous_issued_at,
+            new_batch_no, new_material, reason, reissued_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [
+          prev.id,
+          dog.id,
+          slug,
+          prev.batch_no,
+          prev.material,
+          prev.issued_at,
+          input.batchNo,
+          input.material,
+          input.reason ?? null,
+          auth.feederId,
+        ],
+      );
+      // The signature is rewritten too, which is what lets a re-issue pick up
+      // a rotated HETJA_QR_SECRET (verification consults the stored value
+      // first — routes/dogs.ts).
       await client.query(
-        // qr_code is UNIQUE and equals the slug, so a re-issue for the same dog
-        // updates the existing row's provenance rather than inserting a
-        // duplicate. The signature is rewritten too, which is what lets a
-        // re-issue pick up a rotated HETJA_QR_SECRET.
-        `INSERT INTO collars (dog_id, qr_code, hmac_sig, batch_no, material)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (qr_code) DO UPDATE
-           SET hmac_sig = EXCLUDED.hmac_sig,
-               batch_no = EXCLUDED.batch_no,
-               material = EXCLUDED.material,
-               status = 'active',
-               retired_at = NULL,
-               issued_at = now()`,
-        [dog.id, slug, sig, input.batchNo, input.material],
+        `UPDATE collars
+            SET hmac_sig = $2, batch_no = $3, material = $4,
+                status = 'active', retired_at = NULL, issued_at = now()
+          WHERE id = $1`,
+        [prev.id, sig, input.batchNo, input.material],
       );
+      return history.rows[0].id;
     });
 
-    req.log.info({ slug, reason: input.reason ?? null }, "collar re-issued");
+    req.log.info({ slug, reissueId, reason: input.reason ?? null }, "collar re-issued");
 
-    return { ok: true, data: { slug, collarUrl: collarUrl(slug, sig) } };
+    return { ok: true, data: { slug, collarUrl: collarUrl(slug, sig), reissueId } };
   });
 }

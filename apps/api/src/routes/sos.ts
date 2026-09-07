@@ -299,22 +299,33 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // this code carried for months before it matched the code. The old
         // date_trunc('day'|'week') versions were calendar buckets: 2 reports
         // at 23:58 plus 2 more at 00:01 stayed within them.
+        //
+        // COUNTED IN sos_cases, NOT scans. A case is what pages people, and the
+        // two are not one-to-one: the dedupe key below is deterministic, so a
+        // report re-filed after its case was resolved reuses the existing scans
+        // row (ON CONFLICT DO NOTHING) and opens a NEW case. Counting scans let
+        // that path open cases without ever touching the cap — one held report
+        // could re-open a fresh case every time a moderator closed the last
+        // one. Counting the cases opened by this subject in the window is the
+        // thing INVARIANT 7 actually bounds. Indexed by 0023.
         const sosCapCounts = !feederId
           ? (
               await client.query<{ today: number; week: number }>(
-                `SELECT count(*) FILTER (WHERE received_at >= now() - interval '1 day')::int AS today,
-                        count(*) FILTER (WHERE received_at >= now() - interval '7 days')::int AS week
-                 FROM scans
-                 WHERE scan_type = 'sos' AND device_token = $1`,
+                `SELECT count(*) FILTER (WHERE c.opened_at >= now() - interval '1 day')::int AS today,
+                        count(*) FILTER (WHERE c.opened_at >= now() - interval '7 days')::int AS week
+                 FROM sos_cases c
+                 JOIN scans s ON s.id = c.scan_id
+                 WHERE s.scan_type = 'sos' AND s.device_token = $1`,
                 [deviceSubject],
               )
             ).rows[0]
           : (
               await client.query<{ today: number; week: number }>(
-                `SELECT count(*) FILTER (WHERE received_at >= now() - interval '1 day')::int AS today,
-                        count(*) FILTER (WHERE received_at >= now() - interval '7 days')::int AS week
-                 FROM scans
-                 WHERE scan_type = 'sos' AND feeder_id = $1`,
+                `SELECT count(*) FILTER (WHERE c.opened_at >= now() - interval '1 day')::int AS today,
+                        count(*) FILTER (WHERE c.opened_at >= now() - interval '7 days')::int AS week
+                 FROM sos_cases c
+                 JOIN scans s ON s.id = c.scan_id
+                 WHERE s.scan_type = 'sos' AND s.feeder_id = $1`,
                 [feederId],
               )
             ).rows[0];
@@ -676,33 +687,35 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /api/v1/sos/cases/:id/ack — first writer wins (plan §3.1).
    *
-   * A conditional UPDATE (`WHERE acked_by IS NULL`) is the whole mechanism:
-   * only the first feeder to reach this row claims the case. Everyone
-   * else's UPDATE affects zero rows, and -- if that responder was one of
-   * the ones fanned out to -- their own sos_notifications row is marked
-   * stood_down so the receipt reflects reality; the claimant's row is never
-   * touched. A retry from the same claimant (e.g. a flaky-network resend)
-   * is treated as idempotent success, not a steal attempt against
+   * A conditional UPDATE (`WHERE acked_by IS NULL AND resolved_at IS NULL`) is
+   * the whole mechanism: only the first feeder to reach a still-open row claims
+   * the case. Everyone else's UPDATE affects zero rows, and -- if that
+   * responder was one of the ones fanned out to -- their own sos_notifications
+   * row is marked stood_down so the receipt reflects reality; the claimant's
+   * row is never touched. A retry from the same claimant (e.g. a flaky-network
+   * resend) is treated as idempotent success, not a steal attempt against
    * themselves.
+   *
+   * `resolved_at IS NULL` is load-bearing. The predicate used to be
+   * `acked_by IS NULL` alone, and a moderator can resolve a case NOBODY
+   * acknowledged (false alarm, or closed from the desk) — such a row has
+   * acked_by NULL and resolved_at set. An ack arriving afterwards then matched,
+   * stamped acked_by/acked_at and set `state = 'acked'`, silently REOPENING a
+   * closed case: its terminal state overwritten, the case machine walked
+   * backwards, and every "open cases" metric counting a case a human had
+   * already finished with. A closed case now answers 409 SOS_CASE_CLOSED.
+   *
+   * requireFeeder (live role read) rather than a bare verifyAccessToken, for
+   * the same reason the GET and resolve routes use it: a still-valid token for
+   * an erased account must not be able to claim a case (FEEDER_GONE).
    *
    * This is the piece that made the ack metric (p50 < 5min / p90 < 8min)
    * uncomputable before: acked_by/acked_at were columns nothing ever wrote.
    */
   app.post("/api/v1/sos/cases/:id/ack", async (req: FastifyRequest, reply: FastifyReply) => {
-    const rawAuth = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
-    if (!rawAuth.startsWith("Bearer ")) {
-      return reply
-        .status(401)
-        .send({ ok: false, error: { message: "feeder auth required", code: "UNAUTHENTICATED" } });
-    }
-    let feederId: string;
-    try {
-      feederId = verifyAccessToken(rawAuth.slice(7), app.config.JWT_SECRET).sub;
-    } catch {
-      return reply
-        .status(401)
-        .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
-    }
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const feederId = auth.feederId;
 
     // Same 22P02 → 500 guard as the GET above (see lib/params.ts).
     const id = parseUuidParam((req.params as { id: string }).id);
@@ -716,7 +729,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     const outcome = await withTx(async (client) => {
       const claim = await client.query<{ acked_at: Date }>(
         `UPDATE sos_cases SET acked_by = $1, acked_at = now(), state = 'acked'
-         WHERE id = $2 AND acked_by IS NULL
+         WHERE id = $2 AND acked_by IS NULL AND resolved_at IS NULL
          RETURNING acked_at`,
         [feederId, id],
       );
@@ -729,18 +742,26 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         return { status: "claimed" as const, ackedAt: claimedRow.acked_at };
       }
 
-      const existing = await client.query<{ acked_by: string | null; acked_at: Date | null }>(
-        `SELECT acked_by, acked_at FROM sos_cases WHERE id = $1`,
-        [id],
-      );
+      const existing = await client.query<{
+        acked_by: string | null;
+        acked_at: Date | null;
+        resolved_at: Date | null;
+      }>(`SELECT acked_by, acked_at, resolved_at FROM sos_cases WHERE id = $1`, [id]);
       const existingRow = existing.rows[0];
       if (!existingRow) {
         return { status: "not_found" as const };
       }
       if (existingRow.acked_by === feederId) {
         // Same responder retrying -- idempotent success, not a steal
-        // attempt against their own claim.
+        // attempt against their own claim. Holds for a resolved case too: the
+        // acker's own resend after they closed it is still their claim.
         return { status: "claimed" as const, ackedAt: existingRow.acked_at as Date };
+      }
+      if (existingRow.resolved_at !== null) {
+        // Closed without this responder ever owning it. Nothing to claim and
+        // nothing to stand down — the case is finished, and saying so beats a
+        // misleading "already claimed" when nobody ever acked it.
+        return { status: "closed" as const };
       }
 
       // Someone else already owns this case. Stand this responder's own
@@ -765,6 +786,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           ok: false,
           error: { message: "case already claimed by another responder", code: "SOS_ALREADY_ACKED" },
         });
+    }
+    if (outcome.status === "closed") {
+      return reply.status(409).send({
+        ok: false,
+        error: { message: "case is already resolved and cannot be acknowledged", code: "SOS_CASE_CLOSED" },
+      });
     }
 
     return {

@@ -38,6 +38,8 @@ vi.mock("./idb", () => ({
   queueScan: idbMock.queueScan,
   listQueued: idbMock.listQueued,
   removeQueued: idbMock.removeQueued,
+  // The real generator: enqueueFeed mints one clientUuid PER FEED with it.
+  uuid: () => crypto.randomUUID(),
 }));
 
 // getDeviceToken resolves undefined on failure and never throws — mirrored
@@ -137,6 +139,57 @@ describe("flushQueue", () => {
     expect(idbMock.store.size).toBe(1);
   });
 
+  it("drops a permanently refused record (4xx) through onDrop instead of re-uploading it forever", async () => {
+    // INVALID_PHOTO, DOG_NOT_FOUND, a capturedAt outside INVARIANT 4's window:
+    // all 4xx, all final. postScan used to return res.ok, so these stayed
+    // queued and re-sent their photo bytes on every page open.
+    seedItem({ deviceToken: "tok-capture" });
+    fetchMock = vi.fn(async () =>
+      jsonResponse({ ok: false, error: { message: "photo rejected", code: "INVALID_PHOTO" } }, 400),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const drops: string[] = [];
+
+    const sent = await flushQueue((_item, reason) => drops.push(reason));
+
+    expect(sent).toBe(0);
+    expect(idbMock.store.size).toBe(0);
+    expect(drops).toEqual(["http-400"]);
+  });
+
+  it("keeps a throttled record (429) queued for the next flush", async () => {
+    seedItem({ deviceToken: "tok-capture" });
+    fetchMock = vi.fn(async () => jsonResponse({ ok: false }, 429));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sent = await flushQueue();
+
+    expect(sent).toBe(0);
+    expect(idbMock.store.size).toBe(1);
+  });
+
+  it("drops a record the server no longer accepts the token for (401) and forgets the cached token", async () => {
+    const storage = new Map<string, string>([["hetja.deviceToken.v1", "tok-old-secret"]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => storage.get(k) ?? null,
+      setItem: (k: string, v: string) => void storage.set(k, v),
+      removeItem: (k: string) => void storage.delete(k),
+    });
+    seedItem({ deviceToken: "tok-old-secret" });
+    fetchMock = vi.fn(async () =>
+      jsonResponse({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } }, 401),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const drops: string[] = [];
+
+    await flushQueue((_item, reason) => drops.push(reason));
+
+    expect(drops).toEqual(["http-401"]);
+    expect(idbMock.store.size).toBe(0);
+    // The next capture must mint afresh rather than reuse a dead credential.
+    expect(storage.has("hetja.deviceToken.v1")).toBe(false);
+  });
+
   it("handles a mixed queue: tokenless dropped, tokened sent", async () => {
     seedItem(); // legacy, tokenless
     seedItem({ deviceToken: "tok-capture" });
@@ -174,6 +227,21 @@ describe("enqueueFeed (capture-time attestation)", () => {
     expect(record!.deviceToken).toBe("tok-at-capture");
     expect(record!.dogSlug).toBe("c3di5esh8");
     expect(record!.geo).toEqual({ lat: 18.97, lng: 72.82 });
+  });
+
+  it("mints a fresh clientUuid per feed, never one per device", async () => {
+    // INVARIANT 5: scans.client_uuid is UNIQUE. One uuid per browser meant the
+    // server deduplicated every feed after the first as a replay (created:
+    // false on a 200), flush read the 200 as success, and the feed was lost.
+    deviceMock.token = "tok-at-capture";
+
+    await enqueueFeed("c3di5esh8", new Blob(["photo-one"]));
+    await enqueueFeed("c3di5esh8", new Blob(["photo-two"]));
+
+    const records = [...idbMock.store.values()];
+    expect(records).toHaveLength(2);
+    expect(records[0]!.clientUuid).toMatch(/^[0-9a-f-]{36}$/);
+    expect(records[0]!.clientUuid).not.toBe(records[1]!.clientUuid);
   });
 
   it("still queues the feed when no token could be minted (flush will report it)", async () => {

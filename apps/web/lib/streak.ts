@@ -26,8 +26,22 @@ export interface StreakDisplay {
   nextMilestone: string | null;
 }
 
+/**
+ * Labels for the badge names the API actually awards — the catalog in
+ * apps/api/src/lib/gamification.ts (`BADGES`). The first version of this map
+ * named badges (`streak_3`, `streak_7`, `sos_hero`, `night_feeder`…) that no
+ * server code has ever emitted, so every real badge fell through to the
+ * title-cased fallback; those keys stay because the fallback makes them
+ * harmless, but the catalog names are the ones a feeder will see.
+ */
 export const BADGE_LABELS: Record<string, string> = {
   first_feed: "First Feed",
+  week_streak: "Week Streak",
+  month_streak: "Month Streak",
+  guardian_100: "Guardian — 100 Feeds",
+  night_owl: "Night Owl",
+  monsoon_hero: "Monsoon Hero",
+  // Legacy names kept for anything that ever stored them client-side.
   streak_3: "3-Day Streak",
   streak_7: "Week Streak",
   streak_30: "Monthly Streak",

@@ -95,6 +95,28 @@ export class RateLimiter {
     };
   }
 
+  /**
+   * Would `consume` allow `subject` right now? Reads the bucket without taking
+   * a token, so a caller gating one action on TWO limiters can check both
+   * before charging either — otherwise a request refused by the second limiter
+   * has already spent a token on the first. routes/auth.ts's OTP send is that
+   * caller: its comment promised "both limits are checked before either is
+   * consumed" while the code consumed the per-identity bucket, then checked the
+   * global one, so a user turned away by the global cap also lost one of their
+   * five personal codes for nothing.
+   */
+  peek(subject: string, now: number = Date.now()): RateLimitDecision {
+    const existing = this.buckets.get(subject);
+    if (!existing) return { allowed: true, retryAfterSec: 0 };
+    const elapsedSec = Math.max(0, (now - existing.refilledAt) / 1000);
+    const tokens = Math.min(this.rule.burst, existing.tokens + elapsedSec * this.rule.refillPerSec);
+    if (tokens >= 1) return { allowed: true, retryAfterSec: 0 };
+    return {
+      allowed: false,
+      retryAfterSec: Math.max(1, Math.ceil((1 - tokens) / this.rule.refillPerSec)),
+    };
+  }
+
   /** Test seam. Never call this from a route. */
   reset(): void {
     this.buckets.clear();

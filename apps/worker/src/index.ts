@@ -355,6 +355,18 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * to prevent.
    */
   retention: async () => {
+    // Database housekeeping FIRST, independent of where photos live. Two
+    // tables promised a worker-side sweep in their migrations and never got
+    // one: spent_challenges (0021: "swept by worker retention") and
+    // refresh_tokens (0017: "the worker's retention job sweeps rows whose token
+    // expired more than seven days ago"). spent_challenges was kept small only
+    // by a best-effort DELETE inside every mint (routes/devices.ts);
+    // refresh_tokens grew by one row per login and one per refresh, forever.
+    // They run before the storage-backend check on purpose — a non-local
+    // backend has no photo delete path, but that is no reason to skip the
+    // table sweeps, which the old early `return` did.
+    await sweepExpiredChallengesAndTokens();
+
     if (STORAGE_BACKEND !== "local") {
       console.warn(
         `retention: STORAGE_BACKEND=${STORAGE_BACKEND} has no delete path in this build — ` +
@@ -558,6 +570,42 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     }
   },
 };
+
+/**
+ * Grace period a spent refresh token's row is kept past its expiry, so a late
+ * replay of an expired token still finds its row and gets the honest
+ * REFRESH_REUSED answer rather than a row-less one (migration 0017's index
+ * comment names the same seven days).
+ */
+export const REFRESH_TOKEN_SWEEP_GRACE_DAYS = 7;
+
+/**
+ * The two table sweeps the retention job owns. Exported so the test can run
+ * them without a photo directory.
+ *
+ *   spent_challenges — every row carries an absolute `expires_at`
+ *     (CHALLENGE_TTL + slack, ~150 s); anything past it can never be replayed
+ *     into a mint again, so it is pure bloat.
+ *   refresh_tokens — rows whose token expired more than
+ *     REFRESH_TOKEN_SWEEP_GRACE_DAYS ago, regardless of used/revoked state: an
+ *     expired token fails `verifyRefreshToken`'s exp check before the row is
+ *     ever consulted, so past the grace window the row protects nothing.
+ */
+export async function sweepExpiredChallengesAndTokens(): Promise<{ challenges: number; refreshTokens: number }> {
+  const challenges = await query(`DELETE FROM spent_challenges WHERE expires_at < now()`);
+  const refreshTokens = await query(
+    `DELETE FROM refresh_tokens WHERE expires_at < now() - make_interval(days => $1)`,
+    [REFRESH_TOKEN_SWEEP_GRACE_DAYS],
+  );
+  const out = { challenges: challenges.rowCount ?? 0, refreshTokens: refreshTokens.rowCount ?? 0 };
+  if (out.challenges || out.refreshTokens) {
+    console.log(
+      `retention: swept ${out.challenges} expired spent_challenges row(s) and ` +
+        `${out.refreshTokens} refresh_tokens row(s) expired > ${REFRESH_TOKEN_SWEEP_GRACE_DAYS}d`,
+    );
+  }
+  return out;
+}
 
 /** What one anchor run published, for logs and tests. */
 export interface PublishedAnchor {

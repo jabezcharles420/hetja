@@ -3,7 +3,7 @@ import { ScanInput } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { deviceTokenSubject } from "../lib/device.js";
-import { logTrustEvent, recomputeScore, type TxClient } from "../lib/trust.js";
+import { applyVerificationGate, logTrustEvent, recomputeScore, type TxClient } from "../lib/trust.js";
 import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storage.js";
 import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
 import { dateInKolkata, updateFeedStreak } from "../lib/gamification.js";
@@ -98,7 +98,20 @@ async function activatePendingRegistration(
       RETURNING slug`,
     [dogId, scanId],
   );
-  return res.rows[0]?.slug ?? null;
+  const slug = res.rows[0]?.slug ?? null;
+  if (slug !== null) {
+    // The expiry sweep (apps/worker, expire_stale_registrations) retires the
+    // collar row when a registration goes 'expired'. A scan of that tag proves
+    // it IS on the animal after all, so the row comes back with the dog —
+    // otherwise the register held an active dog wearing a 'retired' collar,
+    // and any future reader filtering collars on status would drop it.
+    await client.query(
+      `UPDATE collars SET status = 'active', retired_at = NULL
+        WHERE dog_id = $1 AND qr_code = $2 AND status = 'retired'`,
+      [dogId, slug],
+    );
+  }
+  return slug;
 }
 
 /**
@@ -251,6 +264,37 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       return reply
         .status(404)
         .send({ ok: false, error: { message: "dog not found", code: "DOG_NOT_FOUND" } });
+    }
+
+    // INVARIANT 15, enforced where it bites: a provisional feeder whose last
+    // three scans were all rejected/flagged is PAUSED, and a paused feeder's
+    // scans are refused rather than recorded. The gate used to be evaluated
+    // only by GET /feeders/:id/trust — the invariant text says such a feeder is
+    // "paused rather than left free to keep submitting", yet nothing on any
+    // write path ever consulted the pause, so it was a flag with no effect.
+    //
+    // Evaluated in its own transaction, before the scan's: the gate's
+    // idempotent `auto_paused` flag row must commit even though the scan below
+    // is refused, or the pause would be recomputed from scratch on every
+    // attempt and never recorded. Anonymous (device-token) scans carry no
+    // trust and are not gated — the pause is about the ACCOUNT's standing.
+    //
+    // 403 is a permanent 4xx: apps/web's offline queue drops the record and
+    // tells the feeder (recordDroppedFeed) instead of retrying forever, and
+    // SOS reporting (POST /api/v1/reports) is deliberately NOT gated here —
+    // an emergency report from a paused account is still an emergency.
+    if (feederId) {
+      const gate = await withTx((client) => applyVerificationGate(feederId, client));
+      if (gate.paused) {
+        return reply.status(403).send({
+          ok: false,
+          error: {
+            message:
+              "this account is paused pending review: its last scans were rejected, so new scans are not being accepted",
+            code: "FEEDER_PAUSED",
+          },
+        });
+      }
     }
 
     const receivedAt = new Date();

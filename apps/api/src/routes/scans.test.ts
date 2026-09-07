@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { issueDeviceToken } from "../lib/device.js";
+import { signAccessToken } from "../lib/jwt.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -262,6 +263,144 @@ describe("POST /api/v1/scans", () => {
     expect(row.rows[0].lat).toBeCloseTo(19.3, 5);
 
     await app.close();
+  });
+});
+
+describe("POST /api/v1/scans — INVARIANT 15 pause", () => {
+  async function insertProvisionalFeeder(): Promise<string> {
+    const res = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, verification_tier, consent_version)
+       VALUES ($1, 'PausedTest', 'feeder', 30, 'provisional', 'v1.0') RETURNING id`,
+      [`scan-pause-${randomUUID()}`],
+    );
+    return res.rows[0].id;
+  }
+
+  async function rejectedScan(feederId: string): Promise<void> {
+    await query(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, feeder_id, captured_at, received_at, review_status)
+       VALUES ($1, $2, 'view', $3, now(), now(), 'rejected')`,
+      [dogId, randomUUID(), feederId],
+    );
+  }
+
+  /**
+   * INVARIANT 15 says a provisional feeder with three serial rejects is
+   * "paused rather than left free to keep submitting". Until this write path
+   * consulted the gate, the pause was a flag GET /feeders/:id/trust wrote and
+   * nothing read — a paused feeder's next scan was accepted like any other.
+   */
+  it("refuses a paused provisional feeder's scan with 403 FEEDER_PAUSED and records the flag once", async () => {
+    const feederId = await insertProvisionalFeeder();
+    const token = signAccessToken(feederId, config.JWT_SECRET, config.JWT_ACCESS_TTL);
+    const app = buildServer(config);
+    try {
+      for (let i = 0; i < 3; i++) await rejectedScan(feederId);
+
+      const payload = () => ({
+        clientUuid: randomUUID(),
+        dogSlug,
+        type: "feed",
+        capturedAt: new Date().toISOString(),
+      });
+      const refused = await app.inject({
+        method: "POST",
+        url: "/api/v1/scans",
+        headers: { authorization: `Bearer ${token}` },
+        payload: payload(),
+      });
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json().error.code).toBe("FEEDER_PAUSED");
+
+      // Nothing was recorded for the refused submission…
+      const feeds = await query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM scans WHERE feeder_id = $1 AND scan_type = 'feed'`,
+        [feederId],
+      );
+      expect(feeds.rows[0].n).toBe(0);
+
+      // …but the pause itself was: the gate's flag commits even though the
+      // scan's transaction never opened, and a second attempt adds no second flag.
+      const again = await app.inject({
+        method: "POST",
+        url: "/api/v1/scans",
+        headers: { authorization: `Bearer ${token}` },
+        payload: payload(),
+      });
+      expect(again.statusCode).toBe(403);
+      const flags = await query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM trust_events WHERE feeder_id = $1 AND event_type = 'auto_paused'`,
+        [feederId],
+      );
+      expect(flags.rows[0].n).toBe(1);
+
+      // The pause is about the ACCOUNT's standing: a verified feeder with the
+      // same history is not gated.
+      await query(`UPDATE feeders SET verification_tier = 'verified' WHERE id = $1`, [feederId]);
+      const accepted = await app.inject({
+        method: "POST",
+        url: "/api/v1/scans",
+        headers: { authorization: `Bearer ${token}` },
+        payload: payload(),
+      });
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json().data.created).toBe(true);
+    } finally {
+      await app.close();
+      await query(`DELETE FROM trust_events WHERE feeder_id = $1`, [feederId]);
+      await query(`DELETE FROM scans WHERE feeder_id = $1`, [feederId]);
+      await query(`DELETE FROM feeders WHERE id = $1`, [feederId]);
+    }
+  });
+});
+
+describe("POST /api/v1/scans — activation of an expired registration", () => {
+  /**
+   * The expiry sweep retires the collar row along with marking the dog
+   * 'expired'. A geotagged scan of that tag reactivates the dog — and used to
+   * leave the collar 'retired', so the register held an active dog wearing a
+   * retired tag.
+   */
+  it("brings the retired collar back with the dog", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    await query(
+      `INSERT INTO collars (dog_id, qr_code, hmac_sig, batch_no, material, status, retired_at)
+       VALUES ($1, $2, 'sig', 'self-serve', 'TPU', 'retired', now())`,
+      [dogId, dogSlug],
+    );
+    await query(`UPDATE dogs SET status = 'expired', registered_at = now() - interval '40 days' WHERE id = $1`, [
+      dogId,
+    ]);
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/scans",
+        headers: { "x-device-token": token },
+        payload: {
+          clientUuid: randomUUID(),
+          dogSlug,
+          type: "retag",
+          geo: { lat: 19.07, lng: 72.87 },
+          capturedAt: new Date().toISOString(),
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.created).toBe(true);
+
+      const dog = await query<{ status: string }>(`SELECT status FROM dogs WHERE id = $1`, [dogId]);
+      expect(dog.rows[0].status).toBe("active");
+      const collar = await query<{ status: string; retired_at: Date | null }>(
+        `SELECT status, retired_at FROM collars WHERE dog_id = $1 AND qr_code = $2`,
+        [dogId, dogSlug],
+      );
+      expect(collar.rows[0].status).toBe("active");
+      expect(collar.rows[0].retired_at).toBeNull();
+    } finally {
+      await app.close();
+      await query(`DELETE FROM scans WHERE dog_id = $1`, [dogId]);
+      await query(`DELETE FROM collars WHERE dog_id = $1`, [dogId]);
+    }
   });
 });
 

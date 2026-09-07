@@ -20,12 +20,17 @@ import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { generateSlug, query } from "@hetja/db";
 import {
+  GENESIS_PREV_HASH,
+  computeHash,
   merkleRoot,
+  recomputeHead,
+  verifyChain,
   verifyInclusion,
   type LedgerRecord,
   type ProvenRecord,
 } from "@hetja/ledger";
 import type { FastifyInstance } from "fastify";
+import { verifyAgainstAnchor } from "./ledger.js";
 
 /**
  * `merkleRoot` is typed against the full `LedgerRecord` but reads only `hash`
@@ -125,6 +130,128 @@ describe("GET /api/v1/ledger/verify", () => {
     if (data.verdict !== "insufficient_data") {
       expect(data.verdict).toBe("TAMPERED");
     }
+  });
+
+  /**
+   * The comparison is cut at the anchor's record_count. This endpoint used to
+   * recompute over the first 1000 rows and compare that to the newest anchor,
+   * so a correct anchor published over N records reported TAMPERED as soon as
+   * record N+1 was appended — a tamper-evidence endpoint that cried wolf on
+   * every healthy day.
+   */
+  it("compares against exactly the anchor's record_count prefix, and reports growth as growth", async () => {
+    // A genuine anchor over the ledger's first two records, computed the way
+    // the worker computes it: the STORED head of record 2, over 2 records.
+    const prefix = await query<LedgerRecord>(
+      `SELECT hash_prev AS prev, payload, hash_vet_id AS "vetId", hash_ts AS ts, hash_curr AS hash
+         FROM medical_records ORDER BY created_at ASC, id ASC LIMIT 2`,
+    );
+    expect(prefix.rows.length).toBe(2);
+    // published_at in the future so it is the newest anchor while this test runs.
+    await query(
+      `INSERT INTO ledger_anchors (head_hash, record_count, published_at, published_url)
+       VALUES ($1, 2, now() + interval '1 hour', 'test-anchor')`,
+      [prefix.rows[1].hash],
+    );
+
+    const res = await app.inject({ method: "GET", url: "/api/v1/ledger/verify" });
+    expect(res.statusCode).toBe(200);
+    const data = res.json().data;
+    expect(data.anchoredRecords).toBe(2);
+    expect(data.records).toBe(2);
+    // The fixture appended three records, so the ledger has grown past the
+    // anchor — reported as a fact, not as tampering.
+    expect(data.newerRecords).toBe(true);
+    // Whether the verdict is "valid" depends on whether THIS database's first
+    // two rows form a genuine chain: other suites (dogs.test.ts) insert
+    // medical_records with placeholder hashes that are permanent (append-only),
+    // so the route can only be held to agreeing with the data. The decision
+    // table itself is pinned on synthetic chains below.
+    const clean = verifyChain(prefix.rows).valid && recomputeHead(prefix.rows) === prefix.rows[1].hash;
+    expect(data.verdict).toBe(clean ? "valid" : "TAMPERED");
+    expect(data.chainIntact).toBe(verifyChain(prefix.rows).valid);
+  });
+
+  it("reports TAMPERED when the anchor covers more records than exist", async () => {
+    const total = await query<{ n: number }>(`SELECT count(*)::int AS n FROM medical_records`);
+    await query(
+      `INSERT INTO ledger_anchors (head_hash, record_count, published_at, published_url)
+       VALUES ($1, $2, now() + interval '2 hours', 'test-anchor')`,
+      ["e".repeat(64), total.rows[0].n + 5],
+    );
+    const res = await app.inject({ method: "GET", url: "/api/v1/ledger/verify" });
+    const data = res.json().data;
+    expect(data.verdict).toBe("TAMPERED");
+    expect(data.note).toMatch(/removed/);
+  });
+});
+
+/**
+ * The decision table, on synthetic chains built with the real hash function so
+ * every expectation is about the arithmetic and none about the database.
+ */
+describe("verifyAgainstAnchor", () => {
+  function chain(n: number): LedgerRecord[] {
+    const out: LedgerRecord[] = [];
+    let prev = GENESIS_PREV_HASH;
+    for (let i = 0; i < n; i++) {
+      const payload = { recordType: "feeding_observation", i };
+      const ts = `2026-09-07T00:00:0${i}.000Z`;
+      const hash = computeHash(prev, payload, "feeder", ts);
+      out.push({ id: `r${i}`, prev, payload, vetId: "feeder", ts, hash });
+      prev = hash;
+    }
+    return out;
+  }
+
+  it("is valid when the anchor's head is the stored head of its record_count-th record", () => {
+    const rows = chain(4);
+    const v = verifyAgainstAnchor(rows.slice(0, 3), { headHash: rows[2].hash, recordCount: 3 });
+    expect(v.verdict).toBe("valid");
+    expect(v.records).toBe(3);
+    expect(v.chainIntact).toBe(true);
+    expect(v.newerRecords).toBe(false);
+  });
+
+  it("stays valid when the ledger has grown past the anchor (the old n-rows bug)", () => {
+    const rows = chain(4);
+    // The route hands over record_count + 1 rows; the extra one is growth.
+    const v = verifyAgainstAnchor(rows, { headHash: rows[2].hash, recordCount: 3 });
+    expect(v.verdict).toBe("valid");
+    expect(v.newerRecords).toBe(true);
+    expect(v.records).toBe(3);
+  });
+
+  it("is TAMPERED when a covered payload was rewritten, and says where", () => {
+    const rows = chain(3);
+    const doctored = rows.map((r, i) => (i === 1 ? { ...r, payload: { ...r.payload, i: 99 } } : r));
+    const v = verifyAgainstAnchor(doctored, { headHash: rows[2].hash, recordCount: 3 });
+    expect(v.verdict).toBe("TAMPERED");
+    expect(v.chainIntact).toBe(false);
+    expect(v.brokenAt).toBe(1);
+  });
+
+  it("is TAMPERED when the published head disagrees with an intact chain", () => {
+    const rows = chain(3);
+    const v = verifyAgainstAnchor(rows, { headHash: "f".repeat(64), recordCount: 3 });
+    expect(v.verdict).toBe("TAMPERED");
+    expect(v.chainIntact).toBe(true);
+  });
+
+  it("is TAMPERED when records the anchor covered are gone", () => {
+    const rows = chain(2);
+    const v = verifyAgainstAnchor(rows, { headHash: rows[1].hash, recordCount: 5 });
+    expect(v.verdict).toBe("TAMPERED");
+    expect(v.records).toBe(2);
+    expect(v.note).toMatch(/removed/);
+  });
+
+  it("treats an anchor over zero records as a claim about the empty ledger", () => {
+    const rows = chain(1);
+    // Genesis: an empty ledger's head is GENESIS_PREV_HASH by recomputeHead's definition.
+    expect(verifyAgainstAnchor([], { headHash: GENESIS_PREV_HASH, recordCount: 0 }).verdict).toBe("valid");
+    // A non-empty ledger against a zero-record anchor claiming some other head: TAMPERED.
+    expect(verifyAgainstAnchor(rows, { headHash: "f".repeat(64), recordCount: 0 }).verdict).toBe("TAMPERED");
   });
 });
 

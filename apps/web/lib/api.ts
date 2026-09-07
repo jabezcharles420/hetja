@@ -7,8 +7,21 @@
  *   - Bearer access token attached from localStorage when present
  *   - unwraps the `{ok: true, data}` envelope; throws ApiError on
  *     `{ok: false, error}` responses and transport failures
- *   - on 401 the stored token is cleared, but only for requests that actually
- *     sent it (see `sessionRejected` in `request`)
+ *   - on 401 for a request that actually sent the session, the refresh token
+ *     is exchanged ONCE at POST /auth/refresh and the request retried with the
+ *     new access token; only when there is no refresh token, or the exchange
+ *     is refused, is the session cleared (see `sessionRejected` in `request`)
+ *
+ * THE REFRESH FLOW EXISTED ONLY ON THE SERVER. Migration 0017 and
+ * POST /api/v1/auth/refresh were built precisely because "the registrator flow
+ * silently 401s when the 15-minute access token dies mid-form with no way to
+ * renew it" — and then the login page stored only the access token and threw
+ * the refresh token away, and nothing in this client ever called the route.
+ * Every web session therefore died after JWT_ACCESS_TTL (15 minutes in
+ * production): the next authenticated call 401'd, this module wiped the token,
+ * and the feeder was signed out mid-task with no explanation. Fixed here: the
+ * pair is stored at login, and a 401 is a reason to refresh before it is a
+ * reason to sign out.
  */
 import type { PowChallenge, PowSolution } from "@hetja/pow";
 
@@ -24,6 +37,7 @@ export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:
 export const API_BASE = `${API_ORIGIN}/api/v1`;
 
 export const ACCESS_TOKEN_KEY = "hetja.accessToken";
+export const REFRESH_TOKEN_KEY = "hetja.refreshToken";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -61,6 +75,91 @@ export function clearAccessToken(): void {
   setAccessToken(null);
 }
 
+export function getRefreshToken(): string | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setRefreshToken(token: string | null): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    else localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    /* storage unavailable (private mode) — the session simply won't persist */
+  }
+}
+
+/** Store a fresh pair, as returned by /auth/verify or /auth/refresh. */
+export function setSession(tokens: { accessToken: string; refreshToken: string }): void {
+  setAccessToken(tokens.accessToken);
+  setRefreshToken(tokens.refreshToken);
+}
+
+/** Sign out locally: both halves of the session go together. */
+export function clearSession(): void {
+  setAccessToken(null);
+  setRefreshToken(null);
+}
+
+/** Shared by concurrent 401s so one expired access token costs one exchange. */
+let refreshInFlight: Promise<boolean> | undefined;
+
+/**
+ * Exchange the stored refresh token for a fresh pair. Resolves true when the
+ * session was renewed and stored, false when it could not be — no refresh
+ * token, the server refused it (REFRESH_REUSED, BAD_REFRESH_TOKEN, FEEDER_GONE),
+ * or the network failed. Never throws.
+ *
+ * Raw fetch rather than `request()`: the route takes no Authorization header
+ * (the refresh token IS the credential), and routing it through `request`
+ * would re-enter this very 401 handling.
+ *
+ * Single-flight: several requests can fail on the same expired access token in
+ * the same tick (the /me page fires two). Each refresh token is one-time-use
+ * on the server — presenting it twice is treated as theft and revokes every
+ * session the feeder holds — so the second caller must WAIT for the first
+ * exchange, not race it with the same token.
+ */
+export async function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) return false;
+      try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+          signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+        });
+        const payload: unknown = await res.json().catch(() => null);
+        const data = (payload as { ok?: unknown; data?: { accessToken?: unknown; refreshToken?: unknown } } | null)
+          ?.data;
+        if (
+          !res.ok ||
+          (payload as { ok?: unknown } | null)?.ok !== true ||
+          typeof data?.accessToken !== "string" ||
+          typeof data?.refreshToken !== "string"
+        ) {
+          return false;
+        }
+        setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => {
+      refreshInFlight = undefined;
+    });
+  }
+  return refreshInFlight;
+}
+
 /**
  * Default request deadline. Long enough that a slow-but-working 4G round trip
  * with a photo attached still completes, short enough that a stalled socket
@@ -76,6 +175,9 @@ interface RequestOptions {
   timeoutMs?: number;
   /** Sent as `x-device-token` for endpoints that accept device attestation. */
   deviceToken?: string;
+  /** Internal: set on the one retry after a successful refresh, so a 401 on
+   * the retried request signs out instead of refreshing forever. */
+  afterRefresh?: boolean;
 }
 
 /**
@@ -130,9 +232,13 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const headers: Record<string, string> = { accept: "application/json" };
   if (body !== undefined) headers["content-type"] = "application/json";
+  let sentSession = false;
   if (auth) {
     const token = getAccessToken();
-    if (token) headers.authorization = `Bearer ${token}`;
+    if (token) {
+      headers.authorization = `Bearer ${token}`;
+      sentSession = true;
+    }
   }
   // The API accepts a feeder Bearer token OR an attested device token. Sending
   // both is harmless — the route prefers the Bearer — and it means a signed-in
@@ -180,15 +286,22 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   // BAD_POW and CHALLENGE_EXPIRED, and `/auth/verify` answers 401 for
   // BAD_DEVICE_TOKEN -- and wiping the session on those would silently sign a
   // feeder out because an unrelated proof-of-work expired.
-  const sessionRejected = res.status === 401 && auth;
+  const sessionRejected = res.status === 401 && auth && sentSession;
+
+  if (sessionRejected && !opts.afterRefresh && (await refreshSession())) {
+    // The access token was stale, the refresh token was good, the pair is
+    // stored: run the original request once more with the new session. A 401
+    // on THAT attempt falls through to the sign-out below.
+    return request<T>(path, { ...opts, afterRefresh: true });
+  }
 
   if (isErrorEnvelope(payload)) {
-    if (sessionRejected) clearAccessToken();
+    if (sessionRejected) clearSession();
     throw new ApiError(payload.error.message, { status: res.status, code: payload.error.code });
   }
 
   if (!res.ok) {
-    if (sessionRejected) clearAccessToken();
+    if (sessionRejected) clearSession();
     throw new ApiError(`Request failed (HTTP ${res.status})`, { status: res.status });
   }
 
@@ -283,6 +396,30 @@ export interface SosReportResult {
   created: boolean;
   caseId: string;
   tier: number;
+  /** "responders" when the responder fan-out ran for this case, "escalated"
+   * when the escalation channel owns notification (routes/sos.ts). */
+  fanout?: "responders" | "escalated";
+  /** Nearby listed care providers, so the reporter has a number to call now. */
+  nearbyCare?: NearbyCareProvider[];
+}
+
+export interface NearbyCareProvider {
+  id: string;
+  name: string;
+  kind: string;
+  costTier: string;
+  phoneE164: string | null;
+  altPhoneE164: string | null;
+  hasAmbulance: boolean;
+  is24x7: boolean;
+  hoursNote: string | null;
+  handlesWildlife: boolean;
+  phoneVerifiedAt: string | null;
+  geoPrecision: "exact" | "locality";
+  locality: string | null;
+  lat: number;
+  lng: number;
+  distanceM: number | null;
 }
 
 export interface StreakData {

@@ -149,6 +149,27 @@ describe("POST /api/v1/medical_records", () => {
     expect(res.json().data.isVerified).toBe(false);
   });
 
+  it("accepts a self-report from a registrator — a feeder who elected the register surface keeps this", async () => {
+    // The role check used to be `feeder || vet`. Electing the registrator
+    // surface (POST /feeders/me/surface) rewrote the role and silently took
+    // away the ability to record a treatment; admins and BMC officers never had
+    // it. Anyone with the `feed` capability may self-report.
+    const reg = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, consent_version)
+       VALUES ($1, 'Test Registrator', 'registrator', 'v1.0') RETURNING id`,
+      [`hmac-test-registrator-${randomUUID()}`],
+    );
+    const token = signAccessToken(reg.rows[0].id, config.JWT_SECRET, config.JWT_ACCESS_TTL);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/medical_records",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { dogId, recordType: "feeding_observation", treatment: "dewormer given" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.isVerified).toBe(false);
+  });
+
   it("answers a well-formed but unknown dogId with 404, not a 500 from a raw FK violation", async () => {
     // dog_id is uuid + REFERENCES dogs(id); a random UUID passes zod but
     // fails the foreign key, and 23503 used to surface as "internal server

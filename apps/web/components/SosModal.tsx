@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { api, ApiError, type SosReportResult, type SosSeverity } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, ApiError, getAccessToken, type SosReportResult, type SosSeverity } from "@/lib/api";
+import { getDeviceToken } from "@/lib/device";
 import PawIllustration from "./PawIllustration";
 import styles from "./SosModal.module.css";
 
@@ -40,6 +41,87 @@ export default function SosModal({
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState<SosReportResult | null>(null);
 
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // The element that had focus when the dialog opened; focus returns to it on
+  // close. Without this, a keyboard user who opened SOS lands back at the top
+  // of the page instead of on the "This dog needs help" button they just used.
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  // Focus management for the emergency dialog — the one a blind or motor-
+  // impaired user may open standing over a hurt dog. The scan page's sheet
+  // (apps/scan/src/sheet.ts) already does all of this; this modal had none of
+  // it: focus stayed on the trigger behind an `aria-modal="true"` dialog, Tab
+  // walked straight past the modal into the page behind it, and Escape did
+  // nothing. A modal that fails to trap focus is a modal a screen-reader user
+  // can silently find themselves outside, mid-report.
+  const focusDialog = () => {
+    const el = modalRef.current;
+    if (!el) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const el = modalRef.current;
+      if (!el) return;
+      const focusables = Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((f) => !f.hasAttribute("hidden") && getComputedStyle(f).display !== "none");
+      if (focusables.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active !== null && el.contains(active);
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    focusDialog();
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (triggerRef.current) {
+        try {
+          triggerRef.current.focus({ preventScroll: true });
+        } catch {
+          triggerRef.current.focus();
+        }
+      }
+    };
+  }, [open]);
+
+  // The confirmed view replaces the form view mid-open; move focus into the new
+  // dialog so a screen reader announces "SOS confirmed" instead of leaving the
+  // reader where the form's Send button used to be.
+  useEffect(() => {
+    if (open && confirmed) focusDialog();
+  }, [open, confirmed, focusDialog]);
+
   if (!open) return null;
 
   const reset = () => {
@@ -59,10 +141,23 @@ export default function SosModal({
     setBusy(true);
     setStatus("Sending SOS…");
     try {
+      // The API's dual-auth contract (routes/sos.ts) accepts a Bearer access
+      // token OR an attested device token. An anonymous stranger — the primary
+      // user of this dog page — has neither by default, and before this fix
+      // their report always failed with 401 UNAUTHENTICATED_DEVICE: the web
+      // PWA was the one surface whose SOS did not present a device token (the
+      // scan page's sheet does). Mint lazily, only when there is no session —
+      // a logged-in feeder's Bearer token needs no proof-of-work solve.
+      let deviceToken: string | undefined;
+      if (!getAccessToken()) {
+        const device = await getDeviceToken();
+        deviceToken = device.ok ? device.token : undefined;
+      }
       const result = await api.createReport({
         dogSlug,
         severity,
         note: note.trim() || undefined,
+        ...(deviceToken ? { deviceToken } : {}),
       });
       if (result.created) {
         setConfirmed(result);
@@ -86,6 +181,8 @@ export default function SosModal({
           role="dialog"
           aria-modal="true"
           aria-label="SOS confirmed"
+          tabIndex={-1}
+          ref={modalRef}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className={styles.confirmBadge}>
@@ -113,6 +210,8 @@ export default function SosModal({
         role="dialog"
         aria-modal="true"
         aria-label="Report SOS"
+        tabIndex={-1}
+        ref={modalRef}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <span className={styles.kicker}>Neighbour needs help</span>

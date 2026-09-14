@@ -13,7 +13,8 @@
 
 import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
-import { api, ApiError } from "./api";
+import { api, ApiError, getAccessToken } from "./api";
+import { getDeviceToken } from "./device";
 
 export const SYNC_TAG = "hetja-feed-flush";
 
@@ -150,6 +151,17 @@ export async function flush(
   onDrop?: (item: QueuedScan, err: ApiError) => void,
 ): Promise<number> {
   const items = await listQueued();
+  // Anonymous writes need an attested device token or the API answers 401
+  // UNAUTHENTICATED_DEVICE on every POST (see lib/api.ts's request()). Mint it
+  // once per flush, only when there is no session — a logged-in feeder's Bearer
+  // token is enough, and a proof-of-work solve for them is pure waste. Before
+  // this, an anonymous feeder's feed showed "Feed logged ♥" while every sync
+  // attempt 401'd and the record was retried forever.
+  let deviceToken: string | undefined;
+  if (!getAccessToken()) {
+    const device = await getDeviceToken();
+    deviceToken = device.ok ? device.token : undefined;
+  }
   let sent = 0;
   for (const item of items) {
     try {
@@ -160,6 +172,7 @@ export async function flush(
         geo: item.geo,
         photoBase64: item.photo,
         capturedAt: item.capturedAt,
+        deviceToken,
       });
       // `created: false` = already recorded server-side (idempotent replay).
       // Either way the record is handled and must not be re-queued.

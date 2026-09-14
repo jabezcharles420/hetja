@@ -65,6 +65,16 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   auth?: boolean;
+  /**
+   * Attested device token for the anonymous write paths (`x-device-token`
+   * header). `routes/scans.ts` and `routes/sos.ts` accept EITHER a Bearer
+   * access token or an attested device token — the web clients used to send
+   * neither, so an anonymous stranger's feed log and SOS always 401'd with
+   * `UNAUTHENTICATED_DEVICE` even though the API's dual-auth contract exists
+   * exactly for that caller. The header name matches `scans.test.ts`
+   * (`x-device-token`); sos.ts reads the token from the body instead.
+   */
+  deviceToken?: string;
 }
 
 interface ErrorEnvelope {
@@ -87,7 +97,7 @@ function isErrorEnvelope(payload: unknown): payload is ErrorEnvelope {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, auth = true } = opts;
+  const { method = "GET", body, auth = true, deviceToken } = opts;
 
   const headers: Record<string, string> = { accept: "application/json" };
   if (body !== undefined) headers["content-type"] = "application/json";
@@ -95,6 +105,11 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const token = getAccessToken();
     if (token) headers.authorization = `Bearer ${token}`;
   }
+  // Only attach the attested device token when the request has no access
+  // token — a logged-in feeder's Bearer credential is the stronger identity,
+  // and minting a proof-of-work solve for a session that does not need one
+  // is pure waste (see lib/device.ts for the ~1-3 s cost).
+  if (deviceToken && !headers.authorization) headers["x-device-token"] = deviceToken;
 
   let res: Response;
   try {
@@ -284,12 +299,26 @@ export const api = {
   verifyOtp: (input: { email: string; code: string; deviceToken: string; consentVersion: number; isMinor: boolean }) =>
     request<VerifyResult>(`/auth/verify`, { method: "POST", body: input, auth: false }),
 
-  /** POST a feed scan. Idempotent on the server by clientUuid. */
-  createScan: (input: { clientUuid: string; dogSlug: string; type: "feed"; geo?: GeoPoint; photoBase64?: string; capturedAt: string }) =>
-    request<ScanResult>(`/scans`, { method: "POST", body: input }),
+  /** POST a feed scan. Idempotent on the server by clientUuid. Anonymous
+   *  browsers present an attested `deviceToken` (sent as the `x-device-token`
+   *  header); logged-in feeders are authenticated by their Bearer token. */
+  createScan: (input: {
+    clientUuid: string;
+    dogSlug: string;
+    type: "feed";
+    geo?: GeoPoint;
+    photoBase64?: string;
+    capturedAt: string;
+    deviceToken?: string;
+  }) => {
+    const { deviceToken, ...body } = input;
+    return request<ScanResult>(`/scans`, { method: "POST", body, deviceToken });
+  },
 
-  /** Open an SOS report (minor / serious / critical). */
-  createReport: (input: { dogSlug: string; severity: SosSeverity; note?: string }) =>
+  /** Open an SOS report (minor / serious / critical). Anonymous browsers
+   *  present an attested `deviceToken` in the body, exactly as the scan page's
+   *  sheet does — `routes/sos.ts` reads it from `body.deviceToken`. */
+  createReport: (input: { dogSlug: string; severity: SosSeverity; note?: string; deviceToken?: string }) =>
     request<SosReportResult>(`/reports`, { method: "POST", body: input }),
 
   /** Feeder self-service: trust score, streak days and badges. */

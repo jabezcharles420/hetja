@@ -44,6 +44,18 @@ vi.mock("./idb", () => ({
   uuid: idbMock.uuid,
 }));
 
+// `flush` mints an attested device token for anonymous writers (the API 401s
+// anonymous scan POSTs without one). Under test the real mint would hit the
+// same `fetchMock` these tests drive with `/scans` responses — the challenge
+// round-trip would consume a queued response and desynchronise every test that
+// counts calls. A fixed token keeps the suite about the queue, not about the
+// attestation flow (which lib/device.test covers).
+const deviceMock = vi.hoisted(() => ({
+  getDeviceToken: vi.fn(async () => ({ ok: true as const, token: "test.token", minted: false })),
+}));
+
+vi.mock("./device", () => ({ getDeviceToken: deviceMock.getDeviceToken }));
+
 import {
   enqueueFeed,
   flush,
@@ -123,6 +135,10 @@ describe("lib/offline-queue", () => {
   });
 
   afterEach(() => {
+    // vi.clearAllMocks() does not reach mocks created inside vi.hoisted() in
+    // this vitest version — the call history accumulates across tests unless
+    // cleared here explicitly.
+    deviceMock.getDeviceToken.mockClear();
     vi.unstubAllGlobals();
   });
 
@@ -140,6 +156,29 @@ describe("lib/offline-queue", () => {
     expect(bodies.map((x) => x.clientUuid)).toEqual([a.queued.clientUuid, b.queued.clientUuid]);
     expect(bodies.every((x) => x.type === "feed")).toBe(true);
     expect(idbMock.store.size).toBe(0);
+  });
+
+  it("attaches an attested device token to anonymous scan posts", async () => {
+    await enqueueOffline({ dogSlug: "abc234567" });
+
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
+
+    expect(await flush()).toBe(1);
+    // The mint ran (no access token cached) and its result reached the wire as
+    // the header the API's dual-auth contract expects for anonymous writers.
+    expect(deviceMock.getDeviceToken).toHaveBeenCalledTimes(1);
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers["x-device-token"]).toBe("test.token");
+  });
+
+  it("skips the device-token mint when the feeder has a session", async () => {
+    await enqueueOffline({ dogSlug: "abc234567" });
+    localStorage.setItem("hetja.accessToken", "feeder-session");
+
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
+
+    expect(await flush()).toBe(1);
+    expect(deviceMock.getDeviceToken).not.toHaveBeenCalled();
   });
 
   it("drops a replay that returns created:false — it is not re-queued", async () => {

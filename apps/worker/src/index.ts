@@ -355,6 +355,9 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * to prevent.
    */
   retention: async () => {
+    // Book tomorrow's run before doing today's — see scheduleNextDailyRun.
+    await scheduleNextDailyRun("retention");
+
     // Database housekeeping FIRST, independent of where photos live. Two
     // tables promised a worker-side sweep in their migrations and never got
     // one: spent_challenges (0021: "swept by worker retention") and
@@ -474,6 +477,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * independently — the shape sos.ts already uses for send_sos_push.
    */
   expire_stale_registrations: async () => {
+    await scheduleNextDailyRun("expire_stale_registrations");
     await withTx(async (client) => {
       // Pass 1: day 7 — first reminder (0 → 1)
       const r7 = await client.query<{ id: string; slug: string }>(
@@ -570,6 +574,45 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     }
   },
 };
+
+/**
+ * Leaves the NEXT run of a daily job in the queue, 24 hours out — the record
+ * of "this ran" that the producers below read.
+ *
+ * WHY THIS EXISTS. `enqueueRetentionJobIfDue` and
+ * `enqueueRegistrationSweepIfDue` inferred "has one run in the last 24h" from
+ * the presence of a jobs row with `run_after > now() - 24h`. But `processOneJob`
+ * DELETEs a job the moment its handler succeeds, so the row that was supposed
+ * to prove the sweep ran was gone by the time anyone looked — and the very next
+ * scheduler tick (five minutes later) found nothing and enqueued again. Both
+ * "daily" sweeps ran every five minutes, forever; the live worker journal shows
+ * the three `enqueued (no sweep in the last 24h)` lines repeating every 300 s.
+ * Cheap work each time, but a schedule that says daily and does 288/day is a
+ * lie of exactly the kind docs/INVARIANTS.md keeps recording.
+ *
+ * The fix keeps "the queue is the record" honest: a daily handler's first act
+ * is to insert its own next run at now() + 24h, guarded so two handler runs
+ * (a retry, a duplicate) never leave two future rows. The producer's
+ * `run_after > now() - 24h` guard then sees a live, future row and stays quiet
+ * until it has run. If a run dead-letters (failed_at set), the guard ignores
+ * that row and re-enqueues — a loud repeated failure, never a silent stop,
+ * which is migration 0016's rule.
+ *
+ * Called FIRST in the handler, before the work: a handler that fails halfway
+ * is retried with backoff and must not leave tomorrow unscheduled.
+ */
+export async function scheduleNextDailyRun(kind: string): Promise<boolean> {
+  const res = await query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT $1, '{}'::jsonb, now() + interval '24 hours'
+      WHERE NOT EXISTS (
+              SELECT 1 FROM jobs
+               WHERE kind = $1 AND failed_at IS NULL AND run_after > now()
+            )`,
+    [kind],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
 
 /**
  * Grace period a spent refresh token's row is kept past its expiry, so a late
@@ -724,9 +767,17 @@ export async function enqueueAnchorJobIfDue(client: PoolClient): Promise<boolean
     // (migration 0016), and without this filter its mere existence would satisfy
     // the NOT EXISTS guard and stop INVARIANT 10 from ever being scheduled
     // again — trading a loud repeated failure for a silent permanent one.
+    //
+    // `EXISTS (medical_records)` matters too: publishLedgerAnchor returns null
+    // on an empty ledger and writes no anchor row, so on a pre-launch database
+    // this enqueued a job that did nothing, every five minutes, forever — the
+    // "published anchor IS the record of the last run" reasoning has no record
+    // to read when there is nothing to anchor. An empty ledger has no head to
+    // publish; the first record makes this fire within five minutes.
     `INSERT INTO jobs (kind, payload, run_after)
      SELECT 'anchor_ledger', '{}'::jsonb, now()
-      WHERE NOT EXISTS (
+      WHERE EXISTS (SELECT 1 FROM medical_records)
+        AND NOT EXISTS (
               SELECT 1 FROM jobs WHERE kind = 'anchor_ledger' AND failed_at IS NULL
             )
         AND NOT EXISTS (
@@ -759,9 +810,11 @@ const RETENTION_SCHEDULE_LOCK_KEY = 420_011;
  * guard and silently stop retention forever.
  *
  * "Has one run recently" is inferred from the queue rather than from a
- * timestamp table: a completed job is DELETEd, so the absence of a live row
- * plus the 24h floor on `run_after` is the same signal without a new table to
- * keep in sync.
+ * timestamp table — and that only works because the handler leaves its own
+ * next run in the queue (`scheduleNextDailyRun`). The previous reasoning here
+ * ("a completed job is DELETEd, so the absence of a live row plus the 24h floor
+ * on run_after is the same signal") was backwards: the deletion is exactly what
+ * erased the signal, and this ran every five minutes.
  */
 export async function enqueueRetentionJobIfDue(client: PoolClient): Promise<boolean> {
   const lock = await client.query<{ locked: boolean }>(
@@ -793,7 +846,8 @@ const REGISTRATION_SCHEDULE_LOCK_KEY = 420_012;
  * filter. Without it, one dead-lettered sweep (migration 0016 parks failures
  * forever) satisfies the guard and silently stops expiry for good — trading a
  * loud repeated failure for a silent permanent one. That is 0016's own
- * recorded lesson.
+ * recorded lesson. Daily cadence relies on the handler's
+ * `scheduleNextDailyRun`, for the reason given on that function.
  */
 export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise<boolean> {
   const lock = await client.query<{ locked: boolean }>(

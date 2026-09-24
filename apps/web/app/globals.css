@@ -1,26 +1,16 @@
 /* ---------------------------------------------------------------------------
- * apps/web: global styles.
+ * apps/web global styles (design v4, from the Claude Design handoff).
  *
- * Tokens come from ONE place: packages/design/tokens.css. This file imports
- * them and consumes the custom properties; it never redefines a value or adds
- * a colour of its own. If a token is missing, add it upstream.
- *
- * Direction (v3): an Apple product page for Mumbai's street dogs (visual
- * language after sidehoe.chat / apple.com). Depth comes from glass and soft
- * shadow: aurora → grey section → white tile → glass chip. Pills for actions,
- * 28px tiles, big tight headlines, and one loud thing per screen.
- *
- * Class names from v2 (.h-container, .h-btn*, .h-card, .h-stat-value,
- * .h-logo-mark, .h-footer-clear-nav, …) are kept: tests and markup rely on
- * them. Everything else here is additive.
+ * Deliberately tiny: a reset, the base type, the focus ring and the layout
+ * container. Everything visual lives in components/*.module.css and reads the
+ * tokens in packages/design/tokens.css. If a value is missing, add a token;
+ * never hard-code a colour here.
  * ------------------------------------------------------------------------- */
 
 @import "../../../packages/design/tokens.css";
 
-/* --- Self-hosted Inter (variable, Latin, 100–900) --------------------------
- * Fallback for non-Apple devices; Apple devices resolve -apple-system first.
- * 48 KB. See docs/design/HETJA-DESIGN.md.
- */
+/* Inter: the Android stand-in for SF Pro (Apple devices match -apple-system
+ * first and never download this file). Variable, Latin, 48 KB. */
 @font-face {
   font-family: "Inter";
   src: url("/fonts/Inter-latin-var.woff2") format("woff2");
@@ -39,55 +29,42 @@
 
 html,
 body {
-  padding: 0;
   margin: 0;
+  padding: 0;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  scroll-padding-top: var(--h-nav-h);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+  background: var(--h-white);
 }
 
 body {
-  /* Transparent so the fixed <Ambient> aurora shows through; the html
-   * element carries the base colour for routes that render no Ambient. */
-  background: transparent;
-  color: var(--h-ink);
   font-family: var(--h-font);
-  font-weight: var(--h-w-regular);
-  font-size: var(--h-t-md);
+  font-size: 17px;
   line-height: 1.47;
-  letter-spacing: var(--h-track-body);
+  color: var(--h-ink);
+  background: var(--h-white);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-html {
-  background: var(--h-base);
 }
 
 h1,
 h2,
 h3,
 h4,
-h5,
-h6 {
-  font-family: var(--h-font);
-  font-weight: var(--h-w-semibold);
-  line-height: 1.1;
-  color: inherit;
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
   text-wrap: balance;
 }
 
 p {
-  margin: 0;
+  text-wrap: pretty;
 }
 
 a {
@@ -95,849 +72,35 @@ a {
   text-decoration: none;
 }
 
-/* Inline prose links: Apple link blue (--h-link passes AA on white AND grey). */
-.h-link,
-.h-prose a {
-  color: var(--h-link);
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
 }
 
-.h-link:hover,
-.h-prose a:hover {
-  text-decoration: underline;
+img,
+svg {
+  display: block;
+  max-width: 100%;
 }
 
-/* Visible keyboard focus on every control, never suppressed. */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-summary:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--h-imessage);
-  outline-offset: 3px;
-  border-radius: 6px;
+/* Visible keyboard focus on every control (handoff: 3px blue at 45%). */
+:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
 }
 
-sup {
-  font-size: 0.6em;
-  line-height: 0;
-  vertical-align: super;
-}
-
-/* --- Layout ---------------------------------------------------------------
- * The only horizontal gutter in the system. Anything that also lands on a
- * `.h-container` element must set vertical padding with `padding-block`, never
- * the `padding` shorthand (e2e/mobile-layout.spec.ts guards this).
- */
+/* The one horizontal gutter. Anything else on the same element must set its
+ * vertical padding with padding-block, never the `padding` shorthand
+ * (e2e/mobile-layout.spec.ts guards this). */
 .h-container {
-  max-width: calc(1080px + var(--h-gutter) * 2);
-  margin: 0 auto;
-  padding: 0 calc(var(--h-gutter) + env(safe-area-inset-right, 0px)) 0
-    calc(var(--h-gutter) + env(safe-area-inset-left, 0px));
-}
-
-.h-container-wide {
-  max-width: calc(1240px + var(--h-gutter) * 2);
-}
-
-.h-container-narrow {
-  max-width: calc(720px + var(--h-gutter) * 2);
-}
-
-.h-section {
-  padding-block: var(--h-section-y);
-}
-
-.h-section-center {
-  text-align: center;
-}
-
-.h-section-gray {
-  background: var(--h-glass-gray);
-}
-
-.h-section-white {
-  background: var(--h-base);
-}
-
-.h-section-dark {
-  background: var(--h-dark);
-  color: var(--h-on-dark);
-}
-
-.h-section-dark .h-lede {
-  color: var(--h-on-dark-muted);
-}
-
-.h-section-dark .h-lede strong {
-  color: var(--h-on-dark);
-}
-
-/* --- Type ----------------------------------------------------------------- */
-.h-hero-headline {
-  font-size: var(--h-t-hero);
-  line-height: 0.98;
-  font-weight: var(--h-w-bold);
-  letter-spacing: var(--h-track-hero);
-  margin: 0;
-}
-
-.h-hero-headline > span {
-  display: block;
-}
-
-.h-headline {
-  font-size: var(--h-t-display);
-  line-height: 1.05;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: var(--h-track-display);
-  margin: 0;
-}
-
-.h-lede {
-  font-size: var(--h-t-lede);
-  line-height: 1.34;
-  font-weight: var(--h-w-medium);
-  letter-spacing: -0.012em;
-  color: var(--h-ink-muted);
-  max-width: 30em;
-  margin: 22px auto 0;
-  text-wrap: pretty;
-}
-
-.h-lede strong {
-  color: var(--h-ink);
-  font-weight: var(--h-w-medium);
-}
-
-.h-title-tile {
-  font-size: var(--h-t-tile);
-  line-height: 1.1;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: var(--h-track-body);
-  margin: 0;
-}
-
-.h-muted {
-  color: var(--h-ink-muted);
-}
-
-.h-bignum,
-.h-stat-value {
-  font-size: var(--h-t-bignum);
-  line-height: 1;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-  margin: 0;
-}
-
-.h-bignum small {
-  font-size: 0.3em;
-  letter-spacing: -0.02em;
-  margin-left: 0.2em;
-}
-
-/* --- Eyebrow / chip --------------------------------------------------------
- * `.h-pill` kept for v2 markup: now the glass hero chip.
- */
-.h-pill,
-.h-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--h-s2);
-  padding: 6px 14px;
-  border-radius: var(--h-radius-pill);
-  font-size: var(--h-t-sm);
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  color: var(--h-ink);
-  background: var(--h-glass);
-  box-shadow: var(--h-shadow-chip);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-.h-chip-logo {
-  padding-left: 6px;
-}
-
-.h-pill em,
-.h-chip em {
-  font-style: normal;
-  font-weight: var(--h-w-regular);
-  color: var(--h-ink-muted);
-}
-
-.h-pill-amber {
-  /* v2 modifier: a no-op in v3, kept so markup does not need churn. */
-}
-
-/* --- Status pill (Sidehoe .age) ------------------------------------------ */
-.h-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: var(--h-w-medium);
-  padding: 5px 11px;
-  border-radius: var(--h-radius-pill);
-  background: var(--h-gray);
-  color: var(--h-ink-muted);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.h-status-ok {
-  background: var(--h-ok-bg);
-  color: var(--h-safe);
-}
-
-.h-status-warn {
-  background: var(--h-warn-bg);
-  color: var(--h-warn);
-}
-
-.h-status-late {
-  background: var(--h-late-bg);
-  color: var(--h-danger);
-}
-
-/* --- Surfaces ------------------------------------------------------------- */
-.h-card {
-  background: var(--h-base);
-  border-radius: var(--h-radius-card);
-  box-shadow: var(--h-shadow-card);
-}
-
-.h-tile {
-  background: var(--h-base);
-  border-radius: var(--h-radius-tile);
-  padding: 36px;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.h-tile > * > p,
-.h-tile-text {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.4;
-  margin-top: 10px;
-  max-width: 34em;
-}
-
-.h-tile-visual {
-  margin-top: auto;
-}
-
-.h-glass {
-  background: var(--h-glass);
-  -webkit-backdrop-filter: var(--h-blur);
-  backdrop-filter: var(--h-blur);
-  box-shadow: 0 0 0 1px var(--h-glass-edge);
-}
-
-.h-inset {
-  background: var(--h-gray);
-  border-radius: var(--h-radius-card);
-  padding: 20px;
-}
-
-/* 12-column bento (Sidehoe / Aceternity). */
-.h-bento {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 20px;
-  text-align: left;
-}
-
-.h-span-4 { grid-column: span 4; }
-.h-span-5 { grid-column: span 5; }
-.h-span-6 { grid-column: span 6; }
-.h-span-7 { grid-column: span 7; }
-.h-span-8 { grid-column: span 8; }
-.h-span-12 { grid-column: span 12; }
-
-@media (max-width: 960px) {
-  .h-span-5,
-  .h-span-6,
-  .h-span-7,
-  .h-span-8 {
-    grid-column: span 12;
-  }
-
-  .h-span-4 {
-    grid-column: span 6;
-  }
-}
-
-@media (max-width: 640px) {
-  .h-span-4 {
-    grid-column: span 12;
-  }
-
-  .h-tile {
-    padding: 28px 24px;
-  }
-}
-
-/* --- Buttons --------------------------------------------------------------
- * Pills. `.h-btn-primary` is the ONE loud action on a screen.
- */
-.h-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--h-s2);
-  border: 0;
-  border-radius: var(--h-radius-pill);
-  padding: 12px 22px;
-  min-height: var(--h-target-min);
-  font: inherit;
-  font-size: var(--h-t-md);
-  font-weight: var(--h-w-regular);
-  line-height: 1.18;
-  letter-spacing: var(--h-track-body);
-  cursor: pointer;
-  text-decoration: none;
-  transition: transform var(--h-dur) var(--h-ease), background-color var(--h-dur) var(--h-ease),
-    opacity var(--h-dur) var(--h-ease);
-}
-
-.h-btn:hover {
-  text-decoration: none;
-}
-
-.h-btn:disabled,
-.h-btn[aria-disabled="true"] {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.h-btn-primary {
-  background: var(--h-accent);
-  color: #fff;
-}
-
-.h-btn-primary:hover {
-  background: var(--h-accent-hover);
-}
-
-.h-btn-danger {
-  background: var(--h-danger-fill);
-  color: #fff;
-  font-weight: var(--h-w-semibold);
-}
-
-.h-btn-lg {
-  font-size: var(--h-t-lg);
-  padding: 16px 30px;
-  min-height: var(--h-target);
-}
-
-.h-btn-primary.h-btn-lg {
-  box-shadow: var(--h-shadow-cta);
-}
-
-.h-btn-sm {
-  position: relative;
-  font-size: var(--h-t-xs);
-  padding: 6px 12px;
-  min-height: 28px;
-}
-
-/* Small pills stay visually small but get a 44px touch target (HIG floor):
- * an invisible hit area centred on the pill. */
-.h-btn-sm::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: max(100%, 44px);
-  height: 44px;
-  transform: translate(-50%, -50%);
-}
-
-.h-btn-block {
-  display: flex;
   width: 100%;
-}
-
-/* Secondary: quiet grey pill. */
-.h-btn-dark,
-.h-btn-ghost {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--h-ink);
-}
-
-.h-btn-dark:hover,
-.h-btn-ghost:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-/* Text link with a chevron (Apple's "Learn more ›"). */
-.h-btn-link {
-  background: none;
-  padding: 0;
-  min-height: 0;
-  color: var(--h-link);
-  font-size: inherit;
-}
-
-.h-btn-link::after {
-  content: " \203A";
-}
-
-.h-btn-link:hover {
-  text-decoration: underline;
-}
-
-.h-actions {
-  display: flex;
-  gap: 18px 26px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* --- Inputs ---------------------------------------------------------------- */
-.h-input {
-  font: inherit;
-  font-size: var(--h-t-md);
-  width: min(320px, 100%);
-  min-height: var(--h-target-min);
-  padding: 12px 18px;
-  border-radius: var(--h-radius-pill);
-  border: 1px solid var(--h-ink-faint);
-  background: var(--h-base);
-  color: var(--h-ink);
-  letter-spacing: var(--h-track-body);
-}
-
-.h-input::placeholder {
-  color: var(--h-ink-muted);
-}
-
-.h-input:focus,
-.h-input:focus-visible {
-  outline: 0;
-  border-color: var(--h-imessage);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3);
-}
-
-/* --- Avatar (Sidehoe .avatar / Dogmoji) ----------------------------------- */
-.h-avatar {
-  --s: 48px;
-  position: relative;
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: var(--s);
-  height: var(--s);
-  border-radius: 50%;
-  font-size: calc(var(--s) * 0.62);
-  line-height: 1;
-  overflow: hidden;
-  background: var(--bg, #e5e5ea);
-  letter-spacing: 0;
-}
-
-.h-avatar img {
-  position: absolute;
-  left: 8%;
-  top: 10%;
-  width: 84%;
-  height: 84%;
-  object-fit: contain;
-}
-
-/* --- Chat bubbles (shared by phone + tiles) -------------------------------- */
-.h-bubble {
-  position: relative;
-  max-width: 78%;
-  padding: 7px 12px;
-  border-radius: 18px;
-  font-size: var(--h-t-sm);
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-  text-align: left;
-  background: var(--h-bubble);
-  color: #000;
-  align-self: flex-start;
-}
-
-.h-bubble-me {
-  background: var(--h-imessage);
-  color: #fff;
-  align-self: flex-end;
-}
-
-/* --- Logo -------------------------------------------------------------------
- * Dark circular contact icon (Sidehoe .logo) with the white paw.
- */
-.h-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-family: var(--h-font);
-  font-weight: var(--h-w-semibold);
-  font-size: 21px;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  color: var(--h-ink);
-}
-
-.h-logo-mark {
-  width: 28px;
-  height: 28px;
-  flex: none;
-  display: block;
-}
-
-.h-logo-small {
-  font-size: var(--h-t-sm);
-}
-
-.h-logo-small .h-logo-mark {
-  width: 24px;
-  height: 24px;
-}
-
-/* --- Header (Sidehoe .nav) -------------------------------------------------- */
-.h-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: var(--h-nav-h);
-  background: var(--h-glass);
-  -webkit-backdrop-filter: var(--h-blur);
-  backdrop-filter: var(--h-blur);
-  border-bottom: 1px solid var(--h-glass-edge);
-  color: var(--h-ink);
-}
-
-.h-header-inner {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 28px;
-}
-
-.h-header-inner > .h-logo {
-  margin-right: auto;
-}
-
-.h-header-nav {
-  display: flex;
-  align-items: center;
-  gap: 26px;
-  font-size: var(--h-t-xs);
-  letter-spacing: -0.01em;
-}
-
-.h-header-nav a {
-  color: var(--h-ink);
-  opacity: 0.8;
-  transition: opacity var(--h-dur) var(--h-ease);
-}
-
-.h-header-nav a:hover,
-.h-header-nav a[aria-current="page"] {
-  opacity: 1;
-}
-
-@media (max-width: 720px) {
-  .h-header-nav {
-    display: none;
-  }
-}
-
-/* --- Footer (Sidehoe footer) ---------------------------------------------- */
-.h-footer {
-  background: var(--h-glass-gray);
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-xs);
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-  padding-block: 28px calc(36px + env(safe-area-inset-bottom, 0px));
-}
-
-.h-footer-inner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--h-s4);
-}
-
-.h-footer-notes {
-  margin: 0;
-  padding: 0 0 18px 16px;
-  border-bottom: 1px solid var(--h-rule);
-}
-
-.h-footer-notes li + li {
-  margin-top: 6px;
-}
-
-.h-footer-links {
-  display: flex;
-  gap: 6px 22px;
-  flex-wrap: wrap;
-}
-
-.h-footer-links a {
-  color: var(--h-ink);
-}
-
-.h-footer-links a:hover {
-  text-decoration: underline;
-}
-
-.h-footer-muted {
-  color: var(--h-ink-muted);
-  max-width: 60ch;
-}
-
-.h-footer-dot {
-  color: var(--h-ink-faint);
-}
-
-.h-footer-tagline {
-  color: var(--h-ink-muted);
-}
-
-.h-footer-legal {
-  display: flex;
-  align-items: center;
-  gap: 6px 24px;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding-top: var(--h-s4);
-  border-top: 1px solid var(--h-rule);
-  color: var(--h-ink-muted);
-}
-
-.h-footer-legal a {
-  color: var(--h-ink-muted);
-}
-
-.h-footer-legal a:hover {
-  color: var(--h-ink);
-  text-decoration: underline;
-}
-
-/* --- v2 landing classes still referenced by markup/tests ------------------- */
-.h-stat-label {
-  margin-top: var(--h-s2);
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  font-weight: var(--h-w-medium);
-}
-
-.h-code-form {
-  margin-top: var(--h-s4);
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.h-code-hint {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-sm);
-}
-
-.h-code-form input {
-  font: inherit;
-  font-size: var(--h-t-md);
-  padding: 12px 18px;
-  min-height: var(--h-target-min);
-  border-radius: var(--h-radius-pill);
-  border: 1px solid var(--h-ink-faint);
-  background: var(--h-base);
-  color: var(--h-ink);
-  min-width: 0;
-  flex: 1 1 200px;
-}
-
-.h-code-form input::placeholder {
-  color: var(--h-ink-muted);
-}
-
-.h-code-form input:focus-visible {
-  outline: 0;
-  border-color: var(--h-imessage);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3);
-}
-
-.h-code-error {
-  color: var(--h-danger);
-  font-size: var(--h-t-sm);
-  font-weight: var(--h-w-semibold);
-  margin-top: var(--h-s3);
-}
-
-/* Band = the grey closing CTA section (v2 name). */
-.h-band {
-  background: var(--h-glass-gray);
-}
-
-.h-band-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--h-s5);
-  padding-block: var(--h-section-y);
-}
-
-.h-band-title {
-  font-size: var(--h-t-display);
-  line-height: 1.05;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: var(--h-track-display);
-  max-width: 16ch;
-  margin: 0;
-}
-
-.h-band-sub {
-  font-size: var(--h-t-lede);
-  line-height: 1.34;
-  font-weight: var(--h-w-medium);
-  color: var(--h-ink-muted);
-  max-width: 30em;
-}
-
-/* --- Signage plate: the collar code, now set as a chip --------------------- */
-.h-plate {
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 6px 16px;
-  border-radius: var(--h-radius-pill);
-  background: var(--h-gray);
-  font-family: var(--h-font);
-  font-size: var(--h-t-xl);
-  font-weight: var(--h-w-semibold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  color: var(--h-ink);
-}
-
-/* --- Motion ----------------------------------------------------------------
- * One orchestrated load-in (Sidehoe `rise`). Only transform/opacity/filter.
- */
-@keyframes h-rise {
-  from {
-    opacity: 0;
-    transform: translateY(34px);
-    filter: blur(14px);
-  }
-}
-
-@keyframes h-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.6) translateY(8px);
-  }
-}
-
-@keyframes h-blink {
-  0%,
-  60%,
-  100% {
-    opacity: 0.35;
-  }
-
-  30% {
-    opacity: 1;
-  }
-}
-
-@keyframes h-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .h-rise {
-    animation: h-rise var(--h-dur-slow) var(--h-ease-out) both;
-  }
-
-  .h-hero-fade-up {
-    animation: h-rise var(--h-dur-slow) var(--h-ease-out) both;
-  }
-
-  .h-delay-1 { animation-delay: 0.1s; }
-  .h-delay-2 { animation-delay: 0.24s; }
-  .h-delay-3 { animation-delay: 0.42s; }
-  .h-delay-4 { animation-delay: 0.54s; }
-  .h-delay-5 { animation-delay: 0.64s; }
-}
-
-/* Press feedback: every interactive element squishes slightly on touch. */
-a:active,
-button:active,
-[role="button"]:active {
-  transform: scale(0.98);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-/* Reserve space for the fixed bottom tab bar on the FOOTER (the last element
- * in the document; see ChromeShell). Mirrors BottomNav.module.css height. */
-@media (max-width: 768px) {
-  .h-footer-clear-nav {
-    padding-bottom: calc(var(--h-s3) + 64px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-/* Defer below-fold rendering. */
-.h-band,
-.h-footer {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 300px;
-}
-
-/* Skeleton shimmer (transform-only). */
-.h-skeleton {
-  position: relative;
-  overflow: hidden;
-  background: var(--h-bubble);
-  border-radius: var(--h-radius-sm);
-}
-
-.h-skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.7), transparent);
-  animation: h-shimmer 1.6s ease-in-out infinite;
-}
-
-@keyframes h-shimmer {
-  to {
-    transform: translateX(100%);
-  }
+  max-width: calc(var(--h-content) + var(--h-gutter) * 2);
+  margin-inline: auto;
+  padding-inline: calc(var(--h-gutter) + env(safe-area-inset-left, 0px))
+    calc(var(--h-gutter) + env(safe-area-inset-right, 0px));
 }
 
 /* Visually hidden, still announced. */
@@ -953,28 +116,19 @@ button:active,
   border: 0;
 }
 
-/* Safe-area utilities. */
-.padding-safe-b {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.pb-safe {
-  padding-bottom: calc(var(--h-s5) + env(safe-area-inset-bottom, 0px));
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
-  @page {
-    margin: 10mm;
-  }
-
-  /* A fixed tab bar or aurora printed across a collar sheet is a wasted sheet
-   * of TPU. Hide chrome in print CSS as well as via ChromeShell. Scoped to the
-   * site chrome by class: a bare `header` selector also hid page content that
-   * happens to use <header> (the /hetja masthead vanished from print). */
-  .h-header,
-  .h-footer,
-  nav,
-  [data-ambient] {
+  .h-no-print {
     display: none !important;
   }
 

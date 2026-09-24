@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Mobile pages" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Pages. Full scroll, 390 wide.</h1>
+    <p style="margin:0;font-size:19px;color:#6e6e73;max-width:760px;line-height:1.45">Marketing and reading pages get the aurora and the jokes. /hetja gets neither.</p>
+  </header>
+  <div style="display:flex;flex-wrap:wrap;gap:56px;align-items:flex-start">
+
+    <!-- 01 HOME -->
+    <div data-screen-label="01 Home" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">01 Home <span style="font-weight:400;color:#6e6e73">· Everyone · Scan a collar</span></div>
+      <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#fdf6f8;position:relative">
+        <div style="position:relative;background:radial-gradient(90% 38% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),radial-gradient(80% 30% at 100% 6%,#ffcbb8 0%,rgba(255,203,184,0) 70%),radial-gradient(90% 30% at 60% 55%,#ffc2ec 0%,rgba(255,194,236,0) 70%),radial-gradient(80% 25% at 0% 90%,#ffd0c4 0%,rgba(255,208,196,0) 70%),#fdf6f8">
+          <div style="height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+          <div style="height:56px;background:rgba(255,255,255,.6);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;padding:0 20px">
+            <div style="display:flex;align-items:center;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em">
+              <div style="width:30px;height:30px;border-radius:50%;background:#1d1d1f;position:relative;flex:none"><span style="position:absolute;left:9px;top:14px;width:12px;height:10px;border-radius:50%;background:#fff"></span><span style="position:absolute;left:5px;top:8px;width:5px;height:6px;border-radius:50%;background:#fff"></span><span style="position:absolute;left:10px;top:4px;width:5px;height:6px;border-radius:50%;background:#fff"></span><span style="position:absolute;left:16px;top:4px;width:5px;height:6px;border-radius:50%;background:#fff"></span><span style="position:absolute;left:21px;top:8px;width:5px;height:6px;border-radius:50%;background:#fff"></span></div>Hetja</div>
+            <div style="height:44px;display:flex;align-items:center;font-size:16px;color:#0066cc">Sign in</div>
+          </div>
+          <div style="padding:40px 20px 36px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:20px">
+            <div style="height:40px;padding:0 16px 0 6px;border-radius:999px;background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px;font-size:15px"><span style="width:28px;height:28px;border-radius:50%;background:#1d1d1f"></span><b>Hetja</b><span style="color:#6e6e73">for Mumbai's street dogs</span></div>
+            <div style="font-size:60px;line-height:0.98;font-weight:700;letter-spacing:-0.05em">Every street has a hero.</div>
+            <div style="font-size:19px;line-height:1.42;color:#6e6e73;text-wrap:pretty">Scan the QR on a dog's collar. <span style="color:#1d1d1f">See who they are, if they've eaten, and whether they've had their shots.</span> Then carry on with your day, slightly more attached.</div>
+            <div style="display:flex;justify-content:center;margin:6px 0 2px">
+              <div style="width:56px;height:56px;border-radius:50%;background:#ffe3c2;box-shadow:0 0 0 3px #fdf6f8;overflow:hidden"><image-slot id="home-av-1" shape="circle" placeholder="dog" style="width:56px;height:56px"></image-slot></div>
+              <div style="width:56px;height:56px;border-radius:50%;background:#e4defa;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px;overflow:hidden"><image-slot id="home-av-2" shape="circle" placeholder="dog" style="width:56px;height:56px"></image-slot></div>
+              <div style="width:56px;height:56px;border-radius:50%;background:#d7efe3;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px;overflow:hidden"><image-slot id="home-av-3" shape="circle" placeholder="dog" style="width:56px;height:56px"></image-slot></div>
+              <div style="width:56px;height:56px;border-radius:50%;background:#ffd9e6;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px;overflow:hidden"><image-slot id="home-av-4" shape="circle" placeholder="dog" style="width:56px;height:56px"></image-slot></div>
+              <div style="width:56px;height:56px;border-radius:50%;background:#dbe9fb;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px;overflow:hidden"><image-slot id="home-av-5" shape="circle" placeholder="dog" style="width:56px;height:56px"></image-slot></div>
+            </div>
+            <div style="width:100%;height:58px;border-radius:999px;background:#0071e3;color:#fff;font-size:18px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,113,227,.32)">Scan a collar</div>
+            <div style="font-size:17px;color:#0066cc;margin-top:-4px">Or type a collar code ›</div>
+          </div>
+          <div style="display:flex;justify-content:center;padding:0 0 0">
+            <div style="width:270px;height:430px;border-radius:44px 44px 0 0;background:#fff;box-shadow:0 0 0 9px #1d1d1f,0 30px 60px rgba(0,0,0,.18);overflow:hidden;margin-top:9px;padding:36px 16px 0;display:flex;flex-direction:column;gap:12px">
+              <div style="height:150px;border-radius:20px;background:#ffe3c2;overflow:hidden;flex:none"><image-slot id="home-mock-photo" shape="rect" placeholder="Bruno photo" style="width:100%;height:150px"></image-slot></div>
+              <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;line-height:1">Bruno</div>
+              <div style="font-size:13px;color:#6e6e73;margin-top:-6px">K/W ward · Andheri West</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <div style="height:26px;padding:0 10px 0 7px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Vaccinated</div>
+                <div style="height:26px;padding:0 10px 0 7px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Sterilised</div>
+              </div>
+              <div style="background:#f5f5f7;border-radius:14px;padding:10px 12px;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:20px;font-weight:600;letter-spacing:0.06em;display:flex;gap:10px"><span>DDR</span><span>017</span><span>XK2</span></div>
+              <div style="font-size:13px;line-height:1.4;color:#1d1d1f">Scared of scooters, not of cats.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#f5f5f7;padding:56px 20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:#fff;border-radius:28px;padding:28px 24px;display:flex;flex-direction:column;gap:18px">
+            <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Today in Mumbai</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div><div style="font-size:52px;line-height:1;font-weight:700;letter-spacing:-0.05em">412</div><div style="font-size:15px;color:#6e6e73">dogs with collars</div></div>
+              <div><div style="font-size:52px;line-height:1;font-weight:700;letter-spacing:-0.05em">1,086</div><div style="font-size:15px;color:#6e6e73">feeds logged</div></div>
+            </div>
+            <div style="font-size:17px;line-height:1.45;border-top:1px solid #e8e8ed;padding-top:16px">Bruno was fed 3 times today. He will tell you it was zero.</div>
+          </div>
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em;text-align:center;padding:36px 0 8px">Three steps.<br>No app to install.</div>
+          <div style="background:#fff;border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:15px;font-weight:600;color:#6e6e73">1</div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.025em">Scan the collar.</div>
+            <div style="font-size:17px;line-height:1.45;color:#6e6e73">Any phone camera. Or type the 9 letters printed under the QR.</div>
+          </div>
+          <div style="background:#fff;border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:15px;font-weight:600;color:#6e6e73">2</div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.025em">Meet the dog.</div>
+            <div style="font-size:17px;line-height:1.45;color:#6e6e73">Name, ward, shots, and a few lines from the people who feed them. Usually about biscuits.</div>
+          </div>
+          <div style="background:#fff;border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:15px;font-weight:600;color:#6e6e73">3</div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.025em">Help, if they need it.</div>
+            <div style="font-size:17px;line-height:1.45;color:#6e6e73">One red button tells nearby feeders and a vet. You don't need an account for that.</div>
+          </div>
+
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em;text-align:center;padding:40px 0 8px">For the people who already show up.</div>
+          <div style="background:#fff;border-radius:28px;padding:28px 24px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.025em">Feeders keep a streak.</div>
+            <div style="font-size:17px;line-height:1.45;color:#6e6e73">Log each feed in two taps. Other feeders on your lane see it, so nobody gets double dinner. In theory.</div>
+            <div style="display:flex;align-items:flex-end;gap:8px;margin-top:8px"><div style="font-size:88px;line-height:0.85;font-weight:700;letter-spacing:-0.055em">23</div><div style="font-size:22px;font-weight:700">days</div></div>
+          </div>
+          <div style="background:#fff;border-radius:28px;padding:28px 24px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.025em">Vets write it once.</div>
+            <div style="font-size:17px;line-height:1.45;color:#6e6e73">Medical records can't be edited or deleted. Corrections are added on top, with a name and date.</div>
+            <div style="background:#f5f5f7;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;margin-top:6px">
+              <div style="display:flex;justify-content:space-between;font-size:15px"><b>Anti-rabies vaccine</b><span style="color:#6e6e73">12 Mar 2026</span></div>
+              <div style="font-size:14px;color:#6e6e73">Dr. A. Mehta · locked</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#000;color:#f5f5f7;padding:64px 24px;display:flex;flex-direction:column;gap:16px;text-align:center;align-items:center">
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#a1a1a6">Privacy</div>
+          <div style="font-size:48px;line-height:1;font-weight:700;letter-spacing:-0.045em">Ward, not street.</div>
+          <div style="font-size:18px;line-height:1.47;color:#a1a1a6;text-wrap:pretty">Hetja never shows where a dog sleeps. Collar codes are random, so nobody can list every dog in the city. A register of strays can protect them or target them. We built it for the first one.</div>
+          <div style="font-size:17px;color:#2997ff">Read the privacy page ›</div>
+        </div>
+
+        <div style="background:#f5f5f7;padding:36px 20px 20px;display:flex;flex-direction:column;gap:16px;font-size:14px;color:#6e6e73">
+          <div style="display:flex;flex-wrap:wrap;gap:4px 20px;color:#1d1d1f;font-size:15px"><span style="min-height:36px;display:flex;align-items:center">About</span><span style="min-height:36px;display:flex;align-items:center">How it works</span><span style="min-height:36px;display:flex;align-items:center">FAQ</span><span style="min-height:36px;display:flex;align-items:center">Privacy</span><span style="min-height:36px;display:flex;align-items:center">Contact</span></div>
+          <div style="border-top:1px solid #d2d2d7;padding-top:14px;display:flex;flex-wrap:wrap;gap:6px 20px"><span>In memory of Hetja</span><span>Source on GitHub</span><span>AGPL-3.0</span></div>
+          <div>Free, open source, built in Mumbai.</div>
+        </div>
+        <div style="background:rgba(255,255,255,.92);border-top:1px solid #e3e3e8">
+          <div style="height:56px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;text-align:center;font-size:13px;font-weight:600">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#1d1d1f"><span style="width:22px;height:4px;border-radius:2px;background:#1d1d1f"></span>Home</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px"></span>Scan</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px"></span>Me</div>
+          </div>
+          <div style="height:22px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- READING PAGES COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:56px">
+
+      <!-- 12 ABOUT -->
+      <div data-screen-label="12 About" style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:17px;font-weight:600">12 About <span style="font-weight:400;color:#6e6e73">· Everyone · reading</span></div>
+        <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#f5f5f7">
+          <div style="background:radial-gradient(90% 70% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),radial-gradient(80% 60% at 100% 10%,#ffcbb8 0%,rgba(255,203,184,0) 70%),#fdf6f8;padding:0 0 40px">
+            <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em"><span style="width:30px;height:30px;border-radius:50%;background:#1d1d1f"></span>Hetja</div>
+            <div style="padding:36px 20px 0;display:flex;flex-direction:column;gap:16px">
+              <div style="align-self:flex-start;height:34px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.8);font-size:14px;font-weight:600;display:flex;align-items:center">Our mission</div>
+              <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">A coordination layer for people who already care.</div>
+              <div style="font-size:18px;line-height:1.47;color:#6e6e73;text-wrap:pretty">Hetja is not another app asking you to care about stray dogs. The people who care (the feeders, vets, NGOs, and municipal staff) are already out there. We just give their care a memory, a ledger, and a voice.</div>
+            </div>
+          </div>
+          <div style="padding:28px 20px 32px;display:flex;flex-direction:column;gap:12px">
+            <div style="background:#fff;border-radius:24px;padding:20px 22px"><div style="font-size:20px;font-weight:700;letter-spacing:-0.02em">A memory</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:4px">Every dog has a profile that outlives any one feeder's phone.</div></div>
+            <div style="background:#fff;border-radius:24px;padding:20px 22px"><div style="font-size:20px;font-weight:700;letter-spacing:-0.02em">A ledger</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:4px">Feeds and vet records, in order, with names attached.</div></div>
+            <div style="background:#fff;border-radius:24px;padding:20px 22px"><div style="font-size:20px;font-weight:700;letter-spacing:-0.02em">A voice</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:4px">An SOS that reaches someone who can actually come.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 13 HOW IT WORKS -->
+      <div data-screen-label="13 How it works" style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:17px;font-weight:600">13 How it works <span style="font-weight:400;color:#6e6e73">· Everyone · reading</span></div>
+        <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#fff">
+          <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em;border-bottom:1px solid #eee"><span style="width:30px;height:30px;border-radius:50%;background:#1d1d1f"></span>Hetja</div>
+          <div style="padding:40px 20px 36px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">From collar to vet, in order.</div>
+            <div style="display:flex;flex-direction:column;margin-top:14px">
+              <div style="display:flex;gap:16px;padding:18px 0;border-top:1px solid #e8e8ed"><div style="width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700">1</div><div><div style="font-size:19px;font-weight:600">A feeder registers the dog</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:3px">Name, photo, ward. Hetja prints a collar tag with a random code.</div></div></div>
+              <div style="display:flex;gap:16px;padding:18px 0;border-top:1px solid #e8e8ed"><div style="width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700">2</div><div><div style="font-size:19px;font-weight:600">Feeders log each meal</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:3px">Scan, tap, done. The profile shows when the dog last ate.</div></div></div>
+              <div style="display:flex;gap:16px;padding:18px 0;border-top:1px solid #e8e8ed"><div style="width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700">3</div><div><div style="font-size:19px;font-weight:600">Vets add records</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:3px">Shots, sterilisation, treatment. Locked once saved.</div></div></div>
+              <div style="display:flex;gap:16px;padding:18px 0;border-top:1px solid #e8e8ed;border-bottom:1px solid #e8e8ed"><div style="width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700">4</div><div><div style="font-size:19px;font-weight:600">Anyone can raise an SOS</div><div style="font-size:16px;line-height:1.45;color:#6e6e73;margin-top:3px">It goes to the dog's feeders and the nearest vet on Hetja.</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:56px">
+      <!-- 14 FAQ -->
+      <div data-screen-label="14 FAQ" style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:17px;font-weight:600">14 FAQ <span style="font-weight:400;color:#6e6e73">· Everyone · reading</span></div>
+        <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#f5f5f7">
+          <div style="background:radial-gradient(90% 70% at 100% 0%,#ffc2ec 0%,rgba(255,194,236,0) 70%),radial-gradient(80% 60% at 0% 20%,#ffcbb8 0%,rgba(255,203,184,0) 70%),#fdf6f8;padding:0 0 36px">
+            <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em"><span style="width:30px;height:30px;border-radius:50%;background:#1d1d1f"></span>Hetja</div>
+            <div style="padding:36px 20px 0;display:flex;flex-direction:column;gap:16px">
+              <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Questions from the street.</div>
+              <div style="font-size:18px;line-height:1.47;color:#6e6e73">Everything feeders, vets, NGOs, and citizens ask us most. If your question isn't here, write to <a href="#">hello@hetja.in</a> and a person will answer.</div>
+            </div>
+          </div>
+          <div style="padding:24px 20px 32px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:8px;overflow:hidden"><div style="height:40px;padding:0 16px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center">Feeders</div><div style="height:40px;padding:0 16px;border-radius:999px;background:#fff;font-size:15px;font-weight:600;display:flex;align-items:center">Vets</div><div style="height:40px;padding:0 16px;border-radius:999px;background:#fff;font-size:15px;font-weight:600;display:flex;align-items:center">Everyone</div></div>
+            <div style="background:#fff;border-radius:24px;padding:0 20px">
+              <div style="padding:18px 0;border-bottom:1px solid #e8e8ed"><div style="display:flex;justify-content:space-between;gap:12px;font-size:17px;font-weight:600"><span>Can I feed a dog that isn't mine?</span><span style="color:#6e6e73">–</span></div><div style="font-size:16px;line-height:1.47;color:#48484d;margin-top:8px">Street dogs aren't anyone's, which is the point. Log the feed so the dog's other feeders know it has eaten.</div></div>
+              <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed;font-size:17px;font-weight:600"><span>What if the collar is missing?</span><span style="color:#6e6e73">+</span></div>
+              <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed;font-size:17px;font-weight:600"><span>How is my streak counted?</span><span style="color:#6e6e73">+</span></div>
+              <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between;font-size:17px;font-weight:600"><span>Do I need to be an NGO?</span><span style="color:#6e6e73">+</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 15 PRIVACY -->
+      <div data-screen-label="15 Privacy" style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:17px;font-weight:600">15 Privacy <span style="font-weight:400;color:#6e6e73">· Everyone · reading</span></div>
+        <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#000;color:#f5f5f7">
+          <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em"><span style="width:30px;height:30px;border-radius:50%;background:#f5f5f7"></span>Hetja</div>
+          <div style="padding:40px 20px 36px;display:flex;flex-direction:column;gap:16px">
+            <div style="font-size:44px;line-height:1;font-weight:700;letter-spacing:-0.045em">What we keep. What we don't.</div>
+            <div style="font-size:18px;line-height:1.47;color:#a1a1a6">Short version: as little as possible, and never a dog's exact location.</div>
+            <div style="display:flex;flex-direction:column;margin-top:10px">
+              <div style="padding:16px 0;border-top:1px solid #2c2c2e;display:flex;gap:12px"><svg width="20" height="20" viewBox="0 0 16 16" style="flex:none;margin-top:2px;color:#30d158"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><div><div style="font-size:17px;font-weight:600">Ward only</div><div style="font-size:15px;line-height:1.45;color:#a1a1a6;margin-top:2px">Dogs are placed by ward. No map pins, no street names.</div></div></div>
+              <div style="padding:16px 0;border-top:1px solid #2c2c2e;display:flex;gap:12px"><svg width="20" height="20" viewBox="0 0 16 16" style="flex:none;margin-top:2px;color:#30d158"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><div><div style="font-size:17px;font-weight:600">Random codes</div><div style="font-size:15px;line-height:1.45;color:#a1a1a6;margin-top:2px">You can't guess the next dog from this one.</div></div></div>
+              <div style="padding:16px 0;border-top:1px solid #2c2c2e;display:flex;gap:12px"><svg width="20" height="20" viewBox="0 0 16 16" style="flex:none;margin-top:2px;color:#ff6961"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg><div><div style="font-size:17px;font-weight:600">No ads, no tracking</div><div style="font-size:15px;line-height:1.45;color:#a1a1a6;margin-top:2px">Your email is for sign-in codes. That is all it is for.</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 16 CONTACT -->
+      <div data-screen-label="16 Contact" style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:17px;font-weight:600">16 Contact <span style="font-weight:400;color:#6e6e73">· Everyone · reading</span></div>
+        <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:radial-gradient(90% 60% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),#fdf6f8">
+          <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:21px;font-weight:700;letter-spacing:-0.02em"><span style="width:30px;height:30px;border-radius:50%;background:#1d1d1f"></span>Hetja</div>
+          <div style="padding:36px 20px 28px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Write to a person.</div>
+            <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em;color:#0066cc">hello@hetja.in</div>
+            <div style="font-size:17px;line-height:1.47;color:#6e6e73">We read everything. Replies take a day or two, longer in monsoon.</div>
+            <div style="background:#fff;border-radius:24px;padding:18px 20px;display:flex;gap:12px;margin-top:8px"><span style="width:22px;height:22px;border-radius:50%;background:#d70015;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none">!</span><div style="font-size:16px;line-height:1.45">For a dog in trouble, don't email. Scan its collar and press <b>This dog needs help</b>.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 17 MEMORIAL -->
+    <div data-screen-label="17 In memory of Hetja" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">17 /hetja <span style="font-weight:400;color:#6e6e73">· Everyone · quiet</span></div>
+      <div style="width:390px;border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.16);background:#fbfbfa;color:#1d1d1f">
+        <div style="height:56px;display:flex;align-items:center;padding:0 20px;gap:9px;font-size:19px;font-weight:600;letter-spacing:-0.02em;color:#48484d"><span style="width:26px;height:26px;border-radius:50%;background:#48484d"></span>Hetja</div>
+        <div style="padding:88px 28px 72px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px">
+          <div style="font-size:64px;line-height:1;font-weight:600;letter-spacing:-0.04em">Hetja</div>
+          <div style="font-size:16px;color:#6e6e73">/ˈhɛtja/ &#160;Icelandic, noun</div>
+          <div style="font-family:'Iowan Old Style','Palatino Linotype',Georgia,serif;font-style:italic;font-size:22px">hero</div>
+          <div style="font-size:14px;color:#6e6e73;margin-top:40px;letter-spacing:0.02em">no tag · no name · 3 km of road</div>
+        </div>
+        <div style="padding:0 28px 48px;display:flex;flex-direction:column;gap:22px;font-family:'Iowan Old Style','Palatino Linotype',Georgia,serif;font-size:19px;line-height:1.6">
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Roboto,sans-serif;font-size:30px;font-weight:600;letter-spacing:-0.03em;line-height:1.1">In memory of Hetja</div>
+          <p style="margin:0">There is a word in Icelandic, <i>Hetja</i>, that means <i>hero</i>. Not the metaphorical kind. The literal kind. A hero is someone who chooses…</p>
+          <p style="margin:0">Years ago, when I was a child fleeing an abusive home, I walked three kilometers through the rain to my aunt's house. I was crying. The road was full of wild dogs. I was a city kid in a place I did not know, and I was certain I was going to be hurt.</p>
+          <p style="margin:0">There was a stray I had sometimes fed a biscuit or two. Stray dogs usually do not leave their perimeter. This one did. It sensed me, somehow, through the rain and the dark, and it followed. I told it to go away. I shouted at it to go away. It would not.</p>
+          <p style="margin:0">It walked behind me for the entire three kilometers. When we encountered wild dogs on the road, it barked them down, one after another, and stood between me and them until I was safe.</p>
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Roboto,sans-serif;font-size:14px;color:#6e6e73;text-align:center">(essay continues, unchanged)</div>
+        </div>
+        <div style="padding:0 28px 64px;display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding-bottom:8px">Three songs</div>
+          <div style="min-height:64px;border-top:1px solid #e5e5e3;display:flex;align-items:center;gap:14px"><span style="width:28px;font-size:15px;color:#6e6e73">1</span><div><div style="font-size:17px">[Song title]</div><div style="font-size:15px;color:#6e6e73">[Artist]</div></div></div>
+          <div style="min-height:64px;border-top:1px solid #e5e5e3;display:flex;align-items:center;gap:14px"><span style="width:28px;font-size:15px;color:#6e6e73">2</span><div><div style="font-size:17px">[Song title]</div><div style="font-size:15px;color:#6e6e73">[Artist]</div></div></div>
+          <div style="min-height:64px;border-top:1px solid #e5e5e3;border-bottom:1px solid #e5e5e3;display:flex;align-items:center;gap:14px"><span style="width:28px;font-size:15px;color:#6e6e73">3</span><div><div style="font-size:17px">[Song title]</div><div style="font-size:15px;color:#6e6e73">[Artist]</div></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

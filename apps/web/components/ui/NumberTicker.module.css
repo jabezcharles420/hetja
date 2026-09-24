@@ -1,7 +1,0 @@
-/* Tabular figures so the width never jitters while counting. */
-.ticker {
-  display: inline-block;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: var(--h-num-tabular);
-  white-space: nowrap;
-}

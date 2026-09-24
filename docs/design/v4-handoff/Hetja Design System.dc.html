@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Design system" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:40px;max-width:1360px">
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#1d1d1f;position:relative;flex:none">
+        <span style="position:absolute;left:12px;top:18px;width:16px;height:13px;border-radius:50%;background:#fff"></span>
+        <span style="position:absolute;left:7px;top:11px;width:7px;height:8px;border-radius:50%;background:#fff"></span>
+        <span style="position:absolute;left:14px;top:6px;width:7px;height:8px;border-radius:50%;background:#fff"></span>
+        <span style="position:absolute;left:21px;top:6px;width:7px;height:8px;border-radius:50%;background:#fff"></span>
+        <span style="position:absolute;left:27px;top:11px;width:7px;height:8px;border-radius:50%;background:#fff"></span>
+      </div>
+      <div style="font-size:24px;font-weight:700;letter-spacing:-0.02em">Hetja</div>
+    </div>
+    <h1 style="margin:0;font-size:64px;line-height:1;font-weight:700;letter-spacing:-0.045em">Design system.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;max-width:720px;text-wrap:pretty">Small on purpose. System fonts, so nothing downloads on slow 4G. Two loud colours: blue for doing things, red for emergencies. Everything else is ink, grey and white.</p>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:24px">
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:20px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Colour</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#0071e3"></div><div style="font-size:15px;font-weight:600">Blue #0071e3</div><div style="font-size:13px;color:#6e6e73">Every normal action. White text 4.7:1</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#d70015"></div><div style="font-size:15px;font-weight:600">SOS red #d70015</div><div style="font-size:13px;color:#6e6e73">SOS only. White text 5.6:1</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#1d1d1f"></div><div style="font-size:15px;font-weight:600">Ink #1d1d1f</div><div style="font-size:13px;color:#6e6e73">Headlines, body, privacy band</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#6e6e73"></div><div style="font-size:15px;font-weight:600">Secondary #6e6e73</div><div style="font-size:13px;color:#6e6e73">Supporting text. 5.1:1 on white</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#f5f5f7;box-shadow:inset 0 0 0 1px #d2d2d7"></div><div style="font-size:15px;font-weight:600">Mist #f5f5f7</div><div style="font-size:13px;color:#6e6e73">App background, quiet fills</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:64px;border-radius:16px;background:#d2d2d7"></div><div style="font-size:15px;font-weight:600">Hairline #d2d2d7</div><div style="font-size:13px;color:#6e6e73">Dividers and input borders</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="height:72px;border-radius:16px;background:radial-gradient(60% 90% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),radial-gradient(50% 90% at 100% 0%,#ffcbb8 0%,rgba(255,203,184,0) 70%),radial-gradient(60% 90% at 70% 100%,#ffc2ec 0%,rgba(255,194,236,0) 70%),#fdf6f8"></div><div style="font-size:15px;font-weight:600">Aurora</div><div style="font-size:13px;color:#6e6e73">Pink #ffb3dc, peach #ffcbb8, rose #ffc2ec on #fdf6f8. Marketing and reading pages only. Never on Scan, Dog profile or /hetja.</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:40px;border-radius:12px;background:#e6f4ea;color:#1a7a35;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">#1a7a35</div><div style="font-size:13px;color:#6e6e73">Done / healthy</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:40px;border-radius:12px;background:#fff3e0;color:#9a5200;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">#9a5200</div><div style="font-size:13px;color:#6e6e73">Due / waiting</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="height:40px;border-radius:12px;background:#f2f2f5;color:#48484d;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">#48484d</div><div style="font-size:13px;color:#6e6e73">Unknown</div></div>
+      </div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Type</h2>
+      <div style="font-size:13px;color:#6e6e73">System stack: SF Pro on iPhone, Roboto on Android. Zero bytes to download.</div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:14px"><div style="font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Fed. Twice.</div><div style="font-size:13px;color:#6e6e73">Display · 56 / 1.0 · 700 · -0.045em (96 on desktop)</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:14px"><div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Bruno</div><div style="font-size:13px;color:#6e6e73">Title · 34 / 1.1 · 700 · -0.03em</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:14px"><div style="font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em">How bad is it?</div><div style="font-size:13px;color:#6e6e73">Heading · 22 / 1.25 · 700</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:14px"><div style="font-size:17px;line-height:1.47">Bruno likes Parle-G more than he should.</div><div style="font-size:13px;color:#6e6e73">Body · 17 / 1.47 · 400. Never smaller than 15 for reading.</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:14px"><div style="font-size:13px;line-height:1.3;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Collar code</div><div style="font-size:13px;color:#6e6e73">Label · 13 · 600 · caps · +0.06em</div></div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Collar code</h2>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#6e6e73">Stored as <span style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace">ddr017xk2</span>. Shown uppercase in three groups of three, monospaced, so it can be read over a bad phone line. The code alphabet should skip 0/O, 1/I/L.</p>
+      <div style="background:#f5f5f7;border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Collar code</div>
+        <div style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:38px;font-weight:600;letter-spacing:0.06em;display:flex;gap:18px"><span>DDR</span><span>017</span><span>XK2</span></div>
+        <div style="font-size:15px;color:#48484d">Say it: D D R · zero one seven · X K two</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Input</div>
+        <div style="height:60px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;padding:0 18px;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:24px;letter-spacing:0.12em;color:#1d1d1f;gap:14px"><span>DDR</span><span>017</span><span style="color:#86868b">___</span></div>
+        <div style="font-size:13px;color:#6e6e73">Auto-spaces as you type. Accepts any case.</div>
+      </div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Buttons</h2>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#6e6e73">One loud button per screen, full width, in the bottom third. Minimum 56px tall on phones.</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+        <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:#d70015;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>This dog needs help</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <div style="height:44px;padding:0 20px;border-radius:999px;background:#e8e8ed;color:#1d1d1f;font-size:15px;font-weight:600;display:flex;align-items:center">Quiet</div>
+          <div style="height:44px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:15px;font-weight:600;display:flex;align-items:center">Call</div>
+          <div style="height:44px;padding:0 4px;color:#0066cc;font-size:17px;display:flex;align-items:center">Text link ›</div>
+          <div style="height:36px;padding:0 16px;border-radius:999px;background:#0071e3;color:#fff;font-size:14px;font-weight:600;display:flex;align-items:center">Nav pill</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#6e6e73">Pressed: darken to #0062c4 / #b80012 and scale 0.98. No hover animation on phones.</div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Status pills</h2>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#6e6e73">Icon plus words, always. Colour is the third clue, never the first.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Vaccinated</div>
+        <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Sterilised</div>
+        <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>Vaccine due</div>
+        <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>Not sterilised</div>
+        <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#fde8ea;color:#b80012;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:50%;background:#b80012;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>SOS open</div>
+      </div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:14px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Cards and list rows</h2>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#6e6e73">Cards: white, 28px radius, 24px padding, no border on aurora, 1px #e8e8ed on white. Rows: 72px min, 56px avatar.</p>
+      <div style="background:#f5f5f7;border-radius:24px;padding:8px 16px">
+        <div style="display:flex;align-items:center;gap:14px;min-height:72px;border-bottom:1px solid #e3e3e8">
+          <div style="width:52px;height:52px;border-radius:50%;background:#ffe3c2;flex:none;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#7a4a12">B</div>
+          <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:600">Bruno</div><div style="font-size:15px;color:#6e6e73">K/W ward · Andheri West</div></div>
+          <div style="height:30px;padding:0 10px 0 8px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Fed 2h ago</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;min-height:72px">
+          <div style="width:52px;height:52px;border-radius:50%;background:#e4defa;flex:none;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#4b3a8f">K</div>
+          <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:600">Kaali</div><div style="font-size:15px;color:#6e6e73">K/W ward · Andheri West</div></div>
+          <div style="height:30px;padding:0 10px 0 8px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>Not fed today</div>
+        </div>
+      </div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px;grid-column:1/-1">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Dog avatars</h2>
+      <p style="margin:0;font-size:15px;line-height:1.45;color:#6e6e73;max-width:760px;text-wrap:pretty">Friendly 3D busts of Indian street dogs (indie / pariah build, big ears, one floppy), soft studio light, shoulders cropped, on a pastel circle. One colour per dog, stable forever. Drop renders below. Until a render exists, the app shows the pastel circle with the dog's initial.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#ffe3c2;overflow:hidden"><image-slot id="ds-av-1" shape="circle" placeholder="3D dog: tan indie" style="width:120px;height:120px"></image-slot></div><div style="font-size:13px;color:#6e6e73">Apricot #ffe3c2</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#e4defa;overflow:hidden"><image-slot id="ds-av-2" shape="circle" placeholder="3D dog: black" style="width:120px;height:120px"></image-slot></div><div style="font-size:13px;color:#6e6e73">Lilac #e4defa</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#d7efe3;overflow:hidden"><image-slot id="ds-av-3" shape="circle" placeholder="3D dog: brindle" style="width:120px;height:120px"></image-slot></div><div style="font-size:13px;color:#6e6e73">Mint #d7efe3</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#ffd9e6;overflow:hidden"><image-slot id="ds-av-4" shape="circle" placeholder="3D dog: white, one ear up" style="width:120px;height:120px"></image-slot></div><div style="font-size:13px;color:#6e6e73">Rose #ffd9e6</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#dbe9fb;overflow:hidden"><image-slot id="ds-av-5" shape="circle" placeholder="3D dog: grey muzzle" style="width:120px;height:120px"></image-slot></div><div style="font-size:13px;color:#6e6e73">Sky #dbe9fb</div></div>
+        <div style="width:1px;height:120px;background:#e8e8ed"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:120px;height:120px;border-radius:50%;background:#ffe3c2;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:#7a4a12;letter-spacing:-0.03em">B</div><div style="font-size:13px;color:#6e6e73">Fallback</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:56px;height:56px;border-radius:50%;background:#e4defa;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#4b3a8f">K</div><div style="font-size:13px;color:#6e6e73">56 row</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:36px;height:36px;border-radius:50%;background:#d7efe3;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#1f5c3d">M</div><div style="font-size:13px;color:#6e6e73">36 chip</div></div>
+      </div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Spacing and shape</h2>
+      <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:4px;height:4px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">4</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:8px;height:8px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">8</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:12px;height:12px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">12</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:16px;height:16px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">16</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:24px;height:24px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">24</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:32px;height:32px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">32</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:48px;height:48px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">48</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:72px;height:72px;background:#0071e3"></div><div style="font-size:12px;color:#6e6e73">72</div></div>
+      </div>
+      <div style="font-size:15px;line-height:1.6;color:#48484d">Phone gutter 20. Radii: input 16, inner card 20, card 28, phone sheet 32, pill 999. Touch target 44 minimum, 56 for main buttons.</div>
+    </article>
+
+    <article style="background:#fff;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Bars</h2>
+      <div style="border-radius:20px;overflow:hidden;background:radial-gradient(80% 140% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),#fdf6f8;padding:0 0 20px">
+        <div style="height:56px;background:rgba(255,255,255,.72);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:19px;font-weight:700;letter-spacing:-0.02em"><div style="width:28px;height:28px;border-radius:50%;background:#1d1d1f"></div>Hetja</div>
+          <div style="height:36px;padding:0 16px;border-radius:999px;background:#0071e3;color:#fff;font-size:14px;font-weight:600;display:flex;align-items:center">Scan</div>
+        </div>
+        <div style="font-size:13px;color:#6e6e73;padding:10px 16px 0">Frosted top nav. White 72% + blur 20. Nav pill hides on screens that already have their own main button.</div>
+      </div>
+      <div style="border-radius:20px;overflow:hidden;background:#f5f5f7">
+        <div style="height:64px;background:rgba(255,255,255,.9);border-top:1px solid #e3e3e8;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;text-align:center;font-size:13px;font-weight:600">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#1d1d1f"><span style="width:22px;height:4px;border-radius:2px;background:#1d1d1f"></span>Home</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px;border-radius:2px;background:transparent"></span>Scan</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px;border-radius:2px;background:transparent"></span>Me</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#6e6e73">Tab bar: three tabs, label always visible, active tab gets ink + a bar. Hidden during SOS.</div>
+    </article>
+
+    <article style="background:#000;color:#f5f5f7;border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.025em">Privacy band</h2>
+      <div style="font-size:40px;line-height:1.05;font-weight:700;letter-spacing:-0.035em">Ward, not street.</div>
+      <p style="margin:0;font-size:17px;line-height:1.47;color:#a1a1a6">Pure black, off-white type, grey #a1a1a6 for support (7.9:1). Used once per marketing page, for the privacy promise.</p>
+    </article>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

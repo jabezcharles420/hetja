@@ -10,7 +10,7 @@ const css = fs.readFileSync("packages/design/tokens.css", "utf8");
 const tokens = {};
 for (const m of css.matchAll(/--h-([a-z-]+):\s*(#[0-9a-fA-F]{3,8})/g)) tokens[m[1]] = m[2];
 
-const need = ["base", "gray", "ink", "ink-muted", "accent", "link", "danger", "safe", "warn", "dark", "on-dark", "on-dark-muted"];
+const need = ["white", "mist", "ink", "secondary", "text-mid", "blue", "link", "blue-tint", "blue-tint-ink", "sos", "ok", "ok-bg", "warn", "warn-bg", "neutral", "neutral-bg", "danger", "danger-bg", "band", "band-ink", "band-sub", "band-link", "memorial-bg", "aurora-base"];
 for (const t of need) {
   if (!tokens[t]) {
     console.error(`FAIL: token --h-${t} missing from packages/design/tokens.css`);
@@ -31,24 +31,34 @@ function contrast(a, b) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
-// Text/background pairs documented in tokens.css. --h-ink-faint, --h-imessage,
-// --h-danger-fill and the aurora colours are fills / non-text and deliberately
-// absent: tokens.css marks each one.
+// Every text/background pair the v4 design uses. --h-tertiary is
+// placeholders/chevrons only and deliberately absent.
 const pairs = [
-  ["--h-ink", "--h-base"],
-  ["--h-ink-muted", "--h-base"],
-  ["--h-accent", "--h-base"],
-  ["--h-danger", "--h-base"],
-  ["--h-safe", "--h-base"],
-  ["--h-warn", "--h-base"],
-  ["--h-ink", "--h-gray"],
-  ["--h-ink-muted", "--h-gray"],
-  ["--h-link", "--h-base"],
-  ["--h-link", "--h-gray"],
-  // Button label: white text on the accent fill.
-  ["--h-base", "--h-accent"],
-  ["--h-on-dark", "--h-dark"],
-  ["--h-on-dark-muted", "--h-dark"],
+  // body and supporting text
+  ["--h-ink", "--h-white"],
+  ["--h-ink", "--h-mist"],
+  ["--h-ink", "--h-aurora-base"],
+  ["--h-ink", "--h-memorial-bg"],
+  ["--h-secondary", "--h-white"],
+  ["--h-secondary", "--h-mist"],
+  ["--h-secondary", "--h-aurora-base"],
+  ["--h-secondary", "--h-memorial-bg"],
+  ["--h-text-mid", "--h-white"],
+  ["--h-link", "--h-white"],
+  ["--h-link", "--h-mist"],
+  // button labels
+  ["--h-white", "--h-blue"],
+  ["--h-white", "--h-sos"],
+  ["--h-blue-tint-ink", "--h-blue-tint"],
+  // status pills (icon + words; text still has to pass)
+  ["--h-ok", "--h-ok-bg"],
+  ["--h-warn", "--h-warn-bg"],
+  ["--h-neutral", "--h-neutral-bg"],
+  ["--h-danger", "--h-danger-bg"],
+  // black privacy band
+  ["--h-band-ink", "--h-band"],
+  ["--h-band-sub", "--h-band"],
+  ["--h-band-link", "--h-band"],
 ];
 
 let fail = 0;

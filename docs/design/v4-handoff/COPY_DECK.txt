@@ -1,0 +1,482 @@
+
+
+########## Hetja Mobile Pages
+Pages. Full scroll, 390 wide.
+Marketing and reading pages get the aurora and the jokes. /hetja gets neither.
+01 Home · Everyone · Scan a collar
+9:41
+Hetja
+Sign in
+Hetja
+for Mumbai's street dogs
+Every street has a hero.
+Scan the QR on a dog's collar. See who they are, if they've eaten, and whether they've had their shots. Then carry on with your day, slightly more attached.
+Scan a collar
+Or type a collar code ›
+Bruno
+K/W ward · Andheri West
+Vaccinated
+Sterilised
+DDR
+017
+XK2
+Scared of scooters, not of cats.
+TODAY IN MUMBAI
+412
+dogs with collars
+1,086
+feeds logged
+Bruno was fed 3 times today. He will tell you it was zero.
+Three steps.
+No app to install.
+1
+Scan the collar.
+Any phone camera. Or type the 9 letters printed under the QR.
+2
+Meet the dog.
+Name, ward, shots, and a few lines from the people who feed them. Usually about biscuits.
+3
+Help, if they need it.
+One red button tells nearby feeders and a vet. You don't need an account for that.
+For the people who already show up.
+Feeders keep a streak.
+Log each feed in two taps. Other feeders on your lane see it, so nobody gets double dinner. In theory.
+23
+days
+Vets write it once.
+Medical records can't be edited or deleted. Corrections are added on top, with a name and date.
+Anti-rabies vaccine
+12 Mar 2026
+Dr. A. Mehta · locked
+PRIVACY
+Ward, not street.
+Hetja never shows where a dog sleeps. Collar codes are random, so nobody can list every dog in the city. A register of strays can protect them or target them. We built it for the first one.
+Read the privacy page ›
+About
+How it works
+FAQ
+Privacy
+Contact
+In memory of Hetja
+Source on GitHub
+AGPL-3.0
+Free, open source, built in Mumbai.
+Home
+Scan
+Me
+12 About · Everyone · reading
+Hetja
+Our mission
+A coordination layer for people who already care.
+Hetja is not another app asking you to care about stray dogs. The people who care (the feeders, vets, NGOs, and municipal staff) are already out there. We just give their care a memory, a ledger, and a voice.
+A memory
+Every dog has a profile that outlives any one feeder's phone.
+A ledger
+Feeds and vet records, in order, with names attached.
+A voice
+An SOS that reaches someone who can actually come.
+13 How it works · Everyone · reading
+Hetja
+From collar to vet, in order.
+1
+A feeder registers the dog
+Name, photo, ward. Hetja prints a collar tag with a random code.
+2
+Feeders log each meal
+Scan, tap, done. The profile shows when the dog last ate.
+3
+Vets add records
+Shots, sterilisation, treatment. Locked once saved.
+4
+Anyone can raise an SOS
+It goes to the dog's feeders and the nearest vet on Hetja.
+14 FAQ · Everyone · reading
+Hetja
+Questions from the street.
+Everything feeders, vets, NGOs, and citizens ask us most. If your question isn't here, write to hello@hetja.in and a person will answer.
+Feeders
+Vets
+Everyone
+Can I feed a dog that isn't mine?
+–
+Street dogs aren't anyone's, which is the point. Log the feed so the dog's other feeders know it has eaten.
+What if the collar is missing?
++
+How is my streak counted?
++
+Do I need to be an NGO?
++
+15 Privacy · Everyone · reading
+Hetja
+What we keep. What we don't.
+Short version: as little as possible, and never a dog's exact location.
+Ward only
+Dogs are placed by ward. No map pins, no street names.
+Random codes
+You can't guess the next dog from this one.
+No ads, no tracking
+Your email is for sign-in codes. That is all it is for.
+16 Contact · Everyone · reading
+Hetja
+Write to a person.
+hello@hetja.in
+We read everything. Replies take a day or two, longer in monsoon.
+!
+For a dog in trouble, don't email. Scan its collar and press This dog needs help.
+17 /hetja · Everyone · quiet
+Hetja
+Hetja
+/ˈhɛtja/  Icelandic, noun
+hero
+no tag · no name · 3 km of road
+In memory of Hetja
+There is a word in Icelandic, Hetja, that means hero. Not the metaphorical kind. The literal kind. A hero is someone who chooses…
+Years ago, when I was a child fleeing an abusive home, I walked three kilometers through the rain to my aunt's house. I was crying. The road was full of wild dogs. I was a city kid in a place I did not know, and I was certain I was going to be hurt.
+There was a stray I had sometimes fed a biscuit or two. Stray dogs usually do not leave their perimeter. This one did. It sensed me, somehow, through the rain and the dark, and it followed. I told it to go away. I shouted at it to go away. It would not.
+It walked behind me for the entire three kilometers. When we encountered wild dogs on the road, it barked them down, one after another, and stood between me and them until I was safe.
+(essay continues, unchanged)
+THREE SONGS
+1
+[Song title]
+[Artist]
+2
+[Song title]
+[Artist]
+3
+[Song title]
+[Artist]
+
+########## Hetja Mobile App
+Hetja app. 390 wide.
+Scan, dog profile and SOS are plain white: no aurora, no motion, fast on a budget phone. Main buttons sit in the bottom third.
+02 Scan · Everyone · Point camera / View profile
+9:41
+‹ Home
+Torch
+camera feed
+Point at the QR on the collar.
+It opens by itself. No button needed.
+No camera, or the QR is muddy?
+DDR
+017
+XK2
+View profile
+03 Dog profile · Stranger who scanned · SOS
+9:41
+Bruno
+K/W ward · Andheri West
+Vaccinated
+Sterilised
+Last fed 2 hours ago
+COLLAR CODE
+DDR
+017
+XK2
+Copy
+Bruno turned up in 2019 and decided the lane was his. Scared of scooters, not of cats. Will sit on your foot until you leave.
+Written by his 3 feeders
+!
+This dog needs help
+Alerts his feeders and a vet nearby.
+04 SOS, step 1 · Stranger · Send SOS
+9:41
+‹ Bruno
+How bad is it?
+Pick the closest one. You can add details after.
+Hurt, but moving
+Limping, a wound, not eating
+Can't get up, or bleeding
+Needs a vet now
+Something else
+Missing, scared, or being harmed
++ Add a photo or a note (optional)
+Shares K/W ward with feeders. Never your exact spot.
+Send SOS
+05 SOS, step 2 · Stranger · Call
+9:41
+SOS sent.
+3 of Bruno's feeders and 1 vet have been told. If you can, stay nearby until someone arrives.
+!
+Needs a vet now
+Waiting for reply
+CALL NOW
+Dr. Mehta, Pet Clinic
+Vet · K/W ward · open till 9 pm
+Call
+Andheri Animal Rescue
+NGO · K/W ward · ambulance
+Call
+Priya, feeder
+Feeds Bruno most evenings
+Call
+Back to Bruno
+06 Log a feed · Feeder · Log feed
+9:41
+Cancel
+Log a feed
+B
+Bruno
+DDR 017 XK2
+Change
+How did it go? (optional)
+Ate it all
+Ate a little
+Didn't eat
+Looks unwell
+Keeps your streak at 24 days.
+Log feed
+07 Login · Feeder / vet · Send code
+9:41
+Sign in.
+No password.
+For feeders and vets. We email you a 6-digit code. You have enough to remember, like which dog hates the red scooter.
+EMAIL
+priya.feeds@gmail.com
+Send code
+08 Login, code · Feeder / vet · Verify
+9:41
+‹ Change email
+Check your email.
+6 digits sent to priya.feeds@gmail.com. It works for 10 minutes.
+4
+8
+2
+Nothing yet? Resend in 0:24
+Verify
+09 Me · Feeder · Scan to log next feed
+9:41
+Morning, Priya.
+23
+day streak
+Fed someone every day since 1 September. Bruno still says you missed Tuesday.
+1st
+First feed
+7
+A full week
+M
+Monsoon feeder
+30
+7 days to go
+Trusted feeder · Level 2
+Level 3 at 50
+MY DOGS
+B
+Bruno
+Fed 2h ago
+K
+Kaali
+Not fed today
+M
+Motu
+Fed 5h ago
+Scan to log Kaali's feed
+Home
+Scan
+Me
+10 Register a dog · Feeder / NGO · Save & print collar
+9:41
+Cancel
+New dog
+A clear face photo. Strangers use it to check they found the right dog.
+Name
+Rani
+Ward
+K/W · Andheri West
+›
+Vaccinated
+Sterilised
+Only the ward is ever shown. Vets can confirm medical status later.
+Save & print collar
+11 Collar ready · Feeder / NGO · Print
+9:41
+Rani has a code.
+Print it on waterproof paper, laminate it, and loop it on a soft collar. Not too tight: two fingers under.
+QR code
+RNI
+482
+PQ7
+Rani · Scan me if I look lost
+Print collar
+Save as PDF
+
+########## Hetja Desktop Landing
+18 Landing, desktop · 1440 · Scan a collar
+Hetja
+How it works
+Feeders
+Vets
+Privacy
+FAQ
+Sign in
+Hetja
+for Mumbai's street dogs
+Every street
+has a hero.
+Scan the QR on a dog's collar. See who they are, if they've eaten, and whether they've had their shots. Then carry on with your day, slightly more attached.
+Scan a collar
+Become a feeder ›
+Bruno
+K/W ward · Andheri West
+Vaccinated
+Sterilised
+COLLAR CODE
+DDR
+017
+XK2
+Bruno turned up in 2019 and decided the lane was his.
+This dog needs help
+Kaali · guards the chaiwala
+Fed 3 times. Claims zero.
+Motu · sterilised 2024
+Rani · afraid of pigeons
+Sheru · 11 years on the job
+Three steps. No app to install.
+It's a website. It works on the phone you already have.
+1
+Scan the collar.
+Any phone camera. Or type the 9 letters printed under the QR.
+2
+Meet the dog.
+Name, ward, shots, and a few lines from the people who feed them. Usually about biscuits.
+3
+Help, if they need it.
+One red button tells nearby feeders and a vet. You don't need an account for that.
+Today in Mumbai.
+Bruno was fed 3 times today. He will tell you it was zero.
+412
+dogs with collars
+1,086
+feeds logged
+Feeders keep a streak.
+Two taps per feed. Others on your lane see it, so nobody gets double dinner. In theory.
+23
+days
+Vets write it once.
+Medical records can't be edited or deleted. Corrections go on top, with a name and a date.
+Anti-rabies vaccine
+12 Mar 2026 · locked
+PRIVACY
+Ward, not street.
+Hetja never shows where a dog sleeps. Collar codes are random, so nobody can list every dog in the city. A register of strays can protect them or target them. We built it for the first one.
+Read the privacy page ›
+About
+How it works
+FAQ
+Privacy
+Contact
+In memory of Hetja
+Source on GitHub
+AGPL-3.0
+Built in Mumbai
+
+########## Hetja Design System
+Hetja
+Design system.
+Small on purpose. System fonts, so nothing downloads on slow 4G. Two loud colours: blue for doing things, red for emergencies. Everything else is ink, grey and white.
+Colour
+Blue #0071e3
+Every normal action. White text 4.7:1
+SOS red #d70015
+SOS only. White text 5.6:1
+Ink #1d1d1f
+Headlines, body, privacy band
+Secondary #6e6e73
+Supporting text. 5.1:1 on white
+Mist #f5f5f7
+App background, quiet fills
+Hairline #d2d2d7
+Dividers and input borders
+Aurora
+Pink #ffb3dc, peach #ffcbb8, rose #ffc2ec on #fdf6f8. Marketing and reading pages only. Never on Scan, Dog profile or /hetja.
+#1a7a35
+Done / healthy
+#9a5200
+Due / waiting
+#48484d
+Unknown
+Type
+System stack: SF Pro on iPhone, Roboto on Android. Zero bytes to download.
+Fed. Twice.
+Display · 56 / 1.0 · 700 · -0.045em (96 on desktop)
+Bruno
+Title · 34 / 1.1 · 700 · -0.03em
+How bad is it?
+Heading · 22 / 1.25 · 700
+Bruno likes Parle-G more than he should.
+Body · 17 / 1.47 · 400. Never smaller than 15 for reading.
+COLLAR CODE
+Label · 13 · 600 · caps · +0.06em
+Collar code
+Stored as ddr017xk2. Shown uppercase in three groups of three, monospaced, so it can be read over a bad phone line. The code alphabet should skip 0/O, 1/I/L.
+COLLAR CODE
+DDR
+017
+XK2
+Say it: D D R · zero one seven · X K two
+INPUT
+DDR
+017
+___
+Auto-spaces as you type. Accepts any case.
+Buttons
+One loud button per screen, full width, in the bottom third. Minimum 56px tall on phones.
+Scan a collar
+!
+This dog needs help
+Quiet
+Call
+Text link ›
+Nav pill
+Pressed: darken to #0062c4 / #b80012 and scale 0.98. No hover animation on phones.
+Status pills
+Icon plus words, always. Colour is the third clue, never the first.
+Vaccinated
+Sterilised
+Vaccine due
+Not sterilised
+!
+SOS open
+Cards and list rows
+Cards: white, 28px radius, 24px padding, no border on aurora, 1px #e8e8ed on white. Rows: 72px min, 56px avatar.
+B
+Bruno
+K/W ward · Andheri West
+Fed 2h ago
+K
+Kaali
+K/W ward · Andheri West
+Not fed today
+Dog avatars
+Friendly 3D busts of Indian street dogs (indie / pariah build, big ears, one floppy), soft studio light, shoulders cropped, on a pastel circle. One colour per dog, stable forever. Drop renders below. Until a render exists, the app shows the pastel circle with the dog's initial.
+Apricot #ffe3c2
+Lilac #e4defa
+Mint #d7efe3
+Rose #ffd9e6
+Sky #dbe9fb
+B
+Fallback
+K
+56 row
+M
+36 chip
+Spacing and shape
+4
+8
+12
+16
+24
+32
+48
+72
+Phone gutter 20. Radii: input 16, inner card 20, card 28, phone sheet 32, pill 999. Touch target 44 minimum, 56 for main buttons.
+Bars
+Hetja
+Scan
+Frosted top nav. White 72% + blur 20. Nav pill hides on screens that already have their own main button.
+Home
+Scan
+Me
+Tab bar: three tabs, label always visible, active tab gets ink + a bar. Hidden during SOS.
+Privacy band
+Ward, not street.
+Pure black, off-white type, grey #a1a1a6 for support (7.9:1). Used once per marketing page, for the privacy promise.

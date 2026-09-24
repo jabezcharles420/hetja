@@ -1,192 +1,139 @@
 /* ---------------------------------------------------------------------------
- * Hetja design tokens: the single source of truth.
+ * Hetja design tokens: the single source of truth (design v4).
  *
- * This file is consumed by BOTH surfaces:
- *   - apps/web           (imported by app/globals.css)
- *   - apps/scan          (hand-copied into index.html's inline :root: the hot
- *                         path cannot afford a second stylesheet request. Keep
- *                         every name and value identical when either changes.)
+ * Values come verbatim from the Claude Design handoff
+ * (design_handoff_hetja_redesign/README.md, "Design tokens"), which is high
+ * fidelity: do not tune them by eye. Names keep the repo's `--h-` prefix so
+ * ops/contrast-gate.sh, apps/scan's hand-copied :root and the e2e gutter test
+ * keep working.
  *
- * Direction (v3): an Apple product page for Mumbai's street dogs. Depth comes
- * from glass and soft shadow rather than hairlines: aurora → grey section →
- * white tile → glass chip. Pill buttons, 28px tiles, SF-first type with tight
- * tracking. See docs/design/HETJA-DESIGN.md for the rationale.
- *
- * Token NAMES from v2 are kept so every existing .module.css restyles by
- * value; new names are additive.
+ * Consumed by:
+ *   - apps/web   (imported by app/globals.css)
+ *   - apps/scan  (hand-copied into index.html's inline :root; the hot path
+ *                 cannot afford a second stylesheet request. Keep every name
+ *                 and value identical when either changes.)
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* --- Colour -------------------------------------------------------------
-   * Contrast ratios against #FFFFFF are measured (ops/contrast-gate.sh), not
-   * estimated. WCAG 2.2 AA needs 4.5:1 for normal text, 3:1 for large.
+  /* --- Colour ------------------------------------------------------------
+   * Text/background pairs are measured by ops/contrast-gate.sh (AA 4.5:1).
    */
-  --h-base: #ffffff;
-  --h-gray: #f5f5f7;          /* section fill; ink on it is 15.5:1          */
-  --h-ink: #1d1d1f;           /* 16.8:1                                     */
-  --h-ink-muted: #6e6e73;     /*  5.1:1 white, 4.7:1 gray: secondary text  */
-  --h-ink-faint: #86868b;     /*  3.6:1, NON-TEXT or ≥24px only            */
-  --h-rule: #d2d2d7;          /* hairlines, input borders                   */
-  --h-accent: #0071e3;        /*  4.7:1, primary action FILL (white label). ONE per screen. */
-  --h-accent-hover: #0077ed;
-  --h-link: #0066cc;          /*  5.6:1 white, 5.1:1 gray: text links (#0071e3 fails on gray) */
-  --h-imessage: #0a84ff;      /* bubbles, focus ring: fills, not text      */
-  --h-bubble: #e9e9eb;        /* incoming bubble fill                       */
-  --h-danger: #d70015;        /*  5.4:1, SOS / overdue text                */
-  --h-danger-fill: #ff3b30;   /* SOS button fill (white label, bold, large) */
-  --h-safe: #1d7a36;          /*  5.4:1, verified / vaccinated             */
-  --h-ok-bg: #e8f8ec;
-  --h-warn: #b25e00;          /*  4.7:1                                     */
-  --h-warn-bg: #fff4e5;
-  --h-late-bg: #ffebe9;
-  --h-dark: #000000;          /* privacy band                               */
-  --h-dark-2: #1c1c1e;        /* card on the dark band                      */
-  --h-on-dark: #f5f5f7;
-  --h-on-dark-muted: #a1a1a6; /*  8.0:1 on black                            */
-  --h-safe-on-dark: #30d158;  /* iOS dark-mode green: Live Activity timer on black (10.6:1) */
+  --h-ink: #1d1d1f;            /* headlines, body, dark fills, selected     */
+  --h-secondary: #6e6e73;      /* supporting text (5.1:1 on white)          */
+  --h-tertiary: #86868b;       /* placeholders and chevrons ONLY, not text  */
+  --h-text-mid: #48484d;       /* muted pill text, badge labels             */
+  --h-line: #d2d2d7;           /* input borders (inset ring)                */
+  --h-divider: #e8e8ed;        /* row dividers inside cards                 */
+  --h-mist: #f5f5f7;           /* app background, inner cards               */
+  --h-white: #ffffff;          /* cards                                     */
 
-  /* Aurora blobs (decorative, never behind body text without a tile). */
-  --h-aurora-1: #ff8fd0;
-  --h-aurora-2: #ffb9a3;
-  --h-aurora-3: #ffa6e6;
-  --h-aurora-4: #ff9db8;
+  --h-blue: #0071e3;           /* primary button                            */
+  --h-blue-press: #0062c4;
+  --h-link: #0066cc;           /* text links                                */
+  --h-blue-tint: #e8f1fc;      /* tinted "Call" button background           */
+  --h-blue-tint-ink: #0062c4;  /* tinted button text                        */
+  --h-sos: #d70015;            /* SOS button ONLY                           */
+  --h-sos-press: #b80012;
 
-  /* Urgency is never carried by colour alone (WCAG 2.2 SC 1.4.1): the
-   * primary action always pairs its fill with an icon AND an explicit verb. */
+  --h-ok-bg: #e6f4ea;          /* Vaccinated, Sterilised, Fed               */
+  --h-ok: #1a7a35;
+  --h-warn-bg: #fff3e0;        /* Due, Not fed today, Waiting               */
+  --h-warn: #9a5200;
+  --h-neutral-bg: #f2f2f5;     /* Unknown, Not sterilised, Last fed         */
+  --h-neutral: #48484d;
+  --h-danger-bg: #fde8ea;      /* SOS open, Needs a vet now                 */
+  --h-danger: #b80012;
 
-  /* --- Type ---------------------------------------------------------------
-   * SF on Apple devices (as Sidehoe), self-hosted Inter everywhere else,
-   * never Arial. apps/scan uses the same stack minus Inter (0 font bytes).
+  /* Aurora: static layered radial gradients over the base (marketing only). */
+  --h-aurora-base: #fdf6f8;
+  --h-aurora-pink: #ffb3dc;
+  --h-aurora-peach: #ffcbb8;
+  --h-aurora-rose: #ffc2ec;
+  --h-aurora-coral: #ffd0c4;
+
+  /* Black privacy band. */
+  --h-band: #000000;
+  --h-band-ink: #f5f5f7;
+  --h-band-sub: #a1a1a6;
+  --h-band-link: #2997ff;
+
+  /* /hetja memorial. */
+  --h-memorial-bg: #fbfbfa;
+  --h-memorial-divider: #e5e5e3;
+
+  /* Pastel avatar pairs (background / initial), assigned by a stable hash. */
+  --h-av-apricot-bg: #ffe3c2;
+  --h-av-apricot-ink: #7a4a12;
+  --h-av-lilac-bg: #e4defa;
+  --h-av-lilac-ink: #4b3a8f;
+  --h-av-mint-bg: #d7efe3;
+  --h-av-mint-ink: #1f5c3d;
+  --h-av-rose-bg: #ffd9e6;
+  --h-av-rose-ink: #8a2f52;
+  --h-av-sky-bg: #dbe9fb;
+  --h-av-sky-ink: #1f4a80;
+
+  /* --- Type --------------------------------------------------------------
+   * SF Pro on Apple devices comes from the system (it matches first, so
+   * Apple devices never download Inter). Android matches Inter, the closest
+   * licensable stand-in for SF Pro (SF Pro itself may not be shipped to
+   * non-Apple platforms). apps/scan uses a small Inter subset for the same
+   * reason, inside its 40 KB budget.
    */
-  --h-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --h-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Inter", "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+  --h-mono: ui-monospace, "SF Mono", Menlo, "Roboto Mono", monospace;
+  --h-serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
 
-  /* Display sizes are fluid; UI sizes are fixed. */
-  --h-t-hero: clamp(54px, 8.2vw, 124px);
-  --h-t-display: clamp(40px, 6.4vw, 80px);
-  --h-t-bignum: clamp(72px, 9vw, 120px);
-  --h-t-tile: clamp(26px, 2.6vw, 34px);
-  --h-t-lede: clamp(19px, 2.1vw, 24px);
-  --h-t-plate: 32px;  /* the collar code                                    */
-  --h-t-xl: 24px;     /* dog name, card titles                              */
-  --h-t-lg: 19px;     /* big CTA label, list titles                         */
-  --h-t-md: 17px;     /* body                                               */
-  --h-t-sm: 15px;     /* secondary, bubbles, list rows                      */
-  --h-t-xs: 12px;     /* nav links, meta, footnotes                         */
-
-  --h-w-regular: 400;
-  --h-w-medium: 500;
-  --h-w-semibold: 600;
-  --h-w-bold: 700;
-
-  --h-track-body: -0.022em;
-  --h-track-display: -0.028em;
-  --h-track-hero: -0.045em;
-
-  --h-num-tabular: "tnum" 1, "lnum" 1;
-
-  /* --- Space --------------------------------------------------------------
-   * 4px base. Gutter 22px (Sidehoe's 44px total inset).
-   */
+  /* --- Space (4, 8, 12, 16, 20, 24, 32, 48, 72) ------------------------- */
   --h-s1: 4px;
   --h-s2: 8px;
   --h-s3: 12px;
   --h-s4: 16px;
-  --h-s5: 24px;
-  --h-s6: 32px;
-  --h-s7: 48px;
-  --h-s8: 64px;
-  --h-s9: 96px;
-  --h-gutter: 22px;
-  --h-section-y: clamp(64px, 12vw, 160px); /* 64 on phones: 90+90 between sections was a thumb-scroll tax */
-  --h-nav-h: 52px;
+  --h-s5: 20px;
+  --h-s6: 24px;
+  --h-s7: 32px;
+  --h-s8: 48px;
+  --h-s9: 72px;
+  --h-gutter: 20px;            /* phone gutter                              */
+  --h-content: 1080px;         /* desktop content width                     */
 
-  /* --- Geometry ----------------------------------------------------------- */
-  --h-radius: 18px;         /* default control / small card               */
-  --h-radius-sm: 12px;      /* nudges, inner rows                         */
-  --h-radius-card: 20px;    /* profile, grouped lists                     */
-  --h-radius-tile: 28px;    /* bento tiles, roster                        */
-  --h-radius-pill: 980px;
-  --h-radius-fill: 980px;   /* v2 name: large accent fills → now pills    */
-  --h-hairline: 1px;
+  /* --- Radii -------------------------------------------------------------- */
+  --h-r-input: 16px;
+  --h-r-otp: 14px;
+  --h-r-inner: 20px;
+  --h-r-card: 28px;
+  --h-r-card-lg: 32px;         /* desktop cards                             */
+  --h-r-sheet: 32px;           /* bottom sheet top corners                  */
+  --h-r-pill: 999px;
 
-  --h-shadow-card: 0 30px 60px -30px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  --h-shadow-float: 0 12px 40px rgba(0, 0, 0, 0.16);
-  --h-shadow-chip: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(255, 80, 170, 0.12);
-  --h-shadow-cta: 0 10px 30px rgba(0, 113, 227, 0.3);
-  --h-shadow-phone: 0 0 0 2px #3a3a3e inset, 0 40px 80px -20px rgba(60, 0, 40, 0.4);
+  /* --- Shadows ------------------------------------------------------------ */
+  --h-sh-btn: 0 8px 24px rgba(0, 113, 227, 0.28);
+  --h-sh-btn-hero: 0 10px 30px rgba(0, 113, 227, 0.32);
+  --h-sh-chip: 0 4px 14px rgba(0, 0, 0, 0.08);
+  --h-sh-avatar: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --h-sh-collar: 0 20px 50px rgba(0, 0, 0, 0.12);
+  --h-sh-footer: 0 -1px 0 #e8e8ed;
+  --h-ring-input: inset 0 0 0 1.5px var(--h-line);
+  --h-ring-focus: inset 0 0 0 2px var(--h-blue);
+  --h-focus: 3px solid rgba(0, 113, 227, 0.45);
 
-  --h-glass: rgba(255, 255, 255, 0.72);
-  --h-glass-strong: rgba(255, 255, 255, 0.92);
-  --h-glass-gray: rgba(245, 245, 247, 0.72);
-  --h-blur: saturate(180%) blur(20px);
-  --h-glass-edge: rgba(0, 0, 0, 0.08);
+  /* --- Sizes -------------------------------------------------------------- */
+  --h-btn-h: 56px;             /* primary                                   */
+  --h-btn-sos-h: 60px;         /* SOS                                       */
+  --h-target: 44px;            /* minimum touch target                      */
+  --h-nav-h: 56px;             /* mobile top nav                            */
+  --h-tab-h: 56px;             /* bottom tab bar                            */
 
-  /* Touch targets: 48px comfort, 44px floor (HIG). */
-  --h-target: 48px;
-  --h-target-min: 44px;
-
-  /* --- Motion -------------------------------------------------------------
-   * Only transform, opacity and filter are animated.
+  /* --- Motion --------------------------------------------------------------
+   * App screens: native press state only. Marketing sections may fade in.
    */
-  --h-dur: 160ms;
-  --h-dur-slow: 1000ms;
-  --h-ease: cubic-bezier(0.2, 0, 0.2, 1);
-  --h-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --h-ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --h-dur: 400ms;
+  --h-ease: ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --h-dur: 0ms;
-    --h-dur-slow: 0ms;
   }
-}
-
-/* --- Motion: springs (components/ui/motion) ---------------------------------
- * Physically sampled damped springs as CSS linear() curves. Pair each curve
- * with its duration token: the curve already contains the settle, so the
- * duration is the spring's settle time, not a "feel" knob.
- *   --h-spring         damping ratio 0.72, about 4% overshoot (UI, cards, pills)
- *   --h-spring-bouncy  damping ratio 0.45, about 20% overshoot (celebration only)
- * The cubic-bezier values are the fallback for engines without linear()
- * (Chrome/Edge 113+, Firefox 112+, Safari 17.2+ support it).
- */
-:root {
-  --h-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
-  --h-spring-bouncy: cubic-bezier(0.34, 1.8, 0.5, 1);
-  --h-dur-spring: 600ms;
-  --h-dur-spring-bouncy: 900ms;
-}
-
-@supports (transition-timing-function: linear(0, 1)) {
-  :root {
-    --h-spring: linear(0, 0.032, 0.112, 0.219, 0.338, 0.459, 0.573, 0.676, 0.766, 0.84, 0.9, 0.947, 0.982, 1.007, 1.023, 1.033, 1.037, 1.038, 1.037, 1.033, 1.029, 1.024, 1.02, 1.015, 1.012, 1.008, 1.006, 1.003, 1.002, 1, 1, 0.999, 1);
-    --h-spring-bouncy: linear(0, 0.053, 0.188, 0.37, 0.567, 0.755, 0.918, 1.045, 1.134, 1.186, 1.205, 1.198, 1.173, 1.137, 1.097, 1.057, 1.023, 0.995, 0.975, 0.963, 0.958, 0.959, 0.963, 0.97, 0.979, 0.987, 0.994, 1, 1.004, 1.007, 1.008, 1.009, 1.008, 1.006, 1.005, 1.003, 1.001, 1, 0.999, 0.999, 1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --h-dur-spring: 0ms;
-    --h-dur-spring-bouncy: 0ms;
-  }
-}
-
-/* --- iOS system values (components/ui iOS kit) ------------------------------
- * Apple's own UIKit colours, used only where the iOS kit imitates a system
- * control; none of these carries text. (Alert/action-sheet button labels use
- * --h-link, not systemBlue #007aff, which is 3.8:1 on the alert grey.)
- *   switch-on     UISwitch "on" track (systemGreen), a fill, never text
- *   ios-separator UIKit separator: the 0.5–1px inset hairline in lists/alerts
- *   ios-fill      tertiarySystemFill: switch-off track, segmented background
- *   ios-grouped   systemGroupedBackground behind inset grouped lists
- *   scrim         modal dimming behind sheets and alerts
- */
-:root {
-  --h-switch-on: #34c759;
-  --h-ios-separator: rgba(60, 60, 67, 0.29);
-  --h-ios-fill: rgba(118, 118, 128, 0.12);
-  --h-ios-grouped: #f2f2f7;
-  --h-scrim: rgba(0, 0, 0, 0.32);
 }

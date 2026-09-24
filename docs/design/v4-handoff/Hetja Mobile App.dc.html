@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Mobile app" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Hetja app. 390 wide.</h1>
+    <p style="margin:0;font-size:19px;color:#6e6e73;max-width:760px;line-height:1.45">Scan, dog profile and SOS are plain white: no aurora, no motion, fast on a budget phone. Main buttons sit in the bottom third.</p>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px;align-items:flex-start">
+
+    <!-- 02 SCAN -->
+    <div data-screen-label="02 Scan" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">02 Scan <span style="font-weight:400;color:#6e6e73">· Everyone · Point camera / View profile</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#111;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column;color:#fff">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px">
+          <div style="font-size:17px;color:#fff">‹ Home</div>
+          <div style="height:36px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.16);font-size:15px;font-weight:600;display:flex;align-items:center">Torch</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:repeating-linear-gradient(135deg,#1b1b1d 0 14px,#18181a 14px 28px)">
+          <div style="width:250px;height:250px;position:relative">
+            <span style="position:absolute;left:0;top:0;width:48px;height:48px;border-left:5px solid #fff;border-top:5px solid #fff;border-top-left-radius:22px"></span>
+            <span style="position:absolute;right:0;top:0;width:48px;height:48px;border-right:5px solid #fff;border-top:5px solid #fff;border-top-right-radius:22px"></span>
+            <span style="position:absolute;left:0;bottom:0;width:48px;height:48px;border-left:5px solid #fff;border-bottom:5px solid #fff;border-bottom-left-radius:22px"></span>
+            <span style="position:absolute;right:0;bottom:0;width:48px;height:48px;border-right:5px solid #fff;border-bottom:5px solid #fff;border-bottom-right-radius:22px"></span>
+            <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#8e8e93">camera feed</span>
+          </div>
+          <div style="font-size:20px;font-weight:600;text-align:center;line-height:1.3">Point at the QR on the collar.</div>
+          <div style="font-size:15px;color:#c7c7cc;margin-top:-16px">It opens by itself. No button needed.</div>
+        </div>
+        <div style="flex:none;background:#fff;color:#1d1d1f;border-radius:32px 32px 0 0;padding:22px 20px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:15px;color:#6e6e73">No camera, or the QR is muddy?</div>
+          <div style="height:60px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;padding:0 18px;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:24px;letter-spacing:0.12em;gap:14px"><span>DDR</span><span>017</span><span>XK2</span></div>
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">View profile</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 03 DOG PROFILE -->
+    <div data-screen-label="03 Dog profile" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">03 Dog profile <span style="font-weight:400;color:#6e6e73">· Stranger who scanned · SOS</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:16px;padding:8px 20px 0">
+          <div style="height:210px;border-radius:28px;overflow:hidden;background:#ffe3c2;flex:none"><image-slot id="profile-photo" shape="rect" placeholder="Photo of Bruno" style="width:100%;height:210px"></image-slot></div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:40px;line-height:1;font-weight:700;letter-spacing:-0.035em">Bruno</div>
+            <div style="font-size:17px;color:#6e6e73">K/W ward · Andheri West</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Vaccinated</div>
+            <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Sterilised</div>
+            <div style="height:36px;padding:0 14px 0 10px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>Last fed 2 hours ago</div>
+          </div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Collar code</div>
+              <div style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:30px;font-weight:600;letter-spacing:0.06em;display:flex;gap:14px"><span>DDR</span><span>017</span><span>XK2</span></div>
+            </div>
+            <div style="height:44px;padding:0 14px;border-radius:999px;background:#e8e8ed;font-size:15px;font-weight:600;display:flex;align-items:center">Copy</div>
+          </div>
+          <p style="margin:0;font-size:17px;line-height:1.47;text-wrap:pretty">Bruno turned up in 2019 and decided the lane was his. Scared of scooters, not of cats. Will sit on your foot until you leave.</p>
+          <div style="font-size:15px;color:#6e6e73">Written by his 3 feeders</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;background:#fff;box-shadow:0 -1px 0 #e8e8ed;display:flex;flex-direction:column;gap:8px">
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:#d70015;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>This dog needs help</div>
+          <div style="font-size:13px;color:#6e6e73;text-align:center">Alerts his feeders and a vet nearby.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 SOS: HOW BAD -->
+    <div data-screen-label="04 SOS how bad" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">04 SOS, step 1 <span style="font-weight:400;color:#6e6e73">· Stranger · Send SOS</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Bruno</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:4px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">How bad is it?</div>
+          <div style="font-size:17px;color:#6e6e73;line-height:1.4">Pick the closest one. You can add details after.</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+            <div style="min-height:84px;border-radius:20px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:14px 16px;display:flex;align-items:center;gap:14px">
+              <span style="width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #aeaeb2;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:18px;font-weight:600">Hurt, but moving</div><div style="font-size:15px;color:#6e6e73">Limping, a wound, not eating</div></div>
+            </div>
+            <div style="min-height:84px;border-radius:20px;box-shadow:inset 0 0 0 3px #1d1d1f;background:#f5f5f7;padding:14px 16px;display:flex;align-items:center;gap:14px">
+              <span style="width:26px;height:26px;border-radius:50%;background:#1d1d1f;color:#fff;flex:none;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+              <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:18px;font-weight:600">Can't get up, or bleeding</div><div style="font-size:15px;color:#6e6e73">Needs a vet now</div></div>
+            </div>
+            <div style="min-height:84px;border-radius:20px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:14px 16px;display:flex;align-items:center;gap:14px">
+              <span style="width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #aeaeb2;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:18px;font-weight:600">Something else</div><div style="font-size:15px;color:#6e6e73">Missing, scared, or being harmed</div></div>
+            </div>
+          </div>
+          <div style="height:52px;border-radius:16px;background:#f5f5f7;display:flex;align-items:center;padding:0 16px;font-size:16px;color:#48484d">+ Add a photo or a note (optional)</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;color:#6e6e73;text-align:center">Shares K/W ward with feeders. Never your exact spot.</div>
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center">Send SOS</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 SOS SENT -->
+    <div data-screen-label="05 SOS sent" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">05 SOS, step 2 <span style="font-weight:400;color:#6e6e73">· Stranger · Call</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:28px 20px 0">
+          <div style="width:52px;height:52px;border-radius:50%;background:#e6f4ea;color:#1a7a35;display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">SOS sent.</div>
+          <div style="font-size:17px;line-height:1.47;color:#1d1d1f">3 of Bruno's feeders and 1 vet have been told. If you can, stay nearby until someone arrives.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="height:32px;padding:0 12px 0 8px;border-radius:999px;background:#fde8ea;color:#b80012;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:50%;background:#b80012;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Needs a vet now</div>
+            <div style="height:32px;padding:0 12px 0 8px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>Waiting for reply</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;margin-top:10px">Call now</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;min-height:76px;border-bottom:1px solid #e8e8ed">
+              <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:600">Dr. Mehta, Pet Clinic</div><div style="font-size:15px;color:#6e6e73">Vet · K/W ward · open till 9 pm</div></div>
+              <div style="height:48px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:16px;font-weight:600;display:flex;align-items:center">Call</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;min-height:76px;border-bottom:1px solid #e8e8ed">
+              <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:600">Andheri Animal Rescue</div><div style="font-size:15px;color:#6e6e73">NGO · K/W ward · ambulance</div></div>
+              <div style="height:48px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:16px;font-weight:600;display:flex;align-items:center">Call</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;min-height:76px">
+              <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:600">Priya, feeder</div><div style="font-size:15px;color:#6e6e73">Feeds Bruno most evenings</div></div>
+              <div style="height:48px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:16px;font-weight:600;display:flex;align-items:center">Call</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:52px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Back to Bruno</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 06 LOG A FEED -->
+    <div data-screen-label="06 Log a feed" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">06 Log a feed <span style="font-weight:400;color:#6e6e73">· Feeder · Log feed</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px"><span style="font-size:17px;color:#0066cc">Cancel</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Log a feed</div>
+          <div style="background:#fff;border-radius:24px;padding:16px;display:flex;align-items:center;gap:14px">
+            <div style="width:56px;height:56px;border-radius:50%;background:#ffe3c2;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#7a4a12">B</div>
+            <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:600">Bruno</div><div style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:15px;color:#6e6e73;letter-spacing:0.06em">DDR 017 XK2</div></div>
+            <div style="height:44px;padding:0 14px;display:flex;align-items:center;font-size:16px;color:#0066cc">Change</div>
+          </div>
+          <div style="height:170px;border-radius:24px;background:#fff;overflow:hidden"><image-slot id="feed-photo" shape="rect" placeholder="Add a photo (optional)" style="width:100%;height:170px"></image-slot></div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:15px;color:#6e6e73">How did it go? (optional)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <div style="height:44px;padding:0 16px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Ate it all</div>
+              <div style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;font-size:15px;font-weight:600;display:flex;align-items:center">Ate a little</div>
+              <div style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;font-size:15px;font-weight:600;display:flex;align-items:center">Didn't eat</div>
+              <div style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;font-size:15px;font-weight:600;display:flex;align-items:center">Looks unwell</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;color:#6e6e73;text-align:center">Keeps your streak at 24 days.</div>
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Log feed</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 07 LOGIN EMAIL -->
+    <div data-screen-label="07 Login email" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">07 Login <span style="font-weight:400;color:#6e6e73">· Feeder / vet · Send code</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf8f9;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:72px 24px 0">
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Sign in.<br>No password.</div>
+          <div style="font-size:17px;line-height:1.47;color:#6e6e73">For feeders and vets. We email you a 6-digit code. You have enough to remember, like which dog hates the red scooter.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:22px">
+            <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73">Email</div>
+            <div style="height:60px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #0071e3;display:flex;align-items:center;padding:0 18px;font-size:19px">priya.feeds@gmail.com</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Send code</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 08 LOGIN CODE -->
+    <div data-screen-label="08 Login code" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">08 Login, code <span style="font-weight:400;color:#6e6e73">· Feeder / vet · Verify</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf8f9;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Change email</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:20px 24px 0">
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Check your email.</div>
+          <div style="font-size:17px;line-height:1.47;color:#6e6e73">6 digits sent to priya.feeds@gmail.com. It works for 10 minutes.</div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:22px">
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:30px;font-weight:600">4</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:30px;font-weight:600">8</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:30px;font-weight:600">2</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #0071e3;display:flex;align-items:center;justify-content:center"><span style="width:2px;height:30px;background:#0071e3"></span></div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7"></div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7"></div>
+          </div>
+          <div style="font-size:15px;color:#6e6e73">Nothing yet? Resend in 0:24</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Verify</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 09 ME -->
+    <div data-screen-label="09 Me" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">09 Me <span style="font-weight:400;color:#6e6e73">· Feeder · Scan to log next feed</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:10px;padding:6px 20px 0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Morning, Priya.</div></div>
+          <div style="background:#fff;border-radius:28px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:flex-end;gap:10px">
+              <div style="font-size:56px;line-height:0.85;font-weight:700;letter-spacing:-0.05em">23</div>
+              <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;padding-bottom:2px">day streak</div>
+            </div>
+            <div style="font-size:15px;color:#6e6e73">Fed someone every day since 1 September. Bruno still says you missed Tuesday.</div>
+            <div style="display:flex;gap:10px;border-top:1px solid #e8e8ed;padding-top:10px">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:#ffe3c2;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#7a4a12">1st</div><div style="font-size:12px;color:#48484d;line-height:1.2">First feed</div></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:#d7efe3;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#1f5c3d">7</div><div style="font-size:12px;color:#48484d;line-height:1.2">A full week</div></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:#dbe9fb;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#1f4a80">M</div><div style="font-size:12px;color:#48484d;line-height:1.2">Monsoon feeder</div></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#6e6e73">30</div><div style="font-size:12px;color:#6e6e73;line-height:1.2">7 days to go</div></div>
+            </div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:12px 18px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;font-size:15px"><span style="font-weight:600">Trusted feeder · Level 2</span><span style="color:#6e6e73">Level 3 at 50</span></div>
+            <div style="height:8px;border-radius:4px;background:#e8e8ed;overflow:hidden"><div style="width:84%;height:8px;background:#1d1d1f;border-radius:4px"></div></div>
+            
+          </div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:2px 4px 0">My dogs</div>
+          <div style="background:#fff;border-radius:24px;padding:0 16px">
+            <div style="display:flex;align-items:center;gap:12px;min-height:60px;border-bottom:1px solid #e8e8ed">
+              <div style="width:44px;height:44px;border-radius:50%;background:#ffe3c2;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#7a4a12">B</div>
+              <div style="flex:1;font-size:17px;font-weight:600">Bruno</div>
+              <div style="height:30px;padding:0 10px 0 8px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Fed 2h ago</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;min-height:60px;border-bottom:1px solid #e8e8ed">
+              <div style="width:44px;height:44px;border-radius:50%;background:#e4defa;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#4b3a8f">K</div>
+              <div style="flex:1;font-size:17px;font-weight:600">Kaali</div>
+              <div style="height:30px;padding:0 10px 0 8px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>Not fed today</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;min-height:60px">
+              <div style="width:44px;height:44px;border-radius:50%;background:#d7efe3;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#1f5c3d">M</div>
+              <div style="flex:1;font-size:17px;font-weight:600">Motu</div>
+              <div style="height:30px;padding:0 10px 0 8px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Fed 5h ago</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:12px 20px 10px;background:linear-gradient(rgba(245,245,247,0),#f5f5f7 30%)">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan to log Kaali's feed</div>
+        </div>
+        <div style="flex:none;background:rgba(255,255,255,.92);border-top:1px solid #e3e3e8">
+          <div style="height:56px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;text-align:center;font-size:13px;font-weight:600">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px;border-radius:2px"></span>Home</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6e6e73"><span style="width:22px;height:4px;border-radius:2px"></span>Scan</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#1d1d1f"><span style="width:22px;height:4px;border-radius:2px;background:#1d1d1f"></span>Me</div>
+          </div>
+          <div style="height:22px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 REGISTER -->
+    <div data-screen-label="10 Register a dog" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">10 Register a dog <span style="font-weight:400;color:#6e6e73">· Feeder / NGO · Save &amp; print collar</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">Cancel</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">New dog</div>
+          <div style="display:flex;gap:16px;align-items:center">
+            <div style="width:104px;height:104px;border-radius:50%;background:#fff;flex:none;overflow:hidden"><image-slot id="register-photo" shape="circle" placeholder="Photo" style="width:104px;height:104px"></image-slot></div>
+            <div style="font-size:15px;color:#6e6e73;line-height:1.4">A clear face photo. Strangers use it to check they found the right dog.</div>
+          </div>
+          <div style="background:#fff;border-radius:24px;padding:0 18px">
+            <div style="min-height:64px;display:flex;flex-direction:column;justify-content:center;gap:2px;border-bottom:1px solid #e8e8ed"><div style="font-size:13px;color:#6e6e73">Name</div><div style="font-size:19px">Rani</div></div>
+            <div style="min-height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:13px;color:#6e6e73">Ward</div><div style="font-size:19px">K/W · Andheri West</div></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="min-height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><div style="font-size:17px">Vaccinated</div><div style="width:51px;height:31px;border-radius:16px;background:#1a7a35;position:relative"><span style="position:absolute;right:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff"></span></div></div>
+            <div style="min-height:64px;display:flex;align-items:center;justify-content:space-between"><div style="font-size:17px">Sterilised</div><div style="width:51px;height:31px;border-radius:16px;background:#e3e3e8;position:relative"><span style="position:absolute;left:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></div></div>
+          </div>
+          <div style="font-size:13px;color:#6e6e73;padding:0 4px">Only the ward is ever shown. Vets can confirm medical status later.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Save &amp; print collar</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11 PRINT COLLAR -->
+    <div data-screen-label="11 Print collar" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">11 Collar ready <span style="font-weight:400;color:#6e6e73">· Feeder / NGO · Print</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:40px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Rani has a code.</div>
+          <div style="font-size:17px;color:#6e6e73;line-height:1.45">Print it on waterproof paper, laminate it, and loop it on a soft collar. Not too tight: two fingers under.</div>
+          <div style="align-self:center;margin-top:14px;width:250px;background:#fff;border-radius:28px;box-shadow:0 20px 50px rgba(0,0,0,.12);padding:22px;display:flex;flex-direction:column;align-items:center;gap:12px">
+            <div style="width:170px;height:170px;border-radius:12px;background:repeating-linear-gradient(45deg,#1d1d1f 0 6px,#fff 6px 12px);display:flex;align-items:center;justify-content:center"><span style="background:#fff;padding:4px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11px">QR code</span></div>
+            <div style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:26px;font-weight:600;letter-spacing:0.06em;display:flex;gap:10px"><span>RNI</span><span>482</span><span>PQ7</span></div>
+            <div style="font-size:14px;font-weight:600">Rani · Scan me if I look lost</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Print collar</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Save as PDF</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

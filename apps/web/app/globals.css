@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
- * apps/web — global styles.
+ * apps/web: global styles.
  *
  * Tokens come from ONE place: packages/design/tokens.css. This file imports
  * them and consumes the custom properties; it never redefines a value or adds
@@ -106,7 +106,7 @@ a {
   text-decoration: underline;
 }
 
-/* Visible keyboard focus on every control — never suppressed. */
+/* Visible keyboard focus on every control, never suppressed. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -272,7 +272,7 @@ sup {
 }
 
 .h-pill-amber {
-  /* v2 modifier — no-op in v3, kept so markup does not need churn. */
+  /* v2 modifier: a no-op in v3, kept so markup does not need churn. */
 }
 
 /* --- Status pill (Sidehoe .age) ------------------------------------------ */
@@ -468,7 +468,7 @@ sup {
   background: rgba(0, 0, 0, 0.08);
 }
 
-/* Text link with a chevron — Apple's "Learn more ›". */
+/* Text link with a chevron (Apple's "Learn more ›"). */
 .h-btn-link {
   background: none;
   padding: 0;
@@ -868,7 +868,7 @@ sup {
   .h-delay-5 { animation-delay: 0.64s; }
 }
 
-/* Press feedback — every interactive element squishes slightly on touch. */
+/* Press feedback: every interactive element squishes slightly on touch. */
 a:active,
 button:active,
 [role="button"]:active {
@@ -890,7 +890,7 @@ button:active,
 }
 
 /* Reserve space for the fixed bottom tab bar on the FOOTER (the last element
- * in the document — see ChromeShell). Mirrors BottomNav.module.css height. */
+ * in the document; see ChromeShell). Mirrors BottomNav.module.css height. */
 @media (max-width: 768px) {
   .h-footer-clear-nav {
     padding-bottom: calc(var(--h-s3) + 64px + env(safe-area-inset-bottom, 0px));

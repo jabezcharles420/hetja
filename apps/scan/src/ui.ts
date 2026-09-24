@@ -44,7 +44,12 @@ function speakDog(p: DogProfile): void {
 }
 
 const CHECK_SVG =
-  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  '<svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/* Not-confirmed marker. The state is carried by the row's words ("Unknown",
+ * "pending", ...); this dash keeps the rows aligned so a check mark is never
+ * the only difference a reader has to spot (WCAG 2.2 SC 1.4.1). */
+const DASH_SVG =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M4 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
 export function setStatus(text: string): void {
   $("#status").textContent = text;
@@ -110,31 +115,35 @@ function buildCard(p: DogProfile, stale: boolean): string {
 
   return `
     <div class="photo">${photoMarkup(p)}</div>
-    <h1 class="dog-name">${escapeHtml(p.name)}</h1>
-    ${SPEECH_SUPPORTED ? `<button type="button" class="listen" aria-label="Listen to this dog's profile">Listen</button>` : ""}
-    <div class="hr"></div>
-    <div class="plate">${escapeHtml(p.slug)}</div>
-    <div class="hr"></div>
-    ${p.wardId ? `<div class="ward">Ward ${escapeHtml(p.wardId)}</div>` : ""}
-    <div class="status-block">
-      ${statusRow("Vaccinated", vaccine.ok, vaccine.text)}
-      ${statusRow("Sterilised", abc.ok, abc.text)}
-    </div>
-    <details class="full-record">
-      <summary>Full record</summary>
-      <div class="fr-body">
-        ${metaBits ? `<div class="fr-row"><span>${escapeHtml(metaBits)}</span></div>` : ""}
-        ${lastSeen}
-        <p class="fr-story">${story}</p>
+    <div class="id">
+      <h1 class="dog-name">${escapeHtml(p.name)}</h1>
+      <div class="id-meta">
+        <span class="plate">${escapeHtml(p.slug)}</span>
+        ${p.wardId ? `<span class="ward">Ward ${escapeHtml(p.wardId)}</span>` : ""}
       </div>
-    </details>
+      ${SPEECH_SUPPORTED ? `<button type="button" class="listen" aria-label="Listen to this dog's profile">Listen</button>` : ""}
+    </div>
+    <div class="facts">
+      <div class="status-block">
+        ${statusRow("Vaccinated", vaccine.ok, vaccine.text)}
+        ${statusRow("Sterilised", abc.ok, abc.text)}
+      </div>
+      <details class="full-record">
+        <summary>Full record</summary>
+        <div class="fr-body">
+          ${metaBits ? `<div class="fr-row"><span>${escapeHtml(metaBits)}</span></div>` : ""}
+          ${lastSeen}
+          <p class="fr-story">${story}</p>
+        </div>
+      </details>
+    </div>
     ${stale ? `<p class="stale-note">Showing a saved copy from before you went offline.</p>` : ""}
   `;
 }
 
 function statusRow(label: string, ok: boolean, text: string): string {
   return `<div class="status-row${ok ? " ok" : ""}">
-    <span class="status-icon">${ok ? CHECK_SVG : ""}</span>
+    <span class="status-icon">${ok ? CHECK_SVG : DASH_SVG}</span>
     <span class="status-label">${escapeHtml(label)}</span>
     <span class="status-value">${escapeHtml(text)}</span>
   </div>`;
@@ -142,8 +151,11 @@ function statusRow(label: string, ok: boolean, text: string): string {
 
 function photoMarkup(p: DogProfile): string {
   if (p.photoUrl) return `<img src="${escapeAttr(p.photoUrl)}" alt="${escapeAttr(p.name)}" loading="eager" />`;
-  const initial = (p.name || "?").charAt(0).toUpperCase();
-  return `<div class="placeholder">${escapeHtml(initial)}</div>`;
+  // Dogmoji placeholder: the dog-face emoji glyph in a pastel gradient
+  // circle. Scan uses the system emoji font only (0 bytes); apps/web's 3D
+  // Fluent Emoji WebPs are deliberately not shipped on this hot path.
+  const label = `No photo of ${p.name || "this dog"} yet`;
+  return `<div class="placeholder" role="img" aria-label="${escapeAttr(label)}"><span class="dogmoji" aria-hidden="true">\u{1F436}</span></div>`;
 }
 
 function fmtAbc(v?: string): { text: string; ok: boolean } {

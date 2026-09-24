@@ -155,7 +155,7 @@ apps/
 packages/
   contracts  zod schemas shared by API and clients — the single source of truth
   db         pool, migrations, slug generation and signing
-  design     tokens.css — the Swiss/Inter/white design system
+  design     tokens.css — the v3 Apple/Sidehoe design system (SF-first, pills, glass)
   ledger     hash-chained append-only medical ledger
 ```
 

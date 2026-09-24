@@ -72,12 +72,12 @@ git clone <this repo> && cd hetja
 
 ## Design
 
-Swiss wayfinding, not editorial minimalism — the references are Otl Aicher's
-Munich 1972 signage and Vignelli's NYC subway diagram. A stranger navigating an
-unfamiliar system under stress is a signage problem: fixed vocabulary, one
-decision per surface, information ranked by consequence. Inter on white, one
-accent colour reserved for emergencies, structure from hairlines rather than
-shadows.
+An Apple product page for Mumbai's street dogs (v3, after sidehoe.chat's
+visual language): SF-first type with an Inter fallback, pill buttons, rounded
+tiles, and depth from glass and soft shadow rather than hairlines. The
+signage-era rule survives unchanged: one decision per surface, so each working
+screen has exactly one loud primary action (blue, or red for SOS), always an
+icon plus a verb, never colour alone.
 
 Tokens live in `packages/design/tokens.css` and are consumed by both surfaces.
 Rationale in [docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).

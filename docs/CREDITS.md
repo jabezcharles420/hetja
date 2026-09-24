@@ -52,6 +52,18 @@ algorithm is adapted rather than installed, this file says so.
 | `@playwright/test` | github.com/microsoft/playwright | Apache-2.0 | `apps/web/playwright.config.ts`, `apps/web/e2e/` | The first real browser in this repo's CI. jsdom does no cascade and no computed layout, which is why a bug that zeroed the horizontal gutter on every text block below the hero survived 21 test files. `mobile-layout.spec.ts` now asserts gutter, no-flush-text, no-horizontal-overflow and heading spacing per route, and was verified to fail when the bug is re-injected. |
 | RFC 6962 Merkle tree (replacing `merkletreejs`) | IETF RFC 6962 §2.1 | n/a (spec) | `packages/ledger/src/merkle.ts` | See the Wave 2 row above for why the library was removed. |
 
+## Wave 5 — v3 visual design
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| sidehoe.chat — visual language reference | sidehoe.chat (no repo) | n/a (reference only) | `packages/design/tokens.css`, `apps/web/app/globals.css`, `apps/scan/index.html`, `docs/design/HETJA-DESIGN.md` | Studied for its Apple product-page look: SF stack, `#0071e3` pills, 18–28px radii, soft shadows, grey grouped surfaces, glass nav, aurora. **No code, copy, logo or memoji assets were copied.** All CSS is written from scratch against Hetja's tokens, and all text is Hetja's. |
+| Microsoft Fluent Emoji 3D ("Dogmoji" stickers) | github.com/microsoft/fluentui-emoji | MIT | `apps/web/public/dogmoji/*.webp` (+ `LICENSE-fluentui-emoji.txt`), `apps/web/components/ui/Dogmoji.tsx`, `apps/web/lib/dogmoji.ts` | Used instead of Apple Memoji/Animoji, which are Apple IP. Re-encoded to 128/256px WebP. Custom per-dog art can override a sticker at `public/dogmoji/custom/<slug>.webp`. `apps/scan` ships none of these files (it uses the 🐶 glyph, 0 bytes). |
+| Inter (variable, Latin subset) | github.com/rsms/inter, via `@fontsource-variable/inter` | OFL-1.1 | `apps/web/public/fonts/Inter-latin-var.woff2` (+ `Inter-OFL.txt`), declared in `apps/web/app/globals.css` | 48 KB, weight axis 100–900. The fallback after SF on non-Apple devices. It replaces the v2 static `Inter-latin-400-600.woff2`. Not shipped by `apps/scan`. |
+| Phosphor Icons | github.com/phosphor-icons/core | MIT | `apps/web/components/ui/Icon.tsx` (path data in `Icon.paths.ts`) | Regular and fill weights, inlined as SVG path data with no runtime dependency. Used instead of SF Symbols, which is licensed for Apple platforms only. |
+| Magic UI — ported patterns | magicui.design | MIT | `apps/web/components/ui/PhoneFrame.tsx`, `Marquee.tsx`, `NumberTicker.tsx`, `Reveal.tsx` | iPhone mockup, marquee, number ticker and blur-fade, re-implemented as CSS Modules and small client components. No Tailwind and no framer-motion. |
+| Aceternity UI — re-implemented patterns | ui.aceternity.com | Pattern reference | `apps/web/components/ui/Bento.tsx`, `Ambient.tsx` | Bento grid and aurora background, written from scratch. No component code copied. |
+| Konsta UI — iOS measurement reference | konstaui.com | MIT | `apps/web/components/ui/GroupedList.tsx`, `Toggle.tsx`, `Sheet.tsx`, `SegmentedTabs.tsx`, `IOSAlert.tsx`; `apps/scan` sheet and status list | A pixel reference for iOS list insets, row heights, separators, toggles, sheets and segmented controls. Nothing installed. |
+
 ## Evaluated and deliberately NOT adopted
 
 Recording these so nobody re-does the analysis, and so "not done" is

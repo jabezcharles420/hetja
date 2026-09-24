@@ -1,11 +1,11 @@
 /**
- * Hetja migration runner — applies packages/db/migrations/*.sql in filename
+ * Hetja migration runner: applies packages/db/migrations/*.sql in filename
  * order, records each in schema_migrations, and stops on any error
  * (ON_ERROR_STOP semantics). Safe to re-run: applied migrations are skipped.
  *
  * Note on ordering: files are sorted and tracked by FULL FILENAME, not by the
  * numeric prefix. `0013_phone_e164.sql` and `0013_web_vitals.sql` both exist and
- * both apply, in that (alphabetical) order. Do not rely on this — pick the next
+ * both apply, in that (alphabetical) order. Do not rely on this; pick the next
  * free number instead of a third 0013.
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -38,7 +38,7 @@ async function ensureTable(): Promise<void> {
  * before this every `RAISE` inside a migration was invisible: the migration
  * printed "applied: 0013_phone_e164.sql" and said nothing about the branch it
  * actually took. `0013_phone_e164.sql` added its CHECK constraint only when no
- * row violated it and skipped it silently otherwise — which is precisely what
+ * row violated it and skipped it silently otherwise, which is precisely what
  * happened on the production cluster, where a landline was unparseable. Nothing
  * in the deploy log distinguished "constraint applied" from "constraint
  * skipped", so a permanently-missing invariant looked like a clean deploy for

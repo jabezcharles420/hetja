@@ -7,15 +7,15 @@
  * address exactly as typed. One real Gmail mailbox therefore surfaced as
  * several candidate Hetja accounts: `john@gmail.com`, `j.o.h.n@gmail.com` and
  * `john+7@gmail.com` all deliver to the same inbox, but hash to three
- * different HMACs — three accounts, three OTPs, three sets of feeds. Gmail
+ * different HMACs: three accounts, three OTPs, three sets of feeds. Gmail
  * itself ignores every dot in the local part and everything from `+` onward,
  * so those renderings ARE one mailbox, and Hetja must treat them as one
  * account. The fix is to canonicalise BEFORE hashing, so one Gmail account is
  * one identity_hmac.
  *
  * THE RULE IS DELIBERATELY PROVIDER-SPECIFIC. Dots in the local part are
- * significant at most non-Gmail providers — `jane.doe@yahoo.com` and
- * `janedoe@yahoo.com` are two different people's mailboxes there — so
+ * significant at most non-Gmail providers (`jane.doe@yahoo.com` and
+ * `janedoe@yahoo.com` are two different people's mailboxes there), so
  * stripping dots (or dropping +suffixes) for every domain would silently
  * merge accounts that really are distinct, which is worse than never
  * merging. Only the provider that actually ignores these characters gets the
@@ -23,7 +23,7 @@
  * every mail system in practice). googlemail.com is the same service as
  * gmail.com and is folded onto it.
  *
- * ELIGIBILITY. New signups are restricted to a single mail provider family —
+ * ELIGIBILITY. New signups are restricted to a single mail provider family,
  * an operator decision, recorded here because nowhere user-facing says it:
  * no API message, no web copy, no privacy-page line may name a provider, a
  * domain or a policy. A refused address gets 400 ADDRESS_NOT_ELIGIBLE with
@@ -37,8 +37,8 @@
  * rest of auth already branches (the OTP mailer only sends in production;
  * devCode is only echoed outside it): the policy exists to bound abuse of the
  * PUBLIC self-signup surface, which is production. Development and the test
- * suite create new accounts at arbitrary addresses constantly — every fixture
- * in routes/auth.test.ts does — and an unconditional gate would have made
+ * suite create new accounts at arbitrary addresses constantly (every fixture
+ * in routes/auth.test.ts does), and an unconditional gate would have made
  * local development and CI unable to log in at all. Grandfathering is NOT
  * gated: an existing account signs in regardless of environment, because
  * that path never creates anything.
@@ -46,7 +46,7 @@
  * THE LEAK THIS ACCEPTS, STATED PLAINLY: grandfathering by existence means
  * eligibility is checked ONLY when no account row exists, so for addresses
  * outside the eligible family, POST /auth/otp answers 200 for a registered
- * address and 400 ADDRESS_NOT_ELIGIBLE for an unregistered one — an account-
+ * address and 400 ADDRESS_NOT_ELIGIBLE for an unregistered one: an account-
  * existence oracle for those domains. That is unavoidable while existing
  * users keep signing in regardless of their address's domain (revoking them
  * would lock real feeders out of their dogs' histories), and it is bounded:
@@ -59,7 +59,7 @@ import { query } from "@hetja/db";
 import { identityHmac } from "./hmac.js";
 
 /** The one provider family new signups may use. Never named in any
- * user-facing string — see the module header. Both spellings deliver
+ * user-facing string (see the module header). Both spellings deliver
  * identically; canonical form always uses the shorter. */
 const ELIGIBLE_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
@@ -94,7 +94,7 @@ export function canonicalEmailAddress(email: string): string {
 
 /**
  * Whether a genuinely NEW account may be created for this address. Existing
- * accounts bypass this entirely — see resolveIdentityHmac ("grandfather by
+ * accounts bypass this entirely; see resolveIdentityHmac ("grandfather by
  * existence, not by domain").
  */
 export function isEligibleForSignup(email: string): boolean {
@@ -114,7 +114,7 @@ export interface ResolveIdentityOptions {
    * Enforce the signup-domain restriction for GENUINELY NEW addresses.
    * Production passes true; development and test pass false so local login
    * and the existing suite keep working (see module header). Grandfathered
-   * accounts bypass eligibility either way — that is what grandfathering is.
+   * accounts bypass eligibility either way; that is what grandfathering is.
    */
   enforceNewSignupDomain?: boolean;
 }
@@ -127,11 +127,11 @@ export interface ResolveIdentityOptions {
  * verified against another):
  *
  *   1. Look up HMAC(raw-as-typed) and HMAC(canonical). If either row exists,
- *      proceed regardless of domain, using the hash that already exists —
+ *      proceed regardless of domain, using the hash that already exists:
  *      pre-canonicalisation rows were keyed on whatever string was typed at
  *      original signup, and a raw hit wins over a canonical one because the
  *      exact address is the stronger claim.
- *   2. Only when neither row exists — a genuinely new address — does the
+ *   2. Only when neither row exists (a genuinely new address) does the
  *      eligibility test apply (production only, see ResolveIdentityOptions).
  *      Eligible: key the account (and its OTP) on HMAC(canonical), so every
  *      future rendering of the same mailbox lands here. Ineligible: refuse.

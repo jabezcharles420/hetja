@@ -3,7 +3,7 @@
  *
  * The property that matters: renderings that Gmail delivers to ONE inbox must
  * produce ONE identity_hmac, so a feeder cannot fragment their account by
- * typing their address differently — and renderings that other providers
+ * typing their address differently, and renderings that other providers
  * would deliver to DIFFERENT inboxes must stay distinct.
  */
 import { describe, expect, it } from "vitest";
@@ -40,7 +40,7 @@ describe("canonicalEmailAddress", () => {
     );
   });
 
-  it("keeps distinct non-Gmail mailboxes distinct — dots are significant there", () => {
+  it("keeps distinct non-Gmail mailboxes distinct: dots are significant there", () => {
     // jane.doe@yahoo.com and janedoe@yahoo.com are two different people's
     // inboxes at that provider. Merging them would be an account-takeover
     // bug, which is why the aggressive rule is provider-specific.

@@ -1,4 +1,4 @@
--- Hetja · migration 0011 — Web Push subscription storage (plan §3.2).
+-- Hetja · migration 0011: Web Push subscription storage (plan §3.2).
 --
 -- sos_notifications stays a delivery *record* (case_id, channel, sent_at,
 -- delivered_at, acked_at, stood_down) -- it has no room for a subscriber's

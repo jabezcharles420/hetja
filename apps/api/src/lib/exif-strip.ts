@@ -13,7 +13,7 @@
  * "base64"))`), the key landed in `scans.photo_s3_key`, and
  * `GET /api/v1/dogs/:slug` handed it to `dogPhotoUrl()` to render publicly.
  * An unmodified iPhone JPEG carries `GPSLatitude`/`GPSLongitude`, so that path
- * published the feeder's exact feeding spot — the precise thing INVARIANT 2
+ * published the feeder's exact feeding spot, the precise thing INVARIANT 2
  * exists to prevent: "a precise last-seen point for a dog a feeder cares for
  * is also, functionally, a precise location for that feeder."
  *
@@ -29,7 +29,7 @@
  * The pixels come out byte-identical; only metadata is removed.
  *
  * WHAT IT DELIBERATELY DOES NOT DO. It does not decode the image, so it cannot
- * promise the result renders — a file that is structurally a valid JPEG whose
+ * promise the result renders: a file that is structurally a valid JPEG whose
  * scan data is garbage goes through unchanged. The property we need is "no
  * metadata, in a container we fully understand", not "provably renderable".
  * The corollary is the important half: anything that does not parse as one of
@@ -69,7 +69,7 @@ export interface StrippedImage {
 /**
  * Thrown for anything we will not store: a container we cannot parse, a
  * truncated or self-contradictory one, or one outside the size bounds. The
- * caller turns this into a 400 — never into a silently dropped photo.
+ * caller turns this into a 400, never into a silently dropped photo.
  */
 export class UnsupportedImageError extends Error {
   constructor(message: string) {
@@ -87,7 +87,7 @@ export class UnsupportedImageError extends Error {
  */
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
-/** Smaller than the shortest possible RIFF header — nothing valid fits. */
+/** Smaller than the shortest possible RIFF header: nothing valid fits. */
 const MIN_IMAGE_BYTES = 16;
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -143,7 +143,7 @@ function isJpegStandaloneMarker(marker: number): boolean {
 }
 
 /**
- * SOF0..SOF15 — the frame headers that describe the image itself. The three
+ * SOF0..SOF15: the frame headers that describe the image itself. The three
  * gaps (0xc4 DHT, 0xc8 JPG, 0xcc DAC) share the 0xcN range but are not frame
  * headers, so they must not count as "this file contains an image".
  */
@@ -155,7 +155,7 @@ function isJpegFrameHeader(marker: number): boolean {
  * A JFIF/JFXX APP0 is pixel density plus an optional thumbnail: no camera
  * model, no timestamp, no GPS. Some decoders expect it, so it is kept. Any
  * other APP0 is a vendor block we do not understand, and an unparsed block is
- * exactly what this module exists to refuse to store — so it is dropped.
+ * exactly what this module exists to refuse to store, so it is dropped.
  */
 function isBenignJfifApp0(payload: Buffer): boolean {
   // The identifier is NUL-terminated: "JFIF" or "JFXX" followed by 0x00.
@@ -215,7 +215,7 @@ function stripJpeg(bytes: Buffer): Buffer {
     }
     const payload = bytes.subarray(i + 2, segmentEnd);
 
-    // APP1 is Exif *and* XMP — both go. APP2..APPF are ICC, Photoshop IRB,
+    // APP1 is Exif *and* XMP; both go. APP2..APPF are ICC, Photoshop IRB,
     // Ducky, vendor maker-notes: all dropped. COM is a free-text comment.
     const drop =
       marker === JPEG_COM ||
@@ -235,7 +235,7 @@ function stripJpeg(bytes: Buffer): Buffer {
       // Entropy-coded data follows the SOS header with no length field, so its
       // end has to be found by scanning. Inside the scan a literal 0xFF is
       // escaped as 0xFF00, and RST0..RST7 are legal in-band restart markers;
-      // neither terminates it. Anything else does — which in a progressive
+      // neither terminates it. Anything else does, which in a progressive
       // JPEG is another DHT/SOS, and otherwise EOI.
       let end = i;
       let foundMarker = false;
@@ -278,7 +278,7 @@ const WEBP_METADATA_CHUNKS = new Set(["EXIF", "XMP ", "ICCP"]);
  * VP8X flag bits in the first byte of its payload: ICC 0x20, Alpha 0x10,
  * EXIF 0x08, XMP 0x04, Animation 0x02. Dropping the ICCP/EXIF/XMP chunks
  * without clearing the matching bits leaves a VP8X that advertises chunks the
- * file no longer contains, which strict decoders report as a malformed file —
+ * file no longer contains, which strict decoders report as a malformed file,
  * i.e. exactly the "the stripper broke the photo" outcome that would be worse
  * than the bug being fixed.
  */

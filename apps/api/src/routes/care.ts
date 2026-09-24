@@ -1,7 +1,7 @@
 /**
  * Hetja CARE directory (public).
  *
- * GET /api/v1/care?lat=&lng=&kind=&max_km=5 — nearest LISTED care providers
+ * GET /api/v1/care?lat=&lng=&kind=&max_km=5: nearest LISTED care providers
  * (NGOs, govt facilities, charity hospitals, private clinics), ordered
  * exact-precision first (by true distance); locality-precision rows after,
  * ranked by has_ambulance/cost_tier/is_24x7/name instead of a fabricated
@@ -13,7 +13,7 @@
  * distanceM is a fact we can only state when we can measure it. Most rows
  * in `care_providers` right now carry `geo_precision = 'locality'`
  * (migration 0009_care_geo_precision.sql): the seed's own coordinates are
- * ward/locality-centroid ESTIMATES, not geocoded addresses — 25 seeded
+ * ward/locality-centroid ESTIMATES, not geocoded addresses. 25 seeded
  * orgs collapse onto 18 distinct points, so a naive ST_Distance produced a
  * fabricated "0m away" for whichever two/four orgs happen to share a
  * centroid with the caller. On an emergency-adjacent surface (this route is
@@ -21,23 +21,23 @@
  * cause someone to skip a real hospital that is actually closer. So
  * `distanceM` is returned ONLY for `geo_precision = 'exact'` rows; every
  * other row returns `distanceM: null` and a human-readable `locality`
- * label instead ("Malad", "Parel", "Sewri") — an honest "distance unknown,
+ * label instead ("Malad", "Parel", "Sewri"): an honest "distance unknown,
  * in <place>" rather than a confident-looking lie. `geoPrecision` is always
  * surfaced too, so a caller never has to guess which contract applies.
  *
- * INVARIANT 2 does not apply here — it protects *dog and feeder* locations,
+ * INVARIANT 2 does not apply here: it protects *dog and feeder* locations,
  * and a clinic's address is public business information, so provider
  * coordinates are returned at full precision. What must not leak is the
  * *reporter's* position: the inbound lat/lng is never logged at full
  * precision. Fastify's default access log embeds the raw query string in
- * `req.url`, which the pino `redact` config (server.ts) cannot reach — key
+ * `req.url`, which the pino `redact` config (server.ts) cannot reach (key
  * -based redaction only strips top-level fields, not substrings of another
- * string field — so server.ts additionally strips query strings from logged
+ * string field), so server.ts additionally strips query strings from logged
  * URLs. This route itself never logs `req.query`.
  *
  * phone_verified_at is surfaced (as `phoneVerifiedAt`, nullable) rather than
  * collapsed into a boolean, so a caller can be told a number is unconfirmed
- * instead of it being silently hidden (plan §2.1/§3.4) — "a possibly-stale
+ * instead of it being silently hidden (plan §2.1/§3.4): "a possibly-stale
  * number beats none, but the user is told which it is."
  *
  * Both numbers go through `dialable()` (below) before they leave this module, so
@@ -59,7 +59,7 @@ const DEFAULT_MAX_KM = 5;
 // In-process TTL cache (enhancement stack §M.1). The directory is curated
 // by humans and changes rarely, so a 60s read-through cache keeps every
 // GET /api/v1/care off the GiST distance query. Deliberately applied ONLY in
-// this GET handler — never inside getNearbyCare(), which sos.ts shares to
+// this GET handler, never inside getNearbyCare(), which sos.ts shares to
 // put a callable number in the SOS report response. SOS state must not be
 // served stale, so the SOS path always reads fresh rows.
 export const careCache = new LRUCache<string, NearbyCareProvider[]>({
@@ -113,7 +113,7 @@ export interface NearbyCareProvider {
   lng: number;
   // Measured distance in metres, ONLY when geoPrecision is "exact". null
   // for a "locality" row means "unmeasured", not "zero" or "unknown but
-  // close" — never render it as a number. Use `locality` instead.
+  // close". Never render it as a number. Use `locality` instead.
   distanceM: number | null;
 }
 
@@ -129,13 +129,13 @@ function geoWkt(lat: number, lng: number): string {
  * Why this exists on the READ path, when the write side is constrained.
  * `0015_care_phone_e164_retry.sql` puts a real E.164 CHECK on the column and
  * enforces it on every future INSERT and UPDATE, so on a healthy database this
- * function is a no-op — `normalizeIndianPhone("+912224137518")` returns its
+ * function is a no-op: `normalizeIndianPhone("+912224137518")` returns its
  * input. The case it covers is the one that actually happened: `0013` was
  * supposed to normalise the column and silently skipped its constraint on the
  * production cluster, so rows have sat there in national format
  * ("02224137518") for as long as that has been true. 0015 rewrites the ones it
- * can parse, but until it is applied — and for any row it declines to rewrite
- * (see its collision handling) — the directory still hands the scan page a
+ * can parse, but until it is applied, and for any row it declines to rewrite
+ * (see its collision handling), the directory still hands the scan page a
  * number in a form that only dials from an Indian SIM. Mumbai has a lot of
  * visitors, and a `tel:` link that silently fails on a foreign handset is a
  * dead end at the worst possible moment.
@@ -143,7 +143,7 @@ function geoWkt(lat: number, lng: number): string {
  * NEVER returns null for a non-null input. An unparseable number is passed
  * through rather than hidden: the directory's own rule is that "a
  * possibly-stale number beats none, but the user is told which it is"
- * (phone_verified_at), and the same logic holds harder for format — a number we
+ * (phone_verified_at), and the same logic holds harder for format: a number we
  * cannot canonicalise is very likely still dialable, and blanking it is a
  * guaranteed dead end in place of a probable connection.
  *
@@ -158,7 +158,7 @@ function dialable(stored: string | null): string | null {
   return normalizeIndianPhone(stored) ?? stored;
 }
 
-// Canonical query — kept in lockstep with docs/queries/care_nearby.sql and
+// Canonical query, kept in lockstep with docs/queries/care_nearby.sql and
 // the Supabase RPC twin public.get_nearby_care (ops/supabase/03_hardening.sql).
 //
 // Ordering: exact-precision rows first (a real measurement is always worth
@@ -258,7 +258,7 @@ export default async function careRoutes(app: FastifyInstance): Promise<void> {
     const { lat, lng, kind, max_km } = parsed.data;
 
     // 60s read-through cache keyed on the full query. Only successful
-    // responses are stored — a 400 path above never reaches this line, so
+    // responses are stored. A 400 path above never reaches this line, so
     // an error can never be served from cache.
     const key = `${lat},${lng},${max_km},${kind ?? ""}`;
     const cached = careCache.get(key);

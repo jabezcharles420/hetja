@@ -108,7 +108,7 @@ describe("POST /api/v1/metrics/web-vitals (enhancement stack §M.16)", () => {
   });
 });
 
-describe("POST /api/v1/metrics/web-vitals — ingest cap", () => {
+describe("POST /api/v1/metrics/web-vitals: ingest cap", () => {
   it("accepts a normal beacon while the budget is intact", async () => {
     const app = buildServer(config);
     const res = await app.inject({
@@ -213,7 +213,7 @@ describe("pathCarriesDogIdentity (INVARIANT 2 for telemetry)", () => {
     // The old guard was an unanchored /[a-km-z2-9]{9}/, so every one of these
     // 400'd: "dashboard" is nine characters and every one of them is in the
     // collar alphabet, "leaderboard" contains "eaderboard", and so on. No route
-    // in the app trips it today, which is the only reason this was latent — the
+    // in the app trips it today, which is the only reason this was latent. The
     // first nine-letter route added would have silently lost all its telemetry.
     for (const path of [
       "/",
@@ -240,7 +240,7 @@ describe("pathCarriesDogIdentity (INVARIANT 2 for telemetry)", () => {
     expect(pathCarriesDogIdentity(`/dog/${slug}/medical`)).toBe(true);
     // A slug-shaped segment at a slug position is per-dog identity whether or
     // not its check character is valid, so it goes too. ("abc234567" is nine
-    // in-alphabet characters whose check character does not verify — a mistyped
+    // in-alphabet characters whose check character does not verify: a mistyped
     // collar, not a real one. Note that "abc123def" is NOT slug-shaped at all:
     // "1" is one of the confusables the alphabet excludes.)
     expect(pathCarriesDogIdentity("/d/abc234567")).toBe(true);
@@ -257,7 +257,7 @@ describe("pathCarriesDogIdentity (INVARIANT 2 for telemetry)", () => {
   });
 });
 
-describe("POST /api/v1/metrics/web-vitals — slug guard at the route", () => {
+describe("POST /api/v1/metrics/web-vitals: slug guard at the route", () => {
   it("accepts /dashboard and /leaderboard", async () => {
     const app = buildServer(config);
     for (const path of ["/dashboard", "/leaderboard"]) {

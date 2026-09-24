@@ -1,13 +1,13 @@
 -- Hetja · migration 0019_registration_lifecycle
 -- Columns, backfill and indexes for self-serve dog registration (wave 6).
 -- Depends on 0018_registrator_enum.sql having committed the new enum values in
--- its own transaction — see that file's header for why they cannot share one:
+-- its own transaction (see that file's header for why they cannot share one):
 -- this file NAMES 'pending_activation' (in index predicates and in the guard
 -- below), which PostgreSQL refuses inside the transaction that added it.
 --
 -- ADDITIVE ONLY, AND SHAPED FOR A LIVE BOX. Every ADD COLUMN is nullable or
 -- NOT NULL with a constant DEFAULT, so PostgreSQL records each in the catalog
--- without rewriting `dogs` — the difference between a fast deploy and holding
+-- without rewriting `dogs`: the difference between a fast deploy and holding
 -- an ACCESS EXCLUSIVE lock through a table rewrite while the API serves scans
 -- off it. Nothing here matches ops/check-destructive-migrations.sh's patterns
 -- (plain UPDATE is not DELETE FROM), so no MIGRATION-APPROVED marker is needed
@@ -30,7 +30,7 @@ ALTER TABLE feeders
 -- the erasure whenever the person had ever registered a dog; CASCADE would
 -- delete a dog that is still out there wearing a collar. SET NULL is the honest
 -- outcome: the register survives, the budget effect disappears, and "who
--- registered this" becomes unanswerable — which is what erasure means.
+-- registered this" becomes unanswerable, which is what erasure means.
 
 COMMENT ON COLUMN dogs.registered_by IS
   'The feeder account that filed this registration, if any. NULLable by '
@@ -58,13 +58,13 @@ COMMENT ON COLUMN dogs.activation_scan_id IS
   'Deliberately NOT a foreign key: a hard FK from dogs to scans inverts the '
   'existing deletion order (scans.dog_id already references dogs), and this '
   'repo lost a day to exactly that kind of referential-integrity trigger '
-  'behind removing a dog row — see 0012''s header and AGENTS.md §h. A '
+  'behind removing a dog row (see 0012''s header and AGENTS.md §h). A '
   'diagnostic pointer does not justify a second one. It may therefore dangle '
   'after a retention sweep removes old scans; read it as provenance, never '
   'join across it for correctness.';
 COMMENT ON COLUMN dogs.registered_device_id IS
   'The canonical deviceTokenSubject() value of the device that filed the '
-  'registration — the attested deviceId, NEVER the bearer token itself. Same '
+  'registration: the attested deviceId, NEVER the bearer token itself. Same '
   'rule and same reasoning as scans.device_token: the token string is not a '
   'canonical name for a device, and storing it would put replayable '
   'credentials in the database. This column is the second half of the '
@@ -76,21 +76,21 @@ COMMENT ON COLUMN feeders.can_register IS
   'The operator-side kill switch for self-serve registration on ONE account. '
   'Exists separately from feeders.role because registrator is self-elected: '
   'revoking the role would be a demotion of a surface the account can simply '
-  're-elect, so the real control lives here — disabling it leaves the '
+  're-elect, so the real control lives here; disabling it leaves the '
   'account''s feeder surface, streak and trust untouched.';
 
 -- ---------------------------------------------------------------------------
--- THE BACKFILL — the most important statement in this file.
+-- THE BACKFILL: the most important statement in this file.
 --
 -- Every dog already in the register predates sos_eligible_at. Without a
 -- backfill, wave 7's fan-out gate (`sos_eligible_at IS NOT NULL`) switches the
--- SOS responder fan-out OFF FOR THE ENTIRE REGISTER the moment it deploys —
+-- SOS responder fan-out OFF FOR THE ENTIRE REGISTER the moment it deploys,
 -- silently, with a green health check, on the one path whose failure mode is
 -- an animal dying untreated.
 --
 -- created_at, not now(): these dogs have been eligible since enrolment.
 -- Stamping the deploy timestamp would make the column lie about every dog it
--- touches, and eligibility feeds responder paging — a column that lies here
+-- touches, and eligibility feeds responder paging. A column that lies here
 -- delays real fan-out by the gap between enrolment and this migration.
 -- ---------------------------------------------------------------------------
 

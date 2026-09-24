@@ -1,26 +1,26 @@
 /**
- * Hetja SOS — report + case state routes.
+ * Hetja SOS: report + case state routes.
  *
- * POST /api/v1/reports        — anon-attested (device token, INVARIANT 7 caps)
+ * POST /api/v1/reports:         anon-attested (device token, INVARIANT 7 caps)
  *                                OR feeder-authed (Bearer access token). Opens a
  *                                sos_case at tier 1. Severity routing:
  *                                minor/serious wait for validation before fan-out
  *                                (validation pipeline is out of Phase-0 scope, so
  *                                no responders are notified at report time);
  *                                critical fans out immediately via the canonical
- *                                query in docs/queries/sos_fanout.sql — but ONLY
+ *                                query in docs/queries/sos_fanout.sql, but ONLY
  *                                when dogs.sos_eligible_at IS NOT NULL (wave 7:
  *                                corroboration gates responder paging, never the
  *                                report itself or nearbyCare). Every response
  *                carries `fanout`: "responders" when the responder fan-out is
  *                what owns this case's notification, "escalated" when it is not.
  *                The escalate_sos job runs at now() instead of +8 min whenever
- *                responders were NOT paged at report time on a critical case —
+ *                responders were NOT paged at report time on a critical case:
  *                there is no one to wait eight minutes for.
- * GET  /api/v1/sos/cases/:id   — feeder-authed case state, visible only to the
+ * GET  /api/v1/sos/cases/:id:    feeder-authed case state, visible only to the
  *                acker, the responders paged for it, or a moderator.
- * POST /api/v1/sos/cases/:id/ack     — first writer wins (below).
- * POST /api/v1/sos/cases/:id/resolve — closes a case (acker or moderator).
+ * POST /api/v1/sos/cases/:id/ack:      first writer wins (below).
+ * POST /api/v1/sos/cases/:id/resolve:  closes a case (acker or moderator).
  */
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -33,7 +33,7 @@ import { parseUuidParam } from "../lib/params.js";
 import { capabilitiesFor, requireFeeder } from "../lib/require-role.js";
 import { getNearbyCare } from "./care.js";
 
-// INVARIANT 7 — anonymous SOS is capped per attested device token.
+// INVARIANT 7: anonymous SOS is capped per attested device token.
 const SOS_DAILY_CAP = 2;
 const SOS_WEEKLY_CAP = 5;
 
@@ -69,16 +69,16 @@ interface DogRow {
  * What owns this case's responder notification, reported as `fanout` in every
  * POST /api/v1/reports response:
  *
- *   "responders" — the responder fan-out ran for this case (it was critical
+ *   "responders":  the responder fan-out ran for this case (it was critical
  *                  AND the dog was corroborated). `tier` then says whether it
  *                  found anyone: 1 = responders paged, 2 = the set came back
  *                  empty and escalation took over immediately.
- *   "escalated"  — responder paging did NOT run at report time: the dog is
+ *   "escalated":   responder paging did NOT run at report time: the dog is
  *                  uncorroborated (paging gated off), or the severity defers
  *                  to validation. The escalation channel owns notification.
  *
  * The field exists because tier alone cannot distinguish "paging was gated
- * off" from "paging ran and found nobody nearby" — two states that need
+ * off" from "paging ran and found nobody nearby": two states that need
  * opposite operator responses.
  */
 type FanoutDisposition = "responders" | "escalated";
@@ -123,7 +123,7 @@ function deterministicUuid(namespace: string, input: string): string {
  * tier 2 immediately. Returns true when responders were notified.
  *
  * WHERE PROXIMITY COMES FROM (wave 7). This query used to filter on
- * feeders.last_known_geo — a column NOTHING ever wrote, so it returned zero
+ * feeders.last_known_geo, a column NOTHING ever wrote, so it returned zero
  * rows on every call, every case silently took the tier-2 branch, and no
  * responder was ever paged while every log line looked healthy. It now
  * derives proximity from where a feeder has actually SCANNED: at least one
@@ -134,7 +134,7 @@ function deterministicUuid(namespace: string, input: string): string {
  * THE STATED COST: a feeder who has moved is stale until their next geotagged
  * scan. Accepted deliberately, in exchange for not keeping a rolling record
  * of where account holders are. Do NOT "fix" this by populating
- * feeders.last_known_geo / feeders.last_seen_at — both are dead by decision,
+ * feeders.last_known_geo / feeders.last_seen_at: both are dead by decision,
  * documented in migration 0020's column comments, and feeders_sos_gix (the
  * partial GIST index over last_known_geo) is dead weight for the same reason:
  * left in place rather than dropped, because dropping it trips the destructive
@@ -199,8 +199,8 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     }
     const { dogSlug, severity, note, deviceToken } = parsed.data;
 
-    // INVARIANT 6/7: `deviceSubject` — the canonical deviceId the token
-    // attests — is the rate-limit subject, and the ONLY device-derived value
+    // INVARIANT 6/7: `deviceSubject` (the canonical deviceId the token
+    // attests) is the rate-limit subject, and the ONLY device-derived value
     // this route is allowed to key on. Never `deviceToken` as submitted: the
     // token string is not a canonical name for a device (Node's base64 decoder
     // ignores padding and non-alphabet bytes, so `tok`, `tok=` and `tok!` all
@@ -232,7 +232,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     // Keyed on `deviceSubject`, not the token string, for the same reason the
     // cap below is: otherwise re-encoding the token also defeats the dedupe,
     // and one held report re-submits as an unbounded family of new cases.
-    // Feeder-authed reports key on the ACCOUNT instead — before wave 7 two
+    // Feeder-authed reports key on the ACCOUNT instead. Before wave 7 two
     // different feeders reporting the same dog with the same words produced
     // the same key, and the second feeder was silently handed the first one's
     // live case as a "replay".
@@ -240,7 +240,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       "sos-report",
       // Feeder identity wins over device deliberately: accounts sharing one
       // phone (an NGO field phone, say) must not collide into each other's
-      // cases, while one account reporting from two devices SHOULD collapse —
+      // cases, while one account reporting from two devices SHOULD collapse:
       // it is the account that holds the cap and the standing.
       [feederId ?? deviceSubject ?? "", dogSlug, severity, note ?? ""].join("|"),
     );
@@ -267,7 +267,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         if (replay && (replay.state === "open" || replay.state === "acked")) {
           // The disposition is reconstructed from what actually happened to
           // this case rather than remembered: push notification rows exist ⇔
-          // the responder fan-out ran for it. Channel matters — escalated
+          // the responder fan-out ran for it. Channel matters: escalated
           // cases accumulate sms/bmc rows from the worker, which say nothing
           // about responder paging.
           const paged = await client.query<{ n: number }>(
@@ -283,16 +283,16 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           };
         }
 
-        // INVARIANT 7 — SOS caps, rolling windows. `$1`/subject differs by
+        // INVARIANT 7: SOS caps, rolling windows. `$1`/subject differs by
         // caller kind and NEVER derives from the IP (INVARIANT 6):
         //
-        //   anon   — the canonical deviceId the token attests (`deviceSubject`).
+        //   anon:    the canonical deviceId the token attests (`deviceSubject`).
         //            Not `deviceToken` as submitted: the token string is not a
         //            canonical name for a device (see the comment above), so
         //            keying on it let each re-encoding mint a fresh budget.
-        //   authed — the feeder account. Wave 7: authenticated callers were
+        //   authed:  the feeder account. Wave 7: authenticated callers were
         //            previously exempt from every cap, which INVARIANT 6 does
-        //            not license ("per account OR per device") — an signed-in
+        //            not license ("per account OR per device"), so a signed-in
         //            abuser could page responders without bound.
         //
         // Both are ROLLING windows (now() - interval), matching the comment
@@ -304,7 +304,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // two are not one-to-one: the dedupe key below is deterministic, so a
         // report re-filed after its case was resolved reuses the existing scans
         // row (ON CONFLICT DO NOTHING) and opens a NEW case. Counting scans let
-        // that path open cases without ever touching the cap — one held report
+        // that path open cases without ever touching the cap: one held report
         // could re-open a fresh case every time a moderator closed the last
         // one. Counting the cases opened by this subject in the window is the
         // thing INVARIANT 7 actually bounds. Indexed by 0023.
@@ -355,7 +355,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // caps are rolling 1-day/7-day windows, so those age out on their own
         // and no migration is required (see docs/INVARIANTS.md #7).
         //
-        // feeder_id records the account behind a Bearer-authed report — the
+        // feeder_id records the account behind a Bearer-authed report; the
         // per-account cap above counts these rows, and corroboration's
         // distinct-subject count treats the account as one subject.
         const scanRes = await client.query<{ id: string }>(
@@ -382,7 +382,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         );
         const caseId = caseRes.rows[0].id;
 
-        // WAVE 7 — corroboration gates RESPONDER PAGING and nothing else. The
+        // WAVE 7: corroboration gates RESPONDER PAGING and nothing else. The
         // report itself was already accepted above unconditionally, and
         // nearbyCare below is returned for every outcome regardless of this
         // branch: in an emergency the fastest useful thing is a phone number,
@@ -395,12 +395,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         //                 tier 2 and escalation runs at now(): HOW-IT-WORKS §3.2
         //                 promises "if no eligible responder exists, it escalates
         //                 to tier 2 immediately", and until wave 7 the code
-        //                 broke that promise — zero responders still waited out
+        //                 broke that promise: zero responders still waited out
         //                 the full 8-minute timer before ANYONE was notified.
         //                 `fanout` stays "responders": the responder path ran;
         //                 tier:2 records that it came back empty.
         //   ineligible  → suppressed. tier 2, no responder rows, no push job,
-        //                 escalation at now() — vets and BMC are notified
+        //                 escalation at now(). Vets and BMC are notified
         //                 immediately rather than after a timer whose only job
         //                 was to wait for a responder who was never paged.
         //   minor/serious → unchanged: tier 1, no paging at report time
@@ -422,7 +422,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
               // (web-push + VAPID) rather than blocking this request on it.
               // The worker writes delivered_at on success and leaves it null
               // on failure, so the sos_notifications receipt columns mean
-              // something. Enqueued ONLY here — a job nothing enqueues is a ✅
+              // something. Enqueued ONLY here: a job nothing enqueues is a ✅
               // that lies (see docs/INVARIANTS.md on INVARIANT 10's history).
               await client.query(
                 `INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`,
@@ -484,21 +484,21 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * GET /api/v1/sos/cases/:id — case state, BOUND to the people the case is
+   * GET /api/v1/sos/cases/:id: case state, BOUND to the people the case is
    * about (wave 7). It previously accepted any valid feeder token, so any
    * account could read any case: who acknowledged it, where it stands. A case
    * is now readable by exactly:
    *
    *   - the responder who acknowledged it (acked_by),
-   *   - a responder paged for it (a sos_notifications row exists for them —
+   *   - a responder paged for it (a sos_notifications row exists for them:
    *     the fan-out set; they were told about this dog and may be driving to
    *     it), or
-   *   - a moderator (the `moderate` capability — admin today), who needs read
+   *   - a moderator (the `moderate` capability, admin today), who needs read
    *     access to arbitrate disputes and false-alarm reports, mirroring the
    *     resolve route below.
    *
    * requireFeeder (not a bare verifyAccessToken) because the binding needs the
-   * caller's LIVE role anyway — and its FEEDER_GONE behaviour means a valid
+   * caller's LIVE role anyway, and its FEEDER_GONE behaviour means a valid
    * token for an erased account reads nothing.
    */
   app.get("/api/v1/sos/cases/:id", async (req: FastifyRequest, reply: FastifyReply) => {
@@ -559,13 +559,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * POST /api/v1/sos/cases/:id/resolve { resolution, outcome? } — close a
+   * POST /api/v1/sos/cases/:id/resolve { resolution, outcome? }: close a
    * case (wave 7).
    *
    * resolved_at / resolution / state ∈ ('resolved','false_alarm') were columns
    * NOTHING wrote: cases could ack and escalate but never finish, so the case
    * machine had no terminal state and every "open cases" metric counted
-   * forever. Who may resolve is deliberately narrow — the responder who
+   * forever. Who may resolve is deliberately narrow: the responder who
    * ACKNOWLEDGED the case (they went out there; their word is what closes it)
    * or a `moderate` holder (admin) resolving unclaimed or disputed cases.
    * The anonymous reporter has no standing here: reports can be filed with no
@@ -574,7 +574,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
    *
    * outcome defaults to 'resolved'; 'false_alarm' exists for cases where the
    * report did not correspond to a real emergency. Either way resolved_at is
-   * stamped — both are terminal states, and a closed case must LOOK closed.
+   * stamped. Both are terminal states, and a closed case must LOOK closed.
    *
    * A retry after success is idempotent (same contract as the ack above): the
    * stored truth is returned rather than a 409, because a flaky-network resend
@@ -685,7 +685,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * POST /api/v1/sos/cases/:id/ack — first writer wins (plan §3.1).
+   * POST /api/v1/sos/cases/:id/ack: first writer wins (plan §3.1).
    *
    * A conditional UPDATE (`WHERE acked_by IS NULL AND resolved_at IS NULL`) is
    * the whole mechanism: only the first feeder to reach a still-open row claims
@@ -698,7 +698,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
    *
    * `resolved_at IS NULL` is load-bearing. The predicate used to be
    * `acked_by IS NULL` alone, and a moderator can resolve a case NOBODY
-   * acknowledged (false alarm, or closed from the desk) — such a row has
+   * acknowledged (false alarm, or closed from the desk). Such a row has
    * acked_by NULL and resolved_at set. An ack arriving afterwards then matched,
    * stamped acked_by/acked_at and set `state = 'acked'`, silently REOPENING a
    * closed case: its terminal state overwritten, the case machine walked
@@ -759,7 +759,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       }
       if (existingRow.resolved_at !== null) {
         // Closed without this responder ever owning it. Nothing to claim and
-        // nothing to stand down — the case is finished, and saying so beats a
+        // nothing to stand down. The case is finished, and saying so beats a
         // misleading "already claimed" when nobody ever acked it.
         return { status: "closed" as const };
       }

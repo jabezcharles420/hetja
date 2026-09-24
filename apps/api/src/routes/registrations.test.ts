@@ -1,5 +1,5 @@
 /**
- * Self-serve registration (wave 6) — routes/registrations.ts + the activation
+ * Self-serve registration (wave 6): routes/registrations.ts + the activation
  * and corroboration halves of routes/scans.ts.
  *
  * Patterned on enrolment.test.ts, and like it this file cares most about the
@@ -9,9 +9,9 @@
  *
  * The rest of the matrix maps the abuse model one-to-one: a plain feeder gets
  * nothing; a disabled account gets nothing; two pending registrations are the
- * ceiling per ACCOUNT and per DEVICE; and the inert-until-scanned lifecycle —
- * pending → activated by the first geotagged scan of anyone → corroborated by
- * a second distinct subject — including the replay and expired-tag corners.
+ * ceiling per ACCOUNT and per DEVICE; and the inert-until-scanned lifecycle
+ * (pending → activated by the first geotagged scan of anyone → corroborated by
+ * a second distinct subject), including the replay and expired-tag corners.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -82,7 +82,7 @@ async function register(feederToken: string, deviceToken: string, wardId = "K-We
   });
 }
 
-describe("POST /api/v1/registrations — access control", () => {
+describe("POST /api/v1/registrations: access control", () => {
   it("401s with no token", async () => {
     const res = await app.inject({
       method: "POST",
@@ -92,7 +92,7 @@ describe("POST /api/v1/registrations — access control", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("403s for a plain feeder — the register capability is not everyone's", async () => {
+  it("403s for a plain feeder: the register capability is not everyone's", async () => {
     const feeder = await makeFeeder("feeder");
     // Even WITH a valid attested device: the capability gate binds first, so
     // possession of a PoW token alone buys no step toward minting identifiers.
@@ -119,7 +119,7 @@ describe("POST /api/v1/registrations — access control", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("400s on a non-canonical ward — free-text wards are how the heatmap goes blind", async () => {
+  it("400s on a non-canonical ward: free-text wards are how the heatmap goes blind", async () => {
     const registrator = await makeFeeder("registrator");
     const res = await register(
       registrator.token,
@@ -131,8 +131,8 @@ describe("POST /api/v1/registrations — access control", () => {
   });
 });
 
-describe("POST /api/v1/registrations — the mint", () => {
-  it("creates an inert registration whose printed URL resolves — the assertion that protects a physical object", async () => {
+describe("POST /api/v1/registrations: the mint", () => {
+  it("creates an inert registration whose printed URL resolves (the assertion that protects a physical object)", async () => {
     const registrator = await makeFeeder("registrator");
     const res = await register(
       registrator.token,
@@ -196,7 +196,7 @@ describe("POST /api/v1/registrations — the mint", () => {
 
     // Same rule as scans.device_token: the stored value must be the derived
     // deviceId (deviceTokenSubject's return), so a leak of this column hands
-    // over no replayable credential — and no padded/punctuated token variant
+    // over no replayable credential, and no padded/punctuated token variant
     // can mint a second budget subject.
     const row = await query<{ registered_device_id: string; sos_eligible_at: Date | null }>(
       `SELECT registered_device_id, sos_eligible_at FROM dogs WHERE slug = $1`,
@@ -228,9 +228,9 @@ describe("POST /api/v1/registrations — the mint", () => {
     for (const row of pendings.rows) slugsToClean.push(row.slug);
   });
 
-  it("429s on a third pending registration for the same DEVICE — ten aliases buy nothing", async () => {
-    // Account A fills ITS budget on device X; account B — brand new, zero
-    // registrations of its own — then presents the SAME device X and is told
+  it("429s on a third pending registration for the same DEVICE: ten aliases buy nothing", async () => {
+    // Account A fills ITS budget on device X; account B (brand new, zero
+    // registrations of its own) then presents the SAME device X and is told
     // the phone, not the inbox, is out of budget.
     const accountA = await makeFeeder("registrator");
     const sharedToken = issueDeviceToken(config.HETJA_DEVICE_SECRET);
@@ -249,7 +249,7 @@ describe("POST /api/v1/registrations — the mint", () => {
     for (const row of pendings.rows) slugsToClean.push(row.slug);
   });
 
-  it("403s REGISTRATION_DISABLED when the operator flag is off — without touching the role", async () => {
+  it("403s REGISTRATION_DISABLED when the operator flag is off, without touching the role", async () => {
     const registrator = await makeFeeder("registrator");
     await query(`UPDATE feeders SET can_register = FALSE WHERE id = $1`, [registrator.id]);
 
@@ -269,7 +269,7 @@ describe("POST /api/v1/registrations — the mint", () => {
   });
 });
 
-describe("GET /api/v1/registrations — my registrations", () => {
+describe("GET /api/v1/registrations: my registrations", () => {
   it("lists only the caller's registrations, with no coordinates anywhere", async () => {
     const mine = await makeFeeder("registrator");
     const theirs = await makeFeeder("registrator");
@@ -300,7 +300,7 @@ describe("GET /api/v1/registrations — my registrations", () => {
     expect(JSON.stringify(res.json())).not.toMatch(/"(lat|lng|latitude|longitude|geo)"/i);
   });
 
-  it("403s NOT_YOUR_REGISTRATION for another registrator — self-election grants no authority over others", async () => {
+  it("403s NOT_YOUR_REGISTRATION for another registrator: self-election grants no authority over others", async () => {
     const owner = await makeFeeder("registrator");
     const stranger = await makeFeeder("registrator");
     const created = await register(owner.token, issueDeviceToken(config.HETJA_DEVICE_SECRET));
@@ -316,7 +316,7 @@ describe("GET /api/v1/registrations — my registrations", () => {
     expect(res.json().error.code).toBe("NOT_YOUR_REGISTRATION");
 
     // …but the enrolment desk (admin holds `enrol`) can still read any
-    // registration — support and audit need the door the public lacks.
+    // registration. Support and audit need the door the public lacks.
     const admin = await makeFeeder("admin");
     const adminView = await app.inject({
       method: "GET",
@@ -328,7 +328,7 @@ describe("GET /api/v1/registrations — my registrations", () => {
   });
 });
 
-describe("POST /api/v1/feeders/me/surface — self-election", () => {
+describe("POST /api/v1/feeders/me/surface: self-election", () => {
   it("a plain feeder becomes a registrator and can immediately register", async () => {
     const feeder = await makeFeeder("feeder");
     const res = await app.inject({
@@ -359,7 +359,7 @@ describe("POST /api/v1/feeders/me/surface — self-election", () => {
     expect(res.json().data.role).toBe("registrator");
   });
 
-  it("409s ROLE_NOT_ELECTABLE for roles that already hold the capability — electing would demote them", async () => {
+  it("409s ROLE_NOT_ELECTABLE for roles that already hold the capability: electing would demote them", async () => {
     const admin = await makeFeeder("admin");
     const res = await app.inject({
       method: "POST",
@@ -455,7 +455,7 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     expect(state.status).toBe("pending_activation");
     expect(state.activated_at).toBeNull();
 
-    // A DIFFERENT person's geotagged scan activates — identity is not the
+    // A DIFFERENT person's geotagged scan activates: identity is not the
     // gate, physical presence is (and registered_by can be NULL post-erasure).
     const stranger = await makeFeeder("feeder");
     const activating = await retagAsFeeder(slug, stranger.token, { geo: MUMBAI });
@@ -468,7 +468,7 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     expect(state.activation_scan_id).not.toBeNull();
   });
 
-  it("a device-token scan also activates — the attested phone standing there counts", async () => {
+  it("a device-token scan also activates: the attested phone standing there counts", async () => {
     const slug = await registerDog();
     const res = await retagAsDevice(slug, issueDeviceToken(config.HETJA_DEVICE_SECRET), {
       geo: MUMBAI,
@@ -498,11 +498,11 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     expect((await dogState(slug)).activated_at?.getTime()).toBe(first.activated_at?.getTime());
   });
 
-  it("one distinct subject leaves sos_eligible_at NULL; a second sets it — once", async () => {
+  it("one distinct subject leaves sos_eligible_at NULL; a second sets it, once", async () => {
     const slug = await registerDog();
 
     // Subject #1 (a device): activates the dog, but one phone is not
-    // corroboration — the SOS fan-out must stay off.
+    // corroboration, so the SOS fan-out must stay off.
     await retagAsDevice(slug, issueDeviceToken(config.HETJA_DEVICE_SECRET), { geo: MUMBAI });
     let state = await dogState(slug);
     expect(state.sos_eligible_at).toBeNull();
@@ -513,12 +513,12 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     expect(state.sos_eligible_at).not.toBeNull();
     const stampedAt = state.sos_eligible_at?.getTime();
 
-    // Set once, NEVER cleared or re-stamped — more scans change nothing.
+    // Set once, NEVER cleared or re-stamped: more scans change nothing.
     await retagAsFeeder(slug, (await makeFeeder("admin")).token, { geo: MUMBAI });
     expect((await dogState(slug)).sos_eligible_at?.getTime()).toBe(stampedAt);
   });
 
-  it("a verified feeder alone corroborates — one trusted witness suffices", async () => {
+  it("a verified feeder alone corroborates: one trusted witness suffices", async () => {
     const slug = await registerDog();
     const verifier = await makeFeeder("feeder");
     // What cli/grant-verified.ts writes from the box; done inline here so the
@@ -529,7 +529,7 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     expect((await dogState(slug)).sos_eligible_at).not.toBeNull();
   });
 
-  it("an EXPIRED tag reactivates on a geotagged scan — day-32 attach beats day-30 expiry", async () => {
+  it("an EXPIRED tag reactivates on a geotagged scan: day-32 attach beats day-30 expiry", async () => {
     const slug = await registerDog();
 
     // What the wave-9 expiry sweep will do to a pending registration past its
@@ -554,11 +554,11 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     }
 
     // Pending: excluded by the heatmap's `d.status = 'active'` join predicate
-    // with ZERO code changes — the whole reason this shipped as a status VALUE.
+    // with ZERO code changes, the whole reason this shipped as a status VALUE.
     expect(await cellCount()).toBe(0);
 
     // Activate it and give it a real geotagged feed: the dog is now active and
-    // scanned, yet still yields no cell — k-anonymity (≥3 dogs) holds, and a
+    // scanned, yet still yields no cell: k-anonymity (≥3 dogs) holds, and a
     // pending population could only ever have reduced counts, never raised
     // them.
     const feeder = await makeFeeder("feeder");

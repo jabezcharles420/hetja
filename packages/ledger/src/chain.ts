@@ -1,5 +1,5 @@
 /**
- * Hetja tamper-evident medical ledger — INVARIANT 9: every record hash is
+ * Hetja tamper-evident medical ledger. INVARIANT 9: every record hash is
  * SHA-256 over a LENGTH-PREFIXED concatenation, so field boundaries are
  * unambiguous and concatenation collisions are impossible.
  */
@@ -37,7 +37,7 @@ export function canonicalPayload(payload: LedgerPayload): string {
 }
 
 /**
- * hashInput(prevHash, payload, vetId, ts) — the exact bytes fed to SHA-256:
+ * hashInput(prevHash, payload, vetId, ts): the exact bytes fed to SHA-256:
  *   len(prev)||prev || len(payload)||payload || len(vetId)||vetId || len(ts)||ts
  * Each length is a 4-byte big-endian prefix, so "ab"+"c" and "a"+"bc" can never
  * produce the same input (INVARIANT 9).

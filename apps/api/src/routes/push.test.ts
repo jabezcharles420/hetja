@@ -129,7 +129,7 @@ describe("POST /api/v1/push/subscribe", () => {
 
   it("refuses to re-assign an endpoint owned by another feeder (subscription theft)", async () => {
     // The unscoped upsert let anyone who learned another feeder's endpoint URL
-    // reassign that subscription to themselves with one request — and then
+    // reassign that subscription to themselves with one request, and then
     // receive their SOS pushes. Ownership is now frozen at first claim; a
     // cross-account subscriber gets an explicit 409 rather than a silent
     // no-op, and the row is left untouched.

@@ -1,5 +1,5 @@
 /**
- * ALTCHA v2 SHA-256 proof-of-work solver — the client half of INVARIANT 6's
+ * ALTCHA v2 SHA-256 proof-of-work solver: the client half of INVARIANT 6's
  * anonymous device attestation, shared by every browser surface that has to
  * mint a device token.
  *
@@ -10,12 +10,12 @@
  *   - `apps/scan` (a stranger standing over an injured dog) needs a device
  *     token before `POST /api/v1/reports` will accept an anonymous SOS.
  *   - `apps/web` needs one before `POST /api/v1/auth/verify` will accept an
- *     OTP at all — `apps/api/src/routes/auth.ts` gates the whole login on
+ *     OTP at all; `apps/api/src/routes/auth.ts` gates the whole login on
  *     `verifyDeviceToken`, so a feeder with no attested token cannot sign in.
  *
  * The second one is why this package exists. `apps/web`'s login page used to
  * send a bare `uuid()` as its "device token", which has no `.` separator and
- * therefore failed `deviceTokenSubject`'s very first guard (`dot <= 0`) —
+ * therefore failed `deviceTokenSubject`'s very first guard (`dot <= 0`), so
  * every web login attempt 401'd, and always had. The obvious fix was to copy
  * the ~120 lines of solver out of `apps/scan/src/device.ts`. That is exactly
  * how this repository acquired its recent crop of bugs: a hand-copied crypto
@@ -32,7 +32,7 @@
  * `@hetja/*` package before this one, because `@hetja/contracts` would drag
  * zod into that page. This package is the exception that keeps the rule: no
  * dependencies at all, no `@types/node` (see tsconfig.json's `"types": []`),
- * nothing but Web Crypto and the DOM — so it costs the scan bundle only the
+ * nothing but Web Crypto and the DOM, so it costs the scan bundle only the
  * bytes of the code that was already there. Never add a dependency here. If
  * something needs zod, or Node's `crypto`, or a framework, it belongs in the
  * app, not in this package.
@@ -41,14 +41,14 @@
  * there is no `dist/`) rather than as a built artifact. That is not laziness:
  * both consumers are bundlers that compile TS themselves (esbuild for scan,
  * SWC via `transpilePackages` for Next), and a `dist/` would add a build-order
- * prerequisite to `pnpm --filter @hetja/scan build` — which today is one
+ * prerequisite to `pnpm --filter @hetja/scan build`, which today is one
  * esbuild invocation with nothing to build first. It also lets esbuild
  * tree-shake and minify the real source instead of tsc's output, which is how
  * sharing the code costs the scan bundle essentially nothing.
  */
 
 /** ALTCHA v2 challenge parameters, as issued by `POST /api/v1/devices/challenge`
- * (i.e. by `altcha-lib`'s `createChallenge` — see `apps/api/src/lib/device.ts`). */
+ * (i.e. by `altcha-lib`'s `createChallenge`; see `apps/api/src/lib/device.ts`). */
 export interface PowChallengeParameters {
   algorithm: string;
   nonce: string;
@@ -79,13 +79,13 @@ export interface PowSolution {
  * free parallelism; the number only has to be big enough that the per-await
  * overhead is amortised and small enough that one batch stays well inside a
  * frame. It is deliberately NOT the thing that controls how often the main
- * thread is released — see YIELD_INTERVAL_MS.
+ * thread is released; see YIELD_INTERVAL_MS.
  */
 export const SOLVE_BATCH = 48;
 
 /**
  * Hand the main thread back only once this much wall clock has passed since
- * the last yield — a frame's worth — rather than once per batch.
+ * the last yield (a frame's worth) rather than once per batch.
  *
  * This number is the whole fix for a solver that could not finish inside its
  * own timeout. One batch of 48 digests is well under a millisecond of real
@@ -94,7 +94,7 @@ export const SOLVE_BATCH = 48;
  * inside a setTimeout-driven chain to 4 ms, which this self-chaining loop hit
  * on its second iteration, so at 20 effective bits (2^20 / 48 = 21,845
  * batches) the solve owed 21,845 x 4 ms = ~87 s of pure timer delay against a
- * 20,000 ms deadline. It could not succeed — measured 4 solves in 10 — and on
+ * 20,000 ms deadline. It could not succeed (measured 4 solves in 10), and on
  * `apps/scan` that failure surfaces as "Couldn't confirm the report
  * automatically" to a stranger standing over an injured dog, while on
  * `apps/web` it surfaces as a feeder who cannot log in.
@@ -106,7 +106,7 @@ export const SOLVE_BATCH = 48;
  */
 export const YIELD_INTERVAL_MS = 16;
 
-/** Structural shape of the challenge as it arrives over the wire — before any
+/** Structural shape of the challenge as it arrives over the wire, before any
  * of it can be trusted. Both consumers validate with this rather than casting,
  * because a malformed challenge would otherwise reach `deriveKey` and throw
  * from inside `parseInt`/`DataView` rather than degrading. */
@@ -136,7 +136,7 @@ export function bytesToHex(bytes: Uint8Array<ArrayBuffer>): string {
   return out;
 }
 
-/** True iff the lowercase hex encoding of `bytes` starts with `hex` — the
+/** True iff the lowercase hex encoding of `bytes` starts with `hex`: the
  * same check altcha-lib's verifySolution applies to the derived key. Handles
  * odd-length prefixes (a trailing nibble compares against the high bits).
  *
@@ -163,7 +163,7 @@ async function sha256(input: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayB
 /**
  * ALTCHA v2 SHA-256 key derivation (matches altcha-lib/algorithms/sha):
  * derivedKey = SHA-256^cost(salt || nonce || counter_uint32BE), truncated to
- * keyLength bytes. `counter` is the raw 32-bit big-endian value — not a
+ * keyLength bytes. `counter` is the raw 32-bit big-endian value, not a
  * decimal string, and not little-endian. Getting that wrong produces a solver
  * that agrees with the server for counters 0..255 and never again, which is
  * indistinguishable from "the PoW is just hard" until someone writes the
@@ -205,7 +205,7 @@ interface SchedulerWithYield {
  * granularity is ~15.6 ms; a browser clamps a nested one to 4 ms),
  * MessageChannel 0.016 ms. A MessageChannel round-trip is an ordinary macrotask
  * with no minimum delay, so paint and input still get their turn between
- * batches — the point of yielding at all — without the solver paying a
+ * batches (the point of yielding at all) without the solver paying a
  * scheduler tax three orders of magnitude larger than the work it just did.
  * setTimeout stays as the last-resort fallback for a runtime with neither.
  *
@@ -242,17 +242,17 @@ export function makeYielder(): { yieldNow: () => Promise<void>; close: () => voi
  * Why a PoW solve is impossible in this environment, or `undefined` if it is
  * possible. Exists so a UI can say something true instead of showing a generic
  * failure: `apps/scan` degrades silently on the report path, but `apps/web`'s
- * login page has nowhere to degrade *to* — a feeder who cannot solve a PoW
+ * login page has nowhere to degrade *to*: a feeder who cannot solve a PoW
  * cannot sign in, and deserves to be told which of the two reasons it is.
  *
  * - `"insecure-context"`: `crypto.subtle` is only exposed in a secure context.
- *   `http://localhost` counts as secure, so plain-HTTP local dev works — but
+ *   `http://localhost` counts as secure, so plain-HTTP local dev works, but
  *   plain-HTTP over the LAN (`http://192.168.x.y:3100`, i.e. testing the dev
  *   server from a phone) does NOT, and neither does any future plain-HTTP
  *   deployment. Production is fine: Cloudflare terminates TLS, so the browser
  *   always sees https://hetja.in.
  * - `"no-web-crypto"`: a secure context (or an unknown one) with no
- *   `crypto.subtle` at all — a genuinely ancient or stripped-down browser.
+ *   `crypto.subtle` at all: a genuinely ancient or stripped-down browser.
  *
  * `isSecureContext` is checked first and only when it is explicitly `false`,
  * because that is the case with an actionable explanation. It is `undefined`
@@ -274,14 +274,14 @@ export function powUnavailableReason(): PowUnavailableReason | undefined {
  * key hex encoding starts with `challenge.parameters.keyPrefix`. Runs in
  * batches of SOLVE_BATCH concurrent Web Crypto digests and yields between
  * batches only once YIELD_INTERVAL_MS of wall clock has elapsed since the last
- * yield — a chunked loop rather than a single synchronous spin, so the main
+ * yield: a chunked loop rather than a single synchronous spin, so the main
  * thread is never held for longer than one frame, and the yields cost time
  * proportional to the solve's duration instead of to its hash count. See
  * YIELD_INTERVAL_MS for why yielding per batch made this function unable to
  * finish at all.
  *
- * Returns `undefined` rather than throwing on every failure — no Web Crypto, an
- * algorithm this does not implement, or no solution inside `timeoutMs` — so
+ * Returns `undefined` rather than throwing on every failure (no Web Crypto, an
+ * algorithm this does not implement, or no solution inside `timeoutMs`), so
  * callers keep one branch for "no token" instead of a try/catch plus a null
  * check. `timeoutMs` is the caller's budget, not ours: the two consumers wait
  * for different humans.

@@ -1,7 +1,7 @@
 /**
  * Impact stats route tests.
  *
- * GET /api/v1/stats/impact — public, no auth, Cache-Control 60s.
+ * GET /api/v1/stats/impact: public, no auth, Cache-Control 60s.
  * Counts are coarsened per INVARIANT 2 (integers only, no geo).
  *
  * 1. returns three integer fields, Cache-Control public max-age=60
@@ -131,7 +131,7 @@ describe("GET /api/v1/stats/impact", () => {
     expect(third.json().data.dogsTracked).toBe(firstDogs + 1);
   });
 
-  it("returns only counts — no geo or per-dog identity", async () => {
+  it("returns only counts, no geo or per-dog identity", async () => {
     const res = await app.inject({ method: "GET", url: "/api/v1/stats/impact" });
     const data = res.json().data as Record<string, unknown>;
     // Coarsened per INVARIANT 2: integers only

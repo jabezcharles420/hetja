@@ -2,7 +2,7 @@
  * Rate limiter behaviour.
  *
  * There was no rate limiter in this API at all, and the endpoint that most
- * needed one — `POST /api/v1/auth/otp` — is unauthenticated and sends a real
+ * needed one (`POST /api/v1/auth/otp`) is unauthenticated and sends a real
  * email synchronously against a 300/day free tier. ~300 requests locked every
  * user out of login for the rest of the day.
  *
@@ -23,7 +23,7 @@ describe("RateLimiter", () => {
     expect(rl.consume("a", t).allowed).toBe(false);
   });
 
-  it("keeps subjects independent — one abuser cannot lock out everyone", () => {
+  it("keeps subjects independent: one abuser cannot lock out everyone", () => {
     // The whole point of subject-keying. Under a per-IP limiter, CGNAT would
     // make these two the same subject and INVARIANT 6 exists to forbid that.
     const rl = new RateLimiter({ refillPerSec: 1 / 60, burst: 2 });
@@ -63,19 +63,19 @@ describe("RateLimiter", () => {
     const denied = rl.consume("a", t0);
     expect(denied.allowed).toBe(false);
     expect(denied.retryAfterSec).toBeGreaterThan(0);
-    // Honouring the advice must actually work — a Retry-After that still fails
+    // Honouring the advice must actually work. A Retry-After that still fails
     // teaches clients to ignore it.
     expect(rl.consume("a", t0 + denied.retryAfterSec * 1000).allowed).toBe(true);
   });
 
   it("peek reports the decision without spending a token", () => {
     // routes/auth.ts gates one send on two limiters and must be able to ask
-    // both before charging either — otherwise a user refused by the global
+    // both before charging either; otherwise a user refused by the global
     // cap also loses one of their personal codes for nothing.
     const rl = new RateLimiter({ refillPerSec: 1 / 60, burst: 2 });
     const t = 1_000_000;
     expect(rl.peek("a", t).allowed).toBe(true); // unknown subject: full bucket
-    expect(rl.peek("a", t).allowed).toBe(true); // still full — peek spent nothing
+    expect(rl.peek("a", t).allowed).toBe(true); // still full: peek spent nothing
     expect(rl.consume("a", t).allowed).toBe(true);
     expect(rl.consume("a", t).allowed).toBe(true);
     const denied = rl.peek("a", t);

@@ -1,10 +1,10 @@
 /**
  * Hetja TERRITORIES endpoints.
  *
- * GET  /api/v1/territories/:feederId — the feeder's sponsored geofences
+ * GET  /api/v1/territories/:feederId:  the feeder's sponsored geofences
  *   (is_primary first). The target feeder themselves, or any admin, may read.
- * POST /api/v1/territories          — admin creates a geofence.
- * POST /api/v1/territories/claim    — a feeder claims a ward geofence as
+ * POST /api/v1/territories:           admin creates a geofence.
+ * POST /api/v1/territories/claim:     a feeder claims a ward geofence as
  *   primary. One primary per geofence is enforced by the unique partial
  *   index feeder_territories_primary_uix (0005_territory_primary.sql) AND
  *   checked in a transaction here so a conflicting claim returns 409.

@@ -1,16 +1,16 @@
 /**
  * Hetja micro-story MODERATION (admin only).
  *
- * GET  /api/v1/moderation/queue           — pending stories (moderated_at IS
+ * GET  /api/v1/moderation/queue           : pending stories (moderated_at IS
  *   NULL), oldest first.
- * POST /api/v1/moderation/:id/approve     — sets moderated_at = now(); the
+ * POST /api/v1/moderation/:id/approve     : sets moderated_at = now(); the
  *   story becomes public.
- * POST /api/v1/moderation/:id/reject      — DELETES the story row outright
+ * POST /api/v1/moderation/:id/reject      : DELETES the story row outright
  *   (stories are NOT append-only). The deletion is audited via
  *   app.log (no moderation_audit table yet) and the author loses 5 trust
  *   points: a trust_event ('story_rejected', catalog delta -5) is inserted
  *   via logTrustEvent and trust_score is recomputed from the event stream by
- *   recomputeScore — never written directly. A hand-maintained decrement
+ *   recomputeScore, never written directly. A hand-maintained decrement
  *   diverges from the stream recomputeScore replays, and for a feeder clamped
  *   at 100 the penalty silently evaporated on the next recompute.
  */
@@ -133,7 +133,7 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
       // approve bump moderated_at to now() again (and racy callers could
       // interleave). Now: FOR UPDATE locks the row, already-moderated is
       // returned as-is (idempotent 200), and the UPDATE is conditional on
-      // `moderated_at IS NULL` — matching the reject path's withTx+FOR UPDATE.
+      // `moderated_at IS NULL`, matching the reject path's withTx+FOR UPDATE.
       const story = await withTx(async (client) => {
         const existing = await client.query<{ id: string; moderated_at: Date | null }>(
           `SELECT id, moderated_at FROM dog_stories WHERE id = $1 FOR UPDATE`,
@@ -155,7 +155,7 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
           [storyId],
         );
         if (updated.rows[0]) return updated.rows[0];
-        // Lost race — another caller approved between SELECT and UPDATE.
+        // Lost race: another caller approved between SELECT and UPDATE.
         const fallback = await client.query<StoryRow>(
           `SELECT id, dog_id, author_feeder_id, version, paragraph, moderated_at
              FROM dog_stories WHERE id = $1`,
@@ -209,7 +209,7 @@ export default async function moderationRoutes(app: FastifyInstance): Promise<vo
         await client.query(`DELETE FROM dog_stories WHERE id = $1`, [story.id]);
 
         // Trust coupling: the author loses 5 points, through the same path as
-        // every other producer — a catalog event + recompute, in this
+        // every other producer: a catalog event + recompute, in this
         // transaction. The old direct `UPDATE feeders SET trust_score = …`
         // wrote a value the event stream disagreed with: the next
         // recomputeScore replayed the stream and silently undid (or doubled)

@@ -1,5 +1,5 @@
 /**
- * Minimal HS256 JWT implementation (no runtime deps) — access tokens (15m)
+ * Minimal HS256 JWT implementation (no runtime deps): access tokens (15m)
  * and rotating refresh tokens (30d). Refresh rotation mints a fresh `jti` on
  * every issuance; `type` is embedded so tokens can't be used across scopes.
  *
@@ -112,7 +112,7 @@ export const verifyRefreshToken = (token: string, secret: string): JwtPayload =>
  * Decode a token's payload WITHOUT verifying it.
  *
  * Only for tokens this process itself just signed, where the signature is
- * known good and the caller needs what signToken generated — the `jti` to
+ * known good and the caller needs what signToken generated: the `jti` to
  * record in refresh_tokens, the `exp` to store alongside it. Never use this
  * on a token received from outside: it performs no signature, algorithm or
  * expiry check, which is exactly what verifyToken exists to do.

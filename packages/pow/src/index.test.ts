@@ -4,13 +4,13 @@
  * This is the canonical pin for the client half of INVARIANT 6's device
  * attestation. `apps/scan` and `apps/web` both mint device tokens with the code
  * under test, and the derivation has to agree with `altcha-lib` on the server
- * *byte for byte* or `POST /api/v1/devices/token` answers `BAD_POW` — which
+ * *byte for byte* or `POST /api/v1/devices/token` answers `BAD_POW`, which
  * surfaces to a stranger as "Couldn't confirm the report automatically" on the
  * scan page, and to a feeder as a login that cannot succeed.
  *
  * On the reference implementation: `expectedDerivedKey` is written from ALTCHA's
- * *specification* — `SHA-256^cost(salt ‖ nonce ‖ uint32BE(counter))`, truncated
- * to `keyLength` — using Web Crypto directly, deliberately NOT by calling the
+ * *specification* (`SHA-256^cost(salt ‖ nonce ‖ uint32BE(counter))`, truncated
+ * to `keyLength`) using Web Crypto directly, deliberately NOT by calling the
  * code under test. A test that checks an implementation against itself proves
  * only that it is deterministic. The definitive cross-check against the real
  * `altcha-lib` lives in `apps/api/src/routes/devices.test.ts`, where the library
@@ -25,7 +25,7 @@
  *     (ALTCHA encodes difficulty as a hex prefix, so it rounds up to a nibble),
  *     and
  *   - the solver yielded with `setTimeout(0)` after every 48-hash batch, which
- *     the browser clamps to 4 ms once nesting exceeds 5 — ~87 s of pure timer
+ *     the browser clamps to 4 ms once nesting exceeds 5: ~87 s of pure timer
  *     delay against a 20 s budget.
  */
 import { describe, expect, it } from "vitest";

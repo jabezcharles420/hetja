@@ -11,8 +11,8 @@
  *      returns a falsy payload, so the `if (!payload)` guard beneath it was
  *      unreachable and a bad Bearer token produced
  *      `500 {"message":"malformed token"}` instead of a 401. Every other
- *      authenticated route wrapped the same call correctly; medical.ts — which
- *      guards the append-only ledger write — did not.
+ *      authenticated route wrapped the same call correctly; medical.ts, which
+ *      guards the append-only ledger write, did not.
  *
  *   2. Routes that put a `:id` path param straight into a `uuid` column turned
  *      a non-UUID into a PostgreSQL 22P02, whose message quotes the offending
@@ -70,7 +70,7 @@ describe("authentication failures are 401s, not 500s", () => {
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("BAD_TOKEN");
     // The internal JwtError text ("malformed token", "bad signature") must not
-    // reach the client — that was the shape of the 500 this replaces.
+    // reach the client; that was the shape of the 500 this replaces.
     expect(body.error.message).toBe("invalid token");
   });
 });

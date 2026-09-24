@@ -10,7 +10,7 @@
  *      A single execution of the real handler against a real database is the
  *      whole guard.
  *   2. Nothing enqueued the job. No cron, no timer, no INSERT anywhere with
- *      `kind = 'anchor_ledger'` — so "daily" had no schedule to be late from.
+ *      `kind = 'anchor_ledger'`, so "daily" had no schedule to be late from.
  *
  * Both suites run inside a transaction they ROLL BACK. That is not tidiness: the
  * API suite (apps/api/src/routes/ledger.test.ts) asserts on the LATEST row of
@@ -49,9 +49,9 @@ async function inRolledBackTx<T>(fn: (client: PoolClient) => Promise<T>): Promis
  *
  * NOT a chain-valid hash: computing one means `computeHash` from
  * `@hetja/ledger`, which is not a declared dependency of apps/worker (see the
- * header of src/sign-anchor.ts). Nothing here needs chain validity — the anchor
+ * header of src/sign-anchor.ts). Nothing here needs chain validity (the anchor
  * job reads `hash_curr` as an opaque leaf and never verifies the chain, and the
- * row is rolled back — but it does need to satisfy the UNIQUE index on
+ * row is rolled back), but it does need to satisfy the UNIQUE index on
  * `hash_curr`, which is what the random input is for.
  */
 function fixtureHash(): string {
@@ -116,11 +116,11 @@ describe("publishLedgerAnchor", () => {
       expect(Number(anchor.record_count)).toBe(all.rows.length);
 
       // merkle_root is a hex root when @hetja/ledger resolves and NULL when it
-      // does not (it is not yet a declared dependency of apps/worker — see
+      // does not (it is not yet a declared dependency of apps/worker; see
       // src/sign-anchor.ts). Asserted as "either" on purpose: pinning it to null
       // would turn adding the dependency into a test failure.
       expect(anchor.merkle_root === null || /^[0-9a-f]{64}$/.test(anchor.merkle_root)).toBe(true);
-      // No signing key is configured in CI, so the anchor is unsigned — the
+      // No signing key is configured in CI, so the anchor is unsigned: the
       // documented degradation, not a failure. `signed: false` is how
       // GET /api/v1/ledger/anchor tells a caller which kind it is holding.
       expect(anchor.head_signature).toBeNull();

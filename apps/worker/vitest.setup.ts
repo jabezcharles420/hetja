@@ -9,8 +9,8 @@
  * These tests INSERT dogs and medical_records, and medical_records is
  * append-only (INVARIANT 8) so that cleanup is impossible by construction.
  * Running the suite on a box configured for production pointed the API suite
- * straight at the live database once already — 64 "GeoTest" dogs and 45
- * unreachable medical records in real data — and this suite writes to the same
+ * straight at the live database once already (64 "GeoTest" dogs and 45
+ * unreachable medical records in real data), and this suite writes to the same
  * tables.
  *
  * Set ALLOW_TESTS_ON_REAL_DB=1 to override deliberately.
@@ -24,7 +24,7 @@ if (!allowed && process.env.ALLOW_TESTS_ON_REAL_DB !== "1") {
       "",
       `Refusing to run worker tests against PGDATABASE="${db}".`,
       "",
-      'Use a disposable database whose name ends in "_test" — see AGENTS.md §f',
+      'Use a disposable database whose name ends in "_test"; see AGENTS.md §f',
       "for the full bootstrap:",
       "",
       "  PGDATABASE=hetja_test pnpm --filter @hetja/worker test",

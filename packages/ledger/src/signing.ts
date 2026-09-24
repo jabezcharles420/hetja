@@ -1,5 +1,5 @@
 /**
- * Hetja signed chain head — enhancement stack §D.1 (Phase 1, pick 16).
+ * Hetja signed chain head: enhancement stack §D.1 (Phase 1, pick 16).
  *
  * The chain head alone proves nothing about the party that computed it
  * (INVARIANT 10: tamper-evidence only begins once the head is published
@@ -9,7 +9,7 @@
  * this time".
  *
  * Keys are standard RFC 7517 JWKs, so the public half can be published on a
- * JWKS endpoint later — `did:web:hetja.in:vets/<vetId>` (see `jwks()`).
+ * JWKS endpoint later: `did:web:hetja.in:vets/<vetId>` (see `jwks()`).
  * Signatures are JWS compact serialization (EdDSA / Ed25519), verifiable by
  * any JOSE library, not just this one.
  *
@@ -24,7 +24,7 @@
  *     `ledger` is now a signed claim and `verifyChainHead` REQUIRES the caller
  *     to say which ledger it is asking about.
  *   - **The token expires.** It used to carry only `iat`, and verification
- *     never looked at it — so a head signed at record 40 verified cleanly,
+ *     never looked at it, so a head signed at record 40 verified cleanly,
  *     forever, as a current attestation of a ledger that was on record 55.
  *     A published head that never goes stale defeats the purpose of publishing
  *     it (INVARIANT 10): the whole mechanism is "compare today's ledger
@@ -37,13 +37,13 @@
  * Note on JWT semantics, since it reads slightly oddly: strictly the vet is
  * the *issuer* of this statement and the ledger is its *subject*. `sub` holds
  * the vet's did:web anyway, because that identifier is the published
- * `did:web:hetja.in:vets/<vetId>` story and the JWKS lookup path — churning it
+ * `did:web:hetja.in:vets/<vetId>` story and the JWKS lookup path; churning it
  * would break the thing it exists for. The ledger therefore gets an explicit
  * `ledger` claim rather than displacing `sub`.
  *
  * The package takes plain parameters (no ambient env), so a caller either
  * generates a pair with `generateLedgerKeyPair()` or passes an existing key
- * (a JWK object, or any jose `KeyInput` — e.g. imported from PEM via
+ * (a JWK object, or any jose `KeyInput`, e.g. imported from PEM via
  * `importSPKI`/`importPKCS8`). The application layer decides where the pair
  * comes from (env, secrets manager, …).
  */
@@ -61,10 +61,10 @@ import {
 import { recomputeHead, type LedgerRecord } from "./chain.js";
 import { merkleRoot } from "./merkle.js";
 
-/** JWS algorithm for Ed25519 — the only alg we sign or accept. */
+/** JWS algorithm for Ed25519: the only alg we sign or accept. */
 export const SIGNING_ALG = "EdDSA";
 
-/** Prefix for the vet identity — JWKS endpoint: did:web:hetja.in:vets/<id>. */
+/** Prefix for the vet identity. JWKS endpoint: did:web:hetja.in:vets/<id>. */
 export const VET_DID_PREFIX = "did:web:hetja.in:vets";
 
 /** vetDid: the did:web identifier carried in the signed head's `sub`. */
@@ -72,20 +72,20 @@ export function vetDid(vetId: string): string {
   return `${VET_DID_PREFIX}/${vetId}`;
 }
 
-/** ChainHead: what the signed head commits to — which ledger, and where it stood. */
+/** ChainHead: what the signed head commits to (which ledger, and where it stood). */
 export interface ChainHead {
   /**
-   * Which ledger this is a statement about — the dog's identifier (slug/id;
+   * Which ledger this is a statement about: the dog's identifier (slug/id;
    * INVARIANT 1 makes it random and non-sequential, so it is safe to sign and
    * publish). Not derivable from the records themselves, which is why
    * `chainHead` takes it: a `LedgerRecord` knows its vet, not its dog.
    */
   ledgerId: string;
-  /** recomputeHead(records) — the hash chain's current head. */
+  /** recomputeHead(records): the hash chain's current head. */
   head: string;
-  /** merkleRoot(records) — Merkle root over every record hash. */
+  /** merkleRoot(records): Merkle root over every record hash. */
   merkleRoot: string;
-  /** records.length — how many records the head covers. */
+  /** records.length: how many records the head covers. */
   recordCount: number;
 }
 
@@ -100,11 +100,11 @@ export function chainHead(ledgerId: string, records: LedgerRecord[]): ChainHead 
 }
 
 export interface LedgerKeyPair {
-  /** Public half — safe to publish (the JWKS document). */
+  /** Public half: safe to publish (the JWKS document). */
   publicJwk: JWK;
-  /** Private half — server-side secret, never leaves the operator. */
+  /** Private half: server-side secret, never leaves the operator. */
   privateJwk: JWK;
-  /** RFC 7638 thumbprint of the public JWK — the `kid` for the JWKS endpoint. */
+  /** RFC 7638 thumbprint of the public JWK: the `kid` for the JWKS endpoint. */
   kid: string;
 }
 
@@ -127,7 +127,7 @@ export async function generateLedgerKeyPair(): Promise<LedgerKeyPair> {
  * so a signed head is expected to be superseded within 24 h; 48 h is two
  * publish cycles, which tolerates one missed anchor run without making a
  * months-old attestation presentable as current. Callers that need tighter
- * freshness than "some time in the last two days" should not lower this —
+ * freshness than "some time in the last two days" should not lower this;
  * they should pass `maxAgeSeconds` on verify, which is the side of the
  * exchange that actually cares.
  */
@@ -141,13 +141,13 @@ export const DEFAULT_HEAD_TTL_SECONDS = 48 * 60 * 60;
 const CLOCK_TOLERANCE_SECONDS = 5;
 
 export interface SignChainHeadOptions {
-  /** The vet the head belongs to — becomes `sub: did:web:hetja.in:vets/<vetId>`. */
+  /** The vet the head belongs to. Becomes `sub: did:web:hetja.in:vets/<vetId>`. */
   vetId: string;
   /** Optional key id for the JWS header; pass `LedgerKeyPair.kid` to match the JWKS. */
   kid?: string;
   /**
    * Lifetime in seconds; defaults to `DEFAULT_HEAD_TTL_SECONDS`. Sets `exp`,
-   * which is never omitted — an attestation of "where the ledger stood" with
+   * which is never omitted: an attestation of "where the ledger stood" with
    * no end date is a claim about the present that stays true forever.
    */
   ttlSeconds?: number;
@@ -155,7 +155,7 @@ export interface SignChainHeadOptions {
    * Epoch seconds to stamp as `iat` (and to measure `exp` from); defaults to
    * now. Provided so the daily anchor job can attest a head *as of* the
    * anchor's own timestamp rather than the moment the signature happened to be
-   * computed — the two differ if a run is retried.
+   * computed. The two differ if a run is retried.
    */
   issuedAt?: number;
 }
@@ -185,7 +185,7 @@ export async function signChainHead(
 
 /** SignedChainHead: a verified signature's claims, decoded for the caller. */
 export interface SignedChainHead extends ChainHead {
-  /** The vet parsed from `sub` — did:web:hetja.in:vets/<vetId>. */
+  /** The vet parsed from `sub` (did:web:hetja.in:vets/<vetId>). */
   vetId: string;
   /** Issued-at epoch seconds. Always present: verification rejects a token without it. */
   issuedAt: number;
@@ -195,7 +195,7 @@ export interface SignedChainHead extends ChainHead {
    * Key id from the JWS *protected header*, if present. Taken from the header
    * and nowhere else: RFC 7515 puts `kid` in the header, and a token carrying a
    * `kid` claim in its payload would otherwise shadow the real one for a caller
-   * doing a JWKS lookup — i.e. point them at a different key than the one the
+   * doing a JWKS lookup, i.e. point them at a different key than the one the
    * signature was actually made with. A payload `kid` is ignored outright.
    */
   kid?: string;
@@ -211,7 +211,7 @@ export interface VerifyChainHeadOptions {
   ledgerId: string;
   /**
    * Reject a token issued more than this many seconds ago. Defaults to
-   * `DEFAULT_HEAD_TTL_SECONDS` — the same window the default TTL allows, so
+   * `DEFAULT_HEAD_TTL_SECONDS`, the same window the default TTL allows, so
    * the default costs nothing but means a token signed with a longer custom
    * TTL still has to argue for itself. Pass something smaller when the caller
    * needs a genuinely current head (e.g. 3600 for "signed within the hour").
@@ -222,14 +222,14 @@ export interface VerifyChainHeadOptions {
 /**
  * verifyChainHead: check the signature, decode the claims, and confirm they
  * are a well-formed, still-current signed chain head FOR THE REQUESTED LEDGER.
- * Returns null on any failure — bad signature, wrong key, foreign alg,
- * malformed claims, wrong ledger, expired, or older than `maxAgeSeconds` —
+ * Returns null on any failure (bad signature, wrong key, foreign alg,
+ * malformed claims, wrong ledger, expired, or older than `maxAgeSeconds`);
  * never throws.
  *
  * A non-null result means: this key's holder stated that ledger
  * `options.ledgerId` stood at this head / root / count, recently enough to
  * still count. Comparing those values against the ledger the caller actually
- * has is still the caller's job — the signature says who claimed what, not
+ * has is still the caller's job. The signature says who claimed what, not
  * whether it matches today's database.
  */
 export async function verifyChainHead(
@@ -253,7 +253,7 @@ export async function verifyChainHead(
     if (typeof recordCount !== "number" || !Number.isInteger(recordCount)) return null;
     if (typeof sub !== "string" || !sub.startsWith(`${VET_DID_PREFIX}/`)) return null;
     // A head that does not name its ledger, or names a different one, is not a
-    // statement about the ledger we were asked about — regardless of signature.
+    // statement about the ledger we were asked about, regardless of signature.
     if (typeof ledger !== "string" || ledger !== options.ledgerId) return null;
     // A token with no explicit expiry is not a well-formed Hetja signed head:
     // jose can only enforce `exp` when it is there, so its absence is rejected

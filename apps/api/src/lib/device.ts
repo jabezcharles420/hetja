@@ -1,5 +1,5 @@
 /**
- * Anonymous attested device tokens — INVARIANT 6: every anonymous write is
+ * Anonymous attested device tokens. INVARIANT 6: every anonymous write is
  * rate-limited by the device token (never by bare phone/IP).
  *
  * Token format: `<base64url(deviceId)>.<base64url(HMAC(secret, deviceId))>`
@@ -9,8 +9,8 @@
  * need a rate-limit subject must use `deviceTokenSubject()`, which returns the
  * `deviceId` the token attests. Keying a limit on the submitted string instead
  * was a real, verified INVARIANT 7 bypass: `Buffer.from(s, "base64url")`
- * silently discards every character outside the base64 alphabet — padding,
- * newlines, `!`, spaces, tabs — so `tok`, `tok=`, `tok==`, `tok\n` and `tok!`
+ * silently discards every character outside the base64 alphabet (padding,
+ * newlines, `!`, spaces, tabs), so `tok`, `tok=`, `tok==`, `tok\n` and `tok!`
  * all decode to the same bytes, recompute the same HMAC, and used to all
  * verify. Each was a distinct `scans.device_token` value, so one
  * proof-of-work solve bought an unbounded number of fresh 2/day + 5/week
@@ -39,7 +39,7 @@ export function issueDeviceToken(secret: string): string {
 
 /**
  * Authenticates a device token and returns the canonical `deviceId` it
- * attests — the value every INVARIANT 6/7 rate limit must key on — or `null`
+ * attests (the value every INVARIANT 6/7 rate limit must key on), or `null`
  * if the token was not minted by `issueDeviceToken` with this secret.
  *
  * Three checks, in order:
@@ -86,14 +86,14 @@ export function deviceTokenSubject(token: string, secret: string): string | null
  * Boolean form, for callers that only gate on attestation and never use the
  * token as an identity (auth.ts's OTP verify). Deliberately delegates to
  * `deviceTokenSubject` so there is exactly one implementation of what "a valid
- * device token" means — a second, laxer copy here is how the non-canonical
+ * device token" means; a second, laxer copy here is how the non-canonical
  * bypass would come back.
  */
 export function verifyDeviceToken(token: string, secret: string): boolean {
   return deviceTokenSubject(token, secret) !== null;
 }
 
-/** ALTCHA v2 PoW algorithm this flow uses — plain SHA-256, solvable in any
+/** ALTCHA v2 PoW algorithm this flow uses: plain SHA-256, solvable in any
  * Web Crypto environment (desktop-web fallback; no Argon2/scrypt here, which
  * need native bindings the browser fallback cannot rely on). */
 export const POW_ALGORITHM = "SHA-256";
@@ -115,7 +115,7 @@ export function keyPrefixForDifficulty(difficulty: number): string {
 }
 
 /** Issues a fresh ALTCHA v2 challenge. Each call draws a new random nonce +
- * salt, so no two challenges are ever equal — a prerequisite for the
+ * salt, so no two challenges are ever equal, a prerequisite for the
  * single-use registry in routes/devices.ts. */
 export async function createPoWChallenge(secret: string, difficulty: number, ttlMs: number): Promise<Challenge> {
   return createChallenge({
@@ -139,7 +139,7 @@ export interface PoWVerifyResult {
 /** Verifies an ALTCHA solution against the issued challenge: recomputes the
  * challenge HMAC (tamper check) and re-derives the key from the submitted
  * counter (PoW check), in that order, plus expiry. Does NOT enforce
- * single-use — the route does that atomically after a successful verify. */
+ * single-use; the route does that atomically after a successful verify. */
 export async function verifyPoW(challenge: Challenge, solution: Solution, secret: string): Promise<PoWVerifyResult> {
   const result = await verifySolution({
     challenge,

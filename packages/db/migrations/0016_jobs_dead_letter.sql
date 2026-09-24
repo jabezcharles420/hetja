@@ -2,7 +2,7 @@
 --
 -- apps/worker's retry logic could not work, and the reason was structural: the
 -- claim, the handler call and the DELETE all ran inside ONE transaction. When a
--- handler threw, `withTx` issued ROLLBACK — which discarded the
+-- handler threw, `withTx` issued ROLLBACK, which discarded the
 -- `attempts = attempts + 1` increment and the `locked_until` lease along with
 -- the handler's own writes. So `attempts` never advanced, the `attempts >=
 -- MAX_ATTEMPTS` dead-letter branch was unreachable, and the job was left with
@@ -18,7 +18,7 @@
 -- Splitting that into three transactions (claim, run, settle) makes the
 -- dead-letter branch reachable for the first time, and a reachable dead-letter
 -- branch needs somewhere to write. Deleting an exhausted job is not an option
--- here — these are SOS escalations and push fan-outs, and a life-safety job that
+-- here. These are SOS escalations and push fan-outs, and a life-safety job that
 -- vanishes after eight failures is the silent-rejection failure mode that
 -- INVARIANT 14 exists to forbid. So the row stays, marked, with the error that
 -- stopped it.
@@ -29,7 +29,7 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT;
 
 COMMENT ON COLUMN jobs.failed_at IS
   'Set when the job exhausted MAX_ATTEMPTS. Such rows are parked, never claimed '
-  'again, and never deleted — an operator has to look at them. Query with '
+  'again, and never deleted; an operator has to look at them. Query with '
   'SELECT id, kind, attempts, last_error FROM jobs WHERE failed_at IS NOT NULL.';
 COMMENT ON COLUMN jobs.last_error IS
   'Message from the most recent failure, truncated. Diagnostic only.';
@@ -40,13 +40,13 @@ COMMENT ON COLUMN jobs.last_error IS
 --
 -- Added under a NEW name rather than redefining `jobs_ready_ix` in place. A
 -- `DROP INDEX` here would trip the deploy pipeline's destructive-change gate
--- (.github/workflows/deploy.yml) and red-build the Migrate job — verified by
+-- (.github/workflows/deploy.yml) and red-build the Migrate job, as verified by
 -- running that gate's exact shell over this file. The gate exempts only
 -- `DROP TRIGGER/FUNCTION IF EXISTS`, and AGENTS.md §g is explicit that
 -- `-- MIGRATION-APPROVED:` must not be pasted in to silence it.
 --
--- So `jobs_ready_ix` stays. It is now redundant — same leading column, weaker
--- predicate — and costs a little write amplification on a table that is already
+-- So `jobs_ready_ix` stays. It is now redundant (same leading column, weaker
+-- predicate) and costs a little write amplification on a table that is already
 -- tuned for churn (autovacuum_vacuum_scale_factor = 0.01). Dropping it is a
 -- one-line follow-up that wants a human and a checked backup, which is exactly
 -- the judgement the gate exists to force.

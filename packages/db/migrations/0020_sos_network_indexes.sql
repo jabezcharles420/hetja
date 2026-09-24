@@ -15,7 +15,7 @@
 --     ORDER BY v.geo <-> d.last_seen_geo LIMIT 3
 -- which is PostgreSQL's KNN operator: without a GiST index on the left side,
 -- every escalation reads ALL of vets and computes a distance per row. That is
--- a full scan on the life-safety path — small table today, but it exists so
+-- a full scan on the life-safety path: small table today, but it exists so
 -- that stays true when it isn't. This index is what makes <-> an indexed
 -- nearest-neighbour search instead of an expensive sort.
 CREATE INDEX IF NOT EXISTS vets_geo_gix ON vets USING GIST (geo);
@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS trust_events_feeder_ix ON trust_events (feeder_id, cr
 -- unique index on the table, so neither call site needs to change.
 --
 -- If a production table ever holds pre-existing duplicates, these CREATEs fail
--- loudly rather than silently leaving the clause a no-op again — deduplicate
+-- loudly rather than silently leaving the clause a no-op again. Deduplicate
 -- deliberately, with a human reading the rows, not inside an unattended
 -- migration. (No DELETE here: the destructive gate exists precisely so that
 -- decision is never made quietly.)
@@ -76,18 +76,18 @@ CREATE UNIQUE INDEX sos_notifications_case_channel_uix
 -- reads, the schema and the partial index below were their only references),
 -- which is one half of why the fan-out never notified anyone. Wave 7 derives
 -- responder proximity from geotagged scan history instead and no longer reads
--- either column. They are documented here — not dropped — so the next reader
+-- either column. They are documented here, not dropped, so the next reader
 -- does not "helpfully" start populating them: keeping a rolling record of
 -- where account holders are was evaluated and REJECTED as the price of
 -- freshness (a feeder who has moved is stale until their next geotagged scan;
 -- that is the stated trade). feeders_sos_gix, the partial GIST index over
 -- last_known_geo, is dead weight for the same reason: no query predicates on
--- that column any more. It is left in place — dropping it would trip the
+-- that column any more. It is left in place: dropping it would trip the
 -- destructive gate for no benefit and buy nothing but risk.
 COMMENT ON COLUMN feeders.last_known_geo IS
   'NOT WRITTEN by any code path, and the SOS fan-out no longer reads it '
-  '(wave 7 derives responder proximity from geotagged scan history). Kept — '
-  'not dropped — so old backups restore; do not start populating it without '
+  '(wave 7 derives responder proximity from geotagged scan history). Kept, '
+  'not dropped, so old backups restore; do not start populating it without '
   'revisiting the privacy decision recorded in 0020''s header.';
 COMMENT ON COLUMN feeders.last_seen_at IS
   'NOT WRITTEN by any code path; formerly intended as the fan-out''s recency '
@@ -96,5 +96,5 @@ COMMENT ON COLUMN feeders.last_seen_at IS
 COMMENT ON COLUMN feeders.sos_opt_in IS
   'The consent bit for SOS responder paging. Written ONLY by '
   'PATCH /api/v1/feeders/me { sosOptIn } (routes/feeders.ts); read by the '
-  'fan-out in routes/sos.ts. Default FALSE, and nothing else sets it — paging '
+  'fan-out in routes/sos.ts. Default FALSE, and nothing else sets it: paging '
   'someone requires their explicit yes.';

@@ -89,7 +89,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await query("DELETE FROM ledger_anchors WHERE published_url = 'test-anchor'");
   // The dog and feeder cannot be removed: medical_records references the dog
-  // and cannot be deleted. Left in place deliberately — see the header.
+  // and cannot be deleted. Left in place deliberately; see the header.
   await app.close();
 });
 
@@ -136,7 +136,7 @@ describe("GET /api/v1/ledger/verify", () => {
    * The comparison is cut at the anchor's record_count. This endpoint used to
    * recompute over the first 1000 rows and compare that to the newest anchor,
    * so a correct anchor published over N records reported TAMPERED as soon as
-   * record N+1 was appended — a tamper-evidence endpoint that cried wolf on
+   * record N+1 was appended: a tamper-evidence endpoint that cried wolf on
    * every healthy day.
    */
   it("compares against exactly the anchor's record_count prefix, and reports growth as growth", async () => {
@@ -160,7 +160,7 @@ describe("GET /api/v1/ledger/verify", () => {
     expect(data.anchoredRecords).toBe(2);
     expect(data.records).toBe(2);
     // The fixture appended three records, so the ledger has grown past the
-    // anchor — reported as a fact, not as tampering.
+    // anchor, reported as a fact, not as tampering.
     expect(data.newerRecords).toBe(true);
     // Whether the verdict is "valid" depends on whether THIS database's first
     // two rows form a genuine chain: other suites (dogs.test.ts) insert
@@ -273,7 +273,7 @@ describe("GET /api/v1/ledger/proof", () => {
     expect(res.json().error.code).toBe("RECORD_NOT_FOUND");
   });
 
-  it("needs no authentication — an auditor must not depend on our credentials", async () => {
+  it("needs no authentication: an auditor must not depend on our credentials", async () => {
     // INVARIANT 10: tamper-evidence that only works with a token we issue is
     // tamper-evidence we can revoke at the moment it matters.
     const res = await app.inject({
@@ -343,7 +343,7 @@ describe("GET /api/v1/ledger/proof", () => {
     // The global tree is shared with every other suite in this database, so the
     // anchor is built from a snapshot taken here. medical_records is
     // append-only and ordered by created_at, so the first N leaves are stable
-    // once observed — the re-read below confirms that rather than assuming it,
+    // once observed. The re-read below confirms that rather than assuming it,
     // because a suite running in parallel can still append.
     const before = await query<ProvenRecord>(
       `SELECT id, hash_curr AS hash FROM medical_records ORDER BY created_at ASC, id ASC`,
@@ -410,7 +410,7 @@ describe("GET /api/v1/ledger/proof", () => {
   it("ignores anchors that predate the Merkle root column", async () => {
     // Anchors written before 0014 have merkle_root NULL, and their record_count
     // came from a query that could not run at all (see the anchor_ledger
-    // handler in apps/worker/src/index.ts) — building a global proof around one
+    // handler in apps/worker/src/index.ts). Building a global proof around one
     // would be building it around a number nobody computed.
     await query("DELETE FROM ledger_anchors WHERE published_url = 'test-anchor'");
     await query(
@@ -424,7 +424,7 @@ describe("GET /api/v1/ledger/proof", () => {
     });
     expect(res.statusCode).toBe(200);
     // Either null (no anchor anywhere in this database carries a merkle_root)
-    // or an anchor that does — never the NULL-rooted one just inserted.
+    // or an anchor that does, never the NULL-rooted one just inserted.
     const global = res.json().data.global;
     expect(global === null || global.publishedRoot !== null).toBe(true);
   });

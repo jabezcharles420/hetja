@@ -1,19 +1,19 @@
 /**
  * Hetja WEB VITALS metrics endpoint (enhancement stack §M.16).
  *
- * POST /api/v1/metrics/web-vitals — anonymous ingestion of one Core Web
+ * POST /api/v1/metrics/web-vitals: anonymous ingestion of one Core Web
  *   Vitals sample from the browser. `path` must already be slug-stripped
  *   ("/d/:slug", not "/d/abc123def") so per-dog page identity is never
- *   collected; a name, a value and a rating carry nothing else — no feeder,
- *   no location, no slug — so nothing here needs INVARIANT 2 coarsening or
+ *   collected; a name, a value and a rating carry nothing else (no feeder,
+ *   no location, no slug), so nothing here needs INVARIANT 2 coarsening or
  *   feeder auth. It DOES need a cap: it is the only unauthenticated write in
  *   this API and there is no rate limiter in server.ts to fall back on, so a
  *   process-wide token bucket bounds it (see admitVitalsSample). That bounds
- *   the write RATE only — bounding total table SIZE needs a retention job
+ *   the write RATE only. Bounding total table SIZE needs a retention job
  *   (`0013_web_vitals.sql` creates a table and an index and nothing else);
  *   that job is owned outside this file.
  *   Sink: migration 0013_web_vitals.sql.
- * GET  /api/v1/metrics/web-vitals?days=7 — feeder-authed counts grouped by
+ * GET  /api/v1/metrics/web-vitals?days=7: feeder-authed counts grouped by
  *   name + rating over the last N days (same auth pattern as trust.ts and
  *   push.ts: any authenticated feeder may read the aggregate).
  */
@@ -36,7 +36,7 @@ const WebVitalsRating = z.enum(["good", "needs-improvement", "poor"]);
  * (`@fastify/rate-limit` is not a dependency of this package, whatever
  * `ops/caddy/Caddyfile` and `docs/CREDITS.md` say). A single `curl` loop could
  * fill `web_vitals` at thousands of rows/sec on the same 2 GB PostgreSQL
- * cluster that serves `dogs`, `scans` and `sos_cases` — so the real risk here
+ * cluster that serves `dogs`, `scans` and `sos_cases`, so the real risk here
  * is not bad data, it is starving the SOS path of I/O on a shared cluster.
  *
  * WHY THE BUCKET IS GLOBAL AND NOT PER IP. INVARIANT 6 forbids per-IP limits
@@ -45,11 +45,11 @@ const WebVitalsRating = z.enum(["good", "needs-improvement", "poor"]);
  * churn addresses, or locks out an entire carrier for one person's behaviour.
  * That invariant is written about *user actions*, and a `sendBeacon` of an LCP
  * measurement is not one. But the reasoning still decides the design, because
- * it is the reasoning — not the wording — that generalises: a per-IP bucket
+ * it is the reasoning, not the wording, that generalises: a per-IP bucket
  * here would be evadable by exactly the same address churn, and its false
  * positives would silently blind us to the performance of one carrier's whole
  * user base. One process-wide bucket has neither problem, and it bounds the
- * thing we actually care about — writes per second against the shared cluster —
+ * thing we actually care about (writes per second against the shared cluster)
  * directly rather than by proxy.
  *
  * WHY NOT PER PATH (with the `lru-cache` already in this package's deps): a
@@ -58,7 +58,7 @@ const WebVitalsRating = z.enum(["good", "needs-improvement", "poor"]);
  *
  * WHAT WE GIVE UP: one abuser can drain the global budget and suppress everyone
  * else's samples for that window. That is an acceptable trade in a way the
- * alternative is not — losing telemetry is a monitoring gap, and unbounded
+ * alternative is not: losing telemetry is a monitoring gap, and unbounded
  * writes on this cluster is a life-safety availability risk.
  *
  * LIMITATION, stated plainly: the bucket is per process. Two API workers means
@@ -70,7 +70,7 @@ export const INGEST_BURST = 600;
 /**
  * 600-sample burst refilling at 10/s. A page load emits at most four samples
  * (LCP/CLS/INP/TTFB), so this sustains ~150 page loads a minute with a
- * ten-minute-quiet burst on top — orders of magnitude above pilot traffic, and
+ * ten-minute-quiet burst on top: orders of magnitude above pilot traffic, and
  * still a hard ceiling of 600 rows/minute on the table.
  */
 export const INGEST_REFILL_PER_SEC = 10;
@@ -125,7 +125,7 @@ const DOG_PAGE_SEGMENTS = new Set(["d", "dog", "dogs"]);
  * learn which dog's page was being measured, because per-dog page identity is
  * per-feeder location by another route.
  *
- * This used to be `!/[a-km-z2-9]{9}/.test(p)` — unanchored, so it matched a
+ * This used to be `!/[a-km-z2-9]{9}/.test(p)`, unanchored, so it matched a
  * 9-character run *anywhere* in the string. Every character of `dashboard` is
  * in the slug alphabet and there are exactly nine of them, so `/dashboard`
  * 400'd; so did `/leaderboard` (on `eaderboard`), `/gamification` and
@@ -221,7 +221,7 @@ interface WebVitalsCountRow {
 export default async function metricsRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/metrics/web-vitals", async (req: FastifyRequest, reply: FastifyReply) => {
     // The cap is checked before parsing, so a flood costs one clock read and
-    // nothing else — no zod pass, and above all no INSERT. 204 rather than 429
+    // nothing else: no zod pass, and above all no INSERT. 204 rather than 429
     // on purpose: this is a `navigator.sendBeacon` (see apps/web/lib/web-vitals.ts),
     // and a beacon neither reads the response nor retries, so an error status
     // would communicate with nobody while making the drop look like a client

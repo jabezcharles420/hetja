@@ -24,11 +24,11 @@
 --
 -- Naming: brief says `spent_challenges(challenge_hash PK, spent_at)` with
 -- 150s TTL; the code comment in devices.ts described it as
--- `(signature TEXT PK, expires_at)`. Both are kept — challenge_hash is the
+-- `(signature TEXT PK, expires_at)`. Both are kept: challenge_hash is the
 -- canonical key (the signature value), spent_at records when it was consumed,
 -- expires_at is the absolute expiry for the sweep. Callers may use either
 -- name; we keep `challenge_hash` as PK per brief and `signature` as an alias
--- via a view would be overkill — the route inserts into challenge_hash.
+-- via a view would be overkill; the route inserts into challenge_hash.
 
 CREATE TABLE IF NOT EXISTS spent_challenges (
   challenge_hash TEXT PRIMARY KEY,
@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS spent_challenges_expires_at_ix ON spent_challenges (e
 
 -- api's app_user must be able to INSERT (mint) and DELETE (sweep) plus SELECT
 -- (existence check via the ON CONFLICT return). New tables get no privileges
--- by default (no ALTER DEFAULT PRIVILEGES for app_user) — without this grant
+-- by default (no ALTER DEFAULT PRIVILEGES for app_user). Without this grant
 -- the API's app_user connection can create the table as the migration's owner
 -- (postgres) but can never query it at runtime. Guarded on role existence so
 -- this migration applies to both targets: self-hosted Postgres (where app_user
@@ -62,7 +62,7 @@ COMMENT ON TABLE spent_challenges IS
 -- collars.bound_once is DEAD: BOOLEAN DEFAULT TRUE never read/written
 -- (grep -rn bound_once apps/ has zero hits beyond schema). Keeping the
 -- column so old backups restore; do not start populating it without a
--- design. Additive documentation only — dropping would need
+-- design. Additive documentation only; dropping would need
 -- MIGRATION-APPROVED and buys nothing but risk.
 COMMENT ON COLUMN collars.bound_once IS
   'DEAD COLUMN: never read/written by any code path ( ajouté in 0001 ). '

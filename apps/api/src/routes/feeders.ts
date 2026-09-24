@@ -1,9 +1,9 @@
 /**
- * GET /api/v1/feeders/me — the caller's own account, as the server sees it.
- * PATCH /api/v1/feeders/me { sosOptIn } — the SOS responder consent surface.
+ * GET /api/v1/feeders/me: the caller's own account, as the server sees it.
+ * PATCH /api/v1/feeders/me { sosOptIn }: the SOS responder consent surface.
  *
- * WHY THIS EXISTS. The client learns its role exactly once today — in the
- * /auth/verify response — and throws it away, so after a refresh or a page
+ * WHY THIS EXISTS. The client learns its role exactly once today (in the
+ * /auth/verify response) and throws it away, so after a refresh or a page
  * load the web app has no way to know which surface to land on. The
  * registrator flow ("fill a form, print a sheet, walk outside, scan a tag")
  * needs the app to route on capability at any moment, not only at login.
@@ -11,12 +11,12 @@
  * Everything here is a LIVE read (requireFeeder re-reads feeders.role; the
  * profile SELECT reads what the database says NOW). Deliberately no caching
  * and no role claim in the JWT: grant-admin.ts --revoke and DPDP erasure
- * both work by the next request seeing the database's truth — see
+ * both work by the next request seeing the database's truth. See
  * lib/require-role.ts for the full reasoning.
  *
  * registrationBudget is the live number now that the write path exists
  * (routes/registrations.ts): pending counts this account's INERT
- * ('pending_activation') registrations against REGISTRATION_BUDGET_MAX —
+ * ('pending_activation') registrations against REGISTRATION_BUDGET_MAX:
  * attaching tags consumes the budget, so the number falls as tags go on.
  * `canRegister` is the AND of the role's capability and the operator-side
  * `can_register` flag: the flag is the real kill switch (the role is
@@ -26,7 +26,7 @@
  * sosOptIn is the consent half of the SOS fan-out (routes/sos.ts). Paging
  * someone's phone requires it, and until wave 7 NOTHING could set it: the
  * column existed in 0001, the fan-out filtered on it, and every feeder row
- * therefore answered FALSE forever — one half of why the fan-out never
+ * therefore answered FALSE forever. That was one half of why the fan-out never
  * notified anyone. The PATCH accepts exactly one field, deliberately: the
  * old design expected feeders.last_known_geo to ride along with consent,
  * which would have turned a consent checkbox into a location-tracking
@@ -55,7 +55,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     if (!auth) return reply;
 
     // requireFeeder already proved the row exists (FEEDER_GONE otherwise), so
-    // this SELECT cannot come back empty barring a concurrent erasure — in
+    // this SELECT cannot come back empty barring a concurrent erasure, in
     // which case answering FEEDER_GONE is again the honest response.
     const res = await query<MeRow>(
       `SELECT display_name, trust_score, verification_tier, home_ward, can_register, sos_opt_in
@@ -102,11 +102,11 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
   });
 
   /**
-   * PATCH /api/v1/feeders/me { sosOptIn: boolean } — SOS responder consent.
+   * PATCH /api/v1/feeders/me { sosOptIn: boolean }: SOS responder consent.
    *
    * This is THE consent surface for being paged (routes/sos.ts filters the
    * fan-out on feeders.sos_opt_in). The schema is one optional field and
-   * nothing else — `strictObject` rather than a loose object, because a
+   * nothing else: `strictObject` rather than a loose object, because a
    * consent endpoint that silently ignored extra fields would let a client
    * believe it had updated something (a display name, a ward) that this
    * route does not handle. Unknown fields are a 400, not a no-op.
@@ -121,12 +121,12 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
    * no-op, which is what a checkbox PUT/PATCH should be.
    */
   /**
-   * PATCH /api/v1/feeders/me { sosOptIn?, displayName? } — SOS consent + profile.
+   * PATCH /api/v1/feeders/me { sosOptIn?, displayName? }: SOS consent + profile.
    *
    * Initially this route accepted only `{ sosOptIn: boolean }` (strict), so
    * every account's display_name stayed the literal 'Hetja Feeder' seeded at
    * signup (BUGS P2-11). Now it accepts an optional `displayName` (1..64 chars,
-   * trimmed) alongside sosOptIn — at least one must be present, unknown fields
+   * trimmed) alongside sosOptIn. At least one must be present, unknown fields
    * still 400. display_name is set properly at signup via
    * displayNameFromEmail() in routes/auth.ts, and this PATCH lets the feeder
    * correct it without an admin.
@@ -173,18 +173,18 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
   });
 
   /**
-   * POST /api/v1/feeders/me/surface { surface: "register" } — self-election.
+   * POST /api/v1/feeders/me/surface { surface: "register" }: self-election.
    *
    * Becoming a registrator is a PREFERENCE the account sets, not a privilege
    * anyone grants: the abuse control is physical-world binding plus the
    * two-sided budget (see routes/registrations.ts), so there is nothing to
-   * review here. That is exactly why `can_register` exists separately — it is
+   * review here. That is exactly why `can_register` exists separately: it is
    * the operator's actual control over one account's registration surface,
    * while this route stays open.
    *
    * Electable ONLY from 'feeder'. An admin/vet/bmc_officer already holds the
    * register capability; letting them "elect" would DEMOTE them to
-   * registrator and silently strip moderation/enrolment — a 409 with the truth
+   * registrator and silently strip moderation/enrolment. A 409 with the truth
    * is cheaper than that surprise. Re-electing as an existing registrator is
    * idempotent success, because a double-tap is not an error the client needs
    * to distinguish from success.

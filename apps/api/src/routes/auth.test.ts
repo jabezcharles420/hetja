@@ -163,7 +163,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
     // consent_version froze at their signup value (a DPDP compliance gap) and
     // a user who turned 18 stayed flagged a minor forever. This test pins both
     // halves of the contract: the facts about the account DO advance, and the
-    // privileges do NOT — re-login must not be able to grant or revoke either.
+    // privileges do NOT. Re-login must not be able to grant or revoke either.
     const app = buildServer(config);
     const email = randomEmail();
     usedEmails.push(email);
@@ -276,7 +276,7 @@ describe("POST /api/v1/auth/otp + verify", () => {
 // ---------------------------------------------------------------------------
 // What this suite pins:
 //   - one-time use: the row behind a presented jti wins the exchange UPDATE
-//     exactly once, and a replay is treated as theft — the WHOLE family of
+//     exactly once, and a replay is treated as theft: the WHOLE family of
 //     live tokens for that feeder is revoked;
 //   - verify records what it mints, or every first refresh would look like a
 //     replay and lock every feeder out;
@@ -346,11 +346,11 @@ function craftExpiredRefresh(sub: string): string {
   return `${header}.${body}.${sig}`;
 }
 
-describe("POST /api/v1/auth/refresh — the exchange", () => {
+describe("POST /api/v1/auth/refresh: the exchange", () => {
   it("verify records the refresh token it mints, and refresh consumes it", async () => {
     // The full OTP path once: if verify did not store the jti, the first
     // refresh would find no row, look exactly like a replay, and lock the
-    // feeder out — the exact failure the store exists to prevent.
+    // feeder out, the exact failure the store exists to prevent.
     const app = buildServer(config);
     const email = randomEmail();
     usedEmails.push(email);
@@ -487,7 +487,7 @@ describe("POST /api/v1/auth/refresh — the exchange", () => {
     expect(replay.statusCode).toBe(401);
     expect(replay.json().error.code).toBe("REFRESH_REUSED");
 
-    // EVERY row for the feeder is now dead — used or revoked — including the
+    // EVERY row for the feeder is now dead (used or revoked), including the
     // successor minted one hop earlier. That is the point: a replayed token
     // proves at least one copy is in the wrong hands, so the whole chain
     // dies rather than letting the attacker's copy keep working.
@@ -497,7 +497,7 @@ describe("POST /api/v1/auth/refresh — the exchange", () => {
       expect(row.used_at ?? row.revoked_at, `row ${row.jti} must be dead`).not.toBeNull();
     }
 
-    // The successor is dead too — presenting it is itself a replay now.
+    // The successor is dead too: presenting it is itself a replay now.
     const deadReplacement = await app.inject({
       method: "POST",
       url: "/api/v1/auth/refresh",
@@ -522,7 +522,7 @@ describe("POST /api/v1/auth/refresh — the exchange", () => {
     const loser = a.statusCode === 401 ? a : b;
     expect(loser.json().error.code).toBe("REFRESH_REUSED");
 
-    // The loser's reuse sweep killed even the winner's successor — the
+    // The loser's reuse sweep killed even the winner's successor. That is the
     // fail-closed trade recorded in the refresh_tokens.replaced_by comment.
     const rows = await rowsFor(feederId);
     expect(rows).toHaveLength(2);
@@ -531,7 +531,7 @@ describe("POST /api/v1/auth/refresh — the exchange", () => {
   });
 
   it("401s REFRESH_REUSED for a valid signature with no recorded row", async () => {
-    // Signed by us, never stored — the shape of a pre-migration token or a
+    // Signed by us, never stored: the shape of a pre-migration token or a
     // row already swept by retention. Zero rows from the exchange UPDATE is
     // the reuse path: fail closed.
     const app = buildServer(config);
@@ -550,19 +550,19 @@ describe("POST /api/v1/auth/refresh — the exchange", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5.4 — signup eligibility + canonicalisation
+// 5.4: signup eligibility + canonicalisation
 // ---------------------------------------------------------------------------
 // The domain restriction is enforced in PRODUCTION only (the route reads
-// app.config.NODE_ENV — same idiom as the mailer and devCode gating), so
+// app.config.NODE_ENV, the same idiom as the mailer and devCode gating), so
 // dev/test login stays open, which everything above this line relies on.
 //
 // A production-config server is built by overriding NODE_ENV on an
 // already-loaded config: loadConfig()'s production boot guards (which demand
 // real SMTP/KMS env) never run, and the tests below only exercise paths that
-// return BEFORE any email send — an accepted OTP under production config
+// return BEFORE any email send. An accepted OTP under production config
 // would hit sendOtpEmail against an empty SMTP host.
 
-describe("signup eligibility — production only, unadvertised", () => {
+describe("signup eligibility: production only, unadvertised", () => {
   const prodConfig = { ...config, NODE_ENV: "production" as const };
 
   it("refuses a genuinely new address outside the eligible family", async () => {
@@ -608,7 +608,7 @@ describe("signup eligibility — production only, unadvertised", () => {
     expect(resolved.ok).toBe(true);
     if (resolved.ok) {
       expect(resolved.existedBefore).toBe(true);
-      // Keeps using the hash that already exists — the raw one.
+      // Keeps using the hash that already exists (the raw one).
       expect(resolved.hmac).toBe(identityHmac(raw, config.HETJA_HMAC_PEPPER));
     }
   });
@@ -625,7 +625,7 @@ describe("signup eligibility — production only, unadvertised", () => {
   });
 });
 
-describe("canonicalisation — one mailbox, one account", () => {
+describe("canonicalisation: one mailbox, one account", () => {
   it("keys a new signup on the canonical hash, not the typed string", async () => {
     const app = buildServer(config);
     const typed = `Wave5.Key-${Math.random().toString(36).slice(2)}@Gmail.com`;
@@ -694,7 +694,7 @@ describe("canonicalisation — one mailbox, one account", () => {
 
   it("dot-rotated renderings share ONE per-identity rate bucket", async () => {
     // otpPerIdentity burst is 5. Six distinct renderings of one mailbox must
-    // spend ONE bucket, so the sixth is refused — the exact bypass the
+    // spend ONE bucket, so the sixth is refused. That is the exact bypass the
     // canonical keying exists to kill.
     const app = buildServer(config);
     const base = `bucket-${Math.random().toString(36).slice(2)}`;

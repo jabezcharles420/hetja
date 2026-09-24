@@ -4,7 +4,7 @@
  * These focus on the :id path-parameter contract. The routes bind `:id`
  * straight into dog_stories.id (a uuid column); before lib/params.ts existed
  * a non-UUID value raised PostgreSQL 22P02 and rendered as "internal server
- * error" — a client mistake answered as a server fault.
+ * error": a client mistake answered as a server fault.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";

@@ -1,5 +1,5 @@
 /**
- * Hetja anonymous device-token issuance — the missing "issue" half of
+ * Hetja anonymous device-token issuance: the missing "issue" half of
  * INVARIANT 6. lib/device.ts already implements issueDeviceToken/
  * verifyDeviceToken, but nothing outside a test file ever called
  * issueDeviceToken() -- every consumer (auth/verify, scans.ts, sos.ts) only
@@ -42,10 +42,10 @@
  * so the window was not theoretical.
  *
  * Durable now: `spent_challenges(challenge_hash TEXT PRIMARY KEY, spent_at,
- * expires_at)` — one row per spent challenge signature, `expires_at = now()
+ * expires_at)`, one row per spent challenge signature, `expires_at = now()
  * + 150s` (CHALLENGE_TTL 120s + 30s slack so a challenge spent near expiry
  * stays rejected until it expires). The check is one atomic
- * `INSERT ... ON CONFLICT (challenge_hash) DO NOTHING RETURNING` — the PK
+ * `INSERT ... ON CONFLICT (challenge_hash) DO NOTHING RETURNING`. The PK
  * makes check-then-set atomic across processes AND restarts with no advisory
  * lock. A stale sweep `DELETE WHERE expires_at < now()` keeps the table
  * small (also done by the worker retention job). Cost is one extra write per
@@ -209,7 +209,7 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
     // Single-use durable: the signature is unique per issuance (fresh
     // nonce+salt every challenge), so it is the PK of spent_challenges
     // (migration 0021). The PK makes check-then-set atomic across processes
-    // AND restarts via one `INSERT ... ON CONFLICT DO NOTHING RETURNING` —
+    // AND restarts via one `INSERT ... ON CONFLICT DO NOTHING RETURNING`, with
     // no advisory lock, no race window, unlike the old in-process LRU.
     const spentKey = challenge.signature;
     const expiresAt = new Date(Date.now() + SPENT_TTL_MS).toISOString();
@@ -247,7 +247,7 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
     if (!mintBudget.allowed) {
       req.log.warn(
         { retryAfterSec: mintBudget.retryAfterSec },
-        "device token global mint budget exhausted — refusing further mints",
+        "device token global mint budget exhausted; refusing further mints",
       );
       return reply
         .status(429)

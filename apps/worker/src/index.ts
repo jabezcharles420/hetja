@@ -1,5 +1,5 @@
 /**
- * Hetja worker — Postgres-backed job queue (no Redis, per spec).
+ * Hetja worker: Postgres-backed job queue (no Redis, per spec).
  * Polls the jobs table with SELECT ... FOR UPDATE SKIP LOCKED so multiple
  * worker instances never double-process. Handlers:
  *   validate_scan  → marks scan ai_validation/review_status (stub: calls AI)
@@ -28,7 +28,7 @@ const BATCH = 10;
  *
  * Read from the same env the API writes with, so the worker deletes from the
  * directory the API actually wrote to. A mismatch here would silently delete
- * nothing while reporting success — which is exactly how the previous version
+ * nothing while reporting success, which is exactly how the previous version
  * of this job went unnoticed.
  */
 const PHOTO_TTL_DAYS = Number(process.env.HETJA_PHOTO_TTL_DAYS ?? 7);
@@ -149,11 +149,11 @@ async function recordFailure(job: Job, err: unknown): Promise<void> {
  *
  * Three transactions, deliberately, where there used to be one:
  *
- *   1. CLAIM  — lease the job and increment `attempts`, then COMMIT. This must
+ *   1. CLAIM:  lease the job and increment `attempts`, then COMMIT. This must
  *      survive the handler failing, or the queue cannot count attempts.
- *   2. RUN    — the handler, outside any transaction of ours. A handler that
+ *   2. RUN:    the handler, outside any transaction of ours. A handler that
  *      needs atomicity opens its own (`escalate_sos` does).
- *   3. SETTLE — DELETE on success, or `recordFailure` on error.
+ *   3. SETTLE: DELETE on success, or `recordFailure` on error.
  *
  * It never throws for a handler failure; that is reported as `"failed"`. Only a
  * database fault in the claim or settle steps propagates, because at that point
@@ -183,14 +183,14 @@ interface PushSubRow {
 }
 
 /**
- * Low-level VAPID send — honours PUSH_ENABLED and cleans up dead endpoints.
+ * Low-level VAPID send: honours PUSH_ENABLED and cleans up dead endpoints.
  *
  * Separated so reminder pushes (`send_registration_reminder`) can share the
  * same delivery logic without fabricating an `sos_notifications` row. The
  * SOS path layers its receipt on top via `sendOnePush` below.
  *
  * Returns true on a successful send, false otherwise (including PUSH_ENABLED
- * degrade — missing VAPID → do not send, do not crash the queue).
+ * degrade: missing VAPID → do not send, do not crash the queue).
  */
 async function sendPush(sub: PushSubRow, payload: string): Promise<boolean> {
   if (!PUSH_ENABLED) return false;
@@ -209,7 +209,7 @@ async function sendPush(sub: PushSubRow, payload: string): Promise<boolean> {
 /**
  * Sends one VAPID-signed push for the SOS fan-out. Writes delivered_at on
  * success. Thin wrapper around `sendPush` that adds the sos_notifications
- * receipt — kept separate so the reminder path does not fabricate an SOS
+ * receipt, kept separate so the reminder path does not fabricate an SOS
  * notification row.
  */
 async function sendOnePush(sub: PushSubRow, notificationId: string, payload: string): Promise<void> {
@@ -233,7 +233,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     // 8-minute escalation: UNACKED case → tier 2, notify BMC officers + nearest vets.
     await withTx(async (client) => {
       // `state = 'open'` only. This used to be `state IN ('open','acked')`, which
-      // escalated cases a responder had ALREADY claimed — the opposite of what
+      // escalated cases a responder had ALREADY claimed: the opposite of what
       // this job is for, and of what the header above and ops/RUNBOOK.md both
       // promise. A responder who acked within four minutes still triggered the
       // full tier-2 page at minute eight.
@@ -248,12 +248,12 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
         `UPDATE sos_cases SET tier = 2, escalated_at = now() WHERE id = $1`,
         [p.caseId],
       );
-      // THE NEAREST vets — which this did not previously return.
+      // THE NEAREST vets, which this did not previously return.
       //
       // It was `ORDER BY ST_Distance(geo, (SELECT geo FROM dogs WHERE id = $1))`.
       // `dogs` has no column named `geo`; the column is `last_seen_geo`. Rather
       // than erroring, PostgreSQL resolves the unqualified `geo` inside the
-      // subquery against the OUTER scope — `vets.geo` — so the sort key became
+      // subquery against the OUTER scope (`vets.geo`), so the sort key became
       // ST_Distance(vets.geo, vets.geo) = 0 for every row. Confirmed by EXPLAIN:
       //     Sort Key: (st_distance(vets.geo, (SubPlan 1), true))
       // The effect was silent and total: tier-2 escalation paged three ARBITRARY
@@ -261,7 +261,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       //
       // Both sides are now table-qualified so the same mistake cannot recur, and
       // a dog with no recorded position no longer produces a NULL sort key that
-      // orders arbitrarily — it is excluded, because paging the wrong clinic is
+      // orders arbitrarily. It is excluded, because paging the wrong clinic is
       // worse than paging none and is indistinguishable from success.
       const vets = await client.query(
         `SELECT v.id, v.signing_key_pub
@@ -335,7 +335,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    *
    * which deletes rows from the JOB QUEUE, not photographs. No file was ever
    * removed, no "retention manifest" exists anywhere in the repository, and
-   * nothing enqueued the job in the first place — so the set it deleted from
+   * nothing enqueued the job in the first place, so the set it deleted from
    * was always empty. Three separate documents state a 7-day photo TTL as
    * fact. Photos were retained forever, on the same disk as PostgreSQL, and
    * `docs/ops/AUDIT-LOGGING.md` spells out where that ends: "if [the disk]
@@ -343,14 +343,14 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    *
    * WHAT IS DELETED, PRECISELY: the file on disk, and the `photo_s3_key`
    * pointer that named it. The scan row itself, its timestamps, its geo and
-   * its trust effects all remain — the retention promise is about images, not
+   * its trust effects all remain. The retention promise is about images, not
    * about erasing that a feed happened. A feeder's streak does not evaporate
    * because their photo aged out.
    *
    * Deletion order is file-then-pointer, deliberately. If the process dies
    * between the two, the row points at a missing file: the profile shows a
    * broken image, which is visible and self-corrects on the next run. The
-   * reverse order would leave an orphaned file no query can ever find again —
+   * reverse order would leave an orphaned file no query can ever find again:
    * an invisible leak that grows forever, which is the failure this job exists
    * to prevent.
    */
@@ -362,14 +362,14 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     // expired more than seven days ago"). spent_challenges was kept small only
     // by a best-effort DELETE inside every mint (routes/devices.ts);
     // refresh_tokens grew by one row per login and one per refresh, forever.
-    // They run before the storage-backend check on purpose — a non-local
+    // They run before the storage-backend check on purpose: a non-local
     // backend has no photo delete path, but that is no reason to skip the
     // table sweeps, which the old early `return` did.
     await sweepExpiredChallengesAndTokens();
 
     if (STORAGE_BACKEND !== "local") {
       console.warn(
-        `retention: STORAGE_BACKEND=${STORAGE_BACKEND} has no delete path in this build — ` +
+        `retention: STORAGE_BACKEND=${STORAGE_BACKEND} has no delete path in this build; ` +
           "photos are NOT being expired. Implement it before relying on the TTL.",
       );
       return;
@@ -389,13 +389,13 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     for (const row of expired.rows) {
       // `photo_s3_key` is minted server-side as `photos/<uuid>.<ext>`, never
       // supplied by a caller, but this is a filesystem delete driven by a
-      // database value — so the value is re-validated here rather than trusted.
+      // database value, so the value is re-validated here rather than trusted.
       // A key that escaped its prefix would let this loop delete outside the
       // photo directory entirely.
       if (!/^photos\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(row.photo_s3_key)) {
         console.error(
           `retention: refusing to delete unexpected photo key ${JSON.stringify(row.photo_s3_key)} ` +
-            `on scan ${row.id} — clearing the pointer only`,
+            `on scan ${row.id}; clearing the pointer only`,
         );
         await query(`UPDATE scans SET photo_s3_key = NULL WHERE id = $1`, [row.id]);
         continue;
@@ -405,7 +405,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       try {
         await unlink(filePath);
       } catch (err) {
-        // ENOENT means the file is already gone — that is success for a
+        // ENOENT means the file is already gone. That is success for a
         // deletion job, and re-running after a partial pass must not fail.
         if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
           console.error(`retention: could not unlink ${filePath}:`, err);
@@ -435,16 +435,16 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * rejects it outright: `column "medical_records.hash_curr" must appear in the
    * GROUP BY clause or be used in an aggregate function`. Every anchor run threw
    * before writing anything, the job retried to MAX_ATTEMPTS and stayed there.
-   * docs/INVARIANTS.md marks invariant 10 "✅ (API)" — the parenthesis was
+   * docs/INVARIANTS.md marks invariant 10 "✅ (API)"; the parenthesis was
    * doing more work than it looked like: the endpoints were real, the thing that
    * was supposed to feed them was not. Any `ledger_anchors` row predating this
    * fix came from somewhere else (a test fixture, a hand-run INSERT) and its
-   * `record_count` should not be trusted — which is also why the proof endpoint
+   * `record_count` should not be trusted, which is also why the proof endpoint
    * ignores anchors with a NULL merkle_root.
    *
    * `head_hash` is the STORED hash of the last row, deliberately not
    * `recomputeHead(records)`. Publishing a freshly recomputed head would make
-   * GET /api/v1/ledger/verify — which recomputes and compares — tautologically
+   * GET /api/v1/ledger/verify (which recomputes and compares) tautologically
    * agree with the anchor forever, including over doctored rows. Publishing what
    * the database actually recorded is what lets that comparison fail.
    *
@@ -461,7 +461,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   /**
    * Expiry sweep for stale self-serve registrations (wave 9).
    *
-   * One withTx, three passes — reminders before expiry, so a registration
+   * One withTx, three passes (reminders before expiry), so a registration
    * crossing day 30 in the same run has already had both:
    *   1. day  7: activation_reminders_sent 0 → 1
    *   2. day 21: activation_reminders_sent 1 → 2
@@ -471,11 +471,11 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * Each reminder pass carries AND activation_reminders_sent = N-1 so a job
    * that runs twice reminds once. Reminders are handed off as their own
    * send_registration_reminder jobs, not sent inline, so a push failure retries
-   * independently — the shape sos.ts already uses for send_sos_push.
+   * independently. This is the shape sos.ts already uses for send_sos_push.
    */
   expire_stale_registrations: async () => {
     await withTx(async (client) => {
-      // Pass 1: day 7 — first reminder (0 → 1)
+      // Pass 1: day 7, first reminder (0 → 1)
       const r7 = await client.query<{ id: string; slug: string }>(
         `UPDATE dogs
             SET activation_reminders_sent = 1
@@ -492,7 +492,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
         );
       }
 
-      // Pass 2: day 21 — second reminder (1 → 2)
+      // Pass 2: day 21, second reminder (1 → 2)
       const r21 = await client.query<{ id: string; slug: string }>(
         `UPDATE dogs
             SET activation_reminders_sent = 2
@@ -509,7 +509,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
         );
       }
 
-      // Pass 3: expire — 30 days without activation
+      // Pass 3: expire after 30 days without activation
       const expired = await client.query<{ id: string }>(
         `UPDATE dogs
             SET status = 'expired', registered_device_id = NULL
@@ -538,7 +538,7 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    * push failure retries independently.
    *
    * Honours PUSH_ENABLED degrade: missing VAPID → do not send, do not crash.
-   * Does NOT fabricate an sos_notifications row — uses sendPush directly.
+   * Does NOT fabricate an sos_notifications row; uses sendPush directly.
    */
   send_registration_reminder: async (p) => {
     if (!PUSH_ENABLED) return;
@@ -560,8 +560,8 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     const payload = JSON.stringify({
       title: "Hetja reminder",
       body: isSecond
-        ? `Your tag for ${dog.slug} is still not attached after 21 days — it expires in 9 days. Scan it at the dog to activate.`
-        : `Your tag for ${dog.slug} is still pending — scan it at the dog to activate before it expires.`,
+        ? `Your tag for ${dog.slug} is still not attached after 21 days. It expires in 9 days. Scan it at the dog to activate.`
+        : `Your tag for ${dog.slug} is still pending. Scan it at the dog to activate before it expires.`,
       url: `/register/${dog.slug}/print`,
       tag: `registration-${dogId}-${reminder}`,
     });
@@ -583,10 +583,10 @@ export const REFRESH_TOKEN_SWEEP_GRACE_DAYS = 7;
  * The two table sweeps the retention job owns. Exported so the test can run
  * them without a photo directory.
  *
- *   spent_challenges — every row carries an absolute `expires_at`
+ *   spent_challenges: every row carries an absolute `expires_at`
  *     (CHALLENGE_TTL + slack, ~150 s); anything past it can never be replayed
  *     into a mint again, so it is pure bloat.
- *   refresh_tokens — rows whose token expired more than
+ *   refresh_tokens: rows whose token expired more than
  *     REFRESH_TOKEN_SWEEP_GRACE_DAYS ago, regardless of used/revoked state: an
  *     expired token fails `verifyRefreshToken`'s exp check before the row is
  *     ever consulted, so past the grace window the row protects nothing.
@@ -617,7 +617,7 @@ export interface PublishedAnchor {
 
 /**
  * Publishes one anchor. Takes the client rather than reaching for the pool so
- * the whole thing is one transaction — and so a test can drive it inside a
+ * the whole thing is one transaction, and so a test can drive it inside a
  * transaction it rolls back, instead of committing an anchor row into a database
  * other suites are reading the latest anchor from.
  *
@@ -625,7 +625,7 @@ export interface PublishedAnchor {
  * anchor over zero records would be a published claim about nothing).
  */
 export async function publishLedgerAnchor(client: PoolClient): Promise<PublishedAnchor | null> {
-  // Canonical chain order — identical to the ordering used by the chain write
+  // Canonical chain order, identical to the ordering used by the chain write
   // (medical.ts), GET /api/v1/ledger/verify and the proof endpoint. A different
   // order here would produce a root nothing else can reproduce.
   const rows = await client.query<MerkleLeaf>(
@@ -658,7 +658,7 @@ export async function publishLedgerAnchor(client: PoolClient): Promise<Published
     [head, merkleRoot, recordCount, HETJA_GLOBAL_LEDGER_ID, publishedAt, headSignature],
   );
 
-  // published_url is still '' — INVARIANT 10 wants the head somewhere the
+  // published_url is still ''. INVARIANT 10 wants the head somewhere the
   // operator does not solely control, and a row in the operator's own database
   // is not that. The signature makes the anchor attributable; it does not make
   // it externally held. Publishing to a third party (a notarisation service, a
@@ -673,7 +673,7 @@ export async function publishLedgerAnchor(client: PoolClient): Promise<Published
 
 /**
  * Advisory lock so two worker instances cannot both decide to enqueue today's
- * anchor. Distinct from apps/api's CHAIN_LOCK_KEY (420_001) — same numbering
+ * anchor. Distinct from apps/api's CHAIN_LOCK_KEY (420_001): same numbering
  * block, different purpose.
  */
 const ANCHOR_SCHEDULE_LOCK_KEY = 420_010;
@@ -688,7 +688,7 @@ let lastAnchorScheduleCheck = 0;
  *
  * INVARIANT 10 is "publish the ledger head DAILY", and nothing in this repo was
  * making that happen. The handler existed, `ledger.ts` served the endpoints, and
- * docs/INVARIANTS.md recorded the invariant as implemented — but no cron entry,
+ * docs/INVARIANTS.md recorded the invariant as implemented, but no cron entry,
  * no systemd timer (ops/systemd has units for the four services and a restic
  * timer, none for this) and no code anywhere ever inserted a row with
  * `kind = 'anchor_ledger'`. A job handler nobody triggers publishes nothing, so
@@ -697,12 +697,12 @@ let lastAnchorScheduleCheck = 0;
  * Scheduled from inside the worker rather than by a new timer unit because the
  * worker is already the thing that runs continuously and already owns the job
  * table, and because a timer would be one more piece of ops/ wiring that can be
- * forgotten on a rebuild — which is the failure that produced this comment.
+ * forgotten on a rebuild, which is the failure that produced this comment.
  *
  * Idempotent by construction, with no scheduler state to keep:
  *   * skip if an `anchor_ledger` job is already queued (jobs are DELETEd on
  *     success, so a row's existence means "not done yet");
- *   * skip if `ledger_anchors` already has a row from the last 24 hours — the
+ *   * skip if `ledger_anchors` already has a row from the last 24 hours: the
  *     published anchor IS the record of the last run, so the schedule cannot
  *     drift out of sync with reality;
  *   * `pg_try_advisory_xact_lock` so a second worker instance evaluating the
@@ -710,7 +710,7 @@ let lastAnchorScheduleCheck = 0;
  *     if another instance holds it, it is about to make the identical decision
  *     and there is nothing to wait for.
  *
- * The 5-minute throttle keeps this off the 2-second poll loop — two extra
+ * The 5-minute throttle keeps this off the 2-second poll loop: two extra
  * queries every tick, forever, to answer a once-a-day question.
  */
 export async function enqueueAnchorJobIfDue(client: PoolClient): Promise<boolean> {
@@ -723,7 +723,7 @@ export async function enqueueAnchorJobIfDue(client: PoolClient): Promise<boolean
     // `failed_at IS NULL` matters: a dead-lettered anchor job is parked forever
     // (migration 0016), and without this filter its mere existence would satisfy
     // the NOT EXISTS guard and stop INVARIANT 10 from ever being scheduled
-    // again — trading a loud repeated failure for a silent permanent one.
+    // again, trading a loud repeated failure for a silent permanent one.
     `INSERT INTO jobs (kind, payload, run_after)
      SELECT 'anchor_ledger', '{}'::jsonb, now()
       WHERE NOT EXISTS (
@@ -750,7 +750,7 @@ const RETENTION_SCHEDULE_LOCK_KEY = 420_011;
  *
  * NOTHING ENQUEUED THIS JOB BEFORE. `retention` had a handler, a documented
  * 7-day TTL in three separate files, and no producer anywhere in the
- * repository — so the TTL was prose. Photos accumulated indefinitely on the
+ * repository, so the TTL was prose. Photos accumulated indefinitely on the
  * same disk as PostgreSQL, and that disk filling stops the database accepting
  * writes, which stops the SOS path.
  *
@@ -791,7 +791,7 @@ const REGISTRATION_SCHEDULE_LOCK_KEY = 420_012;
  * Enqueues `expire_stale_registrations` once per 24h, line-for-line mirror of
  * `enqueueRetentionJobIfDue` including the load-bearing `failed_at IS NULL`
  * filter. Without it, one dead-lettered sweep (migration 0016 parks failures
- * forever) satisfies the guard and silently stops expiry for good — trading a
+ * forever) satisfies the guard and silently stops expiry for good, trading a
  * loud repeated failure for a silent permanent one. That is 0016's own
  * recorded lesson.
  */
@@ -820,7 +820,7 @@ export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise
  * Producer map: every handler kind → human-readable producer. A mechanical
  * guard (a test) fails if a handler has no entry. Cheaper than remembering.
  *
- * `validate_scan` has no producer — nothing enqueues it, so ai_validation
+ * `validate_scan` has no producer: nothing enqueues it, so ai_validation
  * stays NULL, review_status stays pending forever, and INVARIANT 15's gate
  * can never fire. Recorded honestly rather than pretended.
  */

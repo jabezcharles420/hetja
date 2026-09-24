@@ -24,7 +24,7 @@ const LOC_B = { lat: 19.05, lng: 72.88 };
 
 /**
  * Creates a feeder with the given role and a signed access token. Rows are
- * registered in `createdFeeders` for afterEach cleanup — which deletes
+ * registered in `createdFeeders` for afterEach cleanup, which deletes
  * attributing scans first, since wave 7 sos scans carry feeder_id.
  */
 async function makeFeeder(displayName: string, role: "feeder" | "admin" = "feeder"): Promise<{
@@ -47,13 +47,13 @@ const createdFeeders: string[] = [];
 const createdProviders: string[] = [];
 
 /**
- * How the dog's corroboration column is stamped — the wave-7 fan-out gate.
+ * How the dog's corroboration column is stamped: the wave-7 fan-out gate.
  *
- *   "legacy" (default) — sos_eligible_at = created_at. Every dog in production
+ *   "legacy" (default): sos_eligible_at = created_at. Every dog in production
  *     got exactly this from 0019's backfill, so it is what a normal dog looks
  *     like; the fan-out MUST page for these (regression guard against the
  *     gate silently switching the whole register off).
- *   false — sos_eligible_at IS NULL: reported but never corroborated. Paging
+ *   false: sos_eligible_at IS NULL (reported but never corroborated). Paging
  *     must be suppressed while everything else (report acceptance,
  *     nearbyCare) still works.
  */
@@ -71,7 +71,7 @@ async function insertDog(
   );
   dogId = res.rows[0].id;
   // "Legacy": stamp corroboration from the dog's OWN created_at, exactly as
-  // 0019's backfill did — not from now(), which would make the fixture lie
+  // 0019's backfill did, not from now(), which would make the fixture lie
   // about production's shape.
   if (eligibility === "legacy") {
     await query(`UPDATE dogs SET sos_eligible_at = created_at WHERE id = $1`, [dogId]);
@@ -80,8 +80,8 @@ async function insertDog(
 
 /**
  * An opted-in responder the fan-out can find. The proximity input is a
- * GEOTAGGED SCAN by this feeder near LOC_A within the last 30 days — the
- * wave-7 derivation — and deliberately NOT feeders.last_known_geo /
+ * GEOTAGGED SCAN by this feeder near LOC_A within the last 30 days (the
+ * wave-7 derivation), and deliberately NOT feeders.last_known_geo /
  * last_seen_at: those columns are dead (nothing writes them; migration 0020
  * documents why), so a fixture that still set them would prove nothing about
  * the query that actually runs.
@@ -208,7 +208,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
   /**
    * The state `fanout` exists to disambiguate: the dog IS corroborated (the
-   * responder path ran — fanout "responders") but nobody in the scan-history
+   * responder path ran; fanout "responders") but nobody in the scan-history
    * set cleared the bar (tier 2). Distinct from suppression, where paging is
    * gated off entirely ("escalated"). Both used to be indistinguishable
    * tier-2 cases.
@@ -294,7 +294,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     await app.close();
   });
 
-  /** A pending_activation tag resolves fine — the report path never gated on
+  /** A pending_activation tag resolves fine: the report path never gated on
    * dog status, and wave 7 did not change that. */
   it("accepts an SOS report for a pending_activation dog (not 404/403)", async () => {
     await insertDog(LOC_A, false);
@@ -449,8 +449,8 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
   /**
    * Regression guard for the corroboration gate itself: this dog is created
-   * the old way — sos_eligible_at = created_at via the "legacy" fixture
-   * default, exactly what 0019's backfill stamped onto every production dog —
+   * the old way (sos_eligible_at = created_at via the "legacy" fixture
+   * default, exactly what 0019's backfill stamped onto every production dog)
    * and MUST still fan out. If this ever fails, the gate has silently
    * switched the whole register off.
    */
@@ -555,14 +555,14 @@ describe("POST /api/v1/reports (anon-attested)", () => {
 
     // Cleanup via createdFeeders: this report's scan row now ATTRIBUTES the
     // feeder (scans.feeder_id), so the feeder row cannot go before those
-    // scans do — afterEach handles the ordering.
+    // scans do; afterEach handles the ordering.
     createdFeeders.push(feederRes.rows[0].id);
     await app.close();
   });
 
   /**
    * Wave 7: INVARIANT 6 says limits bind an account OR a device, but
-   * feeder-authed callers skipped every cap — a signed-in abuser could page
+   * feeder-authed callers skipped every cap: a signed-in abuser could page
    * responders without bound. The same rolling 2/day + 5/week now keys on the
    * account (scans.feeder_id, written by the report insert).
    */
@@ -597,7 +597,7 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     expect(third.statusCode).toBe(429);
     expect(third.json().error.code).toBe("SOS_RATE_LIMITED");
 
-    // The cap counts rows attributed to the ACCOUNT — prove attribution
+    // The cap counts rows attributed to the ACCOUNT. Prove attribution
     // actually happened, or the 429 above would only be reachable through
     // some other path's leakage.
     const attributed = await query<{ n: string }>(
@@ -614,7 +614,7 @@ describe("GET /api/v1/sos/cases/:id (bound to the case's people)", () => {
   /**
    * Wave 7 bound this endpoint: the acker, someone paged for the case
    * (a sos_notifications row), or a moderator. This test exercises the
-   * fan-out-set leg — the responder the critical case was opened FOR can
+   * fan-out-set leg: the responder the critical case was opened FOR can
    * watch its state.
    */
   it("returns case state to a responder who was paged for it", async () => {
@@ -647,7 +647,7 @@ describe("GET /api/v1/sos/cases/:id (bound to the case's people)", () => {
 
   /**
    * The binding itself: an authenticated feeder with no relation to the case
-   * — not the acker, never fanned out, no moderate capability — reads
+   * (not the acker, never fanned out, no moderate capability) reads
    * nothing. Before wave 7 any account could read any case.
    */
   it("403s a feeder with no relation to the case", async () => {
@@ -681,7 +681,7 @@ describe("GET /api/v1/sos/cases/:id (bound to the case's people)", () => {
   });
 
   /**
-   * The acker leg — and specifically of a SUPPRESSED case: an uncorroborated
+   * The acker leg, and specifically of a SUPPRESSED case: an uncorroborated
    * dog never had responders fanned out, yet whoever claimed the case still
    * owns reading it.
    */
@@ -934,7 +934,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
   }
 
   /**
-   * resolved_at/resolution/state were columns nothing wrote — no case could
+   * resolved_at/resolution/state were columns nothing wrote, so no case could
    * ever close. The acker is the person who went out to the dog; their word
    * is what closes the case.
    */
@@ -983,7 +983,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
     await app.close();
   });
 
-  /** A moderator may close a case nobody has claimed — e.g. ruling it a false
+  /** A moderator may close a case nobody has claimed, e.g. ruling it a false
    * alarm after the escalation channel reported back. */
   it("a moderator resolves an unclaimed case as a false alarm", async () => {
     const caseId = await openCase("critical");
@@ -1073,7 +1073,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
    * The ack predicate used to be `acked_by IS NULL` alone. A case a moderator
    * closed without anyone claiming it has acked_by NULL and resolved_at set, so
    * a later ack matched, wrote acked_by/acked_at and flipped `state` back to
-   * 'acked' — a terminal state silently reopened by a responder who never went
+   * 'acked': a terminal state silently reopened by a responder who never went
    * anywhere.
    */
   it("an ack cannot reopen a case a moderator already resolved (409 SOS_CASE_CLOSED)", async () => {
@@ -1111,7 +1111,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
   });
 
   /**
-   * INVARIANT 7 is a cap on what pages people — cases — not on scans rows. The
+   * INVARIANT 7 is a cap on what pages people (cases), not on scans rows. The
    * dedupe key is deterministic, so re-filing a report after its case closed
    * reuses the scans row and opens a NEW case; counting scans let that path open
    * a fresh case every time the last one was resolved, without ever touching the
@@ -1140,7 +1140,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
     });
     expect(resolved.statusCode).toBe(200);
 
-    // Same subject, same words: not a replay of an OPEN case, so a new case —
+    // Same subject, same words: not a replay of an OPEN case, so a new case,
     // and the second of this device's two for the day.
     const refiled = await report("same words");
     expect(refiled.statusCode).toBe(200);
@@ -1162,19 +1162,19 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
   });
 });
 
-describe("PATCH /api/v1/feeders/me — SOS responder consent (wave 7)", () => {
+describe("PATCH /api/v1/feeders/me: SOS responder consent (wave 7)", () => {
   /**
    * The consent surface is what makes the fan-out reachable at all: before
    * wave 7 NOTHING wrote feeders.sos_opt_in, so every feeder answered FALSE
    * forever and the responder query returned zero rows on every call. This
-   * test walks the whole chain — PATCH flips the bit, the GET readout reports
+   * test walks the whole chain: PATCH flips the bit, the GET readout reports
    * it, and a subsequent critical case pages exactly that feeder.
    */
   it("flips sos_opt_in, reports it on /me, and makes the feeder paged by the next fan-out", async () => {
     const feeder = await makeFeeder("Consenting Responder");
 
     // Give the feeder a qualifying nearby scan BEFORE consenting: proximity
-    // alone must not be enough — paging requires the explicit yes.
+    // alone must not be enough; paging requires the explicit yes.
     const scan = await query(
       `INSERT INTO scans (dog_id, client_uuid, scan_type, geo, feeder_id, device_token, captured_at, received_at, review_status)
        SELECT d.id, $2, 'view', ST_SetSRID(ST_MakePoint(72.8214, 18.9767), 4326)::geography, $1, NULL, now(), now(), 'pending'
@@ -1274,7 +1274,7 @@ describe("PATCH /api/v1/feeders/me — SOS responder consent (wave 7)", () => {
 
 describe("sos_notifications uniqueness (migration 0020)", () => {
   /**
-   * Both producers write `ON CONFLICT DO NOTHING` — routes/sos.ts for push
+   * Both producers write `ON CONFLICT DO NOTHING`: routes/sos.ts for push
    * rows, the worker's escalate_sos for vet sms rows and the bmc row. Before
    * wave 7 there was NO unique constraint, so that clause was a NO-OP and
    * every repeated escalation inserted duplicates. This pins the contract
@@ -1324,7 +1324,7 @@ describe("sos_notifications uniqueness (migration 0020)", () => {
       );
       expect(secondVetRow.rowCount).toBe(0);
 
-      // The recipient-less bmc row — the shape a plain UNIQUE could never
+      // The recipient-less bmc row, the shape a plain UNIQUE could never
       // police (NULLs are never equal), which is why the indexes are partial:
       const firstBmc = await query(
         `INSERT INTO sos_notifications (case_id, channel) VALUES ($1, 'bmc') ON CONFLICT DO NOTHING`,

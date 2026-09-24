@@ -1,7 +1,7 @@
 /**
  * Hetja medical ledger routes (INVARIANT 8/9/10).
  *
- * POST /api/v1/medical_records — feeder self-report (is_verified=false) or
+ * POST /api/v1/medical_records: feeder self-report (is_verified=false) or
  *   vet write (is_verified=true, clinic signature verified against
  *   vets.signing_key_pub). Every row is chained: hash_prev = previous head,
  *   hash_curr = SHA256(length-prefixed concat), computed under
@@ -9,9 +9,9 @@
  *   INSERT persists the dog's Merkle root as of this row (see
  *   0014_ledger_merkle_root.sql), which is what makes
  *   GET /api/v1/ledger/proof (ledger.ts) an attestation rather than a
- *   recomputation. Corrections APPEND (corrects_record_id) — the DB refuses
+ *   recomputation. Corrections APPEND (corrects_record_id); the DB refuses
  *   UPDATE/DELETE.
- * GET  /api/v1/dogs/:slug/medical — anon: verified records only.
+ * GET  /api/v1/dogs/:slug/medical: anon, verified records only.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { createPublicKey, verify } from "node:crypto";
@@ -43,18 +43,18 @@ const FK_CORRECTS = "medical_records_corrects_record_id_fkey";
 /**
  * One dog's Merkle leaves, in canonical chain order. The WHERE and ORDER BY are
  * shared verbatim with the proof endpoint in ledger.ts (`DOG_LEDGER_SQL`
- * there) — the two MUST agree, because a proof is only checkable against a root
+ * there). The two MUST agree, because a proof is only checkable against a root
  * computed over the same leaves in the same order, and a divergence between
  * these two queries would show up as "tampered" on untampered data.
  *
  * Only `id` and `hash_curr` are selected. A leaf is `SHA256(0x00 ||
  * record.hash)` and `id` is used solely to locate a leaf's index
  * (packages/ledger/src/merkle.ts), so reading every `payload` JSONB here would
- * be pure I/O — paid on every append, while holding the chain lock, for bytes
+ * be pure I/O, paid on every append while holding the chain lock, for bytes
  * that are never hashed.
  *
- * (created_at, id) is the ordering the chain itself already uses — the head
- * SELECT below is its `DESC` twin — and 0014 adds the matching
+ * (created_at, id) is the ordering the chain itself already uses (the head
+ * SELECT below is its `DESC` twin), and 0014 adds the matching
  * (dog_id, created_at, id) index so this is an index-ordered range scan rather
  * than a seq scan plus sort under the chain lock.
  *
@@ -63,7 +63,7 @@ const FK_CORRECTS = "medical_records_corrects_record_id_fkey";
  * that overlap in time can be committed by the advisory lock in one order and
  * ordered by `created_at` in the other. The chain's own verification
  * (`recomputeHead`, ledger.ts) already depends on this ordering, so the Merkle
- * tree is no more exposed to it than the chain is — but it is why the ordering
+ * tree is no more exposed to it than the chain is. But it is why the ordering
  * is spelled out identically in both files instead of being left to each
  * query's convenience.
  */
@@ -77,7 +77,7 @@ SELECT id, hash_curr AS hash
  * Placeholder id for the row being appended, which does not have one yet:
  * `id` is `gen_random_uuid()` on INSERT, and the root has to be computed
  * BEFORE the INSERT so it can be written in the same statement (INVARIANT 8
- * leaves no second chance — there is no UPDATE to add it afterwards).
+ * leaves no second chance: there is no UPDATE to add it afterwards).
  *
  * Safe because the record id is deliberately not in the tree: a leaf is
  * `SHA256(0x00 || record.hash)` and nothing else (packages/ledger/src/merkle.ts,
@@ -115,12 +115,12 @@ function requireFeeder(
     return null;
   }
   // `verifyAccessToken` THROWS (JwtError) on a malformed, mis-signed, wrong-type
-  // or expired token — it never returns a falsy payload. So the `if (!payload)`
+  // or expired token; it never returns a falsy payload. So the `if (!payload)`
   // guard that used to stand here was unreachable, the throw escaped the handler,
   // and with no `setErrorHandler` registered Fastify's default turned it into a
   // 500 whose body echoed the internal message ("malformed token", "bad
-  // signature"). Every other authenticated route — stories.ts, trust.ts, push.ts,
-  // territories.ts, metrics.ts — wraps this call in try/catch; medical.ts was the
+  // signature"). Every other authenticated route (stories.ts, trust.ts, push.ts,
+  // territories.ts, metrics.ts) wraps this call in try/catch; medical.ts was the
   // one that did not, and it guards the append-only ledger write.
   try {
     const payload = verifyAccessToken(token, req.server.config.JWT_SECRET);
@@ -164,7 +164,7 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
     // (POST /api/v1/feeders/me/surface) they lost the ability to record a
     // treatment they had just paid for, and admins and BMC officers never had
     // it at all. The capability map in lib/require-role.ts is the one place
-    // "what may this role do" lives — an unknown role yields an empty set and
+    // "what may this role do" lives: an unknown role yields an empty set and
     // is refused here, and an erased account (no row) is refused with it.
     if (!role || !capabilitiesFor(role).has("feed")) {
       return reply
@@ -242,7 +242,7 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
         // The cost is real and worth stating plainly: this is O(n) rows read plus
         // O(n) SHA-256 over one dog's history on EVERY insert, and it is paid
         // while holding CHAIN_LOCK_KEY, which serialises all medical appends
-        // system-wide — so it is not just this writer's latency, it is everyone's.
+        // system-wide, so it is not just this writer's latency, it is everyone's.
         // At pilot scale that is fine: a dog carries a handful of records (a
         // vaccination, an ABC, the odd treatment), so n is single digits and the
         // hashing is microseconds. It stops being fine somewhere in the low
@@ -252,7 +252,7 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
         const prior = await client.query<ProvenRecord>(DOG_LEDGER_SQL, [input.dogId]);
         // `merkleRoot` is typed against the full `LedgerRecord` but reads only
         // `hash` (and `merkleProof` additionally `id`), which is what the query
-        // above selects — so this asserts to a subtype whose extra fields are
+        // above selects. So this asserts to a subtype whose extra fields are
         // provably unused. See ledger.ts's `asLeaves` for the same note.
         const leaves = [
           ...prior.rows,

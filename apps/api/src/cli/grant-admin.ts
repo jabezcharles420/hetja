@@ -6,7 +6,7 @@
  *   pnpm --filter @hetja/api admin:list
  *
  * WHY A CLI RATHER THAN A ROUTE. Admin is the role that can enrol dogs, mint
- * collars, moderate stories and define territories — i.e. write to the register
+ * collars, moderate stories and define territories, i.e. write to the register
  * of every stray in a city. Every HTTP-shaped alternative puts a
  * privilege-escalation path on the public internet:
  *
@@ -23,7 +23,7 @@
  *
  * The address is never stored. It is HMAC'd with HETJA_HMAC_PEPPER into the
  * same `identity_hmac` the auth path uses (INVARIANT 3), so this tool can only
- * act on an account that has ALREADY signed in at least once — which is the
+ * act on an account that has ALREADY signed in at least once, which is the
  * right constraint: you are promoting a real person who has proved they can
  * receive mail at that address, not creating an account out of thin air.
  */
@@ -49,7 +49,7 @@ function usage(): never {
       "  admin:revoke <email>    demote an admin back to feeder",
       "  admin:list              list current admins",
       "",
-      "The feeder must have signed in at least once — this tool promotes an",
+      "The feeder must have signed in at least once: this tool promotes an",
       "existing account, it does not create one.",
       "",
     ].join("\n"),
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
   // loadConfig enforces that HETJA_HMAC_PEPPER is set in production. Using it
   // rather than reading process.env directly means this tool cannot silently
   // compute a hash under the development default and then fail to match any
-  // real row — a failure that would look like "no such feeder".
+  // real row, a failure that would look like "no such feeder".
   const config = loadConfig();
 
   if (action === "list") {
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
     // mean minting an admin for an address nobody has proved they control.
     console.error(
       `No feeder found for that address.\n` +
-        `They must sign in at hetja.in/login once first — then re-run this.`,
+        `They must sign in at hetja.in/login once first, then re-run this.`,
     );
     process.exit(1);
   }

@@ -1,12 +1,12 @@
 /**
  * Hetja GAMIFICATION endpoints (feeder-authed).
  *
- * GET  /api/v1/feeders/me/streak            — current streak_days + the last
+ * GET  /api/v1/feeders/me/streak            : current streak_days + the last
  *   feed's calendar day + a hint for the next earnable badge.
- * POST /api/v1/feeders/me/badges/check      — called by the client after a
+ * POST /api/v1/feeders/me/badges/check      : called by the client after a
  *   feed scan: evaluates the badge catalog against server-recorded state and
  *   grants (INSERTs into feeders.badges) any newly earned badges. Grants are
- *   idempotent — repeated calls never double-award.
+ *   idempotent: repeated calls never double-award.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { withTx } from "@hetja/db";

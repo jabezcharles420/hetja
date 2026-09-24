@@ -63,15 +63,15 @@ describe("ScanInput skew clamp", () => {
   it("rejects capturedAt more than 15 minutes in the future", () => {
     // The direction that matters: applyLww keeps the greatest captured_at, so a
     // future timestamp wins last-writer-wins indefinitely and pins
-    // last_seen_geo — the field the SOS geofence depends on.
+    // last_seen_geo, the field the SOS geofence depends on.
     expect(at(20 * MIN).success).toBe(false);
   });
 
   // The past direction had NO coverage, which is how a symmetric clamp survived
   // in a schema whose invariant is explicitly about phones that are "offline for
   // hours". Each of these was a permanent 400 before the clamp was made
-  // one-sided: the feed synced, was refused, and the client — correctly reading
-  // a 400 as final — dropped it along with the photo.
+  // one-sided: the feed synced, was refused, and the client (correctly reading
+  // a 400 as final) dropped it along with the photo.
   it.each([
     ["16 minutes", 16 * MIN],
     ["45 minutes", 45 * MIN],

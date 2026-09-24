@@ -1,13 +1,13 @@
 /**
  * Hetja ledger trust endpoints (INVARIANT 10).
  *
- * GET /api/v1/ledger/anchor        — latest published anchor (head hash, global
+ * GET /api/v1/ledger/anchor        : latest published anchor (head hash, global
  *   Merkle root, record count, and the signature over them when one exists)
- * GET /api/v1/ledger/verify        — recompute the head over exactly the
+ * GET /api/v1/ledger/verify        : recompute the head over exactly the
  *   records the latest published anchor covers (its record_count, in canonical
  *   chain order) and compare against that anchor; also re-walk the chain's
  *   prev-links over the same rows. Tamper-evidence anyone can run.
- * GET /api/v1/ledger/proof?hash=…  — RFC 6962 inclusion proof for one medical
+ * GET /api/v1/ledger/proof?hash=…  : RFC 6962 inclusion proof for one medical
  *   record, so an external auditor can check that record in O(log n) without
  *   being handed the table.
  */
@@ -30,7 +30,7 @@ const HASH_RE = /^[0-9a-f]{64}$/;
  *
  * Building a proof is O(n) in the ledger being proven over (the tree is rebuilt
  * to cut the audit path out of it), and this endpoint is deliberately
- * unauthenticated — see the note on the route. Unbounded O(n) work on an
+ * unauthenticated; see the note on the route. Unbounded O(n) work on an
  * anonymous endpoint is a denial-of-service primitive, so it gets a ceiling
  * rather than a promise that the data will stay small. 10 000 is ~3 orders of
  * magnitude above what one dog's ledger holds; hitting it means either
@@ -41,7 +41,7 @@ const MAX_PROOF_LEDGER_ROWS = 10_000;
 
 /**
  * Ceiling for GET /verify, which reads full payloads (it re-hashes them) rather
- * than the two-column projection the proofs use — so it is the more expensive
+ * than the two-column projection the proofs use, so it is the more expensive
  * anonymous read and gets the same kind of hard stop, at the value the old
  * `?n=` parameter capped at.
  */
@@ -53,7 +53,7 @@ const MAX_VERIFY_LEDGER_ROWS = 50_000;
  *
  * `id` and `hash_curr` are the only columns a tree needs: a leaf is
  * `SHA256(0x00 || record.hash)` and `id` is used solely to locate the leaf's
- * index (packages/ledger/src/merkle.ts). Payloads are deliberately NOT read —
+ * index (packages/ledger/src/merkle.ts). Payloads are deliberately NOT read:
  * pulling every `payload` JSONB off disk to build a tree that never touches
  * them would be the most expensive part of this request.
  *
@@ -75,7 +75,7 @@ SELECT id, hash_curr AS hash, merkle_root AS "attestedRoot"
  LIMIT $2`;
 
 /**
- * Leaves of the GLOBAL tree — every dog — in the same canonical order the
+ * Leaves of the GLOBAL tree (every dog) in the same canonical order the
  * chain and the daily anchor use. `LIMIT $1` is set to the anchor's own
  * `record_count`, not to "everything": see `anchoredGlobalProof`.
  */
@@ -112,7 +112,7 @@ interface DogProof {
   proof: MerkleProof;
   /**
    * The root the dog's most recent record committed to when it was written.
-   * `null` for a ledger whose latest row predates 0014 — reported as null,
+   * `null` for a ledger whose latest row predates 0014, reported as null,
    * never as agreement. A null is not a pass.
    */
   attestedRoot: string | null;
@@ -128,8 +128,8 @@ interface DogProof {
    * `merkle_root` is NOT covered by the hash chain (INVARIANT 9 hashes
    * `hash_prev‖payload‖vet_id‖ts` and nothing else) and NOT covered by the
    * published anchor. It is protected by `medical_records` being append-only
-   * (INVARIANT 8), which stops the application role — the role an attacker who
-   * gets the API's credentials would hold — but not someone with direct
+   * (INVARIANT 8), which stops the application role (the role an attacker who
+   * gets the API's credentials would hold) but not someone with direct
    * superuser access to the cluster. The `global` half below is the one that
    * chains to a value published outside this database.
    */
@@ -183,7 +183,7 @@ export interface AnchorVerdict {
   chainIntact?: boolean;
   /** First 0-based index that failed the chain walk, when it did. */
   brokenAt?: number;
-  /** The ledger has grown since the anchor — expected, never tampering. */
+  /** The ledger has grown since the anchor: expected, never tampering. */
   newerRecords?: boolean;
   verdict: "valid" | "TAMPERED";
   note?: string;
@@ -194,7 +194,7 @@ export interface AnchorVerdict {
  * `anchor.recordCount + 1` records in canonical chain order (one extra so
  * growth is visible), and the verdict is about exactly the prefix the anchor
  * claims. Exported so the decision table is unit-testable against synthetic
- * chains — the shared test database's own ledger prefix is not guaranteed
+ * chains. The shared test database's own ledger prefix is not guaranteed
  * chain-valid (fixtures in other suites insert rows with placeholder hashes),
  * so the route-level test can only assert agreement with the data it finds.
  */
@@ -210,7 +210,7 @@ export function verifyAgainstAnchor(
       anchoredRecords: claimed,
       publishedHead: anchor.headHash,
       verdict: "TAMPERED",
-      note: `the anchor covers ${claimed} records but only ${covered.length} exist — records have been removed`,
+      note: `the anchor covers ${claimed} records but only ${covered.length} exist; records have been removed`,
     };
   }
   const head = recomputeHead(covered);
@@ -249,7 +249,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
     // are themselves published here, and its whole purpose is to be checked by
     // someone who does not trust this server. `signed: false` says plainly that
     // an anchor is unattributed rather than leaving the caller to infer it from
-    // a null — an unsigned head is still comparable, it just does not say who
+    // a null. An unsigned head is still comparable, it just does not say who
     // computed it (see apps/worker/src/sign-anchor.ts).
     return { ok: true, data: { anchor: res.rows[0] } };
   });
@@ -257,7 +257,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
   /**
    * The comparison is cut at the ANCHOR's record_count, not at "the first n
    * rows" or "every row now". A published head is the hash of one specific
-   * record — the record_count-th in chain order at publish time — so it can
+   * record (the record_count-th in chain order at publish time), so it can
    * only ever equal a head recomputed over exactly that prefix. This endpoint
    * used to recompute over `LIMIT n` (default 1000) rows and compare that to
    * whatever anchor was newest, which was wrong in both directions on healthy
@@ -321,16 +321,16 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
    * external auditor (court, municipal vet office) can verify a specific
    * record's inclusion in O(log n) without seeing the whole table." Returns the
    * record's RFC 6962 audit path plus the root it was cut against, which the
-   * caller feeds into `verifyInclusion` — or into any independent RFC 6962
+   * caller feeds into `verifyInclusion`, or into any independent RFC 6962
    * implementation, which is the point of having adopted a published standard
    * instead of a bespoke tree.
    *
    * TWO SCOPES, because one alone answers only half the question:
    *
-   *   `dog`    — the per-dog tree §D.1 actually specifies, and the one whose
+   *   `dog`    : the per-dog tree §D.1 actually specifies, and the one whose
    *              root is persisted on every append. Cheap, always available,
    *              but attested only by a column in this database.
-   *   `global` — the tree the daily anchor publishes and signs. This is the one
+   *   `global` : the tree the daily anchor publishes and signs. This is the one
    *              that reaches a value the operator does not solely control,
    *              which is the whole of INVARIANT 10. Cut over the anchor's
    *              first `record_count` leaves, so it verifies against the exact
@@ -355,7 +355,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
    * anonymous for the same reason.
    *
    * INVARIANT 2 is the rule that governs anonymous reads here, and it is about
-   * coordinates — dog and feeder locations coarsened to ward or a ≥500 m cell.
+   * coordinates: dog and feeder locations coarsened to ward or a ≥500 m cell.
    * A proof contains no geo, no payload, no name, no contact data: it is a list
    * of 32-byte digests, an index and a leaf count. The digests are not
    * invertible to a treatment record (SHA-256 over length-prefixed
@@ -366,8 +366,8 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
    * proof is that dog's TOTAL record count, including unverified feeder
    * self-reports which the public profile hides (it filters `is_verified`). So
    * an anonymous caller holding one public record hash can learn "this dog has
-   * 7 ledger entries" while seeing only 2. That is a count, not content — it
-   * reveals that self-reports exist, not what any of them says — and it is
+   * 7 ledger entries" while seeing only 2. That is a count, not content (it
+   * reveals that self-reports exist, not what any of them says), and it is
    * unavoidable in an inclusion proof, because an RFC 6962 tree's shape IS a
    * function of (index, leafCount) and a verifier cannot decide left-vs-right
    * at each level without it. Withholding it would not protect the count, it
@@ -394,7 +394,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
       );
       if (rec.rowCount === 0) {
         // 404 on a well-formed but unknown hash is itself an audit answer:
-        // this record is not in the ledger. Not an information leak — the
+        // this record is not in the ledger. Not an information leak: the
         // caller already had to hold a 256-bit value to ask the question.
         return reply.status(404).send({
           ok: false,
@@ -404,7 +404,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
       const { id: recordId, dog_id: dogId } = rec.rows[0];
 
       // LIMIT is MAX+1 so an over-large ledger is detected rather than silently
-      // proven against a truncated tree — a proof cut from the first 10 000 of
+      // proven against a truncated tree. A proof cut from the first 10 000 of
       // 10 001 leaves would verify against a root nobody ever published.
       const dogRows = await query<DogLeafRow>(DOG_LEDGER_SQL, [dogId, MAX_PROOF_LEDGER_ROWS + 1]);
       if (dogRows.rows.length > MAX_PROOF_LEDGER_ROWS) {
@@ -417,7 +417,7 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
         });
       }
 
-      // Cannot fire in practice — the record was just located by its UNIQUE
+      // Cannot fire in practice: the record was just located by its UNIQUE
       // hash and this is its own dog's ledger, capped above. Checked anyway so
       // an impossible state is a diagnosable 500 rather than `merkleProof`
       // throwing from inside a library.
@@ -463,8 +463,8 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
  *
  * The subtlety worth being explicit about: the tree is cut at the anchor's own
  * `record_count`, not at "all rows now". A record appended after the anchor was
- * published cannot be proven against it — not because anything is wrong, but
- * because it genuinely was not in that tree — and saying "no match" there would
+ * published cannot be proven against it, not because anything is wrong, but
+ * because it genuinely was not in that tree, and saying "no match" there would
  * be a false alarm on healthy data. So that case returns `anchored: false` with
  * no proof and an explanation, and the honest answer is "wait for the next
  * daily anchor".
@@ -472,8 +472,8 @@ export default async function ledgerRoutes(app: FastifyInstance): Promise<void> 
  * Returns null (rather than a half-filled object) when the newest anchor
  * predates 0014 and therefore has no `merkle_root`, or when its record_count is
  * above the inline-proof ceiling. Anchors written by the pre-0014 worker also
- * carry a `record_count` that was never correct — its query mixed `count(*)`
- * with a bare column — which is a second reason not to build a proof around
+ * carry a `record_count` that was never correct (its query mixed `count(*)`
+ * with a bare column), which is a second reason not to build a proof around
  * one: see the anchor_ledger handler in apps/worker/src/index.ts.
  */
 async function anchoredGlobalProof(recordId: string): Promise<GlobalProof | null> {
@@ -509,7 +509,7 @@ async function anchoredGlobalProof(recordId: string): Promise<GlobalProof | null
       note:
         "this record was not among the first " +
         `${anchor.record_count} ledger entries covered by the anchor published at ${publishedAt}` +
-        " — it was appended afterwards. It becomes provable against the next daily anchor.",
+        ". It was appended afterwards. It becomes provable against the next daily anchor.",
     };
   }
 

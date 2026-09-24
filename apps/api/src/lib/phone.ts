@@ -2,10 +2,10 @@
  * E.164 normalization for Indian phone numbers (care-provider directory).
  *
  * Callers, so the next reader does not have to grep for them:
- *   - `normalizeIndianPhone` — `routes/care.ts` (`dialable()`), on every
+ *   - `normalizeIndianPhone`: `routes/care.ts` (`dialable()`), on every
  *     GET /api/v1/care and every SOS report response. That is the read path a
  *     stranger's `tel:` link comes from, so it is the one that matters.
- *   - `IndianPhoneE164` — NOT yet mounted on a route, because there is no write
+ *   - `IndianPhoneE164`: NOT yet mounted on a route, because there is no write
  *     route to `care_providers` yet. It is kept because it is the schema a write
  *     route must use, and because the rule it encodes is currently enforced in
  *     three other places that would each have to be found and matched by
@@ -16,7 +16,7 @@
  * Uses libphonenumber-js in its `/min` variant, deliberately not `/max` and
  * not `/mobile`:
  *   - `/max` carries full per-country metadata (carrier codes, references) we
- *     never read — pure bundle weight.
+ *     never read. Pure bundle weight.
  *   - `/mobile` drops fixed-line numbers, and care_providers legitimately
  *     stores them: Bombay SPCA's +912224137518 is a Parel landline, and the
  *     directory's whole point is "call this number in an emergency". `/mobile`
@@ -33,7 +33,7 @@ import { z } from "zod";
  * form ("+919820127085"). Whitespace, punctuation and national formats are
  * all accepted and normalized away ("+91 98201 27085", "09820127085",
  * "9820127085" → "+919820127085"). Returns null when the input cannot be
- * parsed as a VALID Indian number — including valid numbers for other
+ * parsed as a VALID Indian number, including valid numbers for other
  * countries (a +1 number parses fine but must be rejected here).
  */
 export function normalizeIndianPhone(input: string): string | null {
@@ -45,7 +45,7 @@ export function normalizeIndianPhone(input: string): string | null {
 /**
  * Zod field for a phone number on a care-provider create/update payload.
  *
- * Accepts null/undefined (a provider may publish only an address — see
+ * Accepts null/undefined (a provider may publish only an address; see
  * migration 0008's comment). Any other value is normalized to E.164 on the
  * way through; a value that cannot be parsed as a valid Indian number falls
  * back to the raw input and fails the regex, so the route surfaces a 400

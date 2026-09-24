@@ -1,5 +1,5 @@
 /**
- * Hetja ledger Merkle inclusion proofs — enhancement stack §D.1 (Phase 1, pick 15).
+ * Hetja ledger Merkle inclusion proofs: enhancement stack §D.1 (Phase 1, pick 15).
  *
  * On every append the caller builds a Merkle tree over the chain entries and
  * persists the root next to the chain head. The leaf DATA of each record is
@@ -15,10 +15,10 @@
  * RFC 6962 and the dependency is gone (see "Why RFC 6962, not merkletreejs"
  * below).
  *
- *   - MTH({})      = SHA256("")                       — the empty-ledger root
- *   - MTH({d0})    = SHA256(0x00 || d0)               — a LEAF
- *   - MTH(D[n])    = SHA256(0x01 || MTH(D[0:k]) || MTH(D[k:n])) — an INTERNAL
- *                    node, where k is the largest power of two < n
+ *   - MTH({})      = SHA256("")                       (the empty-ledger root)
+ *   - MTH({d0})    = SHA256(0x00 || d0)               (a LEAF)
+ *   - MTH(D[n])    = SHA256(0x01 || MTH(D[0:k]) || MTH(D[k:n])) (an INTERNAL
+ *                    node, where k is the largest power of two < n)
  *
  * The two things that matter about that definition:
  *
@@ -29,7 +29,7 @@
  *    leaf: with leaves L0..L3 and root R = H(H(L0‖L1) ‖ H(L2‖L3)), the proof
  *    `{leafHash: H(L0‖L1), index: 0, siblings: [H(L2‖L3)]}` recomputes to the
  *    genuine published R. That is a passing inclusion proof for a record that
- *    does not exist, against the real root — verified against this package
+ *    does not exist, against the real root, verified against this package
  *    before the fix. The prefixes close it off: a verifier hashes the claimed
  *    leaf as `SHA256(0x00 || leaf)`, which an internal node's preimage can
  *    never equal.
@@ -38,7 +38,7 @@
  *    node with itself, which is CVE-2012-2459: `merkleRoot([L0,L1,L2])` and
  *    `merkleRoot([L0,L1,L2,L2])` came out byte-identical here, so an N-record
  *    ledger and an (N+1)-record ledger that duplicates its last record
- *    committed to the same root — and the last record of any odd ledger could
+ *    committed to the same root, and the last record of any odd ledger could
  *    be proven at two different indices under one root. RFC 6962 never
  *    duplicates; it splits at the largest power of two below n and lets the
  *    right subtree be shallower. The trees for n and n+1 are then structurally
@@ -55,12 +55,12 @@
  *
  * `verifyInclusion` needs only the record and its proof, never the whole
  * table: an auditor with (record, proof, published root) can check membership
- * in O(log n) — that is the point of the proof.
+ * in O(log n). That is the point of the proof.
  */
 import { createHash } from "node:crypto";
 import type { LedgerRecord } from "./chain.js";
 
-/** sha256 over the concatenation of raw byte runs — same primitive the chain uses. */
+/** sha256 over the concatenation of raw byte runs: same primitive the chain uses. */
 const sha256 = (...parts: Uint8Array[]): Buffer =>
   createHash("sha256").update(Buffer.concat(parts)).digest();
 
@@ -96,7 +96,7 @@ function nodeHash(left: Buffer, right: Buffer): Buffer {
  * Exported because it is part of the auditable spec, not an internal detail:
  * an auditor reimplementing verification from RFC 6962 needs to know that our
  * leaf DATA is the chain hash and the leaf HASH is that data with the `0x00`
- * prefix applied. `merkleLeafHash(h) !== h` for every h — that inequality is
+ * prefix applied. `merkleLeafHash(h) !== h` for every h; that inequality is
  * the domain separation.
  */
 export function merkleLeafHash(recordHash: string): string {
@@ -105,8 +105,8 @@ export function merkleLeafHash(recordHash: string): string {
 
 /**
  * RFC 6962's split point: the largest power of two strictly less than n
- * (n >= 2). This — not "pair the orphan with itself", not "promote the orphan"
- * — is what makes the tree for n leaves structurally distinct from the tree
+ * (n >= 2). This (not "pair the orphan with itself", not "promote the orphan")
+ * is what makes the tree for n leaves structurally distinct from the tree
  * for n+1 leaves.
  */
 function splitPoint(n: number): number {
@@ -126,7 +126,7 @@ function mth(leaves: Buffer[]): Buffer {
  * RFC 6962's PATH(m, D[n]): the audit path for leaf m, bottom-up. The deeper
  * siblings come back from the recursive call first and the top-level sibling
  * subtree root is appended last, so `siblings[0]` is the leaf's immediate
- * sibling — the order `verifyInclusion` consumes.
+ * sibling: the order `verifyInclusion` consumes.
  */
 function auditPath(leaves: Buffer[], index: number): Buffer[] {
   if (leaves.length === 1) return [];
@@ -147,7 +147,7 @@ export interface MerkleProof {
   /** The record this proof is for. */
   recordId: string;
   /**
-   * The record's canonical chain hash — the leaf DATA committed to the tree.
+   * The record's canonical chain hash: the leaf DATA committed to the tree.
    * The verifier applies the `0x00` leaf prefix itself; this field is the
    * un-prefixed chain hash so it can be compared directly to `record.hash`.
    */
@@ -158,7 +158,7 @@ export interface MerkleProof {
    * How many leaves the tree had. Required, not decorative: an RFC 6962 tree's
    * shape is a function of (index, leafCount), so the verifier cannot decide
    * left-vs-right at each level without it, and it is what makes `index >=
-   * leafCount` — the second position an odd trailing leaf used to occupy —
+   * leafCount` (the second position an odd trailing leaf used to occupy)
    * rejectable outright.
    *
    * Honest limitation: `leafCount` is not independently authenticated. Nothing
@@ -184,8 +184,8 @@ export interface MerkleProof {
  * (Historical note for anyone diffing this: there used to be a hand-rolled
  * walk over merkletreejs' layers here, because the library's proof extraction
  * dropped the self-duplicate sibling for the last leaf of an odd-sized tree.
- * With RFC 6962 there are no self-duplicates to drop, so that workaround —
- * and the library — are gone.)
+ * With RFC 6962 there are no self-duplicates to drop, so that workaround
+ * and the library are gone.)
  */
 export function merkleProof(records: LedgerRecord[], recordId: string): MerkleProof {
   const index = records.findIndex((r) => r.id === recordId);
@@ -216,7 +216,7 @@ export type ProvenRecord = Pick<LedgerRecord, "id" | "hash">;
  * verifyInclusion: is `record` a leaf of the tree whose root is `root`?
  *
  * What this DOES prove, given a `root` the caller obtained independently (the
- * published daily anchor — INVARIANT 10): that a record with exactly
+ * published daily anchor, INVARIANT 10): that a record with exactly
  * `record.hash` sat at position `proof.index` of a ledger of exactly
  * `proof.leafCount` records when that root was published. Tampering with the
  * leaf, a sibling, the index, the leaf count or the root all make it false.
@@ -227,18 +227,18 @@ export type ProvenRecord = Pick<LedgerRecord, "id" | "hash">;
  *     thing being proven, so an auditor should run both.
  *   - that `root` is the real published root. A proof verifies against
  *     whatever root you hand it; the trust comes from where you got the root.
- *     By the same token `proof.leafCount` is only as trustworthy as that root —
+ *     By the same token `proof.leafCount` is only as trustworthy as that root;
  *     see the note on `MerkleProof.leafCount`.
  *   - anything about `recordId`. The record id is deliberately NOT in the
- *     tree — per INVARIANT 9 the chain hash covers
- *     `hash_prev‖payload‖vet_id‖ts`, not the id — so `proof.recordId` is a
+ *     tree (per INVARIANT 9 the chain hash covers
+ *     `hash_prev‖payload‖vet_id‖ts`, not the id), so `proof.recordId` is a
  *     label for humans, checked only for agreement with `record.id`.
  *
  * The reason this takes the record rather than a `recordId` string: the
  * previous signature let the PROOF assert its own leaf↔record binding. It
  * validated `proof.leafHash` against `/^[0-9a-f]{64}$/` and compared
  * `proof.recordId` to a caller-supplied id, so nothing tied the 32 bytes being
- * proven to any real record — combined with the missing domain separation,
+ * proven to any real record. Combined with the missing domain separation,
  * that is what made the forged-internal-node proof above pass. Requiring the
  * record means the binding is checked against data the auditor already holds
  * and the attacker does not supply.
@@ -260,7 +260,7 @@ export function verifyInclusion(
   // RFC 6962 §2.1.1 audit-path verification. `fn` tracks the leaf's position
   // within the current subtree and `sn` the last position in it; when LSB(fn)
   // is set the sibling is on the left, and `fn === sn` is the "rightmost node
-  // of a subtree that is shallower than a full one" case — the case an
+  // of a subtree that is shallower than a full one" case, the case an
   // odd-node-duplicating tree fudges by hashing the node with itself.
   let fn = proof.index;
   let sn = proof.leafCount - 1;

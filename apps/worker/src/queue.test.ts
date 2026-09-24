@@ -12,14 +12,14 @@
  *   - the job kept its original `run_after`, so `ORDER BY run_after LIMIT 1`
  *     re-selected the same row every 2s, forever.
  *   - the throw escaped the per-job transaction into the batch loop, so one bad
- *     job stopped every job behind it — including the SOS escalations and push
+ *     job stopped every job behind it, including the SOS escalations and push
  *     fan-outs this queue exists to deliver.
  *
  * Unlike `anchor.test.ts` these cannot run inside a rolled-back transaction:
  * the behaviour under test IS the transaction boundaries, and `processOneJob`
  * opens its own. So each test commits, then deletes exactly the rows it created
  * (tracked by id) in a `finally`. `jobs` is the one table here that is safe to
- * clean up — unlike `medical_records` it is not append-only.
+ * clean up; unlike `medical_records` it is not append-only.
  *
  * `POISON_KIND` is a job kind with no registered handler. That reaches the
  * failure path through `HANDLERS[kind]` being undefined, which needs no mocking
@@ -76,7 +76,7 @@ async function cleanup(ids: string[]) {
  * runs: under `pnpm -r test` the apps/api suite is running at the same moment
  * against the same database and enqueues jobs of its own (SOS fan-out, expiry).
  * One of those landing between the two calls made the second `processOneJob()`
- * return "done" for a job this test never queued — the CI flake that failed
+ * return "done" for a job this test never queued: the CI flake that failed
  * `main` on docs-only commits and passed/failed the same SHA twice.
  */
 async function isClaimable(id: string): Promise<boolean> {
@@ -165,7 +165,7 @@ describe("processOneJob", () => {
       expect(await processOneJob()).toBe("failed");
 
       const job = await readJob(id);
-      // Parked and marked, NOT deleted — these are SOS escalations, and a
+      // Parked and marked, NOT deleted. These are SOS escalations, and a
       // life-safety job that vanishes after eight failures is exactly the
       // silent rejection INVARIANT 14 forbids.
       expect(job).not.toBeNull();

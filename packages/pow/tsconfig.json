@@ -6,7 +6,7 @@
   // `"types": []` is load-bearing, not tidiness: it means @types/node is NOT in
   // scope, so a well-meant `import { createHash } from "node:crypto"` or a
   // stray `Buffer` fails to compile here rather than at `esbuild` time in
-  // apps/scan — where it would either break the build or (worse) bundle a
+  // apps/scan, where it would either break the build or (worse) bundle a
   // Node shim into the 40 KB budget. This package must run in a browser with
   // nothing but Web Crypto and the DOM.
   "compilerOptions": {

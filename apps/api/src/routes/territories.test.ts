@@ -188,7 +188,7 @@ describe("GET /api/v1/territories/:feederId", () => {
   it("answers a non-UUID feederId with 400, not a 500 from a raw 22P02", async () => {
     // feeder_territories.feeder_id is a uuid column; binding `not-a-uuid`
     // into it used to raise PostgreSQL 22P02 and render as "internal server
-    // error" — and the 403 check ran first only by luck of ordering.
+    // error", and the 403 check ran first only by luck of ordering.
     const res = await fixture.app.inject({
       method: "GET",
       url: "/api/v1/territories/not-a-uuid",

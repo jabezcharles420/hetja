@@ -1,6 +1,6 @@
 -- Hetja · migration 0023_collar_reissues_and_sos_cap_indexes
 --
--- 1. collar_reissues — the audit trail POST /api/v1/dogs/:slug/collar has
+-- 1. collar_reissues: the audit trail POST /api/v1/dogs/:slug/collar has
 --    claimed to keep since it was written, and never did.
 --
 -- The route's header comment said "The old collar row is retired rather than
@@ -15,7 +15,7 @@
 --
 -- This table is the history. One row per re-issue, carrying the provenance the
 -- UPDATE is about to overwrite (previous batch, material, issue date), what
--- replaced it, why, and which admin did it. `collars` stays one-row-per-slug —
+-- replaced it, why, and which admin did it. `collars` stays one-row-per-slug:
 -- the verification path (routes/dogs.ts reads collars.hmac_sig by slug) is
 -- untouched.
 --
@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS collar_reissues_dog_ix ON collar_reissues (dog_id, re
 
 -- The cap query joins sos_cases to the scan that opened each case, keyed on
 -- the subject column of the scan (device_token for anonymous reports,
--- feeder_id for signed-in ones — the latter already has scans_feeder_recent_ix).
+-- feeder_id for signed-in ones; the latter already has scans_feeder_recent_ix).
 CREATE INDEX IF NOT EXISTS sos_cases_scan_ix ON sos_cases (scan_id);
 CREATE INDEX IF NOT EXISTS scans_sos_device_ix ON scans (device_token, received_at DESC)
   WHERE scan_type = 'sos';

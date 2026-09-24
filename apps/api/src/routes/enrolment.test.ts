@@ -7,7 +7,7 @@
  *
  * These tests care about two things above all:
  *
- *   1. that a non-admin cannot write to the register — it holds the location of
+ *   1. that a non-admin cannot write to the register: it holds the location of
  *      every tagged stray in a city, and the project's own design notes are
  *      explicit that in the wrong hands that is a targeting list;
  *   2. that the URL handed back for etching actually resolves, because a collar
@@ -49,7 +49,7 @@ afterAll(async () => {
   await pool.end();
 });
 
-describe("POST /api/v1/dogs — access control", () => {
+describe("POST /api/v1/dogs: access control", () => {
   it("401s with no token", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/dogs", payload: { wardId: "K-West" } });
     expect(res.statusCode).toBe(401);
@@ -65,7 +65,7 @@ describe("POST /api/v1/dogs — access control", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("403s for an ordinary feeder — the register is not writable by any signed-in user", async () => {
+  it("403s for an ordinary feeder; the register is not writable by any signed-in user", async () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/dogs",
@@ -87,7 +87,7 @@ describe("POST /api/v1/dogs — access control", () => {
   });
 });
 
-describe("POST /api/v1/dogs — enrolment", () => {
+describe("POST /api/v1/dogs: enrolment", () => {
   it("creates the dog and its collar, and returns a URL that actually resolves", async () => {
     const res = await app.inject({
       method: "POST",
@@ -139,7 +139,7 @@ describe("POST /api/v1/dogs — enrolment", () => {
   });
 
   it("the enrolled slug resolves without a signature (typed-code path)", async () => {
-    // This used to assert the opposite — that ANY bare slug 404s — because the
+    // This used to assert the opposite (that ANY bare slug 404s) because the
     // profile endpoint used to require ?s= unconditionally. That requirement is
     // what made typing a collar code always fail: the client cannot compute the
     // HMAC (it lives under HETJA_QR_SECRET), so a typed code can never arrive
@@ -163,7 +163,7 @@ describe("POST /api/v1/dogs — enrolment", () => {
   it("a typo'd code still 404s without its signature", async () => {
     // The anti-enumeration half of the typed-code contract, kept from the old
     // "bare slug must not resolve" test: corrupt ONLY the check character of an
-    // otherwise well-formed slug — what a mistyped collar entry looks like —
+    // otherwise well-formed slug (what a mistyped collar entry looks like),
     // and it must fail before any database work.
     const res = await app.inject({
       method: "POST",
@@ -190,7 +190,7 @@ describe("POST /api/v1/dogs — enrolment", () => {
   });
 });
 
-describe("POST /api/v1/dogs/:slug/collar — re-issue", () => {
+describe("POST /api/v1/dogs/:slug/collar: re-issue", () => {
   it("keeps the same slug so previously printed tags keep working", async () => {
     const created = await app.inject({
       method: "POST",
@@ -241,7 +241,7 @@ describe("POST /api/v1/dogs/:slug/collar — re-issue", () => {
     expect(history.rows[0].reissued_by).toBeTruthy();
     expect((reissued.json().data as { reissueId?: string }).reissueId).toBeTruthy();
 
-    // Still exactly one collars row for the slug — history is a side table,
+    // Still exactly one collars row for the slug: history is a side table,
     // never a second row under a UNIQUE qr_code.
     const collars = await query<{ n: number; batch_no: string }>(
       `SELECT count(*)::int AS n, min(batch_no) AS batch_no FROM collars WHERE qr_code = $1`,
@@ -254,7 +254,7 @@ describe("POST /api/v1/dogs/:slug/collar — re-issue", () => {
   it("404s for a well-formed slug that belongs to no dog", async () => {
     // Generated rather than hand-written: the slug carries a check character,
     // so an invented string like "abc234567" is rejected as MALFORMED (400)
-    // before existence is ever considered — which would make this test pass for
+    // before existence is ever considered, which would make this test pass for
     // the wrong reason.
     const res = await app.inject({
       method: "POST",

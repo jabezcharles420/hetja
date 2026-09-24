@@ -1,15 +1,15 @@
 /**
  * Shared collar-minting primitives for the two write paths into the register:
  *
- *   * routes/enrolment.ts    — admin enrolment (`POST /api/v1/dogs`)
- *   * routes/registrations.ts— self-serve registration (`POST /api/v1/registrations`)
+ *   * routes/enrolment.ts:     admin enrolment (`POST /api/v1/dogs`)
+ *   * routes/registrations.ts: self-serve registration (`POST /api/v1/registrations`)
  *
  * They were extracted from enrolment.ts rather than copied because these two
  * paths MUST NOT DRIFT: both mint the physical identifier that gets etched onto
  * a tag and glued to an animal. If the public path ever started signing with a
  * different origin, a different slug alphabet, or a different collar-row shape
  * than the admin path, the failure would be discovered by a stranger scanning a
- * tag that resolves wrong — not by any test that compares the two files.
+ * tag that resolves wrong, not by any test that compares the two files.
  *
  * THE SLUG RACE THIS FILE FIXES. The old admin-only helper was
  * `mintUnusedSlug`: SELECT 1 FROM dogs WHERE slug = $1, return if absent, then
@@ -19,9 +19,9 @@
  * minting a PUBLIC path: unauthenticated volume against the check window turns
  * "remote" into "schedulable", and the failure mode of a duplicate slug is two
  * physical collars resolving to one dog row. The fix here is structural rather
- * than cosmetic: the slug is minted INSIDE the insert —
- * `INSERT ... ON CONFLICT (slug) DO NOTHING RETURNING id`, retried with a fresh
- * draw on collision — so uniqueness is enforced by the UNIQUE constraint itself
+ * than cosmetic: the slug is minted INSIDE the insert
+ * (`INSERT ... ON CONFLICT (slug) DO NOTHING RETURNING id`, retried with a fresh
+ * draw on collision), so uniqueness is enforced by the UNIQUE constraint itself
  * instead of by a SELECT racing ahead of it. There is deliberately no separate
  * `mintUnusedSlug` export anymore: keeping the broken shape around is how it
  * comes back.
@@ -50,7 +50,7 @@ export function collarUrl(slug: string, sig: string): string {
 }
 
 /**
- * Pending registrations allowed per account — and, separately, per device.
+ * Pending registrations allowed per account and, separately, per device.
  * Both bind (routes/registrations.ts); activation consumes the budget.
  * Lives here so the route that enforces it and the `/feeders/me` readout that
  * displays it cannot disagree about the number.
@@ -62,7 +62,7 @@ export const REGISTRATION_BUDGET_MAX = 2;
  *
  * Chosen so the wave's own worked example holds: a registrator who prints on
  * day 1 must still be able to attach on day 30. Past this horizon the tag goes
- * to 'expired' (worker sweep, via dogs_pending_expiry_ix) — though expiry is
+ * to 'expired' (worker sweep, via dogs_pending_expiry_ix), though expiry is
  * not oblivion: a scan of an expired tag reactivates the same row, because
  * "never reused" forbids reassigning a slug to a DIFFERENT dog, not the same
  * dog catching up a month late. Wave 9 owns the sweep; the constant lives here
@@ -94,7 +94,7 @@ export interface NewCollar {
 export interface MintedCollar {
   dogId: string;
   slug: string;
-  /** HMAC over the slug under HETJA_QR_SECRET — encode THIS in the QR. */
+  /** HMAC over the slug under HETJA_QR_SECRET. Encode THIS in the QR. */
   sig: string;
 }
 
@@ -119,7 +119,7 @@ export async function createDogWithCollar(
     const slug = generateSlug();
     // ON CONFLICT (slug) DO NOTHING RETURNING: the constraint is the arbiter.
     // Zero rows means another writer won this slug between our draw and our
-    // insert — draw again, inside the same transaction.
+    // insert. Draw again, inside the same transaction.
     const inserted = await client.query<{ id: string }>(
       `INSERT INTO dogs (slug, name, sex, approx_age, coat_pattern, temperament, ward_id, status,
                          registered_by, registered_at, registered_device_id)

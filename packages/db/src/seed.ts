@@ -1,5 +1,5 @@
 /**
- * Hetja Phase 0 seed — a small, realistic data set: dogs with random
+ * Hetja Phase 0 seed. A small, realistic data set: dogs with random
  * non-sequential slugs (INVARIANT 1), HMAC-signed collars, a few feeders, one
  * ward geofence. Idempotent: skips existing dogs by slug.
  */

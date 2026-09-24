@@ -3,13 +3,13 @@
 --
 -- THE GAP THIS CLOSES. `signRefreshToken` has been minted at every login since
 -- the JWT lib landed, and `verifyRefreshToken` could check any token handed
--- back — but no route consumed a refresh token and nothing recorded issuance.
+-- back, but no route consumed a refresh token and nothing recorded issuance.
 -- The header of lib/jwt.ts claims "rotation is achieved by minting a fresh
 -- `jti`"; that described a mechanism with no consumer. There was no jti store,
 -- so nothing could detect a replayed token and nothing could revoke a session
 -- short of rotating JWT_SECRET (which logs out every feeder in the city at
 -- once). A 30-day bearer token sitting in localStorage that cannot be revoked
--- is materially worse than no refresh token at all — and the registrator flow
+-- is materially worse than no refresh token at all, and the registrator flow
 -- this wave precedes ("fill a form, print a sheet, walk outside, scan a tag")
 -- is exactly the multi-step flow that silently 401s when the 15-minute access
 -- token dies mid-form with no way to renew it.
@@ -19,7 +19,7 @@
 -- the database must not equal possession of live credentials, the same
 -- reasoning that keeps OTPs hashed (lib/otp.ts) and contact info HMAC'd
 -- (INVARIANT 3). `feeder_id` carries ON DELETE CASCADE because INVARIANT 11
--- requires a DPDP erasure to be able to delete the `feeders` row — a session
+-- requires a DPDP erasure to be able to delete the `feeders` row. A session
 -- record is metadata about an account and must not outlive the account it
 -- authenticates.
 --

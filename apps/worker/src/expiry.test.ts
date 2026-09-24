@@ -1,8 +1,8 @@
 /**
- * Wave 9 — expire_stale_registrations sweep and registration reminder jobs.
+ * Wave 9: expire_stale_registrations sweep and registration reminder jobs.
  *
  * Covers the three defects this file guards:
- *   1. The producer must carry `failed_at IS NULL` — otherwise one
+ *   1. The producer must carry `failed_at IS NULL`; otherwise one
  *      dead-lettered sweep parks the guard forever and expiry silently stops.
  *   2. Each reminder pass is idempotent via `activation_reminders_sent = N-1`
  *      so a job that runs twice reminds once.
@@ -67,7 +67,7 @@ describe("enqueueRegistrationSweepIfDue", () => {
       expect(await enqueueRegistrationSweepIfDue(client)).toBe(true);
       const queued = await client.query(`SELECT id FROM jobs WHERE kind = 'expire_stale_registrations'`);
       expect(queued.rows.length).toBe(1);
-      // Jobs are DELETEd on success, so existence means "not done yet" — second pass must not duplicate.
+      // Jobs are DELETEd on success, so existence means "not done yet"; second pass must not duplicate.
       expect(await enqueueRegistrationSweepIfDue(client)).toBe(false);
       const stillOne = await client.query(`SELECT id FROM jobs WHERE kind = 'expire_stale_registrations'`);
       expect(stillOne.rows.length).toBe(1);
@@ -77,7 +77,7 @@ describe("enqueueRegistrationSweepIfDue", () => {
   it("dead-lettered sweep does NOT satisfy the guard (failed_at IS NULL)", async () => {
     await inRolledBackTx(async (client) => {
       await client.query(`DELETE FROM jobs WHERE kind = 'expire_stale_registrations'`);
-      // Park a dead-lettered sweep — this must NOT block the next enqueue.
+      // Park a dead-lettered sweep. This must NOT block the next enqueue.
       await client.query(
         `INSERT INTO jobs (kind, payload, run_after, attempts, failed_at, last_error)
          VALUES ('expire_stale_registrations', '{}'::jsonb, now(), 8, now(), 'test dead letter')`,
@@ -114,7 +114,7 @@ describe("expire_stale_registrations handler", () => {
       `INSERT INTO feeders (identity_hmac, display_name, role, consent_version, is_minor) VALUES ('hmac-' || md5(random()::text), 'ExpiryTest', 'feeder', '1', false) RETURNING id`,
     );
     const feederId = feeder.rows[0].id;
-    // opts.registeredAt is an SQL expression like "now() - interval '8 days'" — embed it directly,
+    // opts.registeredAt is an SQL expression like "now() - interval '8 days'"; embed it directly,
     // not as a parameter, so PostgreSQL evaluates the interval.
     const dog = await query<{ id: string; slug: string }>(
       `INSERT INTO dogs (slug, name, ward_id, status, registered_by, registered_at, activation_reminders_sent, registered_device_id)
@@ -164,7 +164,7 @@ describe("expire_stale_registrations handler", () => {
       const reminders2 = await query(`SELECT id FROM jobs WHERE kind = 'send_registration_reminder' AND payload->>'dogId' = $1`, [dogId]);
       // No new reminder should have been enqueued; the sweep is idempotent.
       expect(reminders2.rows.length).toBe(0);
-      // Preserve ids for cleanup — there is no reminder left, but keep variable consistent
+      // Preserve ids for cleanup: there is no reminder left, but keep variable consistent
       reminderJobIds = [];
     } finally {
       await query(`DELETE FROM collars WHERE dog_id = $1`, [dogId]);
@@ -252,7 +252,7 @@ describe("expire_stale_registrations handler", () => {
   });
 
   it("send_registration_reminder honours PUSH_ENABLED degrade (no VAPID -> no crash)", async () => {
-    // In CI VAPID is not set, so PUSH_ENABLED is false — handler should return without throwing.
+    // In CI VAPID is not set, so PUSH_ENABLED is false; handler should return without throwing.
     const restore = await isolateQueue();
     const { dogId } = await makePendingDog({ registeredAt: "now() - interval '8 days'" });
     try {
@@ -261,7 +261,7 @@ describe("expire_stale_registrations handler", () => {
         [JSON.stringify({ dogId, reminder: 1 })],
       );
       expect(await processOneJob()).toBe("done");
-      // Job should be deleted on success even when pushes were degraded — no retry loop.
+      // Job should be deleted on success even when pushes were degraded (no retry loop).
       const job = await query(`SELECT id FROM jobs WHERE payload->>'dogId' = $1`, [dogId]);
       expect(job.rows.length).toBe(0);
     } finally {

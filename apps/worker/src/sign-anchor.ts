@@ -7,7 +7,7 @@
  * gets half of that: an anchor row with no signature says a head existed, but
  * not WHO said so, so nothing stops the operator from later disowning it or
  * presenting a different one. `signChainHead` in `@hetja/ledger` exists to close
- * that gap — a compact JWS (EdDSA/Ed25519) over
+ * that gap: a compact JWS (EdDSA/Ed25519) over
  * `{ledger, head, merkleRoot, recordCount}` with `iat`/`exp`, verifiable by any
  * JOSE library against a published JWKS.
  *
@@ -23,14 +23,14 @@
  * introduced it could not add the dependency to `apps/worker/package.json`.
  * `"@hetja/ledger": "workspace:*"` is declared now, so the import is static and
  * the mirror types are gone. If you see `Cannot find package '@hetja/ledger'
- * imported from apps/worker`, that dependency line is missing — restore it and
+ * imported from apps/worker`, that dependency line is missing. Restore it and
  * run `pnpm install`; do not reintroduce the indirection.)
  *
  * (1) THE SIGNER IS THE OPERATOR, BUT `signChainHead` NAMES A VET.
  *
  * `signChainHead` models §D.1's per-vet ledgers: it puts
  * `did:web:hetja.in:vets/<vetId>` in `sub`, because that identifier is also the
- * JWKS lookup path. INVARIANT 10's anchor is not per-vet — it is one global
+ * JWKS lookup path. INVARIANT 10's anchor is not per-vet: it is one global
  * chain over every dog's `medical_records`, computed and published by the
  * operator. So `sub` on a daily anchor reads
  * `did:web:hetja.in:vets/<HETJA_LEDGER_SIGNER_ID>` where that id identifies
@@ -55,14 +55,14 @@
  *                              with `pnpm ledger:keygen` (add `--env` for just
  *                              the two env lines, `--jwks` for just the document
  *                              to publish). That command exists so this is not a
- *                              nine-line `node -e` in a runbook — a one-liner
+ *                              nine-line `node -e` in a runbook. A one-liner
  *                              that mishandles a private key is a bad way to
  *                              discover that quoting differs between shells.
  *                              Store the private JWK the way HETJA_HMAC_PEPPER
  *                              is stored (secret manager / .env.production,
  *                              never committed). Publish the public half at the
- *                              JWKS path — `jwks(publicJwk, kid)` renders the
- *                              document — or an auditor has nothing to verify
+ *                              JWKS path (`jwks(publicJwk, kid)` renders the
+ *                              document), or an auditor has nothing to verify
  *                              the signature against and the whole exercise is
  *                              decoration.
  *   HETJA_LEDGER_SIGNING_KID   Optional but strongly recommended: the `kid` from
@@ -74,7 +74,7 @@
  *                              See limitation (1).
  *
  * NO DEV DEFAULT AND NO GENERATED KEY. A key invented at boot would sign
- * anchors with a value nobody can verify against and nobody kept — an
+ * anchors with a value nobody can verify against and nobody kept: an
  * attestation that looks real and proves nothing, which is worse than an
  * unsigned anchor that admits what it is. And a committed dev key is a key an
  * attacker has, which would let anyone forge "Hetja states the ledger stood
@@ -99,7 +99,7 @@ type LedgerPrivateKey = Parameters<typeof signChainHead>[1];
  * The ledger this worker's daily anchor is a statement about. `verifyChainHead`
  * REQUIRES the caller to name the ledger it is asking about (a head that does
  * not name its ledger is only a statement about *some* ledger), so this string
- * is part of the public verification contract, not an internal label — it is
+ * is part of the public verification contract, not an internal label. It is
  * persisted on every anchor row (`ledger_anchors.ledger_id`, migration 0014)
  * and returned by GET /api/v1/ledger/anchor. Changing it invalidates every
  * previously published signature's ledger claim.
@@ -164,7 +164,7 @@ if (!SIGNING_JWK) {
 
 /**
  * RFC 6962 Merkle root over every ledger leaf, or null if the computation itself
- * fails. Null means "not computed", never "empty tree" — the package's
+ * fails. Null means "not computed", never "empty tree"; the package's
  * `EMPTY_MERKLE_ROOT` is a real value for a real empty ledger and must not be
  * confused with a missing one, which is why this returns null and the column
  * stays NULL rather than being filled with a plausible-looking hash.
@@ -195,7 +195,7 @@ export async function globalMerkleRoot(leaves: MerkleLeaf[]): Promise<string | n
  *
  * A signing failure never costs the anchor. Publishing an unsigned head is a
  * degraded outcome; throwing here would fail the job, leave the day with no
- * anchor at all, and hand the retry loop a permanent error — strictly worse for
+ * anchor at all, and hand the retry loop a permanent error, strictly worse for
  * the invariant this exists to serve.
  */
 export async function signAnchor(

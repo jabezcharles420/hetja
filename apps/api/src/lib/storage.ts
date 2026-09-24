@@ -1,12 +1,12 @@
 /**
  * Photo storage backend. Dev default is a local directory (STORAGE_LOCAL_DIR);
- * production uses S3. Photo writes happen in the background of a scan POST —
+ * production uses S3. Photo writes happen in the background of a scan POST:
  * they never block the API response (and never block on AI).
  *
  * Every byte that reaches a backend here has already been through
  * `lib/exif-strip.ts`: the container was validated by magic bytes and all
  * metadata segments were dropped. That is not an optimisation, it is the
- * control — see `decodePhotoUpload` below and the header comment in
+ * control. See `decodePhotoUpload` below and the header comment in
  * exif-strip.ts for the failure it closes.
  */
 import { mkdir, writeFile } from "node:fs/promises";
@@ -35,7 +35,7 @@ export interface StorageConfig {
  * encode it, so essentially every Chrome/Android feeder produced WebP bytes
  * stored under a `.jpg` name. Any static server labels those
  * `Content-Type: image/jpeg`, and because helmet sets
- * `X-Content-Type-Options: nosniff` the browser refuses to sniff its way out —
+ * `X-Content-Type-Options: nosniff` the browser refuses to sniff its way out:
  * the `<img>` simply fails to render. The caller passes the extension derived
  * from the sniffed magic bytes so the name can never disagree with the bytes.
  */
@@ -48,8 +48,8 @@ function stripDataPrefix(base64: string): string {
 }
 
 /**
- * Base64 alphabet check. `Buffer.from(s, "base64")` is deliberately lenient —
- * it silently discards anything outside the alphabet rather than failing — so
+ * Base64 alphabet check. `Buffer.from(s, "base64")` is deliberately lenient:
+ * it silently discards anything outside the alphabet rather than failing, so
  * without this a payload of prose decodes to a short run of arbitrary bytes
  * instead of an error. The container sniff would reject that anyway; this just
  * makes the resulting 400 say the true reason.
@@ -59,7 +59,7 @@ const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/;
 /**
  * Decode a client-supplied `photoBase64`, validate the container by magic
  * bytes, and strip every metadata segment. Throws `UnsupportedImageError` for
- * anything that is not a parseable JPEG/WebP/PNG — callers must turn that into
+ * anything that is not a parseable JPEG/WebP/PNG. Callers must turn that into
  * a 400 rather than storing bytes we did not understand.
  *
  * This runs on the request path, not in the background writer, because
@@ -93,7 +93,7 @@ export async function storePhoto(image: StrippedImage, config: StorageConfig): P
       return key;
     case "s3":
       // S3 PUT requires signed requests; wired in a production follow-up.
-      // Unreachable through normal boots — loadConfig() refuses
+      // Unreachable through normal boots: loadConfig() refuses
       // STORAGE_BACKEND=s3 outright, because this throw used to land in
       // persistScanAssets' warn-and-continue catch after the route had
       // already answered {ok:true} (silent photo loss). Kept as defence in

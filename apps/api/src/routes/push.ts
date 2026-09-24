@@ -1,22 +1,22 @@
 /**
- * Hetja Web Push — subscription storage + the public VAPID key (plan §3).
+ * Hetja Web Push: subscription storage + the public VAPID key (plan §3).
  *
- * GET  /api/v1/push/vapid-public-key — public. The browser needs the public
+ * GET  /api/v1/push/vapid-public-key:  public. The browser needs the public
  *                                       half to call pushManager.subscribe();
  *                                       the private half never leaves the
  *                                       server (it lives only in env, read
- *                                       directly from process.env here —
+ *                                       directly from process.env here;
  *                                       config.ts is intentionally untouched).
- * POST /api/v1/push/subscribe         — feeder-authed. Upserts a subscription
+ * POST /api/v1/push/subscribe:          feeder-authed. Upserts a subscription
  *                                       keyed by endpoint: re-subscribing the
  *                                       SAME account's endpoint updates in place
  *                                       rather than duplicating (UNIQUE (endpoint)
  *                                       in 0011_push_subscriptions.sql). The upsert
  *                                       is scoped so it can never re-assign an
- *                                       endpoint owned by a different feeder — a
+ *                                       endpoint owned by a different feeder: a
  *                                       cross-account claim answers 409.
- * POST /api/v1/push/unsubscribe       — feeder-authed. Removes the caller's
- *                                       own subscription for that endpoint —
+ * POST /api/v1/push/unsubscribe:        feeder-authed. Removes the caller's
+ *                                       own subscription for that endpoint,
  *                                       never anyone else's.
  *
  * sos_notifications (see sos.ts) stays a delivery *record*; this table is
@@ -71,7 +71,7 @@ export default async function pushRoutes(app: FastifyInstance): Promise<void> {
     // so `feeder_id` is never rewritten. Without that scope, anyone who
     // learned another feeder's endpoint URL (it appears in push-service
     // delivery logs and is not a secret) could re-assign the subscription to
-    // themselves with one request — and from then on receive that feeder's
+    // themselves with one request, and from then on receive that feeder's
     // SOS pushes: their locations, their dogs, their emergencies.
     await query(
       `INSERT INTO push_subscriptions (feeder_id, endpoint, p256dh, auth)
@@ -82,7 +82,7 @@ export default async function pushRoutes(app: FastifyInstance): Promise<void> {
       [feederId, endpoint, keys.p256dh, keys.auth],
     );
     // When the WHERE above suppressed the update (endpoint owned by someone
-    // else), PostgreSQL reports success with zero changes — so ownership is
+    // else), PostgreSQL reports success with zero changes, so ownership is
     // verified rather than assumed, and a would-be thief gets an explicit
     // conflict instead of a silent no-op.
     const owner = await query<{ feeder_id: string }>(

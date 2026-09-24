@@ -3,7 +3,7 @@
  *
  * 1. consecutive feed days extend the streak (+1 per day, same-day no-op)
  * 2. a missed day resets the streak (dead run reports 0; next feed = 1)
- * 3. badge grants are idempotent — never double-awarded
+ * 3. badge grants are idempotent: never double-awarded
  * 4. week_streak is awarded at exactly 7 days (and not on a dead run)
  * 5. night_owl only inside the 22:00-05:00 (Asia/Kolkata) window
  * 6. anonymous (device-token) scans never touch the streak
@@ -144,7 +144,7 @@ afterEach(async () => {
   await fixture.app.close();
 });
 
-describe("streak — consecutive feed days", () => {
+describe("streak: consecutive feed days", () => {
   it("extends the streak by 1 on consecutive days and is a same-day no-op", async () => {
     const today = dateInKolkata(new Date());
     const yesterday = addDays(today, -1);
@@ -178,7 +178,7 @@ describe("streak — consecutive feed days", () => {
   });
 });
 
-describe("streak — a missed day resets it", () => {
+describe("streak: a missed day resets it", () => {
   it("reports a dead run as 0 and resets to 1 on the next feed", async () => {
     const today = dateInKolkata(new Date());
     await setStreakState(fixture.feederId, 5, addDays(today, -3));
@@ -197,7 +197,7 @@ describe("streak — a missed day resets it", () => {
   });
 });
 
-describe("streak — out-of-order offline sync (INVARIANT 4)", () => {
+describe("streak: out-of-order offline sync (INVARIANT 4)", () => {
   // The scenario: a feeder's phone queues a feed while offline; the queue
   // syncs it AFTER a later feed was already logged live. capturedAt is up to
   // 30 days in the past (contracts' clock-skew clamp), so without a
@@ -211,7 +211,7 @@ describe("streak — out-of-order offline sync (INVARIANT 4)", () => {
     expect(computeStreak(state, "2026-08-22")).toEqual(state);
     // A genuinely newer day still extends...
     expect(computeStreak(state, "2026-08-23")).toEqual({ streakDays: 8, lastFeedDate: "2026-08-23" });
-    // ...and a real gap still resets — the guard only fires for out-of-order
+    // ...and a real gap still resets. The guard only fires for out-of-order
     // arrivals, never for an actual missed day.
     expect(computeStreak(state, "2026-08-25")).toEqual({ streakDays: 1, lastFeedDate: "2026-08-25" });
   });
@@ -236,7 +236,7 @@ describe("streak — out-of-order offline sync (INVARIANT 4)", () => {
   });
 });
 
-describe("streak — anti-abuse", () => {
+describe("streak: anti-abuse", () => {
   it("does not touch the streak for anonymous (device-token) feed scans", async () => {
     const res = await fixture.app.inject({
       method: "POST",
@@ -270,7 +270,7 @@ describe("streak — anti-abuse", () => {
   });
 });
 
-describe("badges — idempotent grants", () => {
+describe("badges: idempotent grants", () => {
   it("awards first_feed exactly once across repeated checks", async () => {
     // deterministic: daytime in October (outside night/monsoon windows)
     await insertFeedScan(fixture.feederId, fixture.dogId, "2026-10-15T06:30:00.000Z", "auto_passed");
@@ -288,7 +288,7 @@ describe("badges — idempotent grants", () => {
   });
 });
 
-describe("badges — week_streak", () => {
+describe("badges: week_streak", () => {
   it("awards week_streak at exactly 7 days", async () => {
     await setStreakState(fixture.feederId, 7, dateInKolkata(new Date()));
     const res = await checkBadges(fixture);
@@ -307,7 +307,7 @@ describe("badges — week_streak", () => {
   });
 });
 
-describe("badges — night_owl window", () => {
+describe("badges: night_owl window", () => {
   it("awards night_owl for a feed at 23:00 Asia/Kolkata", async () => {
     // 23:00 IST = 17:30Z
     await insertFeedScan(fixture.feederId, fixture.dogId, "2026-07-15T17:30:00.000Z");

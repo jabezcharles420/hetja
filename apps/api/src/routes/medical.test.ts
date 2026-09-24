@@ -65,12 +65,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Best-effort cleanup only: medical_records rows are intentionally NOT
-  // deleted here — app_user cannot DELETE them (INVARIANT 8 working) and the
+  // deleted here: app_user cannot DELETE them (INVARIANT 8 working) and the
   // FK keeps the vet row alive. Test rows linger in the dev DB; harmless.
   try {
     await query("DELETE FROM vets WHERE feeder_id = $1", [vetFeederId]);
   } catch {
-    /* FK keeps it — fine */
+    /* FK keeps it; fine */
   }
   try {
     await query("DELETE FROM feeders WHERE id IN ($1, $2)", [vetFeederId, feederFeederId]);
@@ -149,7 +149,7 @@ describe("POST /api/v1/medical_records", () => {
     expect(res.json().data.isVerified).toBe(false);
   });
 
-  it("accepts a self-report from a registrator — a feeder who elected the register surface keeps this", async () => {
+  it("accepts a self-report from a registrator: a feeder who elected the register surface keeps this", async () => {
     // The role check used to be `feeder || vet`. Electing the registrator
     // surface (POST /feeders/me/surface) rewrote the role and silently took
     // away the ability to record a treatment; admins and BMC officers never had
@@ -187,7 +187,7 @@ describe("POST /api/v1/medical_records", () => {
   it("answers a well-formed but unknown correctsRecordId with 400", async () => {
     // Same violation class as above (23503), but the missing reference is a
     // client-supplied correction target rather than the subject of the
-    // request — a bad reference is a 400, not a 404.
+    // request, so a bad reference is a 400, not a 404.
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/medical_records",
@@ -217,7 +217,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
   /**
    * A dedicated dog, because the assertions are about the leaf SET and its
    * ORDER: on a shared dog another suite's append would change both. The dog
-   * outlives the test — medical_records references it and cannot be deleted
+   * outlives the test: medical_records references it and cannot be deleted
    * (INVARIANT 8).
    */
   let merkleDogId: string;
@@ -249,7 +249,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
       [merkleDogId],
     );
     expect(rows.rows).toHaveLength(1);
-    // A single-leaf tree is SHA256(0x00 || hash) — NOT the record hash itself.
+    // A single-leaf tree is SHA256(0x00 || hash), NOT the record hash itself.
     // That inequality is RFC 6962's domain separation, and it is the whole
     // defence against an internal node being replayed as a leaf.
     expect(first.merkleRoot).not.toBe(first.hashCurr);
@@ -273,7 +273,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
       [merkleDogId],
     );
     expect(rows.rows).toHaveLength(3);
-    // Every row's stored root is the root over the prefix ENDING at that row —
+    // Every row's stored root is the root over the prefix ENDING at that row,
     // which is what makes an old row's root an attestation about that moment
     // rather than a stale copy of the current one.
     for (let i = 0; i < rows.rows.length; i++) {
@@ -300,7 +300,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
     expect(res.statusCode).toBe(200);
 
     // The first dog's stored roots are untouched by an append for a different
-    // dog — the tree is per-dog (§D.1: "over each dog's medical_records rows").
+    // dog: the tree is per-dog (§D.1: "over each dog's medical_records rows").
     const rows = await query<ProvenRecord & { merkle_root: string }>(
       `SELECT id, hash_curr AS hash, merkle_root FROM medical_records
         WHERE dog_id = $1 ORDER BY created_at ASC, id ASC`,

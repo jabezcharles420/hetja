@@ -30,7 +30,7 @@ function append(
   return [...records, { id, prev: last.hash, payload, vetId: last.vetId, ts, hash }];
 }
 
-/** Look a record up by id — verifyInclusion takes the record, not just its id. */
+/** Look a record up by id; verifyInclusion takes the record, not just its id. */
 function rec(records: LedgerRecord[], id: string): LedgerRecord {
   const found = records.find((r) => r.id === id);
   if (!found) throw new Error(`test fixture has no record ${id}`);
@@ -81,7 +81,7 @@ describe("merkle inclusion proofs (enhancement stack D.1, pick 15)", () => {
   });
 
   it("4. verifyInclusion is true for every real record (even and odd trees)", () => {
-    const base = loadSample(); // 3 records — odd tree
+    const base = loadSample(); // 3 records, odd tree
     const four = append(base, "ledger-0004", { kind: "surgery" }); // even tree
     const five = append(four, "ledger-0005", { kind: "checkup" }); // odd again
 
@@ -182,8 +182,8 @@ describe("merkle inclusion proofs (enhancement stack D.1, pick 15)", () => {
     expect(records).toHaveLength(100);
     // An RFC 6962 tree is deliberately unbalanced: it splits at the largest
     // power of two below n, so the left subtree is full and the right one is
-    // shallower. Every path is therefore <= ceil(log2(n)) but not all are equal
-    // — the first leaf sits under the full 64-leaf half (depth 7), the last one
+    // shallower. Every path is therefore <= ceil(log2(n)) but not all are equal:
+    // the first leaf sits under the full 64-leaf half (depth 7), the last one
     // under the 36-leaf remainder (depth 4). Bounded by log n is the property
     // that matters; uniform depth was an artifact of duplicating odd nodes to
     // pad every level to a power of two.
@@ -211,7 +211,7 @@ describe("merkle inclusion proofs (enhancement stack D.1, pick 15)", () => {
       hash: computeHash(GENESIS_PREV_HASH, { kind: "registration" }, "vet-01", "2026-08-01T10:00:00.000Z"),
     };
     // RFC 6962: MTH({d0}) = SHA256(0x00 || d0), NOT d0 itself. The root of a
-    // one-record ledger must not equal that record's chain hash — if it did, a
+    // one-record ledger must not equal that record's chain hash. If it did, a
     // bare record hash would double as a valid published root.
     expect(merkleRoot([genesis])).toBe(merkleLeafHash(genesis.hash));
     expect(merkleRoot([genesis])).not.toBe(genesis.hash);
@@ -231,7 +231,7 @@ describe("merkle inclusion proofs (enhancement stack D.1, pick 15)", () => {
     const four = append(base, "ledger-0004", { kind: "surgery" });
     const leaves = four.map((r) => Buffer.from(r.hash, "hex"));
 
-    // (a) The old, unprefixed tree — the forgery's own arithmetic still works…
+    // (a) The old, unprefixed tree: the forgery's own arithmetic still works…
     const oldN01 = rawSha256(leaves[0], leaves[1]);
     const oldN23 = rawSha256(leaves[2], leaves[3]);
     const oldRoot = rawSha256(oldN01, oldN23).toString("hex");
@@ -329,7 +329,7 @@ describe("merkle inclusion proofs (enhancement stack D.1, pick 15)", () => {
     expect(verifyInclusion(second, relabelled, root)).toBe(false);
 
     // Same attempt from the other direction: keep record 1's id and leaf but
-    // claim it proves record 2 — the leafHash/record.hash check catches it.
+    // claim it proves record 2; the leafHash/record.hash check catches it.
     expect(verifyInclusion({ ...second, id: first.id }, proofForFirst, root)).toBe(false);
 
     // A proof whose leafHash belongs to a different record than its recordId,

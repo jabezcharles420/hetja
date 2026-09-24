@@ -1,5 +1,5 @@
 /**
- * Hetja API configuration — every secret/env is validated at boot via zod.
+ * Hetja API configuration: every secret/env is validated at boot via zod.
  * KMS-held pepper for identity HMAC (email, since the phone -> email OTP
  * migration) lives OUTSIDE env files in production (INVARIANT 3); dev
  * fallbacks are clearly marked and never used in prod.
@@ -29,7 +29,7 @@ const EnvSchema = z.object({
   PGPASSWORD: z.string().default(""),
   // INVARIANT 3: identity_hmac pepper (was phone_hmac's before the email OTP
   // migration; same key, same algorithm). Production MUST inject via
-  // KMS/secret manager — never a committed env file.
+  // KMS/secret manager, never a committed env file.
   HETJA_HMAC_PEPPER: z.string().min(16).default("dev-pepper-not-for-prod-0001"),
   // HMAC key that signs QR slugs (matches the collar's laser-etched signature).
   HETJA_QR_SECRET: z.string().min(16).default("dev-qr-secret-change-me"),
@@ -72,7 +72,7 @@ const EnvSchema = z.object({
   // desktop/mobile solver can carry (see above), so anything higher is a typo
   // by definition.
   DEVICE_POW_DIFFICULTY: z.coerce.number().int().min(8).max(20).default(16),
-  // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy) — never `true`.
+  // RESEARCH-2: pin to the real reverse proxy hop count (0 = no proxy), never `true`.
   TRUST_PROXY: z.coerce.number().int().min(0).max(4).default(0),
   // Comma-separated exact browser origins allowed in production. Exact origins
   // rather than regexes: a suffix pattern like /\.hetja\.in$/ silently fails to
@@ -90,12 +90,12 @@ const EnvSchema = z.object({
   S3_BUCKET: z.string().default("hetja"),
   S3_ACCESS_KEY: z.string().default(""),
   S3_SECRET_KEY: z.string().default(""),
-  // Brevo SMTP relay (free tier, 300/day) — the actual delivery mechanism for
+  // Brevo SMTP relay (free tier, 300/day): the actual delivery mechanism for
   // OTP emails. No defaults on host/user/pass: unlike the other secrets in
   // this file, there is no dev value that would even connect anywhere, and a
   // committed placeholder here would invite the exact bug this migration
   // fixes (silently minting a code and delivering it to nobody). Development
-  // and test never call the mailer at all — see apps/api/src/routes/auth.ts.
+  // and test never call the mailer at all; see apps/api/src/routes/auth.ts.
   BREVO_SMTP_HOST: z.string().default(""),
   BREVO_SMTP_PORT: z.coerce.number().int().positive().default(587),
   BREVO_SMTP_USER: z.string().default(""),
@@ -113,14 +113,14 @@ export type AppConfig = z.infer<typeof EnvSchema>;
  * boots with zero setup. Every one of those defaults is a known, committed
  * placeholder (PGPASSWORD's literal alone appears in five files in this
  * repo), so in production a missing env var must throw here instead of
- * silently booting against it — see packages/db/src/pool.ts's
+ * silently booting against it. See packages/db/src/pool.ts's
  * `requiredInProd` (same idiom, applied to the DB pool) and
  * packages/db/src/seed.ts's `requireQrSecret` (same idiom, for the one
  * secret whose failure mode is physical rather than a security bug).
  *
  * This checks the *raw* env, not the parsed config, because by the time
  * EnvSchema.parse() has run, an absent var has already been replaced by its
- * default — there is no way to tell "explicitly set to the dev value" apart
+ * default, and there is no way to tell "explicitly set to the dev value" apart
  * from "unset" after the fact.
  */
 function requireInProd(env: NodeJS.ProcessEnv, name: string, explanation: string): void {
@@ -145,13 +145,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   // STORAGE_BACKEND=s3 is refused in EVERY environment, not just production,
   // because the S3 backend is not implemented in this build (lib/storage.ts
-  // throws on first use) and that throw lands in persistScanAssets' catch —
+  // throws on first use) and that throw lands in persistScanAssets' catch,
   // which only log.warns, AFTER the scan route has already answered
   // {ok:true}. So a box configured for s3 accepts every photo, stores none,
   // and reports success: silent data loss wearing a green dashboard. The
   // retention job independently no-ops for non-local backends, so nothing
   // would ever surface it. This is the same judgement as the SMTP refusal
-  // below — refuse to boot rather than run while looking like it works — but
+  // below (refuse to boot rather than run while looking like it works), but
   // unconditional, because unlike mail there is no environment where s3
   // currently functions.
   if (parsed.STORAGE_BACKEND === "s3") {
@@ -227,18 +227,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     requireInProd(
       env,
       "HOST",
-      "in production this must be 127.0.0.1 (Caddy terminates TLS and reverse-proxies to it on loopback). The default 0.0.0.0 would bind the API to the public interface, and without this guard a missing HOST silently falls back to that default — AGENTS.md §h flags this as a silent-failure class like TRUST_PROXY.",
+      "in production this must be 127.0.0.1 (Caddy terminates TLS and reverse-proxies to it on loopback). The default 0.0.0.0 would bind the API to the public interface, and without this guard a missing HOST silently falls back to that default. AGENTS.md §h flags this as a silent-failure class like TRUST_PROXY.",
     );
     // Presence is not enough: docs/BUGS.md recorded this guard as "production
     // boot refuses anything but 127.0.0.1", and until now it refused only an
-    // EMPTY value — HOST=0.0.0.0 set explicitly booted fine and bound the API
+    // EMPTY value: HOST=0.0.0.0 set explicitly booted fine and bound the API
     // to every interface. Loopback is the contract (AGENTS.md §b: "all bound to
     // loopback"; Caddy is the only thing reachable from outside), so anything
     // else is refused with the same posture as every other requireInProd.
     if (!isLoopbackHost(parsed.HOST)) {
       throw new Error(
         `HOST=${parsed.HOST} is not a loopback address. Refusing to start in production: the API ` +
-          "must bind to 127.0.0.1 (or ::1) behind Caddy — AGENTS.md §b. Binding a wider " +
+          "must bind to 127.0.0.1 (or ::1) behind Caddy (AGENTS.md §b). Binding a wider " +
           "interface exposes the API past the reverse proxy with no boot error and nothing in " +
           "any dashboard.",
       );
@@ -246,7 +246,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     requireInProd(
       env,
       "TRUST_PROXY",
-      "in production this must be 1 (one hop through Caddy's trusted_proxies cloudflare → X-Forwarded-For). The default 0 makes Fastify ignore X-Forwarded-For entirely, so request.ip stays loopback, per-IP rate limits see one client, and Caddy's CF-Connecting-IP rewrite is inert — a silent failure with no boot error, as AGENTS.md §h warns.",
+      "in production this must be 1 (one hop through Caddy's trusted_proxies cloudflare → X-Forwarded-For). The default 0 makes Fastify ignore X-Forwarded-For entirely, so request.ip stays loopback, per-IP rate limits see one client, and Caddy's CF-Connecting-IP rewrite is inert: a silent failure with no boot error, as AGENTS.md §h warns.",
     );
   }
 

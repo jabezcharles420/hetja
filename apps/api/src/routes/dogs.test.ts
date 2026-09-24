@@ -47,7 +47,7 @@ async function setupDog(): Promise<TestDog> {
   await query(
     // The profile endpoint serves MODERATED stories only, so the fixture story
     // must arrive pre-approved to be visible at all. It used to be inserted
-    // unmoderated AND expected in the payload — which only held while the
+    // unmoderated AND expected in the payload, which only held while the
     // profile query ignored moderated_at. Seeding it approved keeps this suite
     // about the profile contract rather than about moderation, which stories'
     // own tests cover.
@@ -79,7 +79,7 @@ afterEach(async () => {
     try {
       await query(`DELETE FROM dogs WHERE id = $1`, [testDog.id]);
     } catch {
-      /* FK kept by the append-only medical row — fine */
+      /* FK kept by the append-only medical row; fine */
     }
     testDog = undefined;
   }
@@ -116,7 +116,7 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
   it("never serves an unmoderated story through the profile payload", async () => {
     // The moderation bypass: dog_stories rows start unmoderated, and this
     // endpoint used to take the newest row with no moderated_at filter while
-    // GET /dogs/:slug/stories filtered correctly — so posting a story and
+    // GET /dogs/:slug/stories filtered correctly, so posting a story and
     // reading the profile published it to strangers with no moderator in the
     // loop.
     const app = buildServer(config);

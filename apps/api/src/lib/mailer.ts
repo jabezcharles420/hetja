@@ -1,11 +1,11 @@
 /**
- * Email delivery for OTP codes, via Brevo's SMTP relay (free tier, 300/day —
+ * Email delivery for OTP codes, via Brevo's SMTP relay (free tier, 300/day;
  * see the plan doc for why Brevo over a paid provider or Supabase Auth's
  * built-in email).
  *
  * This is the piece that never existed for phone OTP: `apps/api/src/lib/otp.ts`
  * generated a code and `auth.ts` only ever returned it in the HTTP response
- * when NODE_ENV !== "production" — in production a code was minted and sent
+ * when NODE_ENV !== "production", so in production a code was minted and sent
  * to nobody. There was no SMS/email plumbing anywhere in the repo. This
  * module is that plumbing, and `loadConfig` (config.ts) refuses to boot in
  * production without the SMTP env vars this depends on, so the same failure
@@ -15,7 +15,7 @@
  * From address: send FROM no-reply@hetja.in, which has SPF/DKIM/DMARC set up
  * on the domain via Cloudflare DNS. A from-address on a domain without that
  * (e.g. a personal Gmail address) gets silently dropped by Brevo/receiving
- * providers rather than bouncing — confirmed by hand while wiring this up.
+ * providers rather than bouncing. Confirmed by hand while wiring this up.
  */
 import nodemailer, { type Transporter } from "nodemailer";
 

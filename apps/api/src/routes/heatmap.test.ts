@@ -4,7 +4,7 @@
  * 1. a ward with a cluster of active dogs + feed scans returns exactly one
  *    500 m cell: centroid only (≤2 decimals), correct fedRatio, and a lone
  *    dog's cell is dropped (k-anonymity floor of 3 active dogs, RESEARCH-1 E2).
- * 2. fedRatio is a share of dog-days fed, clamped to the contract's [0, 1] —
+ * 2. fedRatio is a share of dog-days fed, clamped to the contract's [0, 1]:
  *    a cell whose dogs are fed more than daily reports 1, never 3.33.
  * 3. a ward with no feed scans returns empty cells.
  * 4. invalid query params are rejected.

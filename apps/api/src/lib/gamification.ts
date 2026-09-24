@@ -2,26 +2,26 @@
  * Hetja GAMIFICATION (feeder quests / streaks / badges).
  *
  * Ships AFTER the trust engine / anti-abuse. Streaks and badges are DERIVED
- * from scans — there is no direct way for a client to grant itself a streak
+ * from scans. There is no direct way for a client to grant itself a streak
  * or a badge except through an actual feed scan (deduped by client_uuid).
  *
  * STREAK rule: a 'feed' scan on day D extends the streak iff there was a feed
  * scan on day D-1 (consecutive days). A missed day (>1 day gap) resets the
- * streak to 0 — there is NO retroactive recovery. Multiple feed scans on the
+ * streak to 0; there is NO retroactive recovery. Multiple feed scans on the
  * same day are a no-op for the streak. A feed whose day is EARLIER than the
- * last recorded one (an offline queue syncing out of order — INVARIANT 4
+ * last recorded one (an offline queue syncing out of order, since INVARIANT 4
  * allows capturedAt up to 30 days in the past) is a no-op: an older
  * observation never walks last_feed_date backwards. The transition is a pure
  * function of {lastFeedDate, today} so the scans hook and the endpoints agree
  * exactly.
  *
  * BADGES catalog (name, condition, description):
- *   first_feed     — 1 verified feed
- *   week_streak    — 7 consecutive feed days
- *   month_streak   — 28 consecutive feed days
- *   guardian_100   — 100 verified feeds
- *   night_owl      — a feed between 22:00 and 05:00 (Asia/Kolkata)
- *   monsoon_hero   — a feed during the Jun–Sep monsoon (Asia/Kolkata)
+ *   first_feed:     1 verified feed
+ *   week_streak:    7 consecutive feed days
+ *   month_streak:   28 consecutive feed days
+ *   guardian_100:   100 verified feeds
+ *   night_owl:      a feed between 22:00 and 05:00 (Asia/Kolkata)
+ *   monsoon_hero:   a feed during the Jun-Sep monsoon (Asia/Kolkata)
  * Badge grants are idempotent: a badge is only INSERTed into feeders.badges
  * when it is NOT already present (checked in JS and guarded in SQL).
  *
@@ -211,7 +211,7 @@ export async function getFeederGamification(
 }
 
 /**
- * STREAKS UPDATE HOOK — called from the scans flow (same transaction as the
+ * STREAKS UPDATE HOOK: called from the scans flow (same transaction as the
  * scan insert) after a successful feed scan by an authenticated feeder. Reads
  * the feeder row under a row lock and persists the deterministic next state.
  */
@@ -333,7 +333,7 @@ export interface StreakView {
   nextBadgeHint: BadgeHint | null;
   /**
    * `badges` and `trustScore` are part of this payload because /me RENDERS
-   * them — `apps/web/lib/streak.ts` declares both as required and calls
+   * them: `apps/web/lib/streak.ts` declares both as required and calls
    * `data.badges.map(...)`.
    *
    * They were missing, and the consequence was not a missing widget: the
@@ -342,7 +342,7 @@ export interface StreakView {
    * to immediately after a successful sign-in. With no error boundary in the
    * app, React unmounted the tree and Next.js rendered its bare "Application
    * error: a client-side exception has occurred". Every feeder, every time,
-   * in every environment — a login that worked perfectly, followed by a blank
+   * in every environment: a login that worked perfectly, followed by a blank
    * error page. This is the defect that read as "the app is not working".
    */
   badges: string[];

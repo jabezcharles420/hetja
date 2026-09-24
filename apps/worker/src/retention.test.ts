@@ -12,7 +12,7 @@
  * own statements, so a rolled-back transaction cannot exercise it. Every fixture
  * row is unmistakably ours (a `retention-test-` prefix on the challenge hash, a
  * dedicated feeder for the tokens), and nothing else in these tables is touched
- * except rows that are genuinely expired — which is the job's whole contract.
+ * except rows that are genuinely expired, which is the job's whole contract.
  */
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";

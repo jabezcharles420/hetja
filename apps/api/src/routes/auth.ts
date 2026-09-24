@@ -28,7 +28,7 @@ interface FeederRow {
  * Derive a display_name from the email local-part. This replaces the previous
  * hardcoded `'Hetja Feeder'` that every account received (BUGS P2-11). The
  * name is only set on INSERT; ON CONFLICT preserves whatever the account
- * already has — a returning user must not have their display_name (or role /
+ * already has: a returning user must not have their display_name (or role /
  * trust_score) rewritten by re-verifying an OTP. If the local part is empty
  * or unusable, fall back to the generic placeholder.
  */
@@ -52,7 +52,7 @@ async function upsertFeeder(
   // `SET identity_hmac = EXCLUDED.identity_hmac` (a self-assignment) is what
   // makes the conflict branch a deliberate no-op rather than an error, and
   // what it protects is privilege: a returning user must never be able to
-  // change their own role or trust_score by re-verifying an OTP — re-login is
+  // change their own role or trust_score by re-verifying an OTP. Re-login is
   // authentication, not authorisation. Role changes happen only through the
   // admin grant path; trust_score is derived from trust_events by
   // recomputeScore and would be silently rewritten by the next replay if it
@@ -60,7 +60,7 @@ async function upsertFeeder(
   //
   // What deliberately does advance on conflict: `consent_version` and
   // `is_minor`. Freezing them made sense for nothing except brevity of the
-  // clause — but a consent version that can never move means a feeder who
+  // clause, but a consent version that can never move means a feeder who
   // accepted DPDP notice v2 stays recorded as v1 forever, and a user who
   // turns 18 stays flagged a minor (with whatever gating that drags behind
   // it) for as long as the row lives. Both are facts ABOUT the account that
@@ -90,7 +90,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const { email } = parsed.data;
 
-    // Which identity_hmac does this address belong under — an existing
+    // Which identity_hmac does this address belong under: an existing
     // account's hash (grandfathered, whatever domain it is) or the canonical
     // hash of a genuinely new signup? lib/email.ts owns the rule; /verify
     // MUST call it again with the same input or codes get issued against one
@@ -112,7 +112,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     //
     // Order matters twice over. `issueOtp` overwrites any pending code for this
     // identity, so limiting afterwards would still let an attacker invalidate a
-    // real user's in-flight code at will — a denial of service that needs no
+    // real user's in-flight code at will, a denial of service that needs no
     // email to be sent at all. And the send is synchronous, so limiting
     // afterwards would not protect the SMTP quota either.
     //
@@ -122,7 +122,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     //
     // Keyed on the RESOLVED hmac rather than the raw typed string, for the same
     // reason login canonicalises at all: `j.o.h.n@`, `john+7@` and `john@` are
-    // one mailbox, so they must be one rate-limit bucket too — otherwise
+    // one mailbox, so they must be one rate-limit bucket too. Otherwise
     // rotating dot placements buys a fresh send budget per request and the cap
     // protects nothing. Legacy accounts whose stored hash predates
     // canonicalisation split their bucket across renderings; that weakens one
@@ -151,11 +151,11 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!global.allowed) {
       // Deliberately vague to the caller and loud in the log: this is either an
       // attack in progress or a genuine surge, and both need an operator to see
-      // it. The daily mail quota is a hard vendor ceiling — running it to zero
+      // it. The daily mail quota is a hard vendor ceiling: running it to zero
       // means no user can log in until midnight.
       req.log.error(
         { retryAfterSec: global.retryAfterSec },
-        "OTP global send budget exhausted — refusing further sends to protect the daily mail quota",
+        "OTP global send budget exhausted; refusing further sends to protect the daily mail quota",
       );
       return reply
         .status(429)
@@ -169,7 +169,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     // Both allowed: charge both. Two peeks then two consumes are not atomic
     // across concurrent requests, but this API is one process and each bucket
     // is consulted once per request, so the worst case is one extra send at
-    // the boundary — not a bypass.
+    // the boundary, not a bypass.
     otpPerIdentity.consume(idHmac);
     otpGlobal.consume(GLOBAL_SUBJECT);
 
@@ -238,13 +238,13 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     // RECORD THE MINTED REFRESH TOKEN. Before migration 0017 nothing stored
     // issuance, so rotation could not be one-time-use: every token ever
     // minted was replayable for 30 days with no way to detect or revoke it.
-    // The row is what makes POST /auth/refresh's reuse detection possible —
+    // The row is what makes POST /auth/refresh's reuse detection possible:
     // without it, the first refresh would find no row, look exactly like a
     // replay, and lock the feeder out.
     //
     // Not in the same transaction as upsertFeeder deliberately: a crash here
     // leaves an account whose refresh attempt later fails honestly (no row →
-    // REFRESH_REUSED), which is recoverable by signing in again — whereas a
+    // REFRESH_REUSED), which is recoverable by signing in again, whereas a
     // failed login that had already consumed the OTP would not be. The jti
     // comes from decoding the just-signed token; lib/jwt.ts documents why
     // decodeJwtPayload must never meet an externally-supplied token.
@@ -271,7 +271,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * Exchange a refresh token for a fresh pair. NO auth header — the token IS
+   * Exchange a refresh token for a fresh pair. NO auth header: the token IS
    * the credential, so this route's security rests entirely on the signature
    * check and the one-time-use store.
    *
@@ -285,7 +285,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
    * The WHERE clause makes the row claim itself atomically: two concurrent
    * presentations of the same token serialise on the row lock and exactly one
    * wins; the loser sees zero rows. Zero rows means the token was already
-   * spent, revoked, or never recorded — all three are treated as THEFT,
+   * spent, revoked, or never recorded. All three are treated as THEFT,
    * because a legitimate holder presents each token exactly once (the web
    * client stores the replacement the moment it receives it). The response to
    * theft is fail-closed family-wide revocation: every live row for the
@@ -298,11 +298,11 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
    *
    * Error codes, each meaning something different:
    *   400 INVALID_REFRESH    body malformed (no/garbage refreshToken field)
-   *   401 BAD_REFRESH_TOKEN  signature/expiry/type failure — nobody was ever
+   *   401 BAD_REFRESH_TOKEN  signature/expiry/type failure; nobody was ever
    *                          holding a live credential shaped like this
    *   401 REFRESH_REUSED     replay detected → family revoked (see above)
    *   401 FEEDER_GONE        row claimed but the feeders row vanished between
-   *                          UPDATE and SELECT — unreachable while the ON
+   *                          UPDATE and SELECT. Unreachable while the ON
    *                          DELETE CASCADE holds (deletion removes both),
    *                          kept because the cascade is a schema promise,
    *                          not something this code path can verify
@@ -327,7 +327,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     const sub = presented.sub as string;
 
     // Mint BEFORE claiming: replaced_by needs the new jti, and if the claim
-    // loses (replay) the transaction rolls back having inserted nothing — the
+    // loses (replay) the transaction rolls back having inserted nothing, so the
     // new pair simply never becomes usable.
     const accessToken = signAccessToken(sub, app.config.JWT_SECRET, app.config.JWT_ACCESS_TTL);
     const refreshToken = signRefreshToken(sub, app.config.JWT_SECRET, app.config.JWT_REFRESH_TTL);
@@ -350,7 +350,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (claimedFeederId === null) {
-      // Reuse path — revoke EVERY live token this feeder holds, then refuse.
+      // Reuse path: revoke EVERY live token this feeder holds, then refuse.
       // Keyed on `sub` rather than any row's feeder_id: when the presented jti
       // has no row at all, the JWT's subject is the only identity there is.
       const revoked = await query<{ jti: string }>(
@@ -361,7 +361,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       );
       req.log.warn(
         { feederId: sub, revokedCount: revoked.rowCount ?? 0 },
-        "refresh token reuse detected — revoking every live session for this feeder",
+        "refresh token reuse detected; revoking every live session for this feeder",
       );
       return reply.status(401).send({
         ok: false,

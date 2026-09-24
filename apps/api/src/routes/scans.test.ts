@@ -58,7 +58,7 @@ function jpegSegment(marker: number, payload: Buffer): Buffer {
 }
 
 /**
- * An Exif APP1 with a GPS IFD carrying GPSLatitude/GPSLongitude — what an
+ * An Exif APP1 with a GPS IFD carrying GPSLatitude/GPSLongitude: what an
  * unmodified iPhone JPEG hands over. TIFF offsets are relative to the TIFF
  * header, which begins 6 bytes into the APP1 payload (after "Exif\0\0").
  */
@@ -104,7 +104,7 @@ function exifApp1WithGps(): Buffer {
       entry(0x0003, 2, 2, Buffer.from("E ", "latin1")), // GPSLongitudeRef
       entry(0x0004, 5, 3, long(LNG_OFFSET)), // GPSLongitude
       long(0),
-      // 19 deg 4' 34" N, 72 deg 52' 39" E — a real point in Mumbai. If this
+      // 19 deg 4' 34" N, 72 deg 52' 39" E, a real point in Mumbai. If this
       // reaches disk, so does the feeder's feeding spot.
       rational(19, 1),
       rational(4, 1),
@@ -266,7 +266,7 @@ describe("POST /api/v1/scans", () => {
   });
 });
 
-describe("POST /api/v1/scans — INVARIANT 15 pause", () => {
+describe("POST /api/v1/scans: INVARIANT 15 pause", () => {
   async function insertProvisionalFeeder(): Promise<string> {
     const res = await query<{ id: string }>(
       `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, verification_tier, consent_version)
@@ -288,7 +288,7 @@ describe("POST /api/v1/scans — INVARIANT 15 pause", () => {
    * INVARIANT 15 says a provisional feeder with three serial rejects is
    * "paused rather than left free to keep submitting". Until this write path
    * consulted the gate, the pause was a flag GET /feeders/:id/trust wrote and
-   * nothing read — a paused feeder's next scan was accepted like any other.
+   * nothing read: a paused feeder's next scan was accepted like any other.
    */
   it("refuses a paused provisional feeder's scan with 403 FEEDER_PAUSED and records the flag once", async () => {
     const feederId = await insertProvisionalFeeder();
@@ -354,10 +354,10 @@ describe("POST /api/v1/scans — INVARIANT 15 pause", () => {
   });
 });
 
-describe("POST /api/v1/scans — activation of an expired registration", () => {
+describe("POST /api/v1/scans: activation of an expired registration", () => {
   /**
    * The expiry sweep retires the collar row along with marking the dog
-   * 'expired'. A geotagged scan of that tag reactivates the dog — and used to
+   * 'expired'. A geotagged scan of that tag reactivates the dog, and used to
    * leave the collar 'retired', so the register held an active dog wearing a
    * retired tag.
    */
@@ -404,7 +404,7 @@ describe("POST /api/v1/scans — activation of an expired registration", () => {
   });
 });
 
-describe("POST /api/v1/scans — photo handling", () => {
+describe("POST /api/v1/scans: photo handling", () => {
   let storageDir: string;
 
   beforeEach(async () => {
@@ -462,7 +462,7 @@ describe("POST /api/v1/scans — photo handling", () => {
 
   it("names the key after the container that was actually uploaded, not .jpg", async () => {
     // The browser pipeline emits WebP for every browser that can encode it, so a
-    // hardcoded .jpg key made a static server label those bytes image/jpeg —
+    // hardcoded .jpg key made a static server label those bytes image/jpeg,
     // which helmet's X-Content-Type-Options: nosniff then refuses to sniff past,
     // so the <img> never renders.
     const app = serverWithTempStorage();

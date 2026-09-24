@@ -2,7 +2,7 @@
   "name": "@hetja/pow",
   "version": "1.0.0",
   "private": true,
-  "description": "ALTCHA v2 SHA-256 proof-of-work solver shared by apps/scan and apps/web — zero dependencies, Web Crypto only",
+  "description": "ALTCHA v2 SHA-256 proof-of-work solver shared by apps/scan and apps/web. Zero dependencies, Web Crypto only",
   "type": "module",
   "exports": {
     ".": {

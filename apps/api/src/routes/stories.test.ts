@@ -210,7 +210,7 @@ describe("GET /api/v1/dogs/:slug/stories (anon, moderated only)", () => {
 
 describe("moderation queue (admin only)", () => {
   it("lists pending stories oldest first for admins", async () => {
-    // Isolation: the queue is global — purge pending stories left behind by
+    // Isolation: the queue is global, so purge pending stories left behind by
     // earlier runs so the count assertion below is deterministic.
     await query(`DELETE FROM dog_stories WHERE moderated_at IS NULL`);
     const app = buildServer(config);
@@ -309,7 +309,7 @@ describe("admin rejection: full delete + trust penalty", () => {
   it("deletes the story row and writes a -5 trust_event for the author", async () => {
     // The author's 50 is now EARNED through the event stream (+20 of acks on
     // the 30 baseline), not hand-set: trust_score is derived, and the
-    // rejection recomputes from the stream — a value planted directly in the
+    // rejection recomputes from the stream; a value planted directly in the
     // column would simply be overwritten. 50 − 5 = 45.
     await logTrustEvent({ feederId: fx.feederId, eventType: "sos_ack", reason: "test seed" });
 
@@ -394,7 +394,7 @@ describe("admin rejection: full delete + trust penalty", () => {
     // The defect this pins: the old code decremented whatever number sat in
     // feeders.trust_score alongside writing the event, so a score that had
     // drifted from its stream (here: hand-set to 100 with nothing behind it)
-    // absorbed the penalty and stayed wrong — and conversely, a feeder
+    // absorbed the penalty and stayed wrong. Conversely, a feeder
     // clamped at 100 had their penalty silently restored by the next
     // recompute elsewhere. Recompute-from-stream makes drift un-survivable:
     // 30 baseline − 5 penalty, whatever the column used to say.

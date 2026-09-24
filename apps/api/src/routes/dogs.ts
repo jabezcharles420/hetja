@@ -68,8 +68,8 @@ interface DogPagePayload {
 
 // In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
 // (identity, ABC/vaccine status, micro-story, latest photo) only changes
-// when a feeder updates the dog or a new scan lands — both slow compared to
-// a 5s TTL — so a short read-through cache absorbs the burst of scans that
+// when a feeder updates the dog or a new scan lands (both slow compared to
+// a 5s TTL), so a short read-through cache absorbs the burst of scans that
 // follows every collar deployment without going stale enough to mislead.
 // Only SUCCESSFUL payloads are stored: signature failures and unknown-slug
 // 404s fall through to the database every time, and SOS state is never
@@ -87,21 +87,21 @@ export const dogCache = new LRUCache<string, DogPagePayload>({
  *
  * `HETJA_QR_SECRET` is the single most dangerous value in this system. It is
  * HMAC'd into the URL etched on every collar already glued to an animal, and
- * verification used to be purely stateless — recompute the HMAC, compare. That
+ * verification used to be purely stateless: recompute the HMAC, compare. That
  * made the secret load-bearing forever: lose it, and every collar in the field
- * stops resolving. Not degraded — stops. Rotate it, and the same. AGENTS.md
+ * stops resolving. Not degraded: stops. Rotate it, and the same. AGENTS.md
  * documents this at length as a hazard to be careful around.
  *
  * It did not have to be a hazard. `collars.hmac_sig` has existed since
  * migration 0001 and held the correct signature for every collar the whole
- * time — and no code in the API ever read it. Consulting it converts a
+ * time, and no code in the API ever read it. Consulting it converts a
  * catastrophic loss into an inconvenience: an operator who loses the secret can
  * still serve every collar already in the field, and can mint a new secret for
  * new collars without invalidating the old ones. That is also what makes
  * rotation possible at all, which today it is not at any price.
  *
  * SECURITY IS UNCHANGED. The threat this defends against is a stranger
- * fabricating collar URLs to enumerate the register — "in one political
+ * fabricating collar URLs to enumerate the register: "in one political
  * climate a tool for protection, in another a targeting list". A forged
  * signature still fails: matching the stored value requires a row this
  * operator inserted, and matching the computed value requires the secret.
@@ -132,14 +132,14 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  * THE PROBLEM. The landing hero and the /scan page advertise typing the code
  * printed on the collar, and that is the path that matters when the QR is
  * scratched off. But `?s=` is an HMAC under HETJA_QR_SECRET, so the CLIENT
- * cannot compute it — by design (INVARIANT 1; see enrolment.ts' header). A
+ * cannot compute it, by design (INVARIANT 1; see enrolment.ts' header). A
  * typed code therefore cannot be turned into a signed URL client-side, and
  * every typed entry 404'd. QrScanner forwards the signature fine; only typing
  * was broken.
  *
  * THE CHOICE, of the two shapes available:
  *
- *   (a) this — accept a signature-less lookup on the SAME endpoint when
+ *   (a) this: accept a signature-less lookup on the SAME endpoint when
  *       isValidSlug(slug) passes, i.e. the slug is well-formed AND its check
  *       character matches the body;
  *   (b) a separate /resolve endpoint with its own rate limit.
@@ -148,16 +148,16 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  * because it is less than it looks like:
  *
  * - INVARIANT 1's concern is ENUMERATION, not authentication. Nothing here
- *   authenticates a reader — the QR URL is printed on a public collar and any
+ *   authenticates a reader: the QR URL is printed on a public collar and any
  *   stranger can scan it. What the system must never allow is walking the
  *   register dog by dog. That protection comes from the slug itself: 40 random
  *   bits (INVARIANT 1: "40 random bits + a check character closes that off").
- *   The HMAC adds provenance — proof this URL came off a collar WE etched,
- *   which defeats pattern-crawling around one leaked link — but it adds no
+ *   The HMAC adds provenance (proof this URL came off a collar WE etched,
+ *   which defeats pattern-crawling around one leaked link), but it adds no
  *   entropy against guessing slugs, and the slug is only ever as secret as the
  *   plate it is printed on.
  * - A typed code comes from a human reading that same plate. Whoever can type
- *   the code correctly is standing in front of (or photographing) the collar —
+ *   the code correctly is standing in front of (or photographing) the collar;
  *   they already had everything the signature would have attested. Requiring
  *   ?s= on the typed path protects nothing a scanner-based reader doesn't
  *   already have.
@@ -166,7 +166,7 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  *   database work, so typo-driven enumeration dies cheaply, exactly as
  *   INVARIANT 1 says it should ("the check character exists purely to catch a
  *   mistyped collar entry before it becomes a query for the wrong dog"). A
- *   presented-but-WRONG signature still fails hard below — only ABSENCE of
+ *   presented-but-WRONG signature still fails hard below. Only ABSENCE of
  *   ?s= falls back to the check-character path, so a tampered link gains
  *   nothing.
  *
@@ -182,7 +182,7 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  *   measured decision for a human, not a silent tightening here.
  * - It widens "who can read a profile" from whoever holds the etched URL to
  *   whoever knows the exact slug. Given the slug is stamped next to the QR on
- *   the collar itself, the marginal exposure is small — but it is not zero, and
+ *   the collar itself, the marginal exposure is small. But it is not zero, and
  *   this comment exists so the widening is a recorded decision rather than an
  *   accident.
  * - The payload returned is identical either way: ward-level geo only
@@ -209,8 +209,8 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
 
     // 5s read-through cache keyed on the slug (the payload is identical for
     // any valid signature on the same slug, and identical again for the
-    // signature-less typed path). A signature failure above — and every 404
-    // below — skips the cache entirely, so errors are never cached.
+    // signature-less typed path). A signature failure above, and every 404
+    // below, skips the cache entirely, so errors are never cached.
     const cached = dogCache.get(slug);
     if (cached) return { ok: true, data: cached };
 
@@ -227,7 +227,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
 
     const [storyRes, vaccineRes, photoRes] = await Promise.all([
       query<StoryRow>(
-        // MODERATED only — same rule as GET /api/v1/dogs/:slug/stories
+        // MODERATED only: same rule as GET /api/v1/dogs/:slug/stories
         // (stories.ts: "New stories start UNMODERATED and stay hidden from the
         // public feed until a moderator approves them"). This query used to
         // omit the filter, which made the moderation queue bypassable by

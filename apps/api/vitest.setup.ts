@@ -2,7 +2,7 @@
  * Guard: refuse to run the API suite against a non-test database.
  *
  * These tests INSERT real rows (dogs, feeders, vets, medical_records) and clean
- * up with DELETE. That cleanup is incomplete by construction — medical_records
+ * up with DELETE. That cleanup is incomplete by construction: medical_records
  * is append-only (INVARIANT 9), so test medical rows can never be removed, and
  * a dog with dependent rows survives its own DELETE.
  *

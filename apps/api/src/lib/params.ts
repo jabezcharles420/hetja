@@ -3,7 +3,7 @@
  *
  * A `:id` param interpolated straight into a query against a `uuid` column
  * turned any non-UUID value into PostgreSQL error 22P02 ("invalid input
- * syntax for type uuid"), which the central error handler renders as a 500 —
+ * syntax for type uuid"), which the central error handler renders as a 500,
  * so a caller who typo'd a URL got "internal server error", and the 500 log
  * noise quoted attacker-controlled input back at us. The message leak was
  * closed in server.ts; this closes the status half, because a malformed

@@ -39,13 +39,13 @@ describe("slugs (INVARIANT 1: random, never sequential)", () => {
   /**
    * The alphabet's documented reality (see the comment above ALPHABET in
    * slugs.ts): the string holds 33 characters and contains `o`, but the
-   * & 31 mask and % 32 check make index 32 — `9` — unreachable, so the
+   * & 31 mask and % 32 check make index 32 (`9`) unreachable, so the
    * effective emitted set is exactly `2345678abcdefghijkmnopqrstuvwxyz`.
    * This pins that truth so a future edit to ALPHABET cannot silently change
    * what collars are made of: any reindexing shifts check characters of
    * already-issued slugs, and a collar is printed once and glued to a dog.
    */
-  it("emits exactly the reduced 32-char alphabet — never l, 0, 1 or 9", () => {
+  it("emits exactly the reduced 32-char alphabet, never l, 0, 1 or 9", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 1000; i++) {
       for (const c of generateSlug()) seen.add(c);

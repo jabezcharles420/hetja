@@ -132,7 +132,7 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     60_000,
   );
 
-  it("mints exactly one token per solved challenge — replay is rejected (CHALLENGE_REUSED)", async () => {
+  it("mints exactly one token per solved challenge; replay is rejected (CHALLENGE_REUSED)", async () => {
     const app = buildServer(config);
 
     const { challenge } = await fetchChallenge(app);
@@ -147,7 +147,7 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     expect(first.statusCode).toBe(200);
 
     // Replaying the identical (challenge, solution) must not mint a second
-    // token — this is the reuse gap the enhancement stack documented (D.4).
+    // token. This is the reuse gap the enhancement stack documented (D.4).
     const replay = await app.inject({
       method: "POST",
       url: "/api/v1/devices/token",
@@ -156,7 +156,7 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     expect(replay.statusCode).toBe(401);
     expect(replay.json().error.code).toBe("CHALLENGE_REUSED");
 
-    // A freshly issued challenge still mints — the registry only blocks spent
+    // A freshly issued challenge still mints: the registry only blocks spent
     // challenges, not new work.
     const fresh = await fetchChallenge(app);
     const freshSolution = await solvePoW(fresh.challenge);
@@ -235,7 +235,7 @@ describe("POST /api/v1/devices/challenge + POST /api/v1/devices/token", () => {
     const { challenge } = await fetchChallenge(app);
 
     // A nonce/counter of 0 can never produce a 32-byte zero derivedKey, so the
-    // server's key re-derivation cannot match this solution — deterministically
+    // server's key re-derivation cannot match this solution, so it is deterministically
     // BAD_POW rather than a value we *hope* fails the prefix check.
     const res = await app.inject({
       method: "POST",
@@ -332,7 +332,7 @@ describe("device token canonical encoding (INVARIANT 6/7)", () => {
   /**
    * INVARIANT 7's backstop (wave 7): successful mints draw from one global
    * bucket, because token minting was itself uncapped and a native solver
-   * clears the PoW in ~0.09 s — the per-device SOS caps are only as good as
+   * clears the PoW in ~0.09 s, and the per-device SOS caps are only as good as
    * the number of devices an attacker can mint. Draining the bucket directly
    * (rather than solving 20 PoWs) keeps this test about the ROUTE WIRING:
    * a verified solution with an empty bucket is refused with 429 and mints
@@ -350,7 +350,7 @@ describe("device token canonical encoding (INVARIANT 6/7)", () => {
       const { challenge } = await fetchChallenge(app);
       const solution = await solvePoW(challenge);
 
-      // The solution is VALID — every check before the bucket would pass.
+      // The solution is VALID: every check before the bucket would pass.
       const res = await app.inject({
         method: "POST",
         url: "/api/v1/devices/token",

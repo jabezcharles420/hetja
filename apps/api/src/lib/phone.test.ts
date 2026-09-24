@@ -10,7 +10,7 @@ describe("normalizeIndianPhone (enhancement stack §G.3)", () => {
   });
 
   it("normalizes fixed-line numbers (landlines are care providers too)", () => {
-    // Bombay SPCA's Parel landline shape — /mobile metadata would reject this.
+    // Bombay SPCA's Parel landline shape; /mobile metadata would reject this.
     expect(normalizeIndianPhone("022 2493 9005")).toBe("+912224939005");
     // The exact shape that broke migration 0013: a landline typed with the
     // trunk 0 and no separators. 0013's UPDATEs only matched 10-digit mobiles

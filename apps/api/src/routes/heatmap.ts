@@ -1,14 +1,14 @@
 /**
  * Hetja HEATMAP endpoint (public).
  *
- * GET /api/v1/heatmap?ward=<id>&days=7 — public hunger heatmap per the
+ * GET /api/v1/heatmap?ward=<id>&days=7: public hunger heatmap per the
  * canonical query (docs/queries/heatmap.sql, kept byte-for-byte in step with
  * CELL_SQL below; ops/check-queries.sh EXPLAINs that file, so it must be the
  * query that actually ships).
  *
  * Cells are 500 m ST_SnapToGrid squares, snapped in EPSG:3857 so the size is
  * metres rather than degrees. 500 m is INVARIANT 2's floor ("snaps geo to ward
- * or a ≥500 m grid cell") — this used to be 200 m, which the invariant forbids
+ * or a ≥500 m grid cell"). This used to be 200 m, which the invariant forbids
  * outright; coarsening the *output* to 2 decimals did not repair that, because
  * the k-anonymity floor was still being applied per 200 m cell.
  *
@@ -16,7 +16,7 @@
  * to [0, 1]: the share of dog-days in the window that saw a feed. 1 means
  * every dog in the cell was fed every day; 0.14 means roughly once a week.
  * It used to be feeds ÷ dogs, which is feeds-per-dog and climbs past 1 as
- * soon as any dog is fed twice — while `@hetja/contracts` HeatmapCell declares
+ * soon as any dog is fed twice, while `@hetja/contracts` HeatmapCell declares
  * `fedRatio: z.number().min(0).max(1)`. A ratio that violates its own
  * contract cannot be rendered as a colour scale, which is the only thing a
  * heatmap consumer does with it. feedCount and dogCount stay raw.

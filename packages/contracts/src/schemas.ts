@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 // 8 data chars + 1 check char. The alphabet is the generator's
-// (packages/db/src/slugs.ts): "abcdefghijkmnopqrstuvwxyz23456789" — a-z without
+// (packages/db/src/slugs.ts): "abcdefghijkmnopqrstuvwxyz23456789", i.e. a-z without
 // the confusable `l`, digits 2-9. This previously read /^[a-z2-7]{9}$/, which
-// rejected every slug containing an 8 — including the real Phase-0 collar
+// rejected every slug containing an 8, including the real Phase-0 collar
 // c3di5esh8, whose SOS reports were refused with a 400.
 export const SLUG_REGEX = /^[a-km-z2-9]{9}$/;
 
@@ -28,7 +28,7 @@ export type FeederRole = z.infer<typeof FeederRole>;
 /**
  * The raw code tuple, exported beside `BmcWard` for CONSUMERS ON THE OTHER
  * SIDE OF THE ZOD SPLIT: this package runs zod v4 while apps/api pins
- * zod@^3.23 (the two never share a runtime instance — see the email-OTP note
+ * zod@^3.23 (the two never share a runtime instance; see the email-OTP note
  * below), so an api-side schema cannot embed the v4 `BmcWard` object itself.
  * Building `z.enum(BMC_WARD_CODES)` locally in apps/api keeps one canonical
  * list without forcing either side to change its zod major.
@@ -64,7 +64,7 @@ export const BMC_WARD_CODES = [
 //
 // dogs.ward_id is free TEXT in the schema, and until this enum existed a
 // registration form let a member of the public type whatever they believed
-// their ward was called: "kwest", "K West", "Kandivali" — three spellings of
+// their ward was called: "kwest", "K West", "Kandivali". Three spellings of
 // one place, none of them equal to "K-West", and therefore invisible to every
 // query that filters on the canonical spelling. That matters because the
 // public heatmap keys on this exact column (docs/queries/heatmap.sql,
@@ -135,13 +135,13 @@ export type Scan = z.infer<typeof Scan>;
 /**
  * How far in the FUTURE a `capturedAt` may sit (INVARIANT 4 clock-skew clamp).
  *
- * This bound is asymmetric on purpose, and it used to be symmetric — a bug that
+ * This bound is asymmetric on purpose, and it used to be symmetric: a bug that
  * defeated the feature the invariant exists to serve.
  *
  * INVARIANT 4 resolves offline conflicts on `captured_at` precisely because "a
  * feeder's phone can be offline for hours". The clamp was
  * `Math.abs(Date.now() - captured) <= 15min`, which rejected anything captured
- * more than fifteen minutes ago — so every feed queued offline for longer than
+ * more than fifteen minutes ago, so every feed queued offline for longer than
  * a quarter of an hour became a permanent 400 the moment it finally synced.
  * That is the exact population the offline queue exists for: a feeder out of
  * signal for an afternoon. INVARIANT 5's idempotent replay then had nothing
@@ -151,7 +151,7 @@ export type Scan = z.infer<typeof Scan>;
  * Only the future direction needs a tight bound, because only the future
  * direction is dangerous. `applyLww` keeps the observation with the greatest
  * `captured_at`, so a phone whose clock runs fast (or a client that lies) would
- * win last-writer-wins indefinitely and pin `last_seen_geo` — and that field is
+ * win last-writer-wins indefinitely and pin `last_seen_geo`, and that field is
  * load-bearing for the SOS geofence. A `capturedAt` in the past cannot do that:
  * it simply loses the comparison, which is the correct outcome for an old
  * observation.
@@ -160,7 +160,7 @@ const FUTURE_SKEW_MS = 15 * 60 * 1000;
 
 /**
  * How far in the PAST a `capturedAt` may sit. Generous, because a long offline
- * stretch is a legitimate and expected state, but not unbounded — a timestamp
+ * stretch is a legitimate and expected state, but not unbounded: a timestamp
  * from 1970 or 2099 is a broken client, not a patient feeder, and pinning some
  * ceiling keeps `applyLww` reasoning about a finite window.
  */
@@ -230,14 +230,14 @@ export const HeatmapCell = z.object({
 });
 export type HeatmapCell = z.infer<typeof HeatmapCell>;
 
-// Email OTP login (replaces phone OTP — see docs/INVARIANTS.md #3). zod v4
-// (this package's version, distinct from apps/api's own zod@^3.23 — the two
+// Email OTP login (replaces phone OTP; see docs/INVARIANTS.md #3). zod v4
+// (this package's version, distinct from apps/api's own zod@^3.23; the two
 // never share a runtime instance, so the version split is safe) moved email
 // validation off `z.string().email()` (deprecated, still present for compat)
 // onto the top-level `z.email()`, which is what this uses. 254 is RFC 5321's
 // practical max length for a full email address; there is no generic
 // fallback validator needed here the way INDIA_MOBILE_REGEX was the only
-// phone shape this ever had to accept — `z.email()` already covers the
+// phone shape this ever had to accept: `z.email()` already covers the
 // general case.
 export const EmailAddress = z.email({ message: "must be a valid email address" }).max(254);
 
@@ -255,7 +255,7 @@ export const AuthOtpVerify = z.object({
 });
 export type AuthOtpVerify = z.infer<typeof AuthOtpVerify>;
 
-// POST /auth/refresh carries no auth header — the refresh token IS the
+// POST /auth/refresh carries no auth header; the refresh token IS the
 // credential. A JWT is at most a few hundred bytes; the cap is abuse hygiene
 // for an unauthenticated endpoint, not a real constraint. The response mirrors
 // /auth/verify's shape exactly so clients can treat both as "here is a fresh

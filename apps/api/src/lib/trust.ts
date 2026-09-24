@@ -6,32 +6,32 @@
  *   trust_score = clamp(TRUST_BASELINE + Σ(trust_events.delta), 0, 100)
  *
  * Every score change is an append-only row in trust_events. recomputeScore()
- * replays the whole stream (idempotent by construction — a replay can never
+ * replays the whole stream (idempotent by construction: a replay can never
  * double-count) and persists feeders.trust_recomputed_at so the marker proves
  * when the last recomputation happened.
  *
  * TRUST_EVENTS catalog (event_type -> delta):
  *   feed +1, sos_ack +20, verified_scan +10, photo_accepted +10,
  *   photo_rejected -5, serial_rejects -15, story_rejected -5.
- * Reversals are the delta NEGATED of the disputed event — see the catalog
+ * Reversals are the delta NEGATED of the disputed event. See the catalog
  * comment for why `reversal` itself carries 0. auto_paused is a flag event
  * (delta 0) written by the INVARIANT 15 verification gate.
  *
  * DISPUTES split in two steps, only one of which a feeder can reach:
- *   openDispute()    — the event's owner marks dispute_state='open'; no
+ *   openDispute():     the event's owner marks dispute_state='open'; no
  *                      score change. A human reviews.
- *   resolveDispute() — an ADMIN adjudicates: the original delta is reversed
+ *   resolveDispute():  an ADMIN adjudicates; the original delta is reversed
  *                      exactly and the score recomputed. A feeder can never
  *                      revoke their own penalty.
  *
- * INVARIANT 15 — verification gates: provisional feeders are gated. Rejected
+ * INVARIANT 15, verification gates: provisional feeders are gated. Rejected
  * /flagged scans accumulate; at >= 3 SERIAL rejects (consecutive, newest
  * first) the feeder is auto-paused: role is unchanged, and a flag
  * trust_event 'auto_paused' is written. The pause is ENFORCED by
  * routes/scans.ts (a paused feeder's scans answer 403 FEEDER_PAUSED), written
  * by applyVerificationGate() on that write path and on the explicit
  * POST /feeders/:id/trust/evaluate, and merely READ by getFeederTrust()
- * (readVerificationGate — no side effects on GET).
+ * (readVerificationGate: no side effects on GET).
  */
 import { query } from "@hetja/db";
 
@@ -43,18 +43,18 @@ export const SERIAL_REJECT_PAUSE_THRESHOLD = 3;
 /**
  * Catalog of event_type -> score delta. Reversals negate the original.
  *
- * GATE ARITHMETIC — why `feed` is +1. The trust gates must measure tenure in
+ * GATE ARITHMETIC: why `feed` is +1. The trust gates must measure tenure in
  * ordinary, self-reported actions, so `feed` (one logged feed scan) is the
  * smallest positive unit and every gate is reachable only by a count of them.
  * With TRUST_BASELINE = 30 and feed = +1, counted in feeds from a
  * brand-new account:
  *
- *     trust 40 — SOS fan-out floor, minor/serious (sos.ts) → 10 feeds
- *     trust 50 — the re-tag gate (docs/INVARIANTS.md)      → 20 feeds
- *     trust 60 — SOS fan-out floor, critical (sos.ts)      → 30 feeds
+ *     trust 40: SOS fan-out floor, minor/serious (sos.ts) → 10 feeds
+ *     trust 50: the re-tag gate (docs/INVARIANTS.md)      → 20 feeds
+ *     trust 60: SOS fan-out floor, critical (sos.ts)      → 30 feeds
  *
- * It used to be +60 — a 3× outlier against every neighbour (sos_ack +20,
- * verified_scan +10, photo_accepted +10), reading like a typo for 6 — but even
+ * It used to be +60, a 3× outlier against every neighbour (sos_ack +20,
+ * verified_scan +10, photo_accepted +10) that read like a typo for 6, but even
  * 6 leaves the critical-SOS floor five farmable requests deep, which is not
  * tenure. A feed is self-reported (review_status starts 'pending'), so it earns
  * less than any verification-backed event; a rescue ack stays worth twenty
@@ -69,7 +69,7 @@ export const SERIAL_REJECT_PAUSE_THRESHOLD = 3;
  * contributes its own value: a reversal's delta is always the negation of the
  * event it reverses (passed explicitly to logTrustEvent), and auto_paused is a
  * flag. They exist as keys so that every event_type this code writes IS a
- * catalog key — writer and catalog are not allowed to disagree; that exact
+ * catalog key. Writer and catalog are not allowed to disagree; that exact
  * disagreement is how `feed` sat at 60 unnoticed while the docs reasoned from
  * +1-per-action economics.
  */
@@ -198,7 +198,7 @@ export interface OpenDisputeResult {
 }
 
 /**
- * DISPUTE flow, step 1 — the only step a feeder can reach.
+ * DISPUTE flow, step 1: the only step a feeder can reach.
  *
  * Marks the target event dispute_state='open' and NOTHING else. This used to
  * reverse the delta in the same call, which made INVARIANT 15's penalty
@@ -241,7 +241,7 @@ export async function openDispute(
  * reversing event (delta negated, reverses_event_id set), then recomputed.
  *
  * ADMIN-only, and the check lives here rather than only in the route because
- * lib functions are callable from anywhere — a future caller must not be able
+ * lib functions are callable from anywhere, and a future caller must not be able
  * to skip the human-review requirement by forgetting a gate (the same class of
  * hole this file closed when the self-serve POST /trust/events route died).
  *
@@ -280,7 +280,7 @@ export async function resolveDispute(
 
   await c.query(`UPDATE trust_events SET dispute_state = 'resolved' WHERE id = $1`, [eventId]);
 
-  // The reversal's event_type is a real catalog key (`reversal`, delta 0 — the
+  // The reversal's event_type is a real catalog key (`reversal`, delta 0; the
   // actual delta is always the negation passed explicitly). It used to write
   // the bare string "reversal" while no such key existed, so the catalog and
   // the writer disagreed about what the row meant.
@@ -308,7 +308,7 @@ export interface GateStatus {
 /**
  * Count consecutive rejected/flagged scans (newest first) for a feeder.
  *
- * LIMIT 3 because SERIAL_REJECT_PAUSE_THRESHOLD is 3 — only a leading run of
+ * LIMIT 3 because SERIAL_REJECT_PAUSE_THRESHOLD is 3: only a leading run of
  * at most three can ever change the outcome, so reading further back is waste
  * on a query that runs on every trust-profile read. The loop below still
  * stops at the first non-reject; the limit just bounds how far it can look.
@@ -385,14 +385,14 @@ export async function applyVerificationGate(feederId: string, client?: TxClient)
  * with no lock and no insert. `paused` is derived (provisional AND >= 3 serial
  * rejects), so it is true the moment the third reject lands whether or not a
  * write path has recorded the `auto_paused` flag yet; `autoPausedEventId` is
- * the flag if one exists and null otherwise — a null here means "not yet
+ * the flag if one exists and null otherwise. A null here means "not yet
  * recorded", never "not paused".
  *
  * This is what GET /feeders/:id/trust reports. The GET used to CALL
  * applyVerificationGate inside a transaction, i.e. an idempotent read that
  * inserted a row (docs/BUGS.md P3). The write belongs on the paths that act on
- * the pause — routes/scans.ts refusing a paused feeder's scan, and the explicit
- * POST /feeders/:id/trust/evaluate — not on a profile read.
+ * the pause (routes/scans.ts refusing a paused feeder's scan, and the explicit
+ * POST /feeders/:id/trust/evaluate), not on a profile read.
  */
 export async function readVerificationGate(feederId: string, client?: TxClient): Promise<GateStatus> {
   const c = client ?? trustDb;
@@ -484,7 +484,7 @@ export interface FeederTrustView {
  * Score + verification tier + pause state + recent events (self-service).
  *
  * A READ, and only a read. Until 2026-09-07 this called applyVerificationGate
- * inside a transaction — a GET that could INSERT the `auto_paused` flag —
+ * inside a transaction (a GET that could INSERT the `auto_paused` flag)
  * because it was the only place INVARIANT 15's gate was ever evaluated
  * (docs/BUGS.md P3). The enforcement point is now routes/scans.ts, which
  * evaluates the gate (and writes the flag) before accepting a feeder's scan,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Hetja ledger:verify CLI — reads a ledger JSON file (array of records),
+ * Hetja ledger:verify CLI: reads a ledger JSON file (array of records),
  * verifies the chain, prints a summary and exits 0 (valid) or 1 (invalid).
  * Defaults to ops/sample-ledger.json; override with $HETJA_LEDGER_PATH.
  */
@@ -31,11 +31,11 @@ function main(): number {
   console.log(`records: ${records.length}`);
   console.log(`head: ${head}`);
   if (valid) {
-    console.log("verdict: VALID — chain intact");
+    console.log("verdict: VALID (chain intact)");
     return 0;
   }
   console.log(`brokenAt: ${brokenAt}`);
-  console.log("verdict: TAMPERED — chain broken");
+  console.log("verdict: TAMPERED (chain broken)");
   return 1;
 }
 

@@ -6,7 +6,7 @@
  *   1. An UNGUARDED rollback. When the connection dies mid-transaction
  *      (reset by a deploy restart, terminated by an admin), ROLLBACK itself
  *      throws, and letting that error replace the one fn threw erased the
- *      actual diagnosis — every downstream caller saw "Connection terminated"
+ *      actual diagnosis: every downstream caller saw "Connection terminated"
  *      no matter what originally went wrong.
  *
  *   2. A poisoned pool. `client.release()` with no argument hands the

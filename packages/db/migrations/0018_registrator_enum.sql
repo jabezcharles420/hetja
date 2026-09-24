@@ -2,7 +2,7 @@
 -- Adds the three enum values the self-serve registration flow (wave 6) needs:
 --
 --   dog_status  'pending_activation'  a registration nobody has physically
---                                     scanned yet — inert by construction
+--                                     scanned yet; inert by construction
 --   dog_status  'expired'             a pending registration whose print window
 --                                     closed without ever being attached
 --   feeder_role 'registrator'         the self-elected role (see the capability
@@ -18,13 +18,13 @@
 --     ERROR: unsafe use of new value "pending_activation" of enum type dog_status
 --     HINT:  New enum values must be committed before they can be used.
 --
--- So any statement that names one of these values — an index predicate like
+-- So any statement that names one of these values (an index predicate like
 -- `WHERE status = 'pending_activation'`, a DEFAULT, an UPDATE, even the
--- backfill in 0019 — fails to apply if it shares a file with the ALTER TYPE.
+-- backfill in 0019) fails to apply if it shares a file with the ALTER TYPE.
 -- The failure would happen at APPLY time, on the box, mid-deploy, AFTER the
 -- API code that speaks the new values has already shipped (deploy order in
 -- AGENTS.md §g builds api+worker on the box before migrations run), and an
--- applied migration stays applied through a rollback — so the deploy would sit
+-- applied migration stays applied through a rollback, so the deploy would sit
 -- broken with no clean way back. Splitting is the fix: this file commits the
 -- enum values; 0019_registration_lifecycle.sql, in its own transaction, is
 -- then free to name them.

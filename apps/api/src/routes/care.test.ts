@@ -4,13 +4,13 @@
  * 1. a valid query returns listed providers within range, nearest first.
  * 2. missing lat/lng is a 400.
  * 3. max_km above the 25km cap is rejected (400) rather than silently
- *    clamped — matches the heatmap route's convention (heatmap.test.ts)
+ *    clamped. This matches the heatmap route's convention (heatmap.test.ts)
  *    of rejecting out-of-range query params.
  * 4. an unlisted provider is never returned even when closest.
  * 5. the kind filter excludes providers of a different kind.
  * 6. geo_precision contract (migration 0009_care_geo_precision.sql): an
  *    "exact" row surfaces a real numeric distanceM; a "locality" row
- *    surfaces distanceM: null plus its locality label — the API must never
+ *    surfaces distanceM: null plus its locality label. The API must never
  *    present an estimated coordinate's distance as a measured fact.
  * 7. ordering puts exact-precision rows ahead of locality-precision rows
  *    even when a locality row is nominally nearer by raw ST_Distance.
@@ -264,7 +264,7 @@ describe("GET /api/v1/care", () => {
   it("returns an already-canonical Indian number byte-for-byte", async () => {
     // The E.164 CHECK constraint (0015_care_phone_e164_retry.sql) means every
     // stored number is already canonical, so `dialable()` must be a strict
-    // no-op on the happy path — a normaliser that rewrites correct data is a
+    // no-op on the happy path: a normaliser that rewrites correct data is a
     // normaliser that can corrupt it. +912224137518 is the real Bombay SPCA
     // Parel landline, deliberately chosen: libphonenumber-js is imported as
     // `/min` rather than `/mobile` precisely so a landline survives this.

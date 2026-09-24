@@ -1,5 +1,5 @@
 /**
- * Hetja API — Fastify bootstrap with health endpoint, CORS, and
+ * Hetja API: Fastify bootstrap with health endpoint, CORS, and
  * graceful shutdown. Routes are registered per module (auth, devices, dogs,
  * enrolment, registrations, scans, sos, push, medical, ledger, stories,
  * moderation, trust, heatmap, care, territories, gamification, metrics).
@@ -37,8 +37,8 @@ export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.NODE_ENV === "test" ? "warn" : "info",
-      // RESEARCH-2: redact PII from logs — phone_hmac, exact coordinates,
-      // device tokens, bearer tokens.
+      // RESEARCH-2: redact PII from logs (phone_hmac, exact coordinates,
+      // device tokens, bearer tokens).
       redact: {
         paths: [
           "phone", "phoneHmac", "phone_hmac", "deviceToken", "device_token",
@@ -76,7 +76,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
     // promised roughly three times what the transport would accept: a scan
     // carrying a photo over ~750 KB decoded was rejected by Fastify with
     // FST_ERR_CTP_BODY_TOO_LARGE before any route saw it. That 413 is a
-    // permanent 4xx, and apps/web's offline queue drops permanent 4xx — so the
+    // permanent 4xx, and apps/web's offline queue drops permanent 4xx, so the
     // feed and its photo were discarded rather than retried. Sized to the
     // contract plus room for the surrounding JSON envelope.
     bodyLimit: MAX_PHOTO_BASE64_CHARS + 64 * 1024,
@@ -87,7 +87,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   // direct clients and the api.hetja.in origin). Enhancement stack §M.3.
   void app.register(compress);
   // ETag + conditional GET for cacheable routes. SOS state and dog pages are
-  // explicitly excluded in the onSend hook below — never ETag a life-safety
+  // explicitly excluded in the onSend hook below. Never ETag a life-safety
   // state endpoint (a stale 304 for a case that just got acked is worse than
   // no cache at all). Enhancement stack §M.3.
   void app.register(etag, { weak: false });
@@ -113,12 +113,12 @@ export function buildServer(config: AppConfig): FastifyInstance {
    *
    * There was no error handler at all, so Fastify's default applied: it echoes
    * `error.message` in the 500 body. Two live paths reached it with
-   * attacker-controlled input — `medical.ts` let a `JwtError` escape (fixed
+   * attacker-controlled input: `medical.ts` let a `JwtError` escape (fixed
    * separately, it should be a 401), and any route interpolating a `:id` path
    * param into a `uuid` column turned `GET /api/v1/sos/cases/abc` into a
    * PostgreSQL 22P02 whose message quotes the input back. Neither leak is
-   * catastrophic on its own; the pattern — internal errors rendered verbatim to
-   * unauthenticated callers — is worth closing once rather than per route.
+   * catastrophic on its own; the pattern (internal errors rendered verbatim to
+   * unauthenticated callers) is worth closing once rather than per route.
    *
    * Client errors keep their status and message: those are deliberate, and a
    * 400 that says only "error" is a support ticket. Anything >= 500 is logged
@@ -158,7 +158,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   }));
 
   void app.register(authRoutes);
-  // routes/feeders.ts was written (GET /feeders/me) but never registered —
+  // routes/feeders.ts was written (GET /feeders/me) but never registered;
   // the module was dead until the registrator wave needed its surface route.
   void app.register(feederRoutes);
   void app.register(deviceRoutes);
@@ -201,13 +201,13 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     app.log.info({ signal }, "shutting down");
     // A bounded drain. `app.close()` waits for in-flight requests, and without a
     // ceiling one stuck request holds the process until systemd's
-    // TimeoutStopSec fires SIGKILL — which is the same outcome, minus the log
+    // TimeoutStopSec fires SIGKILL, which is the same outcome, minus the log
     // line saying why. Previously this had no timeout AND no catch, so a
     // rejecting close() left `process.exit(0)` unreachable inside a floating
     // promise: the unit hung on every deploy restart with no diagnostic.
     const FORCE_EXIT_MS = 10_000;
     const timer = setTimeout(() => {
-      app.log.error(`shutdown did not complete within ${FORCE_EXIT_MS}ms — exiting anyway`);
+      app.log.error(`shutdown did not complete within ${FORCE_EXIT_MS}ms; exiting anyway`);
       process.exit(1);
     }, FORCE_EXIT_MS);
     timer.unref();

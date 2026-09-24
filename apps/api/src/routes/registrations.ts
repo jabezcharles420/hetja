@@ -1,5 +1,5 @@
 /**
- * Self-serve dog registration — the registrator surface (wave 6).
+ * Self-serve dog registration: the registrator surface (wave 6).
  *
  * POST /api/v1/registrations        file a registration for a street/community
  *                                   dog you look after; get back the signed URL
@@ -53,7 +53,7 @@ import { PENDING_REGISTRATION_TTL_DAYS, REGISTRATION_BUDGET_MAX, collarUrl, crea
  * `_xact_lock`, NOT `_try_`: two rapid double-taps on "register" must
  * SERIALISE, so the loser re-reads the budget counts after the winner's insert
  * and gets an honest 429. With `_try_`, the loser would skip the wait and read
- * stale counts — its request silently vanishing into an over-budget row is
+ * stale counts. Its request silently vanishing into an over-budget row is
  * precisely the outcome the lock exists to prevent.
  *
  * Keyed per-feeder (the second argument hashes the caller's id), which means
@@ -71,7 +71,7 @@ const WardId = z.enum(BMC_WARD_CODES);
 
 const RegistrationInput = z.object({
   /** One of the 24 BMC ward codes. Free-text wards made the heatmap blind to
-   * anything typed non-canonically — see BmcWard in @hetja/contracts. */
+   * anything typed non-canonically; see BmcWard in @hetja/contracts. */
   wardId: WardId,
   name: z.string().min(1).max(80).optional(),
   sex: z.enum(["male", "female", "unknown"]).optional(),
@@ -111,7 +111,7 @@ function expiresAtOf(registeredAt: Date): string {
 export default async function registrationRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/registrations", async (req: FastifyRequest, reply: FastifyReply) => {
     // Half one of the gate: the caller holds the register capability (a
-    // registrator — self-elected — vet, bmc_officer or admin).
+    // registrator (self-elected), vet, bmc_officer or admin).
     const auth = await requireCapability(req, reply, "register");
     if (!auth) return reply;
 
@@ -147,7 +147,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
           auth.feederId,
         ]);
 
-        // Budget half one: this ACCOUNT. Counts only PENDING registrations —
+        // Budget half one: this ACCOUNT. Counts only PENDING registrations:
         // activation is what consumes the budget, so attaching tags frees it.
         const accountCount = await client.query<{ n: number }>(
           `SELECT count(*)::int AS n FROM dogs
@@ -180,7 +180,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
         }
 
         // Mint dog + collar atomically (slug uniqueness enforced by the UNIQUE
-        // constraint — see lib/enrol.ts). The dog is born INERT:
+        // constraint; see lib/enrol.ts). The dog is born INERT:
         // 'pending_activation', sos_eligible_at NULL, absent from the heatmap
         // and ward index by their existing `status = 'active'` predicates, and
         // SOS-ineligible until corroboration proves physical presence twice.
@@ -262,7 +262,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
   });
 
   /**
-   * My registrations. Ward and status ONLY — no coordinates are selected, let
+   * My registrations. Ward and status ONLY: no coordinates are selected, let
    * alone returned, so INVARIANT 2 is not engaged on this route at all and
    * this file contains no ST_X/ST_Y for the security gate to police.
    */

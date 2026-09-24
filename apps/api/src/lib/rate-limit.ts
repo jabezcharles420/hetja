@@ -4,7 +4,7 @@
  * There was no rate limiter anywhere in this API. The consequence was concrete
  * and cheap to trigger: `POST /api/v1/auth/otp` is unauthenticated, takes an
  * email address, and sends a real message through a provider with a 300/day
- * free tier — synchronously, inside the request. So roughly three hundred
+ * free tier, synchronously, inside the request. So roughly three hundred
  * unauthenticated requests exhausted the quota and **nobody could log in for
  * the rest of the day**. Anyone reading this public repository could do it with
  * a shell loop.
@@ -13,13 +13,13 @@
  * INVARIANT 6 forbids that outright:
  *
  *   > Rate limits are per account or per attested device token, never per IP.
- *   > Indian mobile carriers do large-scale CGNAT — hundreds of real
+ *   > Indian mobile carriers do large-scale CGNAT: hundreds of real
  *   > subscribers can share one public IP.
  *
  * A per-IP limit on this system either fails to stop one abuser (who churns
  * addresses) or locks out an entire carrier's users at once. The plugin can be
  * re-keyed, but then it is carrying a dependency, a store, and a hook chain to
- * do what forty lines do — and it invites the next person to reach for the
+ * do what forty lines do, and it invites the next person to reach for the
  * default. So: a token bucket, keyed by whatever subject the CALLER decides is
  * right, which forces that decision to be made explicitly at each call site.
  *
@@ -55,7 +55,7 @@ interface Bucket {
 }
 
 /**
- * A named limiter. One instance per policy, not per subject — subjects are the
+ * A named limiter. One instance per policy, not per subject; subjects are the
  * keys inside it.
  */
 export class RateLimiter {
@@ -70,7 +70,7 @@ export class RateLimiter {
 
   /**
    * Consumes one token for `subject`. `now` is injectable so the tests can
-   * advance time without sleeping — a limiter tested with real sleeps is a
+   * advance time without sleeping. A limiter tested with real sleeps is a
    * limiter that is either slow or untested at its boundaries.
    */
   consume(subject: string, now: number = Date.now()): RateLimitDecision {
@@ -98,7 +98,7 @@ export class RateLimiter {
   /**
    * Would `consume` allow `subject` right now? Reads the bucket without taking
    * a token, so a caller gating one action on TWO limiters can check both
-   * before charging either — otherwise a request refused by the second limiter
+   * before charging either; otherwise a request refused by the second limiter
    * has already spent a token on the first. routes/auth.ts's OTP send is that
    * caller: its comment promised "both limits are checked before either is
    * consumed" while the code consumed the per-identity bucket, then checked the
@@ -126,7 +126,7 @@ export class RateLimiter {
 /**
  * Login codes, per identity.
  *
- * The subject is `identity_hmac`, NOT the raw email and NOT the IP — the same
+ * The subject is `identity_hmac`, NOT the raw email and NOT the IP: the same
  * value the OTP row is keyed on, so an attacker cannot dodge the limit by
  * varying the case or the plus-addressing of an address that maps to one
  * account.
@@ -151,7 +151,7 @@ export const otpPerIdentity = new RateLimiter({ refillPerSec: 1 / 60, burst: 5 }
  * between degraded and dead.
  *
  * NOTE: this is per PROCESS. One API process runs today. If a second is ever
- * added, this becomes a per-process cap and the real ceiling doubles — at which
+ * added, this becomes a per-process cap and the real ceiling doubles, at which
  * point the counter belongs in PostgreSQL, next to `otp_codes`.
  */
 export const otpGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 40 }, 1);
@@ -162,23 +162,23 @@ export const otpGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 40
  * INVARIANT 7's 2/day + 5/week SOS cap is keyed on the attested device, but
  * the token minting itself was uncapped: token issuance costs one proof-of-work
  * solve, and at DEVICE_POW_DIFFICULTY=16 a native solver does that in ~0.09 s
- * (config.ts records the measurement) — so ~950 fresh devices per hour, each
+ * (config.ts records the measurement), so ~950 fresh devices per hour, each
  * carrying its own untouched SOS budget. The PoW is a throttle, not a bound
  * (devices.ts says this in its SECURITY NOTES); this bucket is part of what
  * actually bounds it.
  *
- * 200/day sustained against a burst of 20 — deliberately the same scale as
+ * 200/day sustained against a burst of 20: deliberately the same scale as
  * `otpGlobal`, because it answers the same question ("how many anonymous
  * credentials does a pilot-scale system legitimately need per day?"). Real
  * demand is a handful of strangers' phones; an attacker burning the whole
  * budget still faces the per-device SOS caps and has spent real hashing work
- * for every one of those mints. Like `otpGlobal`, this is per PROCESS — one
+ * for every one of those mints. Like `otpGlobal`, this is per PROCESS: one
  * API process runs today; see that limiter's note before adding a second.
  *
  * Consumed ONLY after a solution verifies (see routes/devices.ts): garbage or
  * failed attempts must not drain a pool shared by every anonymous visitor, or
  * one noisy client could lock everyone out of attestation. What is capped is
- * successful mints — the thing an attacker actually wants.
+ * successful mints, the thing an attacker actually wants.
  */
 export const deviceTokenGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 20 }, 1);
 

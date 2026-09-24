@@ -3,7 +3,7 @@
  *
  * Two things are pinned here:
  *   1. the role→capability map, including `registrator` before any row can
- *      hold it — so wave 6's registrator surface cannot quietly widen what
+ *      hold it, so wave 6's registrator surface cannot quietly widen what
  *      feeder/vet/bmc_officer may do;
  *   2. that authorisation derives from a LIVE role read, never from anything
  *      carried in the token (the property grant-admin.ts --revoke depends on).
@@ -18,7 +18,7 @@ describe("capabilitiesFor", () => {
     );
   });
 
-  it("registrator holds feed+register — and nothing more", () => {
+  it("registrator holds feed+register, and nothing more", () => {
     // Declared in contracts ahead of any migration that lets a row hold the
     // role; the map must already know exactly what such an account gets.
     const caps = capabilitiesFor("registrator");
@@ -39,7 +39,7 @@ describe("capabilitiesFor", () => {
     expect([...capabilitiesFor("feeder")]).toEqual(["feed"]);
   });
 
-  it("an unknown role yields an EMPTY set — fail-closed", () => {
+  it("an unknown role yields an EMPTY set (fail-closed)", () => {
     // A role added to the DB enum without a mapping here must be able to do
     // nothing rather than everything.
     expect(capabilitiesFor("superuser").size).toBe(0);

@@ -1,5 +1,5 @@
 /**
- * HMAC helpers — INVARIANT 3 (never store bare contact info; only HMACs of
+ * HMAC helpers: INVARIANT 3 (never store bare contact info; only HMACs of
  * it) and QR slug signing/verification.
  *
  * identityHmac(identity, pepper) = HMAC-SHA256(key=pepper, msg=identity) as
@@ -15,7 +15,7 @@ export function identityHmac(identity: string, pepper: string): string {
   return createHmac("sha256", pepper).update(identity).digest("hex");
 }
 
-/** HMAC signature for a QR slug — base64url (matches collar HMAC-signed QR). */
+/** HMAC signature for a QR slug, base64url (matches collar HMAC-signed QR). */
 export function signSlug(slug: string, secret: string): string {
   return createHmac("sha256", secret).update(slug).digest("base64url");
 }

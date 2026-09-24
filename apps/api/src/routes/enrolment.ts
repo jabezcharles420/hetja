@@ -1,13 +1,13 @@
 /**
- * Dog enrolment — the write half of the register (admin only).
+ * Dog enrolment: the write half of the register (admin only).
  *
  * POST /api/v1/dogs           create a dog, mint its collar, return the QR URL
  * POST /api/v1/dogs/:slug/collar   re-issue a collar for an existing dog
  *
  * UNTIL NOW THERE WAS NO WAY TO ENROL A DOG AT ALL. No route created a `dogs`
  * row, no route created a `collars` row, and no operator tool existed. The only
- * paths in were `pnpm db:seed` — which mints fresh random slugs that match no
- * physical collar, and which is not idempotent despite claiming to be — or
+ * paths in were `pnpm db:seed` (which mints fresh random slugs that match no
+ * physical collar, and which is not idempotent despite claiming to be) or
  * hand-written SQL on the box. A system whose purpose is a city-scale register
  * of street dogs could not register a street dog.
  *
@@ -15,7 +15,7 @@
  * writes to the register that INVARIANT 1 and INVARIANT 2 exist to protect;
  * `docs/design/MEMORIAL-CONTENT.md` is blunt that in the wrong political
  * climate this data is a targeting list. So the role is granted by
- * `apps/api/src/cli/grant-admin.ts`, which requires a shell on the box — there
+ * `apps/api/src/cli/grant-admin.ts`, which requires a shell on the box. There
  * is deliberately no HTTP path to becoming an admin. See that file's header.
  *
  * WHAT THE CALLER GETS BACK, AND WHY IT MATTERS. The response carries the full
@@ -23,13 +23,13 @@
  *
  *     https://hetja.in/d/<slug>?s=<base64url HMAC>
  *
- * That is the whole point of the endpoint. The slug alone is useless — the API
+ * That is the whole point of the endpoint. The slug alone is useless: the API
  * 404s any request without a valid `?s=`, so a collar printed with a bare slug
  * would fail the first time a stranger scanned it, standing over a dog. Handing
  * back the exact string to etch removes the step where a human reconstructs it.
  *
  * The signature is ALSO stored in `collars.hmac_sig`, which since PR #21 is
- * what verification consults first — so a collar minted here keeps working even
+ * what verification consults first, so a collar minted here keeps working even
  * if HETJA_QR_SECRET is later lost or rotated.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -38,7 +38,7 @@ import { isValidSlug, query, withTx } from "@hetja/db";
 import { signSlug } from "../lib/hmac.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 // The mint/insert half lives in lib/enrol.ts so this route and the public
-// registrations route cannot drift apart — see that file's header.
+// registrations route cannot drift apart. See that file's header.
 import { collarUrl, createDogWithCollar } from "../lib/enrol.js";
 
 const DogCreateInput = z.object({
@@ -144,7 +144,7 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
   });
 
   /**
-   * Re-issue a collar for a dog that already exists — a tag that fell off, was
+   * Re-issue a collar for a dog that already exists: a tag that fell off, was
    * chewed through, or came out of a bad print run.
    *
    * The slug does NOT change. It identifies the dog, not the piece of plastic,
@@ -153,11 +153,11 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
    *
    * HISTORY IS A SEPARATE TABLE, NOT A SECOND COLLAR ROW. `collars.qr_code` is
    * UNIQUE and equals the slug, so there can only ever be one collars row per
-   * slug — an earlier version of this comment claimed the old row was "retired
+   * slug. An earlier version of this comment claimed the old row was "retired
    * rather than deleted" while the code overwrote that one row in place and
    * sent the admin's `reason` to the pino log only (BUGS P2-8). Every re-issue
    * now writes a `collar_reissues` row (migration 0023) carrying the provenance
-   * about to be overwritten — previous batch, material and issue date — plus
+   * about to be overwritten (previous batch, material and issue date) plus
    * what replaced it, why, and which admin did it. Tracing a bad print run six
    * months later is a query, not a log search.
    */
@@ -224,7 +224,7 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
         return null;
       }
 
-      // History first, then the overwrite — same transaction, so a re-issue
+      // History first, then the overwrite, in the same transaction, so a re-issue
       // can never exist without its provenance row or vice versa.
       const history = await client.query<{ id: string }>(
         `INSERT INTO collar_reissues
@@ -247,7 +247,7 @@ export default async function enrolmentRoutes(app: FastifyInstance): Promise<voi
       );
       // The signature is rewritten too, which is what lets a re-issue pick up
       // a rotated HETJA_QR_SECRET (verification consults the stored value
-      // first — routes/dogs.ts).
+      // first; see routes/dogs.ts).
       await client.query(
         `UPDATE collars
             SET hmac_sig = $2, batch_no = $3, material = $4,

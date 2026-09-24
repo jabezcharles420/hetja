@@ -1,4 +1,4 @@
-# Hetja AI worker (apps/ai) — Python 3.11
+# Hetja AI worker (apps/ai), Python 3.11
 # Phase 0: validation harness with a pluggable detector interface. The real
 # YOLO fine-tune (dog presence + food presence) plugs in here; the API never
 # blocks on inference (the worker consumes validate_scan jobs and writes
@@ -84,7 +84,7 @@ def write_result(conn: Any, job_id: int, scan_id: str, validation: dict[str, Any
         # Delete THE JOB WE PROCESSED, by id.
         #
         # This was `DELETE FROM jobs WHERE id = (SELECT id FROM jobs
-        # WHERE kind='validate_scan' ORDER BY id LIMIT 1)` — a fresh lookup
+        # WHERE kind='validate_scan' ORDER BY id LIMIT 1)`: a fresh lookup
         # ordered by `id`, while claim_job selects by `run_after`. Whenever more
         # than one validate_scan job was queued and the lowest-id row was not the
         # one claimed, this destroyed a DIFFERENT job: that scan was never
@@ -104,7 +104,7 @@ def process_once(conn: Any, detector: Detector) -> int:
     scan_id = payload.get("scanId")
     photo = payload.get("photoPath")
     if not scan_id or not photo:
-        # dead job — drop it
+        # dead job: drop it
         with conn.cursor() as cur:
             cur.execute("DELETE FROM jobs WHERE id = %s", (job["id"],))
             conn.commit()
@@ -136,8 +136,8 @@ def main() -> int:
             print(f"worker error: {exc}", file=sys.stderr)
             # rollback() on an already-closed connection raises, and raising
             # from inside this handler propagated straight out of main() and
-            # killed the process. PostgreSQL restarts are routine here — every
-            # migration and every deploy touches it — so "the database blinked"
+            # killed the process. PostgreSQL restarts are routine here (every
+            # migration and every deploy touches it), so "the database blinked"
             # was a fatal error for a worker that nothing restarts (there is no
             # hetja-ai.service). Reconnect instead of dying.
             try:

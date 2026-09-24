@@ -7,7 +7,7 @@
  *
  * WHAT THIS TIER BUYS, AND WHY IT IS A CLI. Corroboration of a dog's SOS
  * eligibility (routes/scans.ts) is reached at two geotagged scans from distinct
- * subjects — or ONE geotagged scan by a "verified feeder". That second path
+ * subjects, or ONE geotagged scan by a "verified feeder". That second path
  * used to be dead code: nothing anywhere wrote `feeders.verification_tier` off
  * its 'provisional' default, so no feeder could ever satisfy it. This tool is
  * one half of the fix (the other half is the corroboration query itself
@@ -22,7 +22,7 @@
  * same reasons set out in its header: every HTTP-shaped alternative puts a
  * privilege-escalation path on the public internet, and "promote via an
  * admin-only route" still needs a bootstrap path anyway. Requiring a shell on
- * the box is the honest statement that this is a privileged act — it is
+ * the box is the honest statement that this is a privileged act: it is
  * auditable in the shell history and this tool's output, and it cannot be
  * reached from the internet.
  *
@@ -52,7 +52,7 @@ function usage(): never {
       "  verified:revoke <email>    return an account to provisional",
       "  verified:list              list currently verified feeders",
       "",
-      "The feeder must have signed in at least once — this tool verifies an",
+      "The feeder must have signed in at least once: this tool verifies an",
       "existing account, it does not create one.",
       "",
     ].join("\n"),
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
   // loadConfig enforces that HETJA_HMAC_PEPPER is set in production. Using it
   // rather than reading process.env directly means this tool cannot silently
   // compute a hash under the development default and then fail to match any
-  // real row — a failure that would look like "no such feeder".
+  // real row, a failure that would look like "no such feeder".
   const config = loadConfig();
 
   if (action === "list") {
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
     // out of thin air.
     console.error(
       `No feeder found for that address.\n` +
-        `They must sign in at hetja.in/login once first — then re-run this.`,
+        `They must sign in at hetja.in/login once first, then re-run this.`,
     );
     process.exit(1);
   }

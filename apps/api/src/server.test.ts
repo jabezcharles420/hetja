@@ -6,7 +6,7 @@ const config = loadConfig();
 
 /**
  * Cache-header contract (enhancement stack §M.3): cacheable GETs get an ETag;
- * life-safety paths (/api/v1/sos/*, /api/v1/dogs/*) never do — a stale 304
+ * life-safety paths (/api/v1/sos/*, /api/v1/dogs/*) never do: a stale 304
  * for a case that just got acked is worse than no cache at all. The onSend
  * hook in server.ts enforces it, and Caddy's Cache-Control policy
  * (ops/check-caddy-cache.sh) mirrors the same rule at the edge.

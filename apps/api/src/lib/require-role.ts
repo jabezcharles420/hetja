@@ -3,17 +3,17 @@
  *
  * Before this module, bearer auth + a role check was re-implemented in
  * enrolment.ts (requireAdmin), moderation.ts (feederAuth + requireAdmin),
- * medical.ts, trust.ts, territories.ts, push.ts and metrics.ts — with
+ * medical.ts, trust.ts, territories.ts, push.ts and metrics.ts, with
  * inconsistent error codes for identical failures. This module is the one
  * implementation; conversion is deliberately incremental (only the two
- * requireAdmin copies moved in this wave — see each route's history), so the
+ * requireAdmin copies moved in this wave; see each route's history), so the
  * older copies still exist beside it until their own waves convert them.
  *
  * CAPABILITIES, NOT A ROLE JOIN TABLE. `feeders.role` is a single enum value,
  * and "a user holds both surfaces" has to be expressed within that: the map
  * below derives what an account MAY do from the one role it holds. admin gets
  * all four; registrator, vet and bmc_officer get feed+register; feeder gets
- * feed. `registrator` cannot yet exist on any row — contracts declares it
+ * feed. `registrator` cannot yet exist on any row: contracts declares it
  * ahead of the migration that extends feeders.role, precisely so this map can
  * name the value before accounts can hold it.
  *
@@ -35,7 +35,7 @@ import { verifyAccessToken } from "./jwt.js";
 export type Capability = "feed" | "register" | "moderate" | "enrol";
 
 /**
- * What each role may do. An unknown role string yields an EMPTY set —
+ * What each role may do. An unknown role string yields an EMPTY set:
  * fail-closed, so a future role added to the database enum without a mapping
  * here can do nothing rather than everything.
  */
@@ -100,7 +100,7 @@ async function loadRole(feederId: string): Promise<FeederRole | null> {
 }
 
 /**
- * Any signed-in feeder whose account still exists. One live role read — the
+ * Any signed-in feeder whose account still exists. One live role read (the
  * same read requireCapability performs, returned instead of filtered, so a
  * caller needing the role does not query twice.
  */
@@ -146,7 +146,7 @@ export async function requireCapability(
   const role = await loadRole(feederId);
   if (!role) {
     // Same contract as requireFeeder above. (Both converted requireAdmin
-    // copies used to answer 403 here — implying the account existed but
+    // copies used to answer 403 here, implying the account existed but
     // lacked the role. Saying WHY it fails is more honest than which of two
     // wrong roles it failed with, and no asserted test pins the old body.)
     void reply

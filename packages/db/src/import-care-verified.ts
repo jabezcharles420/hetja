@@ -1,7 +1,7 @@
 /**
  * Hetja verified care-directory import (docs/VET-DATA-INTAKE.md §6).
  *
- * Ingests packages/db/data/dogs_mumbai.csv — 1,370 verified Mumbai
+ * Ingests packages/db/data/dogs_mumbai.csv: 1,370 verified Mumbai
  * animal-welfare providers (NGOs, BMC/government facilities, charity
  * clinics) researched and verified 2026-08-13 by the maintainer. The CSV's
  * `evidence`/`sources` columns carry the per-row verification trail (live
@@ -15,8 +15,8 @@
  *                           govt_animal_welfare/govt_vet_dispensary→govt)
  *   cost_tier     → derived, NOT from the file (see ASSUMPTIONS below)
  *   phone         → phone_e164 via libphonenumber-js (IN); unparseable
- *                   numbers become NULL — a wrong number is worse than
- *                   none (0008's comment). Landlines included.
+ *                   numbers become NULL (a wrong number is worse than
+ *                   none; see 0008's comment). Landlines included.
  *   phone_alt     → alt_phone_e164, same normalization
  *   area          → locality + locality centroid geo
  *   address       → geocoded when GEOCODE=1 (Nominatim batch, 1.1s/req),
@@ -26,19 +26,19 @@
  *   source        → 'verified-csv-2026-08'; source_ref = `dogs_mumbai.csv#N`
  *
  * NEVER touched: phone_verified_at (means "a human actually called this
- * number" — the CSV's verified_at is record-level research verification,
+ * number"; the CSV's verified_at is record-level research verification,
  * and its evidence column even flags needs_phone_fill rows). All rows are
  * imported with phone_verified_at = NULL.
  *
- * ASSUMPTIONS (flagged, not silently guessed — see docs/VET-DATA-INTAKE.md
+ * ASSUMPTIONS (flagged, not silently guessed; see docs/VET-DATA-INTAKE.md
  * §2 on cost_tier):
  *   - cost_tier: govt → 'free', ngo → 'free', charity_clinic →
  *     'subsidised'. The file carries no cost data; these are the
  *     conservative defaults for ordering (free surfaced first), to be
  *     confirmed per row by the maintainer.
  *   - has_ambulance/is_24x7/handles_wildlife: the CSV has no services or
- *     hours data (columns empty), so all default to false — the seed
- *     rule "not confirmed in research — do not claim it" applies.
+ *     hours data (columns empty), so all default to false. The seed
+ *     rule "not confirmed in research, do not claim it" applies.
  *   - geo precision: 'exact' only for addresses the geocoder resolved
  *     with confidence; everything else 'locality' (honest under-claim).
  *
@@ -65,11 +65,11 @@ const GEOCODE = process.env.GEOCODE === "1";
  * `name` values are search-engine artifacts (file titles, snippets, foreign
  * shelters, platform pages), not organisations. The emergency directory
  * serves whoever is standing over an injured dog, so a junk row is not
- * harmless — "The Times of India" with a phone number is a dead end with a
+ * harmless: "The Times of India" with a phone number is a dead end with a
  * dial button. Three buckets:
- *   KEEP   — known-good names (curated prefixes, checked first).
- *   REJECT — unambiguous junk (patterns below).
- *   REVIEW — ambiguous (stopword-start, not matched by KEEP/REJECT):
+ *   KEEP:   known-good names (curated prefixes, checked first).
+ *   REJECT: unambiguous junk (patterns below).
+ *   REVIEW: ambiguous (stopword-start, not matched by KEEP/REJECT):
  *            written to import-rejected.json and NOT imported. A wrong
  *            omission costs nothing; a wrong inclusion is live harm.
  */
@@ -95,7 +95,7 @@ const REJECT_PATTERNS: Array<{ re: RegExp; reason: string }> = [
   { re: /^\d+[.)]\s+/, reason: "numbered-list" },
   { re: /\b(km|kms?)\s+(away|from|to)\b/i, reason: "distance-fragment" },
   { re: /the times of india|hindustan times|indian express|news18|ndtv\b/i, reason: "newspaper" },
-  // Foreign geography — this is a Mumbai directory. (Names containing
+  // Foreign geography: this is a Mumbai directory. (Names containing
   // "India" or Mumbai localities are unaffected.)
   { re: /\b(wichita|kansas|central florida|florida|new york|california|ohio|berlin|paris|buffalo|charlotte|cincinnati|fresno|lakewood|marion county|new haven|newport beach|plymouth|quad city|seattle|st\.?\s?hubert|humboldt|brownsville|jefferson|philippine|philippines|oregon|pennsylvania|new jersey|virginia|michigan|illinois|texas|arizona|colorado|georgia|carolina|tennessee|missouri|minnesota|wisconsin|louisiana|alabama|mississippi|kentucky|indiana|iowa|nebraska|arkansas|oklahoma|canada|australia|england|scotland|ireland|france|germany|spain|italy|switzerland|netherlands|austria|poland|sweden|norway|denmark|finland|japan|china|thailand|singapore|malaysia|dubai|uae|qatar|kuwait|south africa|brazil|mexico|argentina|chicago|austin|alexandria|nashville|houston|miami|denver|seattle|phoenix|memphis|boston|philadelphia|detroit|tampa|atlanta|dallas|los angeles|san diego|san francisco|thornberry|yoda|saginaw|sonoma|cheatham)\b/i, reason: "foreign-geography" },
   // Article-title verbs: "X is now open", "Y has a ...", "Z was ..."
@@ -120,21 +120,21 @@ function nameQuality(name: string): { verdict: "keep" | "reject" | "review"; rea
 }
 
 /**
- * Provenance gate — the strongest junk signal is the research notes column.
+ * Provenance gate: the strongest junk signal is the research notes column.
  * "via directory crawl: <url>" / "via search: <query>" record where a row
  * came from. US state/city directories (mass.gov, illinoiscomptroller.gov,
  * cityof*, adoptapet, bestfriends, zoominfo, ...) and foreign-city searches
  * (miami fl, houston, denver, san francisco, ...) are scraped debris, not
- * Mumbai providers — the sweep evidently picked up Google results for the
+ * Mumbai providers; the sweep evidently picked up Google results for the
  * wrong country. India-path crawls (e.g. myfurries.com/.../mumbai) are kept.
  */
 const FOREIGN_CRAWL_RE = /via directory crawl: https?:\/\/[^\/\s]*?(?:zoominfo|mass\.gov|in\.gov|illinoiscomptroller|lakewoodoh|adoptapet|bestfriends|petfinder|nextdoor|yelp|angieslist|bbb\.org|healthgrades|cityof|countyof|usda|spcawake|dnb\.com|\.gov|\.us|\.mil)/i;
-// India-path crawls (myfurries.com/.../mumbai) are kept — segment-anchored so
+// India-path crawls (myfurries.com/.../mumbai) are kept, segment-anchored so
 // "animal-welfare-board-of-india" inside a zoominfo URL does not count.
 const INDIA_PATH_RE = /\/(?:mumbai|india|bangalore|pune|delhi|hyderabad|chennai|kolkata|karmayog|awbptrust)(?:\/|$)/i;
 const FOREIGN_SEARCH_Q_RE = /via search: .*\b(?:california|florida|texas|new york|ohio|illinois|massachusetts|indiana|michigan|wisconsin|minnesota|iowa|nebraska|kansas|missouri|oklahoma|arkansas|louisiana|mississippi|alabama|georgia|carolina|tennessee|kentucky|virginia|maryland|pennsylvania|new jersey|connecticut|rhode island|new hampshire|vermont|maine|delaware|colorado|arizona|utah|nevada|idaho|montana|wyoming|dakota|oregon|washington|alaska|hawaii|canada|australia|united kingdom|dubai|singapore|denver|seattle|phoenix|memphis|chicago|boston|houston|philadelphia|detroit|tampa|atlanta|miami|dallas|los angeles|san diego|san francisco|austin|indianapolis|el paso|fort worth|fort-worth|pikes peak|wake county|rocky mountain|new england)\b/i;
 
-/** High-precision junk markers — no real organisation name contains these. */
+/** High-precision junk markers: no real organisation name contains these. */
 const JUNK_NAME_RE = /company profile|get notified|what industry|privacy policy|office locations|no obligation|hotline|amendments to the|department of|division of|consumer services|veterinary services company|national veterinary links|adoption fee|adoptions|donating|language in the|the veterinary division|veterinary doctors list|animal emergency info|data collected by|index of contact|compare (?:similar|insights)|some of the|you may call the|today, the|here at the|welcome to |our team of|our shelter needs|choosing to adopt|just like |similarly, the|from july|rescue squad$|regional animal services|free pet rescue|animal care services$|veterinary links|new phone number|about us|did you know|contact us|faq\b|donation|donate|foster \/|stock photos|images and|photo by |customer service|toll free|contact details|contact information|helpline numbers|company contact|npos? in the united|newborn adoption|pet refuge|sandy dr|plumbers|mityana|meet india|ministry of animal|government helpline|local animal control|make a service request|list of |list of animal|kutchery road|established in|every paw|every release|easetrip|chewy|donate supplies|wish list|paw life|mumbai news$|mumbai educational|mumbai through|indian institute of|india customer|india, involving|indian charities|kentuckiana|long beach|manahawkin|humane society of lebanon|friends of southern ocean|dogg? s at play|indian$|^indian$|nawb raises|naresh kadyvan|park 2\.|palam ,|kannaan|kvafsu|darjeeling|kalimpong|paaws chicago|need help |help finding|meet india|animal welfare\.|animal welfare group|animal husbandry$|animals$|^animals$|^indian$|yolo county|san diego humane|va caregiver|white settlement|food animal|mumbai media contacts|today marks|humane society of harrisburg|philippine|all-star|cedar rapids|application for dog|people for animal|please donate|stray dog population|navi mumbai company|redemption road|metro nashville|peta, american|general overview|shelter and pet adoption|ngo support|find important animal|mumbai media|tata trust$|tata trusts$|\banimal control\b|\banimal services\b|\banimal health division\b|tipline|welfare charitable|2nd floor|\bsector \d|call center|call us|caregiver support|\bhotel\b|\bcounty\b|\bissues\b|dig defence|dig barrier|\(@|\bofficial$|\brgv\b|saginaw|\badoption\b|foundation lead|\binc\.?\b|\bllc\.?\b|spay|neuter|programme$|,\s*animal\s*$|diagnostics imaging|surgical center|makes |customer support|\bkannan\b|^support |pet animal welfare|\bsupport$|\binformation$|\bdivision$|\bcentre$|dry injections|why collecting/i;
 
 /**
@@ -154,7 +154,7 @@ function foreignProvenance(notes: string): boolean {
   return false;
 }
 
-/** Case/punctuation-insensitive dedupe key — the CSV lists the same org
+/** Case/punctuation-insensitive dedupe key. The CSV lists the same org
  *  under name variants ("The Welfare Of Stray Dogs" × 4). First wins. */
 function dedupeKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
@@ -169,7 +169,7 @@ const KIND_MAP: Record<string, "ngo" | "govt" | "charity_hospital" | "private_cl
   govt_vet_dispensary: "govt",
 };
 
-/** Locality centroids — the honest 'locality' fallback for every row.
+/** Locality centroids: the honest 'locality' fallback for every row.
  *  Values are locality/ward centroids, NOT geocoded addresses. Rows whose
  *  address geocodes with confidence get geo_precision='exact' instead. */
 const LOCALITY_CENTROIDS: Record<string, { lat: number; lng: number }> = {
@@ -268,7 +268,7 @@ function normalizeIndianPhone(input: string): string | null {
 }
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  // Photon (komoot) — free, no key, solid India street coverage. Nominatim
+  // Photon (komoot): free, no key, solid India street coverage. Nominatim
   // soft-throttles datacenter IPs (returns [] for queries that resolve
   // fine elsewhere), which is why this does not use it.
   const url = `https://photon.komoot.io/api/?limit=1&lang=en&q=${encodeURIComponent(address + ", Mumbai")}`;
@@ -286,7 +286,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
-/** Great-circle distance in km — sanity bound for geocoder hits. */
+/** Great-circle distance in km, a sanity bound for geocoder hits. */
 function kmBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -345,7 +345,7 @@ export async function importCareVerified(): Promise<{
 
     const kind = KIND_MAP[row.category];
     if (!kind) {
-      console.warn(`row ${i + 2}: unknown category "${row.category}" — skipping`);
+      console.warn(`row ${i + 2}: unknown category "${row.category}", skipping`);
       skipped++;
       continue;
     }
@@ -357,7 +357,7 @@ export async function importCareVerified(): Promise<{
     // to useless"). The source sweep also contains thousands of junk rows
     // that happen to have clean names; requiring a real phone (or a
     // government facility, or a curated-allowlist org) is the strongest
-    // curation signal available — junk rows rarely carry one, and the few
+    // curation signal available: junk rows rarely carry one, and the few
     // that do are caught by the filters above.
     if (!phone && kind !== "govt" && !KEEP_PREFIXES.some((p) => row.name.toLowerCase().replace(/\s+/g, " ").trim().startsWith(p))) {
       rejected.push({ row: i + 2, name: row.name, reason: "no-phone-not-govt" });
@@ -382,7 +382,7 @@ export async function importCareVerified(): Promise<{
       } else if (GEOCODE) {
         const pt = await geocodeAddress(row.address);
         // Sanity bound: reject geocoder hits that land absurdly far from the
-        // row's own locality — a "Sewri" row geocoded to Pune is garbage,
+        // row's own locality. A "Sewri" row geocoded to Pune is garbage,
         // and under-claiming (locality) beats over-claiming (wrong point).
         if (pt && kmBetween(pt, centroid) <= 12) {
           cache[row.address] = pt;

@@ -5,7 +5,7 @@
  * 2. a feed scan grants the catalog delta (+1) exactly once per client_uuid
  * 3. >= 3 serial rejects auto-pause a PROVISIONAL feeder (role unchanged)
  * 4. disputes split in two: OPENING changes nothing but dispute_state;
- *    RESOLVING requires an admin and reverses the delta exactly — a feeder
+ *    RESOLVING requires an admin and reverses the delta exactly: a feeder
  *    can no longer revoke their own penalty
  * 5. there is no self-serve way to mint trust events: POST /trust/events is
  *    deliberately gone, because an HTTP write path whose only legitimate
@@ -190,7 +190,7 @@ describe("trust feed scan callback", () => {
   });
 });
 
-/** The explicit write path for the gate — GET /trust only reads. */
+/** The explicit write path for the gate; GET /trust only reads. */
 async function evaluateTrust(fixture: Fixture) {
   return fixture.app.inject({
     method: "POST",
@@ -199,7 +199,7 @@ async function evaluateTrust(fixture: Fixture) {
   });
 }
 
-describe("INVARIANT 15 — verification gates", () => {
+describe("INVARIANT 15: verification gates", () => {
   it("auto-pauses a provisional feeder after 3 serial rejects, role unchanged", async () => {
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
@@ -210,7 +210,7 @@ describe("INVARIANT 15 — verification gates", () => {
 
     await insertScan(fixture.feederId, fixture.dogId, "flagged");
     // GET is a READ: it reports the pause the moment the third reject lands,
-    // and writes nothing — so no flag row exists yet. (It used to insert the
+    // and writes nothing, so no flag row exists yet. (It used to insert the
     // auto_paused flag from inside a GET; docs/BUGS.md P3.)
     const paused = await getTrust(fixture);
     expect(paused.statusCode).toBe(200);
@@ -221,7 +221,7 @@ describe("INVARIANT 15 — verification gates", () => {
       paused.json().data.events.filter((e: { eventType: string }) => e.eventType === "auto_paused"),
     ).toHaveLength(0);
 
-    // The flag is written by a WRITE path — here the explicit evaluate; in
+    // The flag is written by a WRITE path: here the explicit evaluate; in
     // production also by POST /scans refusing the paused feeder (scans.test.ts).
     const evaluated = await evaluateTrust(fixture);
     expect(evaluated.statusCode).toBe(200);
@@ -244,7 +244,7 @@ describe("INVARIANT 15 — verification gates", () => {
 
     // More rejects after the pause change nothing: the count is capped at the
     // threshold (the query reads at most 3 rows back) and the flag is written
-    // once — a second auto_paused event would be a second claim that
+    // once. A second auto_paused event would be a second claim that
     // something new happened when it had not.
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
     await insertScan(fixture.feederId, fixture.dogId, "rejected");
@@ -331,8 +331,8 @@ describe("disputes", () => {
   it("only an admin can resolve, and resolution reverses exactly once", async () => {
     const { eventId, originalDelta } = await openDisputeOverFeed(fixture);
 
-    // The event's own owner — the exact caller who could previously reverse
-    // their penalty — must not be able to adjudicate their own dispute.
+    // The event's own owner (the exact caller who could previously reverse
+    // their penalty) must not be able to adjudicate their own dispute.
     const asFeeder = await fixture.app.inject({
       method: "POST",
       url: `/api/v1/trust/disputes/${eventId}/resolve`,
@@ -408,7 +408,7 @@ describe("disputes", () => {
 
   it("answers a non-UUID event id with 400, not a 500 from a raw 22P02", async () => {
     // trust_events.id is a uuid column, and sendTrustError rethrows anything
-    // that is not a TrustError — so a non-UUID :id used to escape the route
+    // that is not a TrustError, so a non-UUID :id used to escape the route
     // as PostgreSQL 22P02 and render as "internal server error".
     const res = await fixture.app.inject({
       method: "POST",
@@ -424,7 +424,7 @@ describe("disputes", () => {
 describe("no self-serve trust writes", () => {
   it("POST /api/v1/trust/events is gone", async () => {
     // This route took {eventType} from the body and applied the catalog delta
-    // to the CALLER'S OWN feeder id — two requests reached the clamp of 100
+    // to the CALLER'S OWN feeder id: two requests reached the clamp of 100
     // with no admin check, no rate limit, and no relation to any real scan.
     // It must not come back quietly, so its absence is asserted, not assumed:
     // a re-introduction (or a routing typo that shadows it) fails here.
@@ -441,7 +441,7 @@ describe("no self-serve trust writes", () => {
 describe("score bounds", () => {
   it("clamps at 100 and never drops below 0", async () => {
     // Seeded in bulk with the real catalog deltas rather than through N route
-    // calls — the route that used to write these is gone on purpose. The math:
+    // calls; the route that used to write these is gone on purpose. The math:
     // 30 baseline + 80 feeds (+1) clamps at 100; then 10 serial rejects
     // (-15) sink it to -40, which clamps at 0.
     await query(
@@ -468,7 +468,7 @@ describe("score bounds", () => {
   it("keeps the catalog proportionate to the gate arithmetic", () => {
     // The gate arithmetic in lib/trust.ts and docs/INVARIANTS.md counts feeds
     // from the baseline: 40 → 10, 50 → 20, 60 → 30. If `feed` moves, those
-    // numbers move and both documents must be re-derived — deliberately loud,
+    // numbers move and both documents must be re-derived. Deliberately loud,
     // because a quiet constant edit is exactly how +60 shipped.
     expect(TRUST_BASELINE + 10 * TRUST_EVENTS.feed).toBe(40);
     expect(TRUST_BASELINE + 20 * TRUST_EVENTS.feed).toBe(50);

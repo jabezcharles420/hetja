@@ -1,15 +1,15 @@
 /**
- * OTP store — Postgres-backed (packages/db/migrations/0010_identity_email.sql,
- * table otp_codes). Codes are never kept in plaintext — only a
+ * OTP store: Postgres-backed (packages/db/migrations/0010_identity_email.sql,
+ * table otp_codes). Codes are never kept in plaintext, only a
  * SHA-256(pepper + ":" + code) hash (INVARIANT 3 spirit applied to OTPs).
  * 5-minute TTL, 3 attempts per issuance.
  *
  * This used to be an in-memory Map. That lost every pending code on
  * restart or redeploy, and would never work across more than one API
  * process. Moving it into Postgres, keyed on identity_hmac (never the bare
- * email — see the migration), fixes both: a code now survives a restart,
+ * email; see the migration), fixes both: a code now survives a restart,
  * and any process talking to the same database sees the same pending code.
- * Every function here is therefore async where the old ones were sync —
+ * Every function here is therefore async where the old ones were sync:
  * callers (apps/api/src/routes/auth.ts) must await them.
  */
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
@@ -53,7 +53,7 @@ export async function verifyOtp(
   // Claim an attempt ATOMICALLY, before looking at anything.
   //
   // This was a SELECT of attempts_used, a comparison against OTP_MAX_ATTEMPTS,
-  // and a later UPDATE — three statements with no lock between them. Under
+  // and a later UPDATE: three statements with no lock between them. Under
   // concurrency every request read the same attempts_used, so N simultaneous
   // POSTs to /api/v1/auth/verify each saw "0 attempts used" and the 3-attempt
   // cap simply did not engage. A 6-digit code is 10^6 wide; a cap that can be
@@ -62,7 +62,7 @@ export async function verifyOtp(
   // while guessing.
   //
   // `UPDATE ... RETURNING` takes a row lock and returns the post-increment
-  // value, so N concurrent callers serialise and see 1, 2, 3 … — each attempt
+  // value, so N concurrent callers serialise and see 1, 2, 3 …, and each attempt
   // is counted exactly once no matter how they interleave.
   const claimed = await query<OtpRow>(
     `UPDATE otp_codes
@@ -117,7 +117,7 @@ function hashesEqual(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
-/** Test helper — forget an OTP without consuming an attempt. */
+/** Test helper: forget an OTP without consuming an attempt. */
 export async function clearOtp(identityHmacVal: string): Promise<void> {
   await query(`DELETE FROM otp_codes WHERE identity_hmac = $1`, [identityHmacVal]);
 }

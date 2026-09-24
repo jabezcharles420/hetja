@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `pnpm ledger:keygen` — generate the Ed25519 pair that signs the daily ledger
+ * `pnpm ledger:keygen`: generate the Ed25519 pair that signs the daily ledger
  * anchor (INVARIANT 10).
  *
  * This exists because the alternative was a nine-line `node -e '...'` in a
@@ -9,20 +9,20 @@
  * makes the split between them explicit, because getting that split wrong is the
  * whole risk:
  *
- *   1. HETJA_LEDGER_SIGNING_JWK — the PRIVATE half. Goes in
+ *   1. HETJA_LEDGER_SIGNING_JWK: the PRIVATE half. Goes in
  *      apps/api/.env.production (which the worker unit loads as its
  *      EnvironmentFile) and nowhere else. Never committed, never pasted into a
  *      chat or an issue, and deliberately NOT included in a restic repository
  *      that a third party stores.
- *   2. HETJA_LEDGER_SIGNING_KID — the RFC 7638 thumbprint. Not secret.
- *   3. The JWKS document — the PUBLIC half. This one MUST be published, or the
+ *   2. HETJA_LEDGER_SIGNING_KID: the RFC 7638 thumbprint. Not secret.
+ *   3. The JWKS document: the PUBLIC half. This one MUST be published, or the
  *      signature verifies against nothing and the exercise is decoration. An
  *      auditor fetches it, reads `kid` from the JWS header, and checks the
  *      signature on the head we published.
  *
  * Rotation: generate a new pair, publish a JWKS containing BOTH keys, then swap
  * the env vars. Retiring the old key immediately invalidates every anchor
- * signature it ever made — which is exactly the history an auditor may want to
+ * signature it ever made, which is exactly the history an auditor may want to
  * check, so keep retired public keys in the JWKS.
  *
  * Usage:

@@ -1,5 +1,5 @@
 /**
- * Hetja care-directory seed (docs/PLAN-v2.md §2.2) — ~25 real Mumbai
+ * Hetja care-directory seed (docs/PLAN-v2.md §2.2): ~25 real Mumbai
  * animal-welfare organisations, committed as reviewable data. Idempotent
  * against care_providers_name_phone_uq (migration 0008_care_providers.sql):
  * a conflicting row is never re-inserted, and the only columns touched on
@@ -10,30 +10,30 @@
  *
  * Every number in CARE_SEED must already be E.164 ("+91" + the 10-digit
  * national number, landlines included). `assertSeedPhonesAreE164()` below
- * refuses to seed otherwise, before the first INSERT — see its comment for why
+ * refuses to seed otherwise, before the first INSERT (see its comment for why
  * the check lives here in this shape rather than parsing with
  * libphonenumber-js.
  *
  * Every row ships `phone_verified_at = NULL`. None of these numbers have
- * been called to confirm they still work — phone_verified_at is set only
+ * been called to confirm they still work; phone_verified_at is set only
  * once a human actually rings the line (see the migration's comment on why
  * that column exists). Do not backfill it here.
  *
  * Coordinates: none of these were geocoded from an authoritative source
  * this session. Each uses a plausible locality/ward-centroid coordinate
  * (public general geography, ~100m precision) and is marked
- * `// TODO: geocode` — a real address lookup should replace it before the
+ * `// TODO: geocode`. A real address lookup should replace it before the
  * directory is trusted for turn-by-turn directions.
  *
  * Because that coordinate is an estimate, every row also ships
  * `geoPrecision: "locality"` (migration 0009_care_geo_precision.sql) plus a
- * human-readable `locality` label — the API (apps/api/src/routes/care.ts)
+ * human-readable `locality` label. The API (apps/api/src/routes/care.ts)
  * uses this to withhold a computed distance for these rows rather than
  * present a phantom "Xm away" as measured fact. `geoPrecision` only ever
  * becomes `"exact"` for a row whose coordinate came from an actual geocoded
- * street address; do not flip it without one — guessing defeats the point.
+ * street address; do not flip it without one. Guessing defeats the point.
  *
- * `source_ref` holds the citation URL for curated rows (not an OSM id —
+ * `source_ref` holds the citation URL for curated rows (not an OSM id;
  * that field is reused here for traceability; see migration comment).
  */
 import { pool } from "./pool.js";
@@ -50,11 +50,11 @@ interface CareSeedRow {
   altPhone?: string | null;
   lat: number;
   lng: number;
-  // Human-readable place label shown when geoPrecision is "locality" —
+  // Human-readable place label shown when geoPrecision is "locality":
   // the honest substitute for a distance we cannot actually measure.
   locality: string;
   // Every row here is "locality" (centroid guess) unless a specific one is
-  // confirmed against a real geocoded address — see header comment.
+  // confirmed against a real geocoded address (see header comment).
   geoPrecision?: GeoPrecision;
   ward?: string | null;
   hasAmbulance?: boolean;
@@ -79,7 +79,7 @@ const CARE_SEED: CareSeedRow[] = [
     lat: 19.0176,
     lng: 72.8562, // TODO: geocode (Sewri OPD street address)
     locality: "Sewri",
-    hasAmbulance: false, // not confirmed in research — do not claim it
+    hasAmbulance: false, // not confirmed in research, do not claim it
     sourceUrl: "https://www.wsdindia.org/",
   },
   {
@@ -96,7 +96,7 @@ const CARE_SEED: CareSeedRow[] = [
   },
   {
     // source: https://www.utkarshglobalfoundation.org/animal-welfare-movement
-    // No confirmed phone number found for this entry — publishing NULL
+    // No confirmed phone number found for this entry, so publishing NULL
     // rather than guessing (plan: "some publish only an address").
     name: "Utkarsh Global Foundation — Utkarsh Animal Hospital, Bhandup",
     kind: "ngo",
@@ -140,7 +140,7 @@ const CARE_SEED: CareSeedRow[] = [
     costTier: "free",
     phone: "+919665355404",
     lat: 19.0330,
-    lng: 72.8397, // TODO: geocode — no fixed clinic address; central-Mumbai dispatch point
+    lng: 72.8397, // TODO: geocode (no fixed clinic address; central-Mumbai dispatch point)
     locality: "Central Mumbai (mobile dispatch, no fixed clinic)",
     hasAmbulance: true,
     hoursNote: "9pm-3am only",
@@ -173,7 +173,7 @@ const CARE_SEED: CareSeedRow[] = [
     lat: 19.0596,
     lng: 72.8295, // TODO: geocode (Union Park, Khar/Bandra)
     locality: "Khar / Bandra",
-    note: "Phone number conflict across sources — see comment above.",
+    note: "Phone number conflict across sources; see comment above.",
     sourceUrl: HOMEGROWN_GUIDE,
   },
   {
@@ -183,7 +183,7 @@ const CARE_SEED: CareSeedRow[] = [
     costTier: "free",
     phone: "+919987013144",
     lat: 18.9750,
-    lng: 72.8258, // TODO: geocode — this is a directory/aggregator, not a single physical site
+    lng: 72.8258, // TODO: geocode (this is a directory/aggregator, not a single physical site)
     locality: "Mumbai (helpline aggregator, no fixed site)",
     note: "Cross-references the other helplines in this seed rather than operating its own clinic.",
     sourceUrl: "https://strayicare.org/helpline",
@@ -210,7 +210,7 @@ const CARE_SEED: CareSeedRow[] = [
     phone: "+919324760564",
     altPhone: "+919892461664",
     lat: 19.0728,
-    lng: 72.8826, // TODO: geocode — covers all areas per the source guide
+    lng: 72.8826, // TODO: geocode (covers all areas per the source guide)
     locality: "Mumbai (mobile on-road treatment, no fixed clinic)",
     hoursNote: "Mon-Sun 8am-5pm, Sun half-day; on-road treatment only",
     sourceUrl: HOMEGROWN_GUIDE,
@@ -259,7 +259,7 @@ const CARE_SEED: CareSeedRow[] = [
     costTier: "free",
     phone: "+918655370005",
     lat: 19.0760,
-    lng: 72.8777, // TODO: geocode — covers all Mumbai per the source guide
+    lng: 72.8777, // TODO: geocode (covers all Mumbai per the source guide)
     locality: "Mumbai (helpline, no fixed clinic)",
     handlesWildlife: true,
     sourceUrl: HOMEGROWN_GUIDE,
@@ -332,7 +332,7 @@ const CARE_SEED: CareSeedRow[] = [
     phone: "+919821134056",
     altPhone: "+918108902286",
     lat: 19.0760,
-    lng: 72.8777, // TODO: geocode — covers all Mumbai/Thane/Palghar per the source guide
+    lng: 72.8777, // TODO: geocode (covers all Mumbai/Thane/Palghar per the source guide)
     locality: "Mumbai (helpline, no fixed clinic)",
     handlesWildlife: true,
     is24x7: true,
@@ -396,7 +396,7 @@ function geoWkt(lat: number, lng: number): string {
 /**
  * E.164: '+', a non-zero country-code digit, 8-15 digits total. Identical to
  * the regex in `care_providers_phone_e164_valid_check`
- * (0015_care_phone_e164_retry.sql) on purpose — this check exists to produce a
+ * (0015_care_phone_e164_retry.sql) on purpose: this check exists to produce a
  * good error message for the same rule the database enforces, not a second,
  * subtly different rule.
  */
@@ -407,7 +407,7 @@ const E164_RE = /^\+[1-9][0-9]{7,14}$/;
  *
  * This file is the only writer to `care_providers` today, and
  * `care_providers.phone_e164` is the number a stranger taps while standing over
- * an injured dog — a malformed one is a life-safety defect, not a
+ * an injured dog, so a malformed one is a life-safety defect, not a
  * data-quality one. The invariant is enforced by the database
  * (`care_providers_phone_e164_valid_check`, added unconditionally by 0015 after
  * 0013's version was silently skipped on production), so the seed cannot
@@ -417,13 +417,13 @@ const E164_RE = /^\+[1-9][0-9]{7,14}$/;
  *   error: new row for relation "care_providers" violates check constraint
  *          "care_providers_phone_e164_valid_check"
  *
- * and being told which organisation, which field, and which value — BEFORE any
+ * and being told which organisation, which field, and which value, BEFORE any
  * row is written, so a bad edit does not abort a partially-applied seed.
  *
  * A SHAPE CHECK, NOT A VALIDITY CHECK, and the distinction is worth knowing:
  * `apps/api/src/lib/phone.ts` (`normalizeIndianPhone`) validates against
  * India's real numbering plan via libphonenumber-js and would also normalise
- * '022 2413 7518' for you. It cannot be used here — `libphonenumber-js` is a
+ * '022 2413 7518' for you. It cannot be used here: `libphonenumber-js` is a
  * dependency of `apps/api`, not of `packages/db`, and in this pnpm workspace
  * that is a hard resolution failure, not a soft one:
  *
@@ -444,7 +444,7 @@ function assertSeedPhonesAreE164(): void {
       ["altPhone", row.altPhone ?? null],
     ] as const) {
       if (value !== null && value !== undefined && !E164_RE.test(value)) {
-        bad.push(`  ${row.name} — ${field}: ${JSON.stringify(value)}`);
+        bad.push(`  ${row.name}: ${field}: ${JSON.stringify(value)}`);
       }
     }
   }

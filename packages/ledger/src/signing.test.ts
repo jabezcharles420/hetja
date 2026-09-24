@@ -21,7 +21,7 @@ function loadSample(): LedgerRecord[] {
   return JSON.parse(readFileSync(url, "utf8")) as LedgerRecord[];
 }
 
-/** Two dogs' ledgers. Slugs, per INVARIANT 1 — random, non-sequential. */
+/** Two dogs' ledgers. Slugs, per INVARIANT 1: random, non-sequential. */
 const LEDGER_A = "dog-7k2m9qx4";
 const LEDGER_B = "dog-3vh8ptb6";
 
@@ -94,7 +94,7 @@ describe("signed chain head (enhancement stack D.1, pick 16)", () => {
     const pair = await generateLedgerKeyPair();
     const token = await signChainHead(HEAD, pair.privateJwk, { vetId: "vet-01" });
     const otherHead = { ...HEAD, head: recomputeHead(loadSample().slice(0, 2)) };
-    // Same key, same token — but verify succeeds; the head mismatch is the
+    // Same key, same token, but verify succeeds; the head mismatch is the
     // caller's job (compare claims). What signature alone must catch: an
     // attacker cannot mint a token for the tampered head with the right key.
     expect(await verifyChainHead(token, pair.publicJwk, { ledgerId: LEDGER_A })).not.toBeNull();
@@ -143,7 +143,7 @@ describe("signed chain head (enhancement stack D.1, pick 16)", () => {
     // The defect: only `iat` was set, verification passed no `maxTokenAge` and
     // never looked at `issuedAt`, so a head signed at record 40 verified
     // cleanly as a current attestation of a ledger that had reached record 55.
-    // A published head that never goes stale cannot detect a later rewrite —
+    // A published head that never goes stale cannot detect a later rewrite:
     // the operator just keeps presenting the old, still-valid token.
     const pair = await generateLedgerKeyPair();
     const twoHoursAgo = nowSeconds() - 2 * 60 * 60;
@@ -191,7 +191,7 @@ describe("signed chain head (enhancement stack D.1, pick 16)", () => {
   it("11. REGRESSION: a head for ledger A does not verify as ledger B", async () => {
     // The claims used to be {head, merkleRoot, recordCount} with no ledger
     // identifier at all, so nothing in a token said which dog's ledger it was
-    // about — one vet's signed head was interchangeable across all their dogs.
+    // about, so one vet's signed head was interchangeable across all their dogs.
     const pair = await generateLedgerKeyPair();
     const headA = chainHead(LEDGER_A, loadSample());
     const tokenA = await signChainHead(headA, pair.privateJwk, { vetId: "vet-01" });
@@ -225,7 +225,7 @@ describe("signed chain head (enhancement stack D.1, pick 16)", () => {
   it("12. REGRESSION: a `kid` in the payload cannot shadow the protected header's", async () => {
     // `kid` belongs in the JWS protected header (RFC 7515). Reading it from the
     // payload first meant a token could name one key in its (signed but
-    // semantically wrong) payload while being signed with another — pointing a
+    // semantically wrong) payload while being signed with another, pointing a
     // caller doing a JWKS lookup at the wrong key entirely.
     const pair = await generateLedgerKeyPair();
     const other = await generateLedgerKeyPair();
@@ -250,7 +250,7 @@ describe("signed chain head (enhancement stack D.1, pick 16)", () => {
 
   it("13. a head with no expiry is rejected outright", async () => {
     // jose can only enforce `exp` when it is present, so "no exp" must not
-    // degrade to "never expires" — it is rejected as malformed instead.
+    // degrade to "never expires"; it is rejected as malformed instead.
     const pair = await generateLedgerKeyPair();
     const noExp = await new SignJWT({
       ledger: LEDGER_A,

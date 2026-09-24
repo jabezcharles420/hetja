@@ -23,7 +23,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadWritePaths=/srv/hetja/shared /srv/hetja/photos
-WorkingDirectory=/srv/hetja/current/scan
+WorkingDirectory=/srv/hetja/releases/current/scan
 Environment=PORT=8081 HOST=127.0.0.1 NODE_OPTIONS=--max-old-space-size=24
 ExecStart=/srv/hetja/bin/node scripts/serve.mjs
 

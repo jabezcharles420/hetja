@@ -9,7 +9,7 @@
 set -euo pipefail
 ID="${1:?usage: hetja-deploy <release-id>}"
 [[ "$ID" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad release id"; exit 2; }
-ROOT=/srv/hetja
+ROOT="${HETJA_ROOT:-/srv/hetja}"   # overridable for tests only
 TAR="$ROOT/incoming/$ID.tar.gz"
 DEST="$ROOT/releases/$ID"
 [ -f "$TAR" ] || { echo "missing $TAR"; exit 2; }
@@ -33,9 +33,16 @@ for e in api web; do
 done
 [ -f "$ROOT/shared/api.env" ] || { echo "no api.env ever delivered"; exit 3; }
 
-PREV="$(readlink "$ROOT/current" 2>/dev/null || true)"
-ln -sfn "$DEST" "$ROOT/current.new" && mv -T "$ROOT/current.new" "$ROOT/current"
-date +%s > /dev/null; echo "$ID $(date -u +%FT%TZ)" > "$ROOT/shared/deploy-stamp"
+# `current` lives in releases/ (hetja-owned) because /srv/hetja itself is
+# root-owned on purpose: if hetja could write there it could swap bin/, which
+# holds scripts root runs. Each step is its own statement: inside an `a && b`
+# list `set -e` does not abort on `a` failing, which once hid exactly this.
+CUR="$ROOT/releases/current"
+PREV="$(readlink "$CUR" 2>/dev/null || true)"
+ln -sfn "$DEST" "$ROOT/releases/.current.new"
+mv -T "$ROOT/releases/.current.new" "$CUR"
+[ "$(readlink "$CUR")" = "$DEST" ] || { echo "failed to point current at $DEST"; exit 3; }
+echo "$ID $(date -u +%FT%TZ)" > "$ROOT/shared/deploy-stamp"
 
 check() { # name url [host]
   local h=(); [ -n "${3:-}" ] && h=(-H "Host: $3")
@@ -48,19 +55,27 @@ healthy() {
   check caddy http://127.0.0.1:80/api/v1/heatmap?ward=A hetja.in
 }
 # Services start slowly under the co-tenant's load: allow up to 3 minutes.
-for i in $(seq 1 36); do
-  sleep 5
+for i in $(seq 1 "${HETJA_HEALTH_TRIES:-36}"); do
+  sleep "${HETJA_HEALTH_SLEEP:-5}"
   if healthy; then
-    echo "healthy after $((i*5))s: $ID"
+    echo "healthy after $(( i * ${HETJA_HEALTH_SLEEP:-5} ))s: $ID"
     rm -f "$TAR"
-    ls -1dt "$ROOT"/releases/*/ | tail -n +4 | xargs -r rm -rf   # keep 3
+    # Keep the 3 newest. Match release IDs only (YYYYmmddHHMMSS-sha), never
+    # the `current` symlink: `rm -rf current/` would delete the LIVE release.
+    # (|| true: under pipefail a loop ending on the protected skip returns 1.)
+    find "$ROOT/releases" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended \
+      -regex '.*/[0-9]{14}-[0-9a-f]{7}' -printf '%f\n' | sort -r | tail -n +4 \
+      | while read -r old; do
+          [ "$ROOT/releases/$old" != "$(readlink "$CUR")" ] && rm -rf "${ROOT:?}/releases/$old"
+        done || true
     exit 0
   fi
 done
 
-echo "UNHEALTHY after 180s: rolling back to ${PREV:-<none>}"
+echo "UNHEALTHY after $(( ${HETJA_HEALTH_TRIES:-36} * ${HETJA_HEALTH_SLEEP:-5} ))s: rolling back to ${PREV:-<none>}"
 if [ -n "$PREV" ] && [ -d "$PREV" ]; then
-  ln -sfn "$PREV" "$ROOT/current.new" && mv -T "$ROOT/current.new" "$ROOT/current"
+  ln -sfn "$PREV" "$ROOT/releases/.current.new"
+  mv -T "$ROOT/releases/.current.new" "$CUR"
   echo "rollback $(basename "$PREV") $(date -u +%FT%TZ)" > "$ROOT/shared/deploy-stamp"
 fi
 exit 1

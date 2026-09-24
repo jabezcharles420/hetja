@@ -23,7 +23,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadWritePaths=/srv/hetja/shared /srv/hetja/photos
-WorkingDirectory=/srv/hetja/current/worker
+WorkingDirectory=/srv/hetja/releases/current/worker
 Environment=NODE_ENV=production NODE_OPTIONS=--max-old-space-size=56
 EnvironmentFile=/srv/hetja/shared/api.env
 ExecStart=/srv/hetja/bin/node dist/index.js

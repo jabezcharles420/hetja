@@ -23,7 +23,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadWritePaths=/srv/hetja/shared /srv/hetja/photos
-WorkingDirectory=/srv/hetja/current/web/apps/web
+WorkingDirectory=/srv/hetja/releases/current/web/apps/web
 Environment=NODE_ENV=production PORT=3100 HOSTNAME=127.0.0.1 NODE_OPTIONS=--max-old-space-size=112
 EnvironmentFile=-/srv/hetja/shared/web.env
 ExecStart=/srv/hetja/bin/node server.js

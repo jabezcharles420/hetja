@@ -28,7 +28,7 @@ secrets; the box copy is `/srv/hetja/shared/api.env` (0600, hetja).
                        hetja-deploy, hetja-guard
   opt/node-v22.x/      root
   releases/<id>/       hetja: web/ api/ worker/ scan/ Caddyfile REVISION
-  current -> releases/<id>
+  releases/current -> <id>   (in releases/ because /srv/hetja is root-owned)
   shared/              hetja: api.env, web.env, deploy-stamp, caddy/
   photos/              hetja: uploaded dog photos
   incoming/            hetja: where the runner drops a release
@@ -42,7 +42,7 @@ the box), runs `ops/room/build-release.sh`, writes the env files from secrets,
 then as `hetja`:
 
 1. `scp` the tarball and env files to `/srv/hetja/incoming/`
-2. `hetja-deploy <id>`: unpack, validate the Caddyfile, flip `current`,
+2. `hetja-deploy <id>`: unpack, validate the Caddyfile, flip `releases/current`,
    write `shared/deploy-stamp`
 3. `hetja-restart.path` (root) sees the stamp and restarts `hetja-*` only
 4. health checks for up to 180 s; if they fail, it rolls back to the previous release
@@ -68,6 +68,10 @@ systemctl disable --now hetja.target hetja-guard.timer
 rm /etc/systemd/system/hetja* && systemctl daemon-reload
 rm -rf /srv/hetja /etc/hetja && userdel hetja
 ```
+
+The very first deploy needs `systemctl start hetja.target` once, as root,
+right after `releases/current` exists; from then on the target is enabled at
+boot and deploys restart it through the stamp file.
 
 ## One-time setup
 

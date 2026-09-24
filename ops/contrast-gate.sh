@@ -10,7 +10,7 @@ const css = fs.readFileSync("packages/design/tokens.css", "utf8");
 const tokens = {};
 for (const m of css.matchAll(/--h-([a-z-]+):\s*(#[0-9a-fA-F]{3,8})/g)) tokens[m[1]] = m[2];
 
-const need = ["base", "ink", "ink-muted", "accent", "safe"];
+const need = ["base", "gray", "ink", "ink-muted", "accent", "link", "danger", "safe", "warn", "dark", "on-dark", "on-dark-muted"];
 for (const t of need) {
   if (!tokens[t]) {
     console.error(`FAIL: token --h-${t} missing from packages/design/tokens.css`);
@@ -31,12 +31,24 @@ function contrast(a, b) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
-// Text/background pairs documented in tokens.css (text on --h-base).
+// Text/background pairs documented in tokens.css. --h-ink-faint, --h-imessage,
+// --h-danger-fill and the aurora colours are fills / non-text and deliberately
+// absent: tokens.css marks each one.
 const pairs = [
   ["--h-ink", "--h-base"],
   ["--h-ink-muted", "--h-base"],
   ["--h-accent", "--h-base"],
+  ["--h-danger", "--h-base"],
   ["--h-safe", "--h-base"],
+  ["--h-warn", "--h-base"],
+  ["--h-ink", "--h-gray"],
+  ["--h-ink-muted", "--h-gray"],
+  ["--h-link", "--h-base"],
+  ["--h-link", "--h-gray"],
+  // Button label: white text on the accent fill.
+  ["--h-base", "--h-accent"],
+  ["--h-on-dark", "--h-dark"],
+  ["--h-on-dark-muted", "--h-dark"],
 ];
 
 let fail = 0;

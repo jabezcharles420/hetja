@@ -3,66 +3,89 @@
  *
  * This file is consumed by BOTH surfaces:
  *   - apps/web           (imported by app/globals.css)
- *   - apps/scan          (inlined into index.html at build time; the hot path
- *                         cannot afford a second stylesheet request)
+ *   - apps/scan          (hand-copied into index.html's inline :root — the hot
+ *                         path cannot afford a second stylesheet request. Keep
+ *                         every name and value identical when either changes.)
  *
- * Direction: Swiss wayfinding, not editorial minimalism. The references are
- * Otl Aicher's Munich 1972 signage and Vignelli's NYC subway diagram. A
- * stranger navigating an unfamiliar system under stress is a signage problem:
- * fixed vocabulary, one decision per surface, information ranked by
- * consequence. Structure comes from division (hairlines) rather than elevation
- * (cards and shadows).
+ * Direction (v3): an Apple product page for Mumbai's street dogs. Depth comes
+ * from glass and soft shadow rather than hairlines: aurora → grey section →
+ * white tile → glass chip. Pill buttons, 28px tiles, SF-first type with tight
+ * tracking. See docs/design/HETJA-DESIGN.md for the rationale.
  *
- * Replaces two divergent systems: apps/web's cream/forest/amber with
- * Fraunces + Nunito Sans, and apps/scan's dark navy on system fonts.
+ * Token NAMES from v2 are kept so every existing .module.css restyles by
+ * value; new names are additive.
  * ------------------------------------------------------------------------- */
 
 :root {
   /* --- Colour -------------------------------------------------------------
-   * Six values, no more. Contrast ratios against #FFFFFF are measured, not
-   * estimated; WCAG 2.2 AA needs 4.5:1 for normal text and 3:1 for large.
+   * Contrast ratios against #FFFFFF are measured (ops/contrast-gate.sh), not
+   * estimated. WCAG 2.2 AA needs 4.5:1 for normal text, 3:1 for large.
    */
-  --h-base: #ffffff;        /* briefed white                                */
-  --h-ink: #111111;         /* 18.9:1 — AAA at every size                   */
-  --h-ink-muted: #5a5a5a;   /*  7.0:1 — AAA normal text                     */
-  --h-rule: #e4e4e4;        /* hairlines only, never a box or a fill        */
-  --h-accent: #c8102e;      /*  6.2:1 — AA normal, AAA large. ONE colour.   */
-  --h-safe: #0f6b3f;        /*  6.4:1 — verified / vaccinated states        */
+  --h-base: #ffffff;
+  --h-gray: #f5f5f7;          /* section fill; ink on it is 15.5:1          */
+  --h-ink: #1d1d1f;           /* 16.8:1                                     */
+  --h-ink-muted: #6e6e73;     /*  5.1:1 white, 4.7:1 gray — secondary text  */
+  --h-ink-faint: #86868b;     /*  3.6:1 — NON-TEXT or ≥24px only            */
+  --h-rule: #d2d2d7;          /* hairlines, input borders                   */
+  --h-accent: #0071e3;        /*  4.7:1 — primary action FILL (white label). ONE per screen. */
+  --h-accent-hover: #0077ed;
+  --h-link: #0066cc;          /*  5.6:1 white, 5.1:1 gray — text links (#0071e3 fails on gray) */
+  --h-imessage: #0a84ff;      /* bubbles, focus ring — fills, not text      */
+  --h-bubble: #e9e9eb;        /* incoming bubble fill                       */
+  --h-danger: #d70015;        /*  5.4:1 — SOS / overdue text                */
+  --h-danger-fill: #ff3b30;   /* SOS button fill (white label, bold, large) */
+  --h-safe: #1d7a36;          /*  5.4:1 — verified / vaccinated             */
+  --h-ok-bg: #e8f8ec;
+  --h-warn: #b25e00;          /*  4.7:1                                     */
+  --h-warn-bg: #fff4e5;
+  --h-late-bg: #ffebe9;
+  --h-dark: #000000;          /* privacy band                               */
+  --h-dark-2: #1c1c1e;        /* card on the dark band                      */
+  --h-on-dark: #f5f5f7;
+  --h-on-dark-muted: #a1a1a6; /*  8.0:1 on black                            */
 
-  /* The accent is spent on exactly one element per screen. Per WCAG 2.2
-   * SC 1.4.1 urgency is never carried by colour alone: the primary action
-   * always pairs the accent fill with an icon AND an explicit verb, so it
-   * still reads as primary in greyscale or with the hue stripped out. */
+  /* Aurora blobs (decorative, never behind body text without a tile). */
+  --h-aurora-1: #ff8fd0;
+  --h-aurora-2: #ffb9a3;
+  --h-aurora-3: #ffa6e6;
+  --h-aurora-4: #ff9db8;
+
+  /* Urgency is never carried by colour alone (WCAG 2.2 SC 1.4.1): the
+   * primary action always pairs its fill with an icon AND an explicit verb. */
 
   /* --- Type ---------------------------------------------------------------
-   * Inter, self-hosted and subset. No external font request: the scan bundle
-   * is capped at 40 KB gzipped and a CDN round-trip on the hot path costs
-   * more than the glyphs do. Fallbacks are metric-adjacent so an unstyled
-   * first paint does not reflow badly.
+   * SF on Apple devices (as Sidehoe), self-hosted Inter everywhere else —
+   * never Arial. apps/scan uses the same stack minus Inter (0 font bytes).
    */
-  --h-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    system-ui, sans-serif;
+  --h-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 
-  /* Six sizes. A signage system has a fixed vocabulary; more sizes would
-   * blur the hierarchy the whole design depends on. */
-  --h-t-plate: 32px;  /* the collar code — the signature element            */
-  --h-t-xl: 24px;     /* dog name                                          */
-  --h-t-lg: 17px;     /* primary action label                              */
-  --h-t-md: 15px;     /* body, list rows                                   */
-  --h-t-sm: 13px;     /* ward, meta                                        */
-  --h-t-xs: 11px;     /* eyebrow labels: FREE · AMBULANCE                  */
+  /* Display sizes are fluid; UI sizes are fixed. */
+  --h-t-hero: clamp(54px, 8.2vw, 124px);
+  --h-t-display: clamp(40px, 6.4vw, 80px);
+  --h-t-bignum: clamp(72px, 9vw, 120px);
+  --h-t-tile: clamp(26px, 2.6vw, 34px);
+  --h-t-lede: clamp(19px, 2.1vw, 24px);
+  --h-t-plate: 32px;  /* the collar code                                    */
+  --h-t-xl: 24px;     /* dog name, card titles                              */
+  --h-t-lg: 19px;     /* big CTA label, list titles                         */
+  --h-t-md: 17px;     /* body                                               */
+  --h-t-sm: 15px;     /* secondary, bubbles, list rows                      */
+  --h-t-xs: 12px;     /* nav links, meta, footnotes                         */
 
   --h-w-regular: 400;
   --h-w-medium: 500;
   --h-w-semibold: 600;
+  --h-w-bold: 700;
 
-  /* Tabular figures for anything a person compares or reads aloud:
-   * distances, dates, and the collar plate. */
+  --h-track-body: -0.022em;
+  --h-track-display: -0.028em;
+  --h-track-hero: -0.045em;
+
   --h-num-tabular: "tnum" 1, "lnum" 1;
 
   /* --- Space --------------------------------------------------------------
-   * 4px base, 8px rhythm. The gutter is 20px so a 48dp target plus gutters
-   * still fits a 320px viewport.
+   * 4px base. Gutter 22px (Sidehoe's 44px total inset).
    */
   --h-s1: 4px;
   --h-s2: 8px;
@@ -72,33 +95,49 @@
   --h-s6: 32px;
   --h-s7: 48px;
   --h-s8: 64px;
-  --h-gutter: 20px;
+  --h-s9: 96px;
+  --h-gutter: 22px;
+  --h-section-y: clamp(90px, 12vw, 160px);
+  --h-nav-h: 52px;
 
-  /* --- Geometry -----------------------------------------------------------
-   * Radii collapse from the old 8/16/24/pill scale to square. 2px exists
-   * only to stop a large accent fill reading as a printing error.
-   */
-  --h-radius: 0px;
-  --h-radius-fill: 2px;
+  /* --- Geometry ----------------------------------------------------------- */
+  --h-radius: 18px;         /* default control / small card               */
+  --h-radius-sm: 12px;      /* nudges, inner rows                         */
+  --h-radius-card: 20px;    /* profile, grouped lists                     */
+  --h-radius-tile: 28px;    /* bento tiles, roster                        */
+  --h-radius-pill: 980px;
+  --h-radius-fill: 980px;   /* v2 name: large accent fills → now pills    */
   --h-hairline: 1px;
 
-  /* Touch targets. Apple HIG says 44x44pt, Material 48x48dp, and WCAG 2.2
-   * SC 2.5.8 sets a 24x24 CSS px floor. 48px is the comfort standard; the
-   * WCAG number is a legal minimum, not a target. */
+  --h-shadow-card: 0 30px 60px -30px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --h-shadow-float: 0 12px 40px rgba(0, 0, 0, 0.16);
+  --h-shadow-chip: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(255, 80, 170, 0.12);
+  --h-shadow-cta: 0 10px 30px rgba(0, 113, 227, 0.3);
+  --h-shadow-phone: 0 0 0 2px #3a3a3e inset, 0 40px 80px -20px rgba(60, 0, 40, 0.4);
+
+  --h-glass: rgba(255, 255, 255, 0.72);
+  --h-glass-strong: rgba(255, 255, 255, 0.92);
+  --h-glass-gray: rgba(245, 245, 247, 0.72);
+  --h-blur: saturate(180%) blur(20px);
+  --h-glass-edge: rgba(0, 0, 0, 0.08);
+
+  /* Touch targets: 48px comfort, 44px floor (HIG). */
   --h-target: 48px;
   --h-target-min: 44px;
 
   /* --- Motion -------------------------------------------------------------
-   * Only transform and opacity are ever animated. The blueprint is explicit
-   * that the citizen is standing on a Mumbai street in 35°C heat: animation
-   * on the critical path is latency the user pays for.
+   * Only transform, opacity and filter are animated.
    */
   --h-dur: 160ms;
+  --h-dur-slow: 1000ms;
   --h-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --h-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --h-ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --h-dur: 0ms;
+    --h-dur-slow: 0ms;
   }
 }

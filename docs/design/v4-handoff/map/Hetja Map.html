@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hetja · Map of Mumbai</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<style>
+:root{--ink:#1d1d1f;--sec:#6e6e73;--mist:#f5f5f7;--hair:#d2d2d7;--div:#e8e8ed;--blue:#0071e3;--link:#0066cc;--sos:#d70015;--ok:#1a7a35;--okbg:#e6f4ea;--warn:#9a5200;--warnbg:#fff3e0;--dang:#b80012;--dangbg:#fde8ea;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Roboto,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;background:#fdf6f8}
+a{color:var(--link);text-decoration:none}a:hover{color:var(--blue);text-decoration:underline}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+.app{position:fixed;inset:0;display:flex}
+#map{position:absolute;inset:0;background:#f6eef0}
+/* Hetja tint over OSM tiles: soft, warm, low contrast */
+.leaflet-tile-pane{filter:sepia(.18) hue-rotate(300deg) saturate(1.3)}
+.leaflet-container{font-family:var(--font)}
+.leaflet-control-attribution{background:rgba(255,255,255,.75)!important;font-size:11px;border-radius:8px 0 0 0}
+.leaflet-control-zoom{border:0!important;box-shadow:0 4px 14px rgba(0,0,0,.1)!important;border-radius:14px!important;overflow:hidden}
+.leaflet-control-zoom a{width:44px!important;height:44px!important;line-height:44px!important;font-size:20px!important;color:var(--ink)!important;border-color:var(--div)!important}
+.aurora{position:absolute;left:0;right:0;top:0;height:220px;pointer-events:none;z-index:400;background:radial-gradient(60% 100% at 0% 0%,rgba(255,179,220,.7) 0%,rgba(255,179,220,0) 70%),radial-gradient(50% 90% at 100% 0%,rgba(255,203,184,.7) 0%,rgba(255,203,184,0) 70%)}
+
+.top{position:absolute;left:0;right:0;top:0;z-index:600;pointer-events:none}
+.nav{pointer-events:auto;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(255,255,255,.62);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.05);padding-top:env(safe-area-inset-top)}
+.logo{display:flex;align-items:center;gap:9px;font-size:21px;font-weight:700;letter-spacing:-.02em}
+.paw{width:30px;height:30px;border-radius:50%;background:var(--ink);position:relative;flex:none}
+.paw i{position:absolute;border-radius:50%;background:#fff}
+.nav .signin{min-height:44px;display:flex;align-items:center;font-size:16px;color:var(--link)}
+.chips{pointer-events:auto;display:flex;gap:8px;padding:12px 20px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:40px;padding:0 14px 0 10px;border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(0,0,0,.08);display:flex;align-items:center;gap:7px;font-size:15px;font-weight:600;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff}
+.chip .k{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none}
+
+/* markers */
+.ward{display:flex;align-items:center;gap:6px;height:38px;padding:0 6px 0 12px;border-radius:999px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.14);font-size:14px;font-weight:700;white-space:nowrap;transform:translate(-50%,-50%);position:absolute;left:0;top:0;cursor:pointer;transition:box-shadow .15s}
+.ward.sel{box-shadow:0 0 0 3px var(--ink),0 6px 18px rgba(0,0,0,.18)}
+.ward .n{color:var(--sec);font-weight:600}
+.badge{height:26px;min-width:26px;padding:0 8px 0 6px;border-radius:999px;display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700}
+.b-sos{background:var(--sos);color:#fff}
+.b-hun{background:var(--warnbg);color:var(--warn)}
+.b-ok{background:var(--okbg);color:var(--ok);padding:0 6px}
+.dot{width:14px;height:14px;border-radius:50%;background:#fff;color:var(--sos);font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.place{position:absolute;left:0;top:0;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.place .pin{height:32px;padding:0 10px;border-radius:999px;display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.16);white-space:nowrap}
+.place .stem{width:2px;height:8px;background:currentColor;opacity:.5}
+.p-vet{color:var(--blue)}.p-vet .pin{background:var(--blue);color:#fff}
+.p-ngo{color:var(--ink)}.p-ngo .pin{background:var(--ink);color:#fff}
+.place.sel .pin{box-shadow:0 0 0 3px #fff,0 0 0 5px currentColor}
+.plus{font-size:16px;line-height:1}
+.place.mini{transform:translate(-50%,-50%)}.place.mini .pin{width:24px;height:24px;padding:0;justify-content:center;font-size:12px;border:2px solid #fff}.place.mini .stem{display:none}
+.ward.mini{height:32px;font-size:13px;padding:0 4px 0 10px;gap:4px}.ward.mini .n{display:none}.ward.mini .badge{height:22px;min-width:22px;font-size:12px}
+
+/* sheet / panel */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:700;background:#fff;border-radius:32px 32px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.12);display:flex;flex-direction:column;max-height:62%;}
+.grab{height:28px;width:100%;flex:none;display:flex;align-items:center;justify-content:center}.grab::before{content:"";width:40px;height:5px;border-radius:3px;background:#d2d2d7}
+.sheet{transition:max-height .25s ease}.sheet.peek .sheet-body{max-height:64px;overflow:hidden;padding-top:4px;padding-bottom:4px}.sheet.peek .h1{font-size:22px}.sheet.peek .sheet-foot{border-top:0;padding-top:6px}.sheet.peek .label{display:none}
+.ward.dotm{width:26px;height:26px;padding:0;justify-content:center;gap:0;border-radius:50%}.ward.dotm .n,.ward.dotm .wc{display:none}.ward.dotm .badge{height:26px;min-width:26px;padding:0;justify-content:center;border-radius:50%}.ward.dotm .badge svg{display:none}.ward.dotm .b-ok svg{display:block}.ward.dotm .b-sos .dot{display:none}.ward.dotm .b-sos::before{content:'!';font-weight:900}.ward.dotm .b-sos{font-size:0}.ward.dotm .b-sos::before{font-size:14px}.ward.dotm .b-hun+*{display:none}
+.sheet-body{overflow-y:auto;padding:14px 20px 12px;display:flex;flex-direction:column;gap:14px}
+.sheet-foot{flex:none;padding:10px 20px 8px;border-top:1px solid var(--div)}
+.tabs{height:56px;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font-size:13px;font-weight:600;border-top:1px solid #e3e3e8;padding-bottom:env(safe-area-inset-bottom)}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--sec)}
+.tabs div::before{content:"";width:22px;height:4px;border-radius:2px}
+.tabs .on{color:var(--ink)}.tabs .on::before{background:var(--ink)}
+
+.label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sec)}
+.h1{font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.03em;margin:0}
+.lead{font-size:16px;line-height:1.45;color:var(--sec);margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--mist);border-radius:18px;padding:12px 12px 10px}
+.stat b{display:block;font-size:30px;line-height:1;font-weight:700;letter-spacing:-.04em}
+.stat span{display:flex;align-items:center;gap:5px;font-size:13px;color:#48484d;margin-top:6px;font-weight:600}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;min-height:64px;border-bottom:1px solid var(--div);text-align:left;width:100%}
+.row:last-child{border-bottom:0}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-size:17px;font-weight:600}
+.row .t span{display:block;font-size:15px;color:var(--sec);margin-top:1px}
+.pill{height:30px;padding:0 10px 0 8px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;white-space:nowrap;flex:none}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.warn{background:var(--warnbg);color:var(--warn)}.pill.dang{background:var(--dangbg);color:var(--dang)}.pill.neu{background:#f2f2f5;color:#48484d}
+.ic{width:16px;height:16px;border-radius:50%;background:currentColor;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ic::after{content:"!";color:#fff;font-size:10px;font-weight:900}
+.btn{height:56px;border-radius:999px;background:var(--blue);color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;width:100%;box-shadow:0 8px 24px rgba(0,113,227,.28)}
+.btn:active{background:#0062c4;transform:scale(.98)}
+.btn-t{height:44px;padding:0 18px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:15px;font-weight:600;display:inline-flex;align-items:center;flex:none}
+.back{min-height:44px;display:inline-flex;align-items:center;font-size:17px;color:var(--link);align-self:flex-start;margin:-8px 0 -6px}
+.note{display:flex;gap:10px;align-items:flex-start;background:var(--mist);border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.4;color:#48484d}
+.note svg{flex:none;margin-top:1px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:#48484d}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff}
+
+@media (min-width:900px){
+  .top{right:auto;width:420px;z-index:800}
+  .nav{background:#fff}
+  .chips{flex-wrap:wrap;overflow:visible;background:#fff;padding:4px 24px 16px;border-bottom:1px solid var(--div)}
+  .chip{box-shadow:inset 0 0 0 1px var(--hair);background:#fff}
+  .chip[aria-pressed="true"]{box-shadow:none}
+  .sheet{left:0;top:0;right:auto;width:420px;max-height:none;border-radius:0;box-shadow:1px 0 0 var(--div);padding-top:var(--toph,160px)}
+  .grab,.tabs{display:none}
+  .sheet-body{padding:20px 24px}
+  .sheet-foot{padding:14px 24px 20px}
+  #map{left:420px}
+  .aurora{left:420px}
+  .h1{font-size:36px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="map" aria-label="Map of Mumbai wards"></div>
+  <div class="aurora"></div>
+
+  <div class="top" id="top">
+    <div class="nav">
+      <div class="logo"><span class="paw"><i style="left:9px;top:14px;width:12px;height:10px"></i><i style="left:5px;top:8px;width:5px;height:6px"></i><i style="left:10px;top:4px;width:5px;height:6px"></i><i style="left:16px;top:4px;width:5px;height:6px"></i><i style="left:21px;top:8px;width:5px;height:6px"></i></span>Hetja</div>
+      <a class="signin" href="#">Sign in</a>
+    </div>
+    <div class="chips" id="chips" role="toolbar" aria-label="Show on map">
+      <button class="chip" data-f="sos" aria-pressed="true"><span class="k" style="background:var(--sos);color:#fff">!</span>Needs help</button>
+      <button class="chip" data-f="hungry" aria-pressed="true"><span class="k" style="background:var(--warnbg);color:var(--warn)"><svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></span>Not fed today</button>
+      <button class="chip" data-f="vet" aria-pressed="true"><span class="k" style="background:var(--blue);color:#fff">+</span>Vets</button>
+      <button class="chip" data-f="ngo" aria-pressed="true"><span class="k" style="background:var(--ink);color:#fff">N</span>NGOs</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <button class="grab" id="grab" aria-label="Show more"></button>
+    <div class="sheet-body" id="body"></div>
+    <div class="sheet-foot" id="foot"></div>
+    <div class="tabs"><div>Home</div><div class="on">Map</div><div>Scan</div><div>Me</div></div>
+  </div>
+</div>
+
+<script>
+const WARDS=[
+ {c:'A',n:'Colaba, Fort',lat:18.918,lng:72.828,d:21,h:1,s:0},
+ {c:'C/D',n:'Girgaon, Malabar Hill',lat:18.957,lng:72.812,d:17,h:0,s:0},
+ {c:'E',n:'Byculla',lat:18.978,lng:72.836,d:26,h:3,s:1,sn:'Hurt, but moving',st:'25 min ago'},
+ {c:'G/S',n:'Worli, Lower Parel',lat:19.000,lng:72.816,d:24,h:2,s:0},
+ {c:'G/N',n:'Dadar, Mahim',lat:19.024,lng:72.838,d:31,h:1,s:0},
+ {c:'F/N',n:'Matunga, Sion',lat:19.042,lng:72.866,d:19,h:4,s:0},
+ {c:'H/W',n:'Bandra West',lat:19.060,lng:72.830,d:34,h:2,s:0},
+ {c:'H/E',n:'Bandra East, Santacruz East',lat:19.075,lng:72.856,d:22,h:1,s:0},
+ {c:'L',n:'Kurla',lat:19.072,lng:72.884,d:18,h:3,s:0},
+ {c:'M/E',n:'Chembur, Govandi',lat:19.056,lng:72.922,d:15,h:2,s:1,sn:"Can't get up, or bleeding",st:'8 min ago'},
+ {c:'N',n:'Ghatkopar',lat:19.088,lng:72.909,d:20,h:0,s:0},
+ {c:'K/W',n:'Andheri West',lat:19.132,lng:72.828,d:38,h:3,s:1,sn:'Missing, scared, or being harmed',st:'1 h ago'},
+ {c:'K/E',n:'Andheri East',lat:19.115,lng:72.872,d:27,h:1,s:0},
+ {c:'S',n:'Bhandup, Powai',lat:19.140,lng:72.925,d:16,h:0,s:0},
+ {c:'P/S',n:'Goregaon',lat:19.164,lng:72.848,d:23,h:1,s:0},
+ {c:'P/N',n:'Malad',lat:19.190,lng:72.850,d:25,h:2,s:0},
+ {c:'R/C',n:'Borivali',lat:19.232,lng:72.858,d:21,h:0,s:0},
+];
+const PLACES=[
+ {t:'vet',n:'Dr. Mehta Pet Clinic',w:'K/W',lat:19.1365,lng:72.8352,hr:'Open till 9 pm',ph:'+91 22 0000 0001'},
+ {t:'vet',n:'Bandra Animal Care',w:'H/W',lat:19.0555,lng:72.8365,hr:'Open 24 hours',ph:'+91 22 0000 0002'},
+ {t:'vet',n:'Parel Vet Hospital',w:'F/S',lat:19.0025,lng:72.8420,hr:'Open 24 hours',ph:'+91 22 0000 0003'},
+ {t:'vet',n:'Chembur Pet Clinic',w:'M/W',lat:19.0620,lng:72.9000,hr:'Open till 8 pm',ph:'+91 22 0000 0004'},
+ {t:'vet',n:'Borivali Vet Centre',w:'R/C',lat:19.2290,lng:72.8570,hr:'Closed, opens 9 am',ph:'+91 22 0000 0005'},
+ {t:'ngo',n:'Andheri Animal Rescue',w:'K/E',lat:19.1190,lng:72.8640,hr:'Ambulance on call',ph:'+91 22 0000 0006'},
+ {t:'ngo',n:'South Bombay Strays',w:'A',lat:18.9290,lng:72.8330,hr:'Ambulance on call',ph:'+91 22 0000 0007'},
+ {t:'ngo',n:'Ghatkopar Paws',w:'N',lat:19.0800,lng:72.9150,hr:'Weekdays 10 to 6',ph:'+91 22 0000 0008'},
+];
+const F={sos:true,hungry:true,vet:true,ngo:true};
+let sel=null,nearby=[];
+
+const map=L.map('map',{zoomControl:false,attributionControl:true,minZoom:10,zoomSnap:0.25,maxZoom:15}).setView([19.07,72.87],12);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles © Esri · © OpenStreetMap contributors',maxZoom:16}).addTo(map);
+L.control.zoom({position:'topright'}).addTo(map);
+map.setMaxBounds([[18.70,72.55],[19.45,73.15]]);
+
+const clock='<svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>';
+const check='<svg width="12" height="12" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+const markers=[];
+
+function wardHtml(w){
+  if(map.getZoom()<12){let cls='b-ok',inner=check,t='All fed';if(F.sos&&w.s){cls='b-sos';inner='';t=w.s+' needs help'}else if(F.hungry&&w.h){cls='b-hun';inner=String(w.h);t=w.h+' not fed today'}
+    return `<div class="ward dotm${sel===w?' sel':''}" role="button" aria-label="${w.c} ward, ${w.n}: ${t}" title="${w.c} · ${t}"><span class="badge ${cls}">${inner}</span></div>`}
+  let b='';
+  if(F.sos&&w.s) b+=`<span class="badge b-sos" title="${w.s} needs help"><span class="dot">!</span>${w.s}</span>`;
+  if(F.hungry&&w.h) b+=`<span class="badge b-hun" title="${w.h} not fed today">${clock}${w.h}</span>`;
+  if(!b) b=`<span class="badge b-ok" title="All fed">${check}</span>`;
+  return `<div class="ward${sel===w?' sel':''}${map.getZoom()<13?' mini':''}" role="button" aria-label="${w.c} ward, ${w.n}"><span class="wc">${w.c}</span><span class="n">${w.d}</span>${b}</div>`;
+}
+function placeHtml(p){
+  const mini=map.getZoom()<13;
+  return `<div class="place p-${p.t}${sel===p?' sel':''}${mini?' mini':''}" role="button" aria-label="${p.n}"><div class="pin">${mini?(p.t==='vet'?'+':'N'):(p.t==='vet'?'<span class="plus">+</span>Vet':'NGO')}</div><div class="stem"></div></div>`;
+}
+function draw(){
+  markers.forEach(m=>map.removeLayer(m));markers.length=0;
+  WARDS.forEach(w=>{
+    const m=L.marker([w.lat,w.lng],{icon:L.divIcon({className:'',html:wardHtml(w),iconSize:[0,0]}),zIndexOffset:w.s?500:0,keyboard:true});
+    m.on('click',()=>select(w));m.addTo(map);markers.push(m);
+  });
+  const onlyPlaces=!F.sos&&!F.hungry;
+  PLACES.filter(p=>F[p.t]&&(map.getZoom()>=13||onlyPlaces||sel===p||nearby.includes(p))).forEach(p=>{
+    const m=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:placeHtml(p),iconSize:[0,0]}),zIndexOffset:300});
+    m.on('click',()=>select(p));m.addTo(map);markers.push(m);
+  });
+}
+const $=id=>document.getElementById(id);
+const privacy=`<div class="note"><svg width="18" height="18" viewBox="0 0 16 16"><path d="M8 1.5l5.5 2v4c0 3.4-2.4 6-5.5 7-3.1-1-5.5-3.6-5.5-7v-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg><span>Dogs are shown by ward, never by street. Vets and NGOs are public places, so they get a pin.</span></div>`;
+
+function renderCity(){nearby=[];
+  const tot=WARDS.reduce((a,w)=>a+w.d,0),hun=WARDS.reduce((a,w)=>a+w.h,0),sos=WARDS.reduce((a,w)=>a+w.s,0);
+  const sosW=WARDS.filter(w=>w.s).sort((a,b)=>parseInt(a.st)-parseInt(b.st));
+  const hunW=WARDS.filter(w=>w.h&&!w.s).sort((a,b)=>b.h-a.h).slice(0,4);
+  $('body').innerHTML=`
+    <div class="label">Mumbai right now</div>
+    <h1 class="h1">${sos} dogs need help. ${hun} are waiting for dinner.</h1>
+    <div class="stats">
+      <div class="stat"><b>${tot}</b><span>${check.replace('12','14').replace('12','14')}with collars</span></div>
+      <div class="stat"><b>${hun}</b><span style="color:var(--warn)">${clock}not fed today</span></div>
+      <div class="stat"><b>${sos}</b><span style="color:var(--dang)"><i class="ic"></i>need help</span></div>
+    </div>
+    ${sosW.length?`<div class="label" style="margin-top:4px">Needs help</div><div class="rows">${sosW.map(w=>`<button class="row" data-w="${w.c}"><div class="t"><b>${w.c} ward · ${w.n}</b><span>${w.sn} · ${w.st}</span></div><span class="pill dang"><i class="ic"></i>SOS</span></button>`).join('')}</div>`:''}
+    <div class="label" style="margin-top:4px">Hungriest wards</div>
+    <div class="rows">${hunW.map(w=>`<button class="row" data-w="${w.c}"><div class="t"><b>${w.c} ward · ${w.n}</b><span>${w.d} dogs</span></div><span class="pill warn">${clock}${w.h} not fed</span></button>`).join('')}</div>
+    <div class="legend"><span><i class="sw" style="background:var(--sos)">!</i>Needs help</span><span><i class="sw" style="background:var(--warnbg);color:var(--warn)">${clock}</i>Not fed today</span><span><i class="sw" style="background:var(--okbg);color:var(--ok)">${check}</i>All fed</span><span><i class="sw" style="background:var(--blue)">+</i>Vet</span><span><i class="sw" style="background:var(--ink)">N</i>NGO</span></div>
+    ${privacy}`;
+  $('foot').innerHTML=`<a class="btn" href="#" style="text-decoration:none;color:#fff">Scan a collar</a>`;
+  bindRows();
+}
+function renderWard(w){
+  const vets=PLACES.filter(p=>p.w===w.c||dist(p,w)<3.5).sort((a,b)=>dist(a,w)-dist(b,w)).slice(0,3);nearby=vets;
+  $('body').innerHTML=`
+    <button class="back" id="back">‹ All of Mumbai</button>
+    <div class="label">${w.c} ward</div>
+    <h1 class="h1">${w.n}</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${w.s?`<span class="pill dang"><i class="ic"></i>${w.s} needs help</span>`:''}
+      ${w.h?`<span class="pill warn">${clock}${w.h} not fed today</span>`:`<span class="pill ok">${check}Everyone fed</span>`}
+      <span class="pill neu">${w.d} dogs</span>
+    </div>
+    ${w.s?`<div style="border-radius:20px;box-shadow:inset 0 0 0 1.5px #f3c2c8;background:#fff7f8;padding:14px 16px;display:flex;flex-direction:column;gap:4px"><div style="font-size:17px;font-weight:600">${w.sn}</div><div style="font-size:15px;color:var(--sec)">Raised ${w.st} · feeders told · waiting for someone nearby</div></div>`:''}
+    ${w.h?`<p class="lead">${w.h===1?'One dog here has':w.h+' dogs here have'} not been logged today. They might have eaten. They will not tell you either way.</p>`:`<p class="lead">Every dog in ${w.c} has a feed logged today. Somebody here is very organised.</p>`}
+    ${vets.length?`<div class="label">Nearby vets and NGOs</div><div class="rows">${vets.map(p=>`<div class="row"><div class="t"><b>${p.n}</b><span>${p.t==='vet'?'Vet':'NGO'} · ${p.w} ward · ${p.hr}</span></div><a class="btn-t" href="tel:${p.ph.replace(/\s/g,'')}">Call</a></div>`).join('')}</div>`:''}
+    ${privacy}`;
+  $('foot').innerHTML=w.s?`<button class="btn">I can go and help</button><div style="font-size:13px;color:var(--sec);text-align:center;margin-top:8px">You'll see the exact spot after the feeder confirms you.</div>`:`<button class="btn">Get alerts for ${w.c} ward</button>`;
+  $('back').onclick=()=>select(null);
+}
+function renderPlace(p){
+  $('body').innerHTML=`
+    <button class="back" id="back">‹ All of Mumbai</button>
+    <div class="label">${p.t==='vet'?'Vet':'NGO'} · ${p.w} ward</div>
+    <h1 class="h1">${p.n}</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${/Closed/.test(p.hr)?`<span class="pill neu">${clock}${p.hr}</span>`:`<span class="pill ok">${check}${p.hr}</span>`}${p.t==='vet'?'<span class="pill neu">Treats street dogs</span>':''}</div>
+    <div style="background:var(--mist);border-radius:20px;padding:14px 16px"><div class="label" style="margin-bottom:4px">Phone</div><div style="font-size:24px;font-weight:600;letter-spacing:.02em">${p.ph}</div></div>
+    <p class="lead">Listed by the clinic. Hetja sends them SOS alerts for dogs in ${p.w} and neighbouring wards.</p>`;
+  $('foot').innerHTML=`<a class="btn" href="tel:${p.ph.replace(/\s/g,'')}" style="text-decoration:none;color:#fff">Call ${p.t==='vet'?'the clinic':p.n.split(' ')[0]}</a>`;
+  $('back').onclick=()=>select(null);
+}
+function dist(a,b){const dx=(a.lng-b.lng)*105,dy=(a.lat-b.lat)*111;return Math.hypot(dx,dy)}
+function bindRows(){document.querySelectorAll('[data-w]').forEach(el=>el.onclick=()=>select(WARDS.find(w=>w.c===el.dataset.w)))}
+const isWide=()=>matchMedia('(min-width:900px)').matches;
+const sheetEl=$('sheet');
+function setPeek(p){if(isWide())p=false;sheetEl.classList.toggle('peek',p);$('grab').setAttribute('aria-label',p?'Show more':'Show less')}
+function vis(){const topH=isWide()?0:$('top').offsetHeight,sh=isWide()?0:sheetEl.offsetHeight;return{topH,sh}}
+function fitCity(){const {topH,sh}=vis();map.fitBounds(L.latLngBounds(WARDS.map(w=>[w.lat,w.lng])),{paddingTopLeft:[28,topH+24],paddingBottomRight:[28,sh+24],animate:false})}
+function select(x){
+  sel=x;
+  if(!x){renderCity();setPeek(true);draw();requestAnimationFrame(()=>setTimeout(fitCity,260));return}
+  if(x.d!==undefined)renderWard(x);else renderPlace(x);
+  setPeek(false);draw();
+  setTimeout(()=>{const z=Math.max(map.getZoom(),13);const {topH,sh}=vis();const H=map.getSize().y;const visC=(topH+(H-sh))/2;const pt=map.project([x.lat,x.lng],z).add([0,H/2-visC]);map.flyTo(map.unproject(pt,z),z,{duration:.4})},260);
+}
+$('grab').onclick=()=>setPeek(!sheetEl.classList.contains('peek'));
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{F[c.dataset.f]=!F[c.dataset.f];c.setAttribute('aria-pressed',F[c.dataset.f]);draw()});
+function sizeTop(){document.documentElement.style.setProperty('--toph',$('top').offsetHeight+'px');map.invalidateSize()}
+addEventListener('resize',sizeTop);
+let lastMode=null;map.on('zoomend',()=>{const z=map.getZoom(),m=z<12?0:z<13?1:2;if(m!==lastMode){lastMode=m;draw()}});
+
+sizeTop();setPeek(true);draw();renderCity();requestAnimationFrame(fitCity);addEventListener('resize',()=>{if(!sel)fitCity()});
+const hw=decodeURIComponent((location.hash.match(/ward=([^&]+)/)||[])[1]||'');if(hw){const w=WARDS.find(x=>x.c===hw);if(w)setTimeout(()=>select(w),300)}
+</script>
+</body>
+</html>

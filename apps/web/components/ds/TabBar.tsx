@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import styles from "./TabBar.module.css";
 
 /**
- * Bottom tab bar: Home / Scan / Me. Labels always visible; the active tab is
+ * Bottom tab bar: Home / Map / Scan / Me (the Map tab arrived with the map
+ * handoff, screen 19). Labels always visible; the active tab is
  * ink with a 22x4 ink bar above it and aria-current="page". Pages hide it on
  * focused flows (Scan, SOS, Log feed, Login, Register) by not rendering it.
  */
 
-export type TabKey = "home" | "scan" | "me";
+export type TabKey = "home" | "map" | "scan" | "me";
 
 export interface TabItem {
   key: TabKey;
@@ -20,6 +21,7 @@ export interface TabItem {
 
 export const DEFAULT_TABS: TabItem[] = [
   { key: "home", href: "/", label: "Home" },
+  { key: "map", href: "/map", label: "Map" },
   { key: "scan", href: "/scan", label: "Scan" },
   { key: "me", href: "/me", label: "Me" },
 ];
@@ -55,7 +57,7 @@ export function TabBar({
         .filter(Boolean)
         .join(" ")}
     >
-      <ul className={styles.list}>
+      <ul className={styles.list} style={{ ["--tab-count" as string]: tabs.length }}>
         {tabs.map((t) => {
           const on = t.key === current;
           return (

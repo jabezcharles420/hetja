@@ -1,0 +1,7 @@
+[Unit]
+Description=Hetja memory guard (site yields to the co-tenant agent)
+
+[Service]
+Type=oneshot
+Nice=19
+ExecStart=/srv/hetja/bin/hetja-guard

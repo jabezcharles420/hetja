@@ -66,6 +66,14 @@
 name: Deploy
 
 on:
+  # Manual runs deploy any ref (first bring-up of the shared-box room ran this
+  # way from a branch, before anything was merged to main).
+  workflow_dispatch:
+    inputs:
+      supabase_migrate:
+        description: "Apply new migrations to Supabase (the production DB)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     # A documentation-only commit does not need to rebuild apps/web on a runner,
@@ -105,7 +113,9 @@ env:
   # though production reads the LOCAL PostgreSQL (AGENTS.md §b). Flip back to
   # "true" when the project is resumed, then re-run the workflow once: the
   # migration runner is idempotent and will apply everything the mirror missed.
-  SUPABASE_MIGRATE: "false"
+  # Supabase is the production database since the shared-box room (ops/room).
+  # Pushes to main migrate; manual runs migrate only when asked.
+  SUPABASE_MIGRATE: ${{ github.event_name == 'push' || inputs.supabase_migrate == true }}
 
 # Least privilege for GITHUB_TOKEN. With no `permissions:` block the token
 # inherits the repository default, which on repos created before GitHub changed
@@ -375,6 +385,32 @@ jobs:
           # shellcheck disable=SC2086
           echo "$FILES" | xargs -r ./ops/check-destructive-migrations.sh
 
+      - name: Supabase state (read-only diagnostic)
+        # Always runs, changes nothing: shows which migrations Supabase has
+        # recorded and how much data it holds, so a first migrate against a
+        # database that was set up by hand (ops/supabase/cutover.sh) is never a
+        # surprise.
+        env:
+          PGHOST: ${{ secrets.SUPABASE_POOLER_HOST }}
+          PGPORT: ${{ secrets.SUPABASE_POOLER_PORT }}
+          PGDATABASE: postgres
+          PGUSER: postgres.${{ secrets.SUPABASE_PROJECT_REF }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
+        run: |
+          set -uo pipefail
+          psql -X -v ON_ERROR_STOP=0 -At <<'SQL'
+          \echo == reachable
+          select now(), current_user, version();
+          \echo == recorded migrations
+          select coalesce(string_agg(filename, ' ' order by filename), '<none>') from schema_migrations;
+          \echo == repo migrations not recorded (computed below)
+          \echo == row counts
+          select 'dogs', count(*) from dogs union all select 'identities', count(*) from identities
+            union all select 'care_providers', count(*) from care_providers union all select 'feed_events', count(*) from feed_events;
+          SQL
+          echo "repo migrations: $(ls packages/db/migrations | xargs echo)"
+
       - name: Apply migrations to Supabase (session pooler)
         if: env.SUPABASE_MIGRATE == 'true'
         env:
@@ -389,171 +425,120 @@ jobs:
       - name: Supabase mirror skipped
         if: env.SUPABASE_MIGRATE != 'true'
         run: |
-          echo "SUPABASE_MIGRATE=${SUPABASE_MIGRATE}: not applying migrations to the Supabase mirror."
-          echo "Production migrations still run on the box in ops/deploy-remote.sh (local PostgreSQL)."
-          echo "When the Supabase project is resumed, set SUPABASE_MIGRATE to \"true\" in deploy.yml."
+          echo "SUPABASE_MIGRATE=${SUPABASE_MIGRATE}: not applying migrations (manual run without supabase_migrate)."
 
   # =========================================================================
-  # DEPLOY -- build once here, ship the artifact, flip a symlink on the box.
+  # DEPLOY -- build everything HERE (never on the box), ship one tarball to
+  # the shared box's resource-capped room (ops/room), flip a symlink as the
+  # unprivileged `hetja` user, health-check, roll back on failure.
+  # The box is shared with an agent that has priority: nothing in this job
+  # runs as root there, compiles there, or touches anything outside /srv/hetja.
   # =========================================================================
   deploy:
-    name: Deploy (build, rsync, flip symlink, health-check)
+    name: Deploy to the room (build here, ship, flip, health-check)
     needs: migrate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-      # No `version:` here on purpose: pnpm/action-setup@v4 reads
-      # `packageManager` from package.json, and passing both makes it
-      # fail with "Multiple versions of pnpm specified".
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - name: Build workspace libraries
-        # @hetja/{ledger,contracts,db} expose `types: dist/index.d.ts` and dist/
-        # is gitignored, so on a clean checkout every consumer fails typecheck
-        # with "cannot find module ... or its corresponding type declarations".
-        # Build them before any gate that resolves those imports. Order matches
-        # ops/deploy.sh.
+
+      - name: Build everything
+        env:
+          # Inlined into the browser bundle at build time.
+          NEXT_PUBLIC_API_URL: https://api.hetja.in
+          NEXT_TELEMETRY_DISABLED: "1"
         run: |
           set -euo pipefail
           pnpm --filter @hetja/ledger build
           pnpm --filter @hetja/contracts build
           pnpm --filter @hetja/db build
+          pnpm --filter @hetja/api build
+          pnpm --filter @hetja/worker build
+          pnpm --filter @hetja/scan build
+          pnpm --filter @hetja/web build
 
-
-      - name: SSH setup (dedicated deploy key, non-standard port)
-        env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Fetch production web env (NEXT_PUBLIC_* is inlined at build time)
-        env:
-          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
-        run: |
-          set -euo pipefail
-          # apps/web/.env.production is never committed (see .env.example),
-          # and NEXT_PUBLIC_* values are baked into the JS bundle at build
-          # time, not read at runtime -- so building on the runner instead of
-          # the VPS only produces the right bundle if the runner sees the
-          # same values the box already has. Pull that one file over the
-          # same deploy SSH connection rather than duplicating its contents
-          # into a second set of GitHub Secrets that could drift from it.
-          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" \
-            "$SSH_USER@$SSH_HOST:/root/hetja/apps/web/.env.production" \
-            apps/web/.env.production
-
-      - name: Build @hetja/scan
-        run: pnpm --filter @hetja/scan build
-
-      - name: Build @hetja/web (standalone)
-        run: pnpm --filter @hetja/web build
-
-      - name: Assemble standalone web bundle
-        run: |
-          set -euo pipefail
-          # `output: standalone` traces only the JS/node_modules a running
-          # server needs -- it deliberately omits .next/static (hashed
-          # client assets) and public/ (fonts, icons, manifest, sw.js),
-          # which the Next docs say to copy in by hand. Both must land
-          # inside the traced apps/web/ subtree so the standalone server.js
-          # finds them relative to itself.
-          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
-          cp -r apps/web/public apps/web/.next/standalone/apps/web/public
-
-      - name: Compute release name
+      - name: Assemble release
         id: release
-        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-
-      - name: Rsync web + scan to a new release directory on the VPS
-        env:
-          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
-          RELEASE: ${{ steps.release.outputs.name }}
         run: |
           set -euo pipefail
-          RSYNC_SSH="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o StrictHostKeyChecking=yes"
-          REMOTE="$SSH_USER@$SSH_HOST"
-          RELEASE_DIR="/srv/hetja/releases/${RELEASE}"
+          ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          bash ops/room/build-release.sh "$RUNNER_TEMP/$ID.tar.gz"
 
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$REMOTE" \
-            "mkdir -p '${RELEASE_DIR}/web' '${RELEASE_DIR}/scan/scripts'"
-
-          rsync -az --delete -e "$RSYNC_SSH" \
-            apps/web/.next/standalone/ "$REMOTE:${RELEASE_DIR}/web/"
-
-          rsync -az --delete -e "$RSYNC_SSH" \
-            apps/scan/dist/ "$REMOTE:${RELEASE_DIR}/scan/dist/"
-
-          rsync -az -e "$RSYNC_SSH" \
-            apps/scan/scripts/serve.mjs "$REMOTE:${RELEASE_DIR}/scan/scripts/serve.mjs"
-
-          # Always ship the latest deploy-remote.sh alongside the release it is
-          # about to act on, rather than trusting whatever copy happens to
-          # already be on the box. This runs BEFORE the script resets that
-          # checkout, so it must come from the runner: a copy read out of the
-          # checkout would be the version from the PREVIOUS deploy.
-          rsync -az -e "$RSYNC_SSH" \
-            ops/deploy-remote.sh "$REMOTE:/srv/hetja/deploy-remote.sh"
-
-      - name: Build api+worker on the box, flip symlink, restart, health-check
-        # HETJA_APP_SHA is what makes hetja-api and hetja-worker part of this
-        # deploy at all. They run from the git checkout at /root/hetja rather
-        # than from a release directory, so deploy-remote.sh resets that
-        # checkout to this exact commit and rebuilds them (plain tsc -- cheap,
-        # unlike next build, which stays on this runner). Without this variable
-        # the two units get restarted on stale dist/ and the deploy reports
-        # success while an API change never ships.
+      - name: Write env files from secrets
         env:
-          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
-          RELEASE: ${{ steps.release.outputs.name }}
           PGHOST: ${{ secrets.SUPABASE_POOLER_HOST }}
           PGPORT: ${{ secrets.SUPABASE_POOLER_PORT }}
-          PGUSER: postgres.${{ secrets.SUPABASE_PROJECT_REF }}
+          PGREF: ${{ secrets.SUPABASE_PROJECT_REF }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.HETJA_JWT_SECRET }}
+          HETJA_HMAC_PEPPER: ${{ secrets.HETJA_HMAC_PEPPER }}
+          HETJA_QR_SECRET: ${{ secrets.HETJA_QR_SECRET }}
+          HETJA_DEVICE_SECRET: ${{ secrets.HETJA_DEVICE_SECRET }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASSWORD }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "HETJA_APP_SHA='$GITHUB_SHA' \
-             PGHOST='$PGHOST' PGPORT='$PGPORT' PGDATABASE=postgres PGUSER='$PGUSER' PGPASSWORD='$PGPASSWORD' PGSSLMODE=require \
-             bash /srv/hetja/deploy-remote.sh '$RELEASE'"
+          umask 077
+          for v in PGHOST PGPORT PGREF PGPASSWORD JWT_SECRET HETJA_HMAC_PEPPER HETJA_QR_SECRET HETJA_DEVICE_SECRET BREVO_SMTP_HOST BREVO_SMTP_USER BREVO_SMTP_PASS; do
+            [ -n "${!v}" ] || { echo "::error::secret for $v is empty"; exit 1; }
+          done
+          {
+            # PORT/HOST/NODE_ENV come from the systemd units.
+            printf 'PGHOST=%s\nPGPORT=%s\nPGDATABASE=postgres\nPGUSER=postgres.%s\n' "$PGHOST" "$PGPORT" "$PGREF"
+            printf 'PGPASSWORD=%s\nPGSSLMODE=require\nPGPOOL_MAX=4\n' "$PGPASSWORD"
+            printf 'JWT_SECRET=%s\nJWT_ACCESS_TTL=15m\nJWT_REFRESH_TTL=30d\n' "$JWT_SECRET"
+            printf 'HETJA_HMAC_PEPPER=%s\nHETJA_QR_SECRET=%s\nHETJA_DEVICE_SECRET=%s\n' "$HETJA_HMAC_PEPPER" "$HETJA_QR_SECRET" "$HETJA_DEVICE_SECRET"
+            printf 'VAPID_PUBLIC_KEY=%s\nVAPID_PRIVATE_KEY=%s\nVAPID_SUBJECT=mailto:no-reply@hetja.in\n' "$VAPID_PUBLIC_KEY" "$VAPID_PRIVATE_KEY"
+            printf 'BREVO_SMTP_HOST=%s\nBREVO_SMTP_PORT=%s\nBREVO_SMTP_USER=%s\nBREVO_SMTP_PASS=%s\nMAIL_FROM=no-reply@hetja.in\n' "$BREVO_SMTP_HOST" "${BREVO_SMTP_PORT:-587}" "$BREVO_SMTP_USER" "$BREVO_SMTP_PASS"
+            # One proxy hop: cloudflared -> Caddy (loopback) -> API.
+            printf 'TRUST_PROXY=1\nCORS_ORIGINS=https://hetja.in,https://www.hetja.in\n'
+            printf 'STORAGE_BACKEND=local\nSTORAGE_LOCAL_DIR=/srv/hetja/photos\n'
+          } > "$RUNNER_TEMP/api.env"
+          printf 'NEXT_PUBLIC_API_URL=https://api.hetja.in\n' > "$RUNNER_TEMP/web.env"
 
-      - name: Verify api and worker are running the deployed commit
-        # The health ladder proves the API answers; it cannot prove the API is
-        # answering FROM THIS COMMIT. Comparing the checkout's HEAD to
-        # $GITHUB_SHA is what would have caught the original gap, so it is now
-        # an assertion rather than something noticed by hand months later.
+      - name: SSH setup (deploy key for the unprivileged hetja user, pinned host key)
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+
+      - name: Ship and deploy (runs as hetja inside the room)
         env:
           SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
           SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          ID: ${{ steps.release.outputs.id }}
         run: |
           set -euo pipefail
-          ON_BOX="$(ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            'git -C /root/hetja rev-parse HEAD')"
-          echo "checkout HEAD on box:  $ON_BOX"
-          echo "commit being deployed: $GITHUB_SHA"
-          if [ "$ON_BOX" != "$GITHUB_SHA" ]; then
-            echo "::error::api/worker checkout is at $ON_BOX, not the deployed $GITHUB_SHA" >&2
-            exit 1
-          fi
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            'systemctl is-active hetja-api hetja-worker hetja-web hetja-scan'
+          O=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          scp "${O[@]}" -P "$SSH_PORT" "$RUNNER_TEMP/$ID.tar.gz" "$RUNNER_TEMP/api.env" "$RUNNER_TEMP/web.env" \
+            "$SSH_USER@$SSH_HOST:/srv/hetja/incoming/"
+          ssh "${O[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "/srv/hetja/bin/hetja-deploy '$ID'"
+
+      - name: Public check through Cloudflare
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' -m 15 https://hetja.in/ || true)"
+            echo "https://hetja.in -> $code"
+            [ "$code" = 200 ] && exit 0
+            sleep 10
+          done
+          echo "::error::hetja.in did not return 200 through the tunnel"; exit 1

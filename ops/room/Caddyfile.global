@@ -1,0 +1,16 @@
+# Global options for the shared-box room. The site blocks that follow are taken
+# verbatim from ops/caddy/Caddyfile at build time (build-release.sh), so routes
+# and cache policy have ONE source of truth, still guarded by
+# ops/check-caddy-cache.sh. Differences from the original global block:
+#   - default_bind 127.0.0.1: only cloudflared (on this box) can reach Caddy.
+#   - admin off: no :2019 listener on a box we share.
+#   - trusted_proxies static private_ranges: stock Caddy has no cloudflare-ip
+#     module, and behind the tunnel every request arrives from loopback anyway.
+{
+	auto_https off
+	admin off
+	default_bind 127.0.0.1
+	servers {
+		trusted_proxies static private_ranges
+	}
+}

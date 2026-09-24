@@ -1,0 +1,27 @@
+[Unit]
+Description=Hetja Cloudflare Tunnel connector (hetja.in -> localhost:80)
+After=network-online.target hetja-caddy.service
+Wants=network-online.target
+PartOf=hetja.target
+
+[Service]
+Slice=hetja.slice
+User=hetja
+Group=hetja
+Nice=10
+OOMScoreAdjust=1000
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+# TUNNEL_TOKEN lives in a root-only file; systemd reads it before dropping to
+# the hetja user, so the token is never readable by the deploy user or on disk
+# anywhere the site can write.
+EnvironmentFile=/etc/hetja/tunnel.env
+ExecStart=/srv/hetja/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:0 run
+
+[Install]
+WantedBy=hetja.target

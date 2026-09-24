@@ -1,0 +1,13 @@
+# Deploys restart the site WITHOUT sudo: the deploy user writes a new release
+# SHA into this stamp file and systemd restarts the Hetja services. Nothing
+# outside hetja.target is ever touched.
+[Unit]
+Description=Restart Hetja when a new release is stamped
+PartOf=hetja.target
+
+[Path]
+PathModified=/srv/hetja/shared/deploy-stamp
+Unit=hetja-restart.service
+
+[Install]
+WantedBy=hetja.target

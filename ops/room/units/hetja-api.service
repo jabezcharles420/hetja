@@ -1,0 +1,32 @@
+[Unit]
+Description=Hetja API (Fastify)
+After=network-online.target
+Wants=network-online.target
+PartOf=hetja.target
+
+[Service]
+Slice=hetja.slice
+User=hetja
+Group=hetja
+Nice=10
+OOMScoreAdjust=1000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/srv/hetja/shared /srv/hetja/photos
+WorkingDirectory=/srv/hetja/current/api
+Environment=NODE_ENV=production PORT=8080 HOST=127.0.0.1 NODE_OPTIONS=--max-old-space-size=80
+EnvironmentFile=/srv/hetja/shared/api.env
+ExecStart=/srv/hetja/bin/node dist/server.js
+
+[Install]
+WantedBy=hetja.target

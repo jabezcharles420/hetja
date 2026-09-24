@@ -1,0 +1,25 @@
+# Hetja's resource room on a SHARED box. The co-tenant (an autonomous agent)
+# has priority: it keeps the default CPUWeight=100, Hetja gets 20, so under
+# contention Hetja receives about a sixth of the CPU, and never more than 60% of
+# one core even when the box is idle. Every Hetja unit sets OOMScoreAdjust=1000
+# so a global OOM kills Hetja before anything the agent runs.
+#
+# MEMORY IS SIZED FROM THE AGENT'S WATCHDOG, not from what Hetja wants.
+# /usr/local/bin/jobagent-watchdog restarts the agent's browser (camofox) when
+# MemAvailable < 250 MB. At camofox's own ceiling (MemoryMax 1.7 GB) the agent
+# leaves ~590 MB available on this 3 GB box, so Hetja must stay under ~340 MB
+# or it could indirectly trigger that restart. MemoryHigh=300M makes the kernel
+# reclaim/swap Hetja first (the site gets slower, the agent does not);
+# MemoryMax=360M is the hard wall.
+[Unit]
+Description=Hetja website (resource-capped; co-tenant agent has priority)
+Before=slices.target
+
+[Slice]
+CPUWeight=20
+CPUQuota=60%
+MemoryHigh=300M
+MemoryMax=360M
+MemorySwapMax=192M
+TasksMax=512
+IOWeight=20

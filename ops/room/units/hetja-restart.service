@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart Hetja services for a new release
+
+[Service]
+Type=oneshot
+Slice=hetja.slice
+ExecStart=/usr/bin/systemctl restart hetja-api.service hetja-worker.service hetja-web.service hetja-scan.service
+ExecStart=/usr/bin/systemctl reload-or-restart hetja-caddy.service

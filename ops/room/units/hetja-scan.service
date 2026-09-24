@@ -1,0 +1,31 @@
+[Unit]
+Description=Hetja collar landing (static)
+After=network-online.target
+Wants=network-online.target
+PartOf=hetja.target
+
+[Service]
+Slice=hetja.slice
+User=hetja
+Group=hetja
+Nice=10
+OOMScoreAdjust=1000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/srv/hetja/shared /srv/hetja/photos
+WorkingDirectory=/srv/hetja/current/scan
+Environment=PORT=8081 HOST=127.0.0.1 NODE_OPTIONS=--max-old-space-size=24
+ExecStart=/srv/hetja/bin/node scripts/serve.mjs
+
+[Install]
+WantedBy=hetja.target

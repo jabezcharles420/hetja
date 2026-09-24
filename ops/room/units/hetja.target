@@ -1,0 +1,6 @@
+[Unit]
+Description=Hetja website (all services)
+Wants=hetja-web.service hetja-api.service hetja-worker.service hetja-scan.service hetja-caddy.service hetja-tunnel.service hetja-restart.path
+
+[Install]
+WantedBy=multi-user.target

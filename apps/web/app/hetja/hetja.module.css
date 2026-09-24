@@ -300,10 +300,13 @@
     line-height: 1.5;
   }
 
+  /* A ✦ always travels with the passage it introduces. The turn is NOT chained
+   * to the heading after it: that chain (✦ + turn + heading + paragraph) was
+   * too tall to fit, so the ✦ was stranded alone at the foot of page 1. */
   .heading,
   .facetLead,
   .songHeading,
-  .turn {
+  .break {
     break-after: avoid;
     page-break-after: avoid;
   }

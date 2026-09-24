@@ -955,9 +955,11 @@ button:active,
   }
 
   /* A fixed tab bar or aurora printed across a collar sheet is a wasted sheet
-   * of TPU. Hide chrome in print CSS as well as via ChromeShell. */
-  header,
-  footer,
+   * of TPU. Hide chrome in print CSS as well as via ChromeShell. Scoped to the
+   * site chrome by class: a bare `header` selector also hid page content that
+   * happens to use <header> (the /hetja masthead vanished from print). */
+  .h-header,
+  .h-footer,
   nav,
   [data-ambient] {
     display: none !important;

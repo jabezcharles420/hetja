@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
-import { coarsenToWard, type DogStatus } from "@hetja/contracts";
+import { coarsenToWard, wardName, type DogStatus } from "@hetja/contracts";
 import { timingSafeEqual } from "node:crypto";
 import { query, isValidSlug } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
+import { verifyAccessToken } from "../lib/jwt.js";
 
 interface DogRow {
   id: string;
@@ -15,6 +16,14 @@ interface DogRow {
   last_seen_at: string | null;
   lat: number | null;
   lng: number | null;
+  registered_by: string | null;
+}
+
+interface CareCountsRow {
+  last_fed_at: Date | null;
+  feeder_count: number;
+  story_author_count: number;
+  abc_verified: boolean;
 }
 
 interface StoryRow {
@@ -53,6 +62,69 @@ function isoDate(value: unknown): string | null {
 const notFound = (reply: FastifyReply) =>
   reply.status(404).send({ ok: false, error: { message: "not found", code: "NOT_FOUND" } });
 
+/**
+ * Statuses that are NOT public. A self-serve registration is born
+ * 'pending_activation' and "stays invisible to every public surface until
+ * somebody stands at a location with the printed tag and scans it"
+ * (routes/registrations.ts), and the expiry sweep turns an unactivated one
+ * into 'expired'. This route used to have no status filter at all, so both
+ * were readable by anyone holding the slug, contradicting that promise.
+ *
+ * Nothing in the activation flow needs this read: activation is a POST
+ * /api/v1/scans (scans.ts resolves the dog by slug with no status filter),
+ * the print page reads GET /api/v1/registrations/:slug, and the SOS report
+ * path resolves the slug itself. The one caller who may still see the
+ * profile is the registrator who filed it (Bearer = dogs.registered_by), so
+ * they can check the etched URL resolves before gluing it to an animal.
+ */
+const NON_PUBLIC_STATUSES = new Set(["pending_activation", "expired"]);
+
+/** Bearer subject if a valid access token is presented, else null. Never 401s: this is a public read. */
+function optionalFeederId(req: FastifyRequest): string | null {
+  const raw = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
+  if (!raw.startsWith("Bearer ")) return null;
+  try {
+    return verifyAccessToken(raw.slice(7), req.server.config.JWT_SECRET).sub;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sterilisation, from evidence only. 'yes' needs a verified ABC medical record
+ * (abc_date set) or an abc_status that says it was done; 'no' needs an
+ * abc_status that explicitly says it was NOT done. Anything else, including a
+ * free-text value this list does not recognise, is 'unknown': telling a
+ * stranger a dog is unsterilised on a guess is as wrong as the reverse.
+ */
+const ABC_DONE = new Set(["sterilized", "sterilised", "done", "abc_done", "yes", "neutered", "spayed"]);
+const ABC_NOT_DONE = new Set(["no", "not_done", "not_sterilized", "not_sterilised", "intact"]);
+
+export function sterilisedFrom(
+  abcStatus: string | null,
+  abcVerified: boolean,
+): "yes" | "no" | "unknown" {
+  if (abcVerified) return "yes";
+  const v = abcStatus?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+  if (ABC_DONE.has(v)) return "yes";
+  if (ABC_NOT_DONE.has(v)) return "no";
+  return "unknown";
+}
+
+/**
+ * Absolute photo URL, built exactly as apps/web's dogPhotoUrl does
+ * (`${origin}/${photoKey}`): photos are served from the API origin. The
+ * origin is PUBLIC_API_ORIGIN when configured, else the origin this request
+ * arrived on. Computed per response, never cached, because the second form
+ * depends on the request.
+ */
+function photoUrlFor(req: FastifyRequest, photoKey: string | null): string | null {
+  if (!photoKey) return null;
+  const configured = req.server.config.PUBLIC_API_ORIGIN.replace(/\/+$/, "");
+  const origin = configured || `${req.protocol}://${req.host}`;
+  return `${origin}/${photoKey.replace(/^\/+/, "")}`;
+}
+
 interface DogPagePayload {
   slug: string;
   name: string | null;
@@ -64,6 +136,15 @@ interface DogPagePayload {
   microStory: string | null;
   lastSeenAt: string | null;
   geo: { lat: number; lng: number } | null;
+  // Design-v4 additions. New keys only, so older clients are unaffected. All
+  // are counts or ward-level values: never an identity (INVARIANT 3), never a
+  // position finer than the ward (INVARIANT 2).
+  wardName: string | null;
+  vaccinated: "yes" | "unknown";
+  sterilised: "yes" | "no" | "unknown";
+  lastFedAt: string | null;
+  feederCount: number;
+  storyAuthorCount: number;
 }
 
 // In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
@@ -211,21 +292,31 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
     // any valid signature on the same slug, and identical again for the
     // signature-less typed path). A signature failure above, and every 404
     // below, skips the cache entirely, so errors are never cached.
+    // Only publicly visible dogs are ever cached (see NON_PUBLIC_STATUSES
+    // below), so a hit is safe to serve to anyone.
     const cached = dogCache.get(slug);
-    if (cached) return { ok: true, data: cached };
+    if (cached) return { ok: true, data: { ...cached, photoUrl: photoUrlFor(req, cached.photoKey) } };
 
     const dogRes = await query<DogRow>(
       `SELECT d.id, d.slug, d.name, d.status, d.ward_id, d.abc_status, d.last_seen_at,
               ST_Y(d.last_seen_geo::geometry) AS lat,
-              ST_X(d.last_seen_geo::geometry) AS lng
+              ST_X(d.last_seen_geo::geometry) AS lng,
+              d.registered_by
        FROM dogs d
        WHERE d.slug = $1`,
       [slug],
     );
     const dog = dogRes.rows[0];
     if (!dog) return notFound(reply);
+    // Same 404 as an unknown slug, so the response does not confirm that an
+    // inert registration exists. The filing registrator is the one exception.
+    const isPublic = !NON_PUBLIC_STATUSES.has(dog.status);
+    if (!isPublic) {
+      const caller = optionalFeederId(req);
+      if (!caller || !dog.registered_by || caller !== dog.registered_by) return notFound(reply);
+    }
 
-    const [storyRes, vaccineRes, photoRes] = await Promise.all([
+    const [storyRes, vaccineRes, photoRes, countsRes] = await Promise.all([
       query<StoryRow>(
         // MODERATED only: same rule as GET /api/v1/dogs/:slug/stories
         // (stories.ts: "New stories start UNMODERATED and stay hidden from the
@@ -246,9 +337,28 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         [dog.id],
       ),
       query<PhotoRow>(
+        // Not SOS photos: since POST /api/v1/reports accepts a photo, the
+        // newest photo of a dog can be a stranger's picture of it injured.
+        // That is evidence for the case, not the dog's public portrait.
         `SELECT photo_s3_key FROM scans
-         WHERE dog_id = $1 AND photo_s3_key IS NOT NULL
+         WHERE dog_id = $1 AND photo_s3_key IS NOT NULL AND scan_type <> 'sos'
          ORDER BY received_at DESC LIMIT 1`,
+        [dog.id],
+      ),
+      query<CareCountsRow>(
+        // Aggregates only: a time and two counts, never who. Rejected feeds
+        // do not count as the dog having been fed. Stories count only once
+        // moderated, the same rule as microStory above.
+        `SELECT
+           (SELECT max(s.captured_at) FROM scans s
+             WHERE s.dog_id = $1 AND s.scan_type = 'feed' AND s.review_status <> 'rejected') AS last_fed_at,
+           (SELECT count(DISTINCT s.feeder_id)::int FROM scans s
+             WHERE s.dog_id = $1 AND s.scan_type = 'feed' AND s.feeder_id IS NOT NULL
+               AND s.review_status <> 'rejected') AS feeder_count,
+           (SELECT count(DISTINCT ds.author_feeder_id)::int FROM dog_stories ds
+             WHERE ds.dog_id = $1 AND ds.moderated_at IS NOT NULL) AS story_author_count,
+           EXISTS (SELECT 1 FROM medical_records m
+             WHERE m.dog_id = $1 AND m.is_verified AND m.abc_date IS NOT NULL) AS abc_verified`,
         [dog.id],
       ),
     ]);
@@ -256,6 +366,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
     const story = storyRes.rows[0];
     const vaccine = vaccineRes.rows[0];
     const photo = photoRes.rows[0];
+    const counts = countsRes.rows[0];
     const geo = dog.lat != null && dog.lng != null ? coarsenToWard(dog.lat, dog.lng) : undefined;
 
     const payload: DogPagePayload = {
@@ -272,9 +383,18 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       microStory: story?.paragraph ?? null,
       lastSeenAt: dog.last_seen_at ?? null,
       geo: geo ?? null,
+      wardName: wardName(dog.ward_id),
+      // The same verified-record query vaccineStatus renders. No record is
+      // 'unknown', never 'no': an unrecorded vaccination is not evidence of
+      // an unvaccinated dog.
+      vaccinated: vaccine ? "yes" : "unknown",
+      sterilised: sterilisedFrom(dog.abc_status, counts?.abc_verified === true),
+      lastFedAt: counts?.last_fed_at ? new Date(counts.last_fed_at).toISOString() : null,
+      feederCount: counts?.feeder_count ?? 0,
+      storyAuthorCount: counts?.story_author_count ?? 0,
     };
-    dogCache.set(slug, payload);
+    if (isPublic) dogCache.set(slug, payload);
 
-    return { ok: true, data: payload };
+    return { ok: true, data: { ...payload, photoUrl: photoUrlFor(req, payload.photoKey) } };
   });
 }

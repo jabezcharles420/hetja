@@ -4,7 +4,8 @@ import { loadConfig } from "../config.js";
 import { signSlug } from "../lib/hmac.js";
 import { query, generateSlug, isValidSlug } from "@hetja/db";
 import { GENESIS_PREV_HASH, computeHash } from "@hetja/ledger";
-import { dogCache } from "./dogs.js";
+import { signAccessToken } from "../lib/jwt.js";
+import { dogCache, sterilisedFrom } from "./dogs.js";
 
 const config = loadConfig();
 
@@ -236,4 +237,177 @@ describe("GET /api/v1/dogs/:slug (anon)", () => {
 
     await app.close();
   });
+});
+
+describe("GET /api/v1/dogs/:slug: design-v4 fields", () => {
+  const extraFeeders: string[] = [];
+
+  afterEach(async () => {
+    if (testDog) await query(`DELETE FROM scans WHERE dog_id = $1`, [testDog.id]);
+    for (const id of extraFeeders.splice(0)) {
+      await query(`DELETE FROM scans WHERE feeder_id = $1`, [id]);
+      await query(`UPDATE dogs SET registered_by = NULL WHERE registered_by = $1`, [id]);
+      await query(`DELETE FROM feeders WHERE id = $1`, [id]);
+    }
+  });
+
+  async function feeder(): Promise<string> {
+    const res = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
+       VALUES ($1, 'V4 Feeder', 'feeder', 30, 'v1', FALSE) RETURNING id`,
+      [`dogs-v4-${Math.random()}`],
+    );
+    extraFeeders.push(res.rows[0].id);
+    return res.rows[0].id;
+  }
+
+  async function feed(feederId: string | null, capturedAt: string, reviewStatus = "pending"): Promise<void> {
+    await query(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, feeder_id, captured_at, received_at, review_status)
+       VALUES ($1, gen_random_uuid(), 'feed', $2, $3, now(), $4)`,
+      [testDog!.id, feederId, capturedAt, reviewStatus],
+    );
+  }
+
+  it("adds ward name, vaccination, sterilisation, counts and photoUrl with safe defaults", async () => {
+    const app = buildServer(config);
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    expect(res.statusCode).toBe(200);
+    const d = res.json().data;
+    expect(d.wardName).toBe("Andheri West");
+    expect(d.vaccinated).toBe("yes");
+    // abc_status NULL and no ABC record: unknown, never a guessed "no".
+    expect(d.sterilised).toBe("unknown");
+    expect(d.lastFedAt).toBeNull();
+    expect(d.feederCount).toBe(0);
+    expect(d.storyAuthorCount).toBe(1);
+    expect(d.photoUrl).toBeNull();
+    await app.close();
+  });
+
+  it("counts distinct feeders, never names them, and ignores rejected feeds", async () => {
+    const app = buildServer(config);
+    const a = await feeder();
+    const b = await feeder();
+    const c = await feeder();
+    await feed(a, "2026-09-01T06:00:00.000Z");
+    await feed(a, "2026-09-02T06:00:00.000Z");
+    await feed(b, "2026-09-03T06:00:00.000Z");
+    await feed(null, "2026-09-03T07:00:00.000Z"); // anonymous device feed: a feed, not a feeder
+    await feed(c, "2026-09-04T06:00:00.000Z", "rejected");
+
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    const d = res.json().data;
+    expect(d.feederCount).toBe(2);
+    expect(d.lastFedAt).toBe("2026-09-03T07:00:00.000Z");
+    // INVARIANT 3: counts only. No feeder id appears anywhere in the payload.
+    for (const id of [a, b, c]) expect(res.body).not.toContain(id);
+    await app.close();
+  });
+
+  it("vaccinated is 'unknown' without a verified record; sterilised follows evidence only", async () => {
+    const app = buildServer(config);
+    const other = await query<{ id: string; slug: string }>(
+      `INSERT INTO dogs (slug, name, ward_id, abc_status) VALUES ($1, 'NoRecords', 'not-a-ward', 'not_sterilized')
+       RETURNING id, slug`,
+      [randomSlug()],
+    );
+    try {
+      const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${other.rows[0].slug}` });
+      const d = res.json().data;
+      expect(d.vaccinated).toBe("unknown");
+      expect(d.sterilised).toBe("no");
+      expect(d.wardName).toBeNull();
+    } finally {
+      await query(`DELETE FROM dogs WHERE id = $1`, [other.rows[0].id]);
+      await app.close();
+    }
+  });
+
+  it("sterilisedFrom: a verified ABC record wins; unknown text is unknown, not no", () => {
+    expect(sterilisedFrom(null, true)).toBe("yes");
+    expect(sterilisedFrom("not_sterilized", true)).toBe("yes");
+    expect(sterilisedFrom("Sterilized", false)).toBe("yes");
+    expect(sterilisedFrom("abc done", false)).toBe("yes");
+    expect(sterilisedFrom("not sterilised", false)).toBe("no");
+    expect(sterilisedFrom("scheduled for next camp", false)).toBe("unknown");
+    expect(sterilisedFrom(null, false)).toBe("unknown");
+  });
+
+  it("marks sterilised 'yes' from a verified ABC medical record", async () => {
+    const app = buildServer(config);
+    const ts = new Date().toISOString() + Math.random();
+    await query(
+      `INSERT INTO medical_records (dog_id, record_type, abc_date, is_verified, payload_len, hash_prev, hash_curr, hash_vet_id, hash_ts)
+       VALUES ($1, 'abc', '2026-02-01', TRUE, 0, $2, $3, 'feeder', $4)`,
+      [testDog!.id, GENESIS_PREV_HASH, computeHash(GENESIS_PREV_HASH, { recordType: "abc" }, "feeder", ts), ts],
+    );
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    expect(res.json().data.sterilised).toBe("yes");
+    await app.close();
+  });
+
+  it("builds an absolute photoUrl, and never uses an SOS report photo as the portrait", async () => {
+    const app = buildServer({ ...config, PUBLIC_API_ORIGIN: "https://api.example.test/" });
+    await query(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, captured_at, received_at, review_status, photo_s3_key)
+       VALUES ($1, gen_random_uuid(), 'feed', now(), now() - interval '1 minute', 'pending', 'photos/portrait.webp'),
+              ($1, gen_random_uuid(), 'sos', now(), now(), 'pending', 'photos/injury.jpg')`,
+      [testDog!.id],
+    );
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    const d = res.json().data;
+    expect(d.photoKey).toBe("photos/portrait.webp");
+    expect(d.photoUrl).toBe("https://api.example.test/photos/portrait.webp");
+    await app.close();
+
+    // Without a configured origin, the request's own origin is used, even on
+    // a cache hit (the URL is never cached).
+    const app2 = buildServer({ ...config, PUBLIC_API_ORIGIN: "" });
+    const res2 = await app2.inject({
+      method: "GET",
+      url: `/api/v1/dogs/${testDog!.slug}`,
+      headers: { host: "api.local:8080" },
+    });
+    expect(res2.json().data.photoUrl).toBe("http://api.local:8080/photos/portrait.webp");
+    await app2.close();
+  });
+
+  for (const status of ["pending_activation", "expired"]) {
+    it(`404s a ${status} dog to the public, but not to the registrator who filed it`, async () => {
+      const app = buildServer(config);
+      const registrator = await feeder();
+      const stranger = await feeder();
+      await query(`UPDATE dogs SET status = $2, registered_by = $3 WHERE id = $1`, [
+        testDog!.id,
+        status,
+        registrator,
+      ]);
+      const url = `/api/v1/dogs/${testDog!.slug}?s=${signSlug(testDog!.slug, config.HETJA_QR_SECRET)}`;
+      const bearer = (id: string) => ({
+        authorization: `Bearer ${signAccessToken(id, config.JWT_SECRET, config.JWT_ACCESS_TTL)}`,
+      });
+
+      const anon = await app.inject({ method: "GET", url });
+      expect(anon.statusCode).toBe(404);
+      expect(anon.json().error.code).toBe("NOT_FOUND");
+
+      const other = await app.inject({ method: "GET", url, headers: bearer(stranger) });
+      expect(other.statusCode).toBe(404);
+
+      const own = await app.inject({ method: "GET", url, headers: bearer(registrator) });
+      expect(own.statusCode).toBe(200);
+      expect(own.json().data.status).toBe(status);
+
+      // The registrator's 200 must not have been cached for everyone else.
+      const anonAgain = await app.inject({ method: "GET", url });
+      expect(anonAgain.statusCode).toBe(404);
+
+      // Once active (what a geotagged activation scan does), it is public.
+      await query(`UPDATE dogs SET status = 'active' WHERE id = $1`, [testDog!.id]);
+      const after = await app.inject({ method: "GET", url });
+      expect(after.statusCode).toBe(200);
+      await app.close();
+    });
+  }
 });

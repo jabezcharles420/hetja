@@ -521,3 +521,41 @@ export async function getFeederTrust(feederId: string): Promise<FeederTrustView>
     events: events.rows,
   };
 }
+
+/**
+ * TRUST LEVELS: a display ladder over the score, for the feeder's own /me
+ * page. Not a gate: every gate in the system reads trust_score directly
+ * against its own constant, and this ladder only names the steps between
+ * those constants so a feeder can see what the next one unlocks. The
+ * thresholds ARE the gates, deliberately, so the ladder can never promise a
+ * level that does not change what the account can do (docs/INVARIANTS.md,
+ * "The re-tag trust gate is 50"):
+ *
+ *   level 1  "New feeder"      score  < 40   (baseline 30; 10 feeds to go)
+ *   level 2  "Trusted feeder"  40 to 49      SOS fan-out floor, minor/serious (sos.ts)
+ *   level 3  "Trusted feeder"  50 to 59      the re-tag gate
+ *   level 4  "Trusted feeder"  60 and up     SOS fan-out floor, critical (sos.ts)
+ *
+ * `nextThreshold` is the score at which the next level starts, or null at
+ * the top. Pure function of the score, so it needs no storage and follows the
+ * score through every recompute.
+ */
+export const TRUST_LEVEL_THRESHOLDS = [40, 50, 60] as const;
+
+export interface TrustLevel {
+  name: string;
+  level: number;
+  nextThreshold: number | null;
+}
+
+export function trustLevelFor(score: number): TrustLevel {
+  let level = 1;
+  for (const threshold of TRUST_LEVEL_THRESHOLDS) {
+    if (score >= threshold) level += 1;
+  }
+  return {
+    name: level === 1 ? "New feeder" : "Trusted feeder",
+    level,
+    nextThreshold: TRUST_LEVEL_THRESHOLDS[level - 1] ?? null,
+  };
+}

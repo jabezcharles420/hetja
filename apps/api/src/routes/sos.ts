@@ -17,6 +17,9 @@
  *                The escalate_sos job runs at now() instead of +8 min whenever
  *                responders were NOT paged at report time on a critical case:
  *                there is no one to wait eight minutes for.
+ * GET  /api/v1/reports/:caseId/status: the REPORTER's own view of a case they
+ *                filed: { state, ackedAt, escalatedAt, resolvedAt } and nothing
+ *                else, authorised only by the device (or account) that filed it.
  * GET  /api/v1/sos/cases/:id:    feeder-authed case state, visible only to the
  *                acker, the responders paged for it, or a moderator.
  * POST /api/v1/sos/cases/:id/ack:      first writer wins (below).
@@ -25,11 +28,14 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
+import { MAX_PHOTO_BASE64_CHARS, SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { deviceTokenSubject } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { parseUuidParam } from "../lib/params.js";
+import { RateLimiter } from "../lib/rate-limit.js";
+import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storage.js";
+import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
 import { capabilitiesFor, requireFeeder } from "../lib/require-role.js";
 import { getNearbyCare } from "./care.js";
 
@@ -42,7 +48,20 @@ const SosReportInput = z.object({
   severity: z.enum(["minor", "serious", "critical"]),
   note: z.string().max(500).optional(),
   deviceToken: z.string().min(1).max(256).optional(),
+  // Optional photo of the dog. Same cap and same decode/EXIF-strip path as a
+  // scan's photo (routes/scans.ts). Deliberately NOT part of the dedupe key
+  // below: a re-submit with a different photo is still the same report, so a
+  // photo can never be used to mint a "new" case around the INVARIANT 7 cap.
+  photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
 });
+
+/**
+ * Reporter status polls, per device (or per account for a signed-in
+ * reporter). INVARIANT 6: keyed on the canonical subject, never the IP. A
+ * stranger's page polling every 15 s stays well inside 20 burst + 1 per 5 s;
+ * a script hammering case ids to probe for existence does not.
+ */
+export const reportStatusLimiter = new RateLimiter({ refillPerSec: 1 / 5, burst: 20 });
 
 class SosRateLimitError extends Error {
   constructor() {
@@ -189,6 +208,15 @@ async function dispatchFanout(
   return true;
 }
 
+async function persistReportPhoto(app: FastifyInstance, scanId: string, photo: StrippedImage): Promise<void> {
+  try {
+    const photoKey = await storePhoto(photo, app.config as unknown as StorageConfig);
+    await query(`UPDATE scans SET photo_s3_key = $1 WHERE id = $2 AND photo_s3_key IS NULL`, [photoKey, scanId]);
+  } catch (err) {
+    app.log.warn({ err, scanId }, "sos report photo persist failed");
+  }
+}
+
 export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/reports", async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = SosReportInput.safeParse(req.body);
@@ -197,7 +225,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .status(400)
         .send({ ok: false, error: { message: "invalid sos report", code: "INVALID_SOS_REPORT" } });
     }
-    const { dogSlug, severity, note, deviceToken } = parsed.data;
+    const { dogSlug, severity, note, deviceToken, photoBase64 } = parsed.data;
 
     // INVARIANT 6/7: `deviceSubject` (the canonical deviceId the token
     // attests) is the rate-limit subject, and the ONLY device-derived value
@@ -227,6 +255,25 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
     }
 
+    // Photo: validated and metadata-stripped HERE, on the request path, for
+    // the same two reasons as routes/scans.ts (unstripped bytes would publish
+    // the camera's GPS, INVARIANT 2; and "rejected" must mean a 400, not a
+    // background warning). After auth, so an unauthenticated caller cannot
+    // make the server decode images. The bytes are only WRITTEN after the
+    // transaction below has passed the INVARIANT 7 cap and opened a new case.
+    let photo: StrippedImage | null = null;
+    if (photoBase64) {
+      try {
+        photo = decodePhotoUpload(photoBase64);
+      } catch (err) {
+        if (!(err instanceof UnsupportedImageError)) throw err;
+        return reply.status(400).send({
+          ok: false,
+          error: { message: `photo rejected: ${err.message}`, code: "INVALID_PHOTO" },
+        });
+      }
+    }
+
     // INVARIANT 5: deterministic client_uuid → replay of the same report is
     // idempotent (a re-submit while a case is open/acked never double-opens).
     // Keyed on `deviceSubject`, not the token string, for the same reason the
@@ -251,6 +298,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       tier: number;
       fanout: FanoutDisposition;
     }
+    // The scan row a NEW case hangs off, kept out of ReportOutcome so the
+    // response shape is unchanged. Only set when a case was created.
+    const opened: { scanId: string | null } = { scanId: null };
     let result: ReportOutcome;
     try {
       result = await withTx(async (client): Promise<ReportOutcome> => {
@@ -445,6 +495,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           [JSON.stringify({ caseId, dogId: dog.id })],
         );
 
+        opened.scanId = scanId;
         return { created: true, caseId, tier, fanout };
       });
     } catch (err) {
@@ -459,6 +510,15 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           .send({ ok: false, error: { message: "dog not found", code: "DOG_NOT_FOUND" } });
       }
       throw err;
+    }
+
+    // Background write, like a scan photo: never blocks the emergency
+    // response. Only for a case this request actually opened (a replay or a
+    // capped report stores nothing), and never over a photo the scan row
+    // already has: a re-filed report reuses its scan row (see the cap
+    // comment above), and the first photo stays the evidence.
+    if (photo && result.created && opened.scanId) {
+      void persistReportPhoto(app, opened.scanId, photo);
     }
 
     // Emergency-path improvement (plan §2.4): return a callable number
@@ -481,6 +541,91 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       dogGeo?.lat != null && dogGeo?.lng != null ? await getNearbyCare(dogGeo.lat, dogGeo.lng) : [];
 
     return { ok: true, data: { ...result, nearbyCare } };
+  });
+
+  /**
+   * GET /api/v1/reports/:caseId/status: "what happened to my report?"
+   *
+   * The reporter is usually a stranger with no account, so the credential is
+   * the one they reported with: the X-Device-Token whose CANONICAL device id
+   * (deviceTokenSubject, never the raw string; see the INVARIANT 7 notes in
+   * the POST above) equals scans.device_token on the scan that opened the
+   * case, or the Bearer account recorded as that scan's feeder_id.
+   *
+   * Deliberately narrow. The body is four fields: state and three
+   * timestamps. No tier, no responder, no acker, no notes, no geo: the
+   * reporter learns that somebody is on it, not who (INVARIANT 3) or where
+   * they are. Any mismatch answers the same 404 as a case that does not
+   * exist, so a device cannot probe other people's case ids for existence.
+   * Rate-limited per subject (INVARIANT 6), before any database work.
+   */
+  app.get("/api/v1/reports/:caseId/status", async (req: FastifyRequest, reply: FastifyReply) => {
+    reply.header("Cache-Control", "no-store");
+    const notFound = () =>
+      reply.status(404).send({ ok: false, error: { message: "not found", code: "NOT_FOUND" } });
+
+    let feederId: string | null = null;
+    let deviceSubject: string | null = null;
+    const rawAuth = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
+    if (rawAuth.startsWith("Bearer ")) {
+      try {
+        feederId = verifyAccessToken(rawAuth.slice(7), app.config.JWT_SECRET).sub;
+      } catch {
+        return reply
+          .status(401)
+          .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
+      }
+    } else {
+      const deviceToken = req.headers["x-device-token"];
+      deviceSubject =
+        typeof deviceToken === "string" ? deviceTokenSubject(deviceToken, app.config.HETJA_DEVICE_SECRET) : null;
+      if (!deviceSubject) {
+        return reply
+          .status(401)
+          .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
+      }
+    }
+
+    const budget = reportStatusLimiter.consume(feederId ? `acct:${feederId}` : `dev:${deviceSubject}`);
+    if (!budget.allowed) {
+      return reply
+        .status(429)
+        .header("retry-after", String(budget.retryAfterSec))
+        .send({ ok: false, error: { message: "too many status checks", code: "RATE_LIMITED" } });
+    }
+
+    // A malformed id is answered exactly like a foreign one.
+    const caseId = parseUuidParam((req.params as { caseId: string }).caseId);
+    if (!caseId) return notFound();
+
+    const res = await query<{
+      state: string;
+      acked_at: Date | null;
+      escalated_at: Date | null;
+      resolved_at: Date | null;
+    }>(
+      `SELECT c.state, c.acked_at, c.escalated_at, c.resolved_at
+         FROM sos_cases c
+         JOIN scans s ON s.id = c.scan_id
+        WHERE c.id = $1
+          AND s.scan_type = 'sos'
+          AND (($2::uuid IS NOT NULL AND s.feeder_id = $2::uuid)
+               OR ($3::text IS NOT NULL AND s.device_token = $3::text))`,
+      [caseId, feederId, deviceSubject],
+    );
+    const row = res.rows[0];
+    if (!row) return notFound();
+
+    const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+    return {
+      ok: true,
+      data: {
+        state: row.state,
+        ackedAt: iso(row.acked_at),
+        escalatedAt: iso(row.escalated_at),
+        resolvedAt: iso(row.resolved_at),
+      },
+    };
   });
 
   /**

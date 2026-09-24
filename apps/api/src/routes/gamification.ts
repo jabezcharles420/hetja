@@ -2,7 +2,11 @@
  * Hetja GAMIFICATION endpoints (feeder-authed).
  *
  * GET  /api/v1/feeders/me/streak            : current streak_days + the last
- *   feed's calendar day + a hint for the next earnable badge.
+ *   feed's calendar day + a hint for the next earnable badge. Also
+ *   `streakStart` (the first day of the current run, derived as
+ *   lastFeedDate - (streakDays - 1); null when there is no live streak) and
+ *   `trustLevel` ({ name, level, nextThreshold }, see trustLevelFor in
+ *   lib/trust.ts). Both derived, both additive.
  * POST /api/v1/feeders/me/badges/check      : called by the client after a
  *   feed scan: evaluates the badge catalog against server-recorded state and
  *   grants (INSERTs into feeders.badges) any newly earned badges. Grants are
@@ -11,7 +15,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
-import { evaluateBadges, GamificationError, getStreakView } from "../lib/gamification.js";
+import { addDays, evaluateBadges, GamificationError, getStreakView } from "../lib/gamification.js";
+import { trustLevelFor } from "../lib/trust.js";
 
 function feederAuth(
   req: FastifyRequest,
@@ -61,6 +66,11 @@ export default async function gamificationRoutes(app: FastifyInstance): Promise<
           // page for every signed-in feeder.
           badges: view.badges,
           trustScore: view.trustScore,
+          streakStart:
+            view.streakDays > 0 && view.lastFeedDate
+              ? addDays(view.lastFeedDate, -(view.streakDays - 1))
+              : null,
+          trustLevel: trustLevelFor(view.trustScore),
         },
       };
     } catch (err) {

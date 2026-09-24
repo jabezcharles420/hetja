@@ -85,6 +85,11 @@ const EnvSchema = z.object({
   // "s3" is parsed as a legal value only so the refusal below can name it
   // precisely; see loadConfig.
   STORAGE_BACKEND: z.enum(["local", "s3"]).default("local"),
+  // Public origin photos are served from (e.g. https://api.hetja.in), used to
+  // build absolute `photoUrl`s in GET /api/v1/dogs/:slug. Optional: when
+  // empty, the route uses the origin the request arrived on, which is correct
+  // behind Caddy once TRUST_PROXY is set.
+  PUBLIC_API_ORIGIN: z.string().default(""),
   STORAGE_LOCAL_DIR: z.string().default("data/photos"),
   S3_ENDPOINT: z.string().default(""),
   S3_BUCKET: z.string().default("hetja"),

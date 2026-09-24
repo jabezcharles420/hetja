@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { deviceTokenSubject, issueDeviceToken } from "../lib/device.js";
 import { signAccessToken } from "../lib/jwt.js";
+import { reportStatusLimiter } from "./sos.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -1356,6 +1360,262 @@ describe("sos_notifications uniqueness (migration 0020)", () => {
     );
     expect(otherPush.rowCount).toBe(1);
 
+    await app.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Design-v4: report photo + the reporter's own status view.
+// ---------------------------------------------------------------------------
+
+function jpegSegmentForSos(marker: number, payload: Buffer): Buffer {
+  const length = Buffer.alloc(2);
+  length.writeUInt16BE(payload.length + 2);
+  return Buffer.concat([Buffer.from([0xff, marker]), length, payload]);
+}
+
+/** A minimal baseline JPEG carrying a COM segment the strip must remove. */
+const SOS_JPEG_ENTROPY = Buffer.from([0x31, 0x41, 0xff, 0x00, 0x59, 0x26, 0x53, 0x58, 0x97, 0x93]);
+const SOS_JPEG = Buffer.concat([
+  Buffer.from([0xff, 0xd8]),
+  jpegSegmentForSos(0xfe, Buffer.from("reporter home address", "latin1")), // COM
+  jpegSegmentForSos(0xdb, Buffer.concat([Buffer.from([0x00]), Buffer.alloc(64, 0x10)])), // DQT
+  jpegSegmentForSos(0xc0, Buffer.from([0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x01, 0x11, 0x00])), // SOF0
+  jpegSegmentForSos(0xc4, Buffer.concat([Buffer.from([0x00]), Buffer.alloc(16, 0x00), Buffer.from([0x00])])), // DHT
+  jpegSegmentForSos(0xda, Buffer.from([0x01, 0x01, 0x00, 0x00, 0x3f, 0x00])), // SOS
+  SOS_JPEG_ENTROPY,
+  Buffer.from([0xff, 0xd9]),
+]);
+
+async function caseScanPhotoKey(caseId: string): Promise<string | null> {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const res = await query<{ photo_s3_key: string | null }>(
+      `SELECT s.photo_s3_key FROM sos_cases c JOIN scans s ON s.id = c.scan_id WHERE c.id = $1`,
+      [caseId],
+    );
+    const key = res.rows[0]?.photo_s3_key ?? null;
+    if (key) return key;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return null;
+}
+
+describe("POST /api/v1/reports: optional photo", () => {
+  let storageDir: string;
+
+  beforeEach(async () => {
+    storageDir = await mkdtemp(join(tmpdir(), "hetja-sos-photo-"));
+  });
+
+  afterEach(async () => {
+    await rm(storageDir, { recursive: true, force: true });
+  });
+
+  const server = () => buildServer({ ...config, STORAGE_BACKEND: "local" as const, STORAGE_LOCAL_DIR: storageDir });
+
+  it("stores the photo metadata-stripped on the case's scan row", async () => {
+    const app = server();
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "serious", deviceToken: token, photoBase64: SOS_JPEG.toString("base64") },
+    });
+    expect(res.statusCode).toBe(200);
+    const key = await caseScanPhotoKey(res.json().data.caseId);
+    expect(key).toMatch(/^photos\/.+\.jpg$/);
+    const stored = await readFile(join(storageDir, key!));
+    expect(stored.includes(Buffer.from("reporter home address", "latin1"))).toBe(false);
+    expect(stored.includes(SOS_JPEG_ENTROPY)).toBe(true);
+    await app.close();
+  });
+
+  it("rejects an undecodable photo with 400 and opens no case", async () => {
+    const app = server();
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "serious", deviceToken: token, photoBase64: Buffer.from("not an image at all").toString("base64") },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_PHOTO");
+    const cases = await query<{ n: number }>(`SELECT count(*)::int AS n FROM sos_cases WHERE dog_id = $1`, [dogId]);
+    expect(cases.rows[0].n).toBe(0);
+    await app.close();
+  });
+
+  it("does not bypass the dedupe or the INVARIANT 7 cap: a new photo is the same report", async () => {
+    const app = server();
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const photoBase64 = SOS_JPEG.toString("base64");
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "same words", deviceToken: token, photoBase64 },
+    });
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "same words", deviceToken: token, photoBase64 },
+    });
+    expect(replay.json().data.created).toBe(false);
+    expect(replay.json().data.caseId).toBe(first.json().data.caseId);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "second", deviceToken: token, photoBase64 },
+    });
+    const capped = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "third", deviceToken: token, photoBase64 },
+    });
+    expect(capped.statusCode).toBe(429);
+    const cases = await query<{ n: number }>(`SELECT count(*)::int AS n FROM sos_cases WHERE dog_id = $1`, [dogId]);
+    expect(cases.rows[0].n).toBe(2);
+    await app.close();
+  });
+});
+
+describe("GET /api/v1/reports/:caseId/status", () => {
+  beforeEach(() => {
+    reportStatusLimiter.reset();
+  });
+
+  async function fileReport(app: ReturnType<typeof buildServer>, token: string): Promise<string> {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "serious", note: `status ${randomUUID()}`, deviceToken: token },
+    });
+    expect(res.statusCode).toBe(200);
+    return res.json().data.caseId as string;
+  }
+
+  it("answers the reporting device with exactly four fields", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const caseId = await fileReport(app, token);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/reports/${caseId}/status`,
+      headers: { "x-device-token": token },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    const data = res.json().data;
+    expect(Object.keys(data).sort()).toEqual(["ackedAt", "escalatedAt", "resolvedAt", "state"]);
+    expect(data).toEqual({ state: "open", ackedAt: null, escalatedAt: null, resolvedAt: null });
+
+    // After an ack, the reporter learns THAT it was acknowledged, not by whom.
+    const responder = await makeFeeder("Status Acker");
+    await query(`UPDATE sos_cases SET acked_by = $2, acked_at = now(), state = 'acked' WHERE id = $1`, [
+      caseId,
+      responder.id,
+    ]);
+    const acked = await app.inject({
+      method: "GET",
+      url: `/api/v1/reports/${caseId}/status`,
+      headers: { "x-device-token": token },
+    });
+    expect(acked.json().data.state).toBe("acked");
+    expect(acked.json().data.ackedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(acked.body).not.toContain(responder.id);
+    await app.close();
+  });
+
+  it("404s any other device, a malformed id and an unknown id alike (no existence leak)", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const caseId = await fileReport(app, token);
+    const otherDevice = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+
+    for (const url of [
+      `/api/v1/reports/${caseId}/status`,
+      `/api/v1/reports/${randomUUID()}/status`,
+      `/api/v1/reports/not-a-uuid/status`,
+    ]) {
+      const res = await app.inject({ method: "GET", url, headers: { "x-device-token": otherDevice } });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error.code).toBe("NOT_FOUND");
+    }
+
+    // No credential at all is a 401, before any lookup.
+    const none = await app.inject({ method: "GET", url: `/api/v1/reports/${caseId}/status` });
+    expect(none.statusCode).toBe(401);
+
+    // A feeder account that did not file it gets the same 404.
+    const stranger = await makeFeeder("Status Stranger");
+    const byStranger = await app.inject({
+      method: "GET",
+      url: `/api/v1/reports/${caseId}/status`,
+      headers: { authorization: `Bearer ${stranger.accessToken}` },
+    });
+    expect(byStranger.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("is keyed on the canonical device id, so a re-encoded token string is the same device", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const caseId = await fileReport(app, token);
+    const stored = await query<{ device_token: string }>(
+      `SELECT s.device_token FROM sos_cases c JOIN scans s ON s.id = c.scan_id WHERE c.id = $1`,
+      [caseId],
+    );
+    expect(stored.rows[0].device_token).toBe(deviceTokenSubject(token, config.HETJA_DEVICE_SECRET));
+    await app.close();
+  });
+
+  it("answers the signed-in account that filed it", async () => {
+    const app = buildServer(config);
+    const reporter = await makeFeeder("Status Reporter");
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      headers: { authorization: `Bearer ${reporter.accessToken}` },
+      payload: { dogSlug, severity: "serious" },
+    });
+    const caseId = res.json().data.caseId as string;
+    const status = await app.inject({
+      method: "GET",
+      url: `/api/v1/reports/${caseId}/status`,
+      headers: { authorization: `Bearer ${reporter.accessToken}` },
+    });
+    expect(status.statusCode).toBe(200);
+    expect(status.json().data.state).toBe("open");
+    await app.close();
+  });
+
+  it("rate-limits per device (INVARIANT 6), not globally", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const caseId = await fileReport(app, token);
+    let limited = 0;
+    for (let i = 0; i < 25; i++) {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/reports/${caseId}/status`,
+        headers: { "x-device-token": token },
+      });
+      if (res.statusCode === 429) {
+        limited++;
+        expect(res.headers["retry-after"]).toBeTruthy();
+      }
+    }
+    expect(limited).toBeGreaterThan(0);
+
+    // A different device is unaffected by the first one's budget.
+    const other = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/reports/${caseId}/status`,
+      headers: { "x-device-token": other },
+    });
+    expect(res.statusCode).toBe(404);
     await app.close();
   });
 });

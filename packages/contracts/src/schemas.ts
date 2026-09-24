@@ -178,6 +178,10 @@ export const clockSkewClamped = () =>
     },
   );
 
+export const FEED_OUTCOMES = ["ate_all", "ate_some", "didnt_eat", "unwell"] as const;
+export const FeedOutcome = z.enum(FEED_OUTCOMES);
+export type FeedOutcome = z.infer<typeof FeedOutcome>;
+
 export const MAX_PHOTO_BASE64_CHARS = Math.ceil((2 * 1024 * 1024) / 3) * 4;
 
 export const ScanInput = z.object({
@@ -187,13 +191,25 @@ export const ScanInput = z.object({
   geo: GeoPoint.optional(),
   photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
   capturedAt: clockSkewClamped(),
+  // How the dog ate, for type 'feed' only (the API ignores it otherwise).
+  // Stored in scans.feed_outcome (migration 0024). 'unwell' is a flag for a
+  // human to follow up; it never opens an SOS on its own (INVARIANT 14).
+  outcome: FeedOutcome.optional(),
 });
 export type ScanInput = z.infer<typeof ScanInput>;
 
+// Mirrors routes/sos.ts' SosReportInput (apps/api builds its own zod-v3 copy;
+// see the zod split note on BMC_WARD_CODES). This schema had drifted from the
+// route: it lacked `dogSlug`, which the route requires, and made `note`
+// required where the route accepts none. deviceToken is optional because a
+// signed-in feeder reports with a Bearer token instead. `photoBase64` is the
+// optional EXIF-stripped photo of the dog, capped like a scan's.
 export const SosReport = z.object({
+  dogSlug: z.string().regex(SLUG_REGEX),
   severity: SosSeverity,
-  note: z.string().max(500),
-  deviceToken: z.string().min(1).max(256),
+  note: z.string().max(500).optional(),
+  deviceToken: z.string().min(1).max(256).optional(),
+  photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
 });
 export type SosReport = z.infer<typeof SosReport>;
 

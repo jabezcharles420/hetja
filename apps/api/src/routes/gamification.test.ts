@@ -17,6 +17,7 @@ import { query, generateSlug } from "@hetja/db";
 import { signAccessToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
 import { addDays, computeStreak, dateInKolkata } from "../lib/gamification.js";
+import { trustLevelFor } from "../lib/trust.js";
 
 const config = loadConfig();
 // Slugs come from the real generator in @hetja/db, not a local alphabet.
@@ -334,5 +335,54 @@ describe("GET /feeders/me/streak payload", () => {
     expect(res.json().data.lastFeedDate).toBeNull();
     expect(res.json().data.nextBadgeHint).not.toBeNull();
     expect(res.json().data.nextBadgeHint.name).toBe("first_feed");
+  });
+});
+
+describe("GET /feeders/me/streak: streakStart and trustLevel", () => {
+  it("derives streakStart as lastFeedDate - (streakDays - 1) for a live run", async () => {
+    const today = dateInKolkata(new Date());
+    await setStreakState(fixture.feederId, 5, today);
+    const res = await getStreak(fixture);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.streakDays).toBe(5);
+    expect(res.json().data.streakStart).toBe(addDays(today, -4));
+  });
+
+  it("reports streakStart null when there is no live streak", async () => {
+    const res = await getStreak(fixture);
+    expect(res.json().data.streakStart).toBeNull();
+
+    // A dead run (last feed three days ago) is also no streak.
+    await setStreakState(fixture.feederId, 9, addDays(dateInKolkata(new Date()), -3));
+    const dead = await getStreak(fixture);
+    expect(dead.json().data.streakDays).toBe(0);
+    expect(dead.json().data.streakStart).toBeNull();
+  });
+
+  it("names the trust level from the same 40/50/60 constants the gates use", async () => {
+    const res = await getStreak(fixture);
+    expect(res.json().data.trustLevel).toEqual({ name: "New feeder", level: 1, nextThreshold: 40 });
+
+    await query(`UPDATE feeders SET trust_score = 52 WHERE id = $1`, [fixture.feederId]);
+    const mid = await getStreak(fixture);
+    expect(mid.json().data.trustLevel).toEqual({ name: "Trusted feeder", level: 3, nextThreshold: 60 });
+  });
+
+  it("trustLevelFor covers every boundary", () => {
+    expect(trustLevelFor(0)).toEqual({ name: "New feeder", level: 1, nextThreshold: 40 });
+    expect(trustLevelFor(39)).toEqual({ name: "New feeder", level: 1, nextThreshold: 40 });
+    expect(trustLevelFor(40)).toEqual({ name: "Trusted feeder", level: 2, nextThreshold: 50 });
+    expect(trustLevelFor(49)).toEqual({ name: "Trusted feeder", level: 2, nextThreshold: 50 });
+    expect(trustLevelFor(50)).toEqual({ name: "Trusted feeder", level: 3, nextThreshold: 60 });
+    expect(trustLevelFor(60)).toEqual({ name: "Trusted feeder", level: 4, nextThreshold: null });
+    expect(trustLevelFor(100)).toEqual({ name: "Trusted feeder", level: 4, nextThreshold: null });
+  });
+
+  it("the streak a feed scan returns agrees with GET /feeders/me/streak", async () => {
+    const res = await postFeed(fixture);
+    expect(res.statusCode).toBe(200);
+    const fromScan = res.json().data.streak;
+    const view = await getStreak(fixture);
+    expect(fromScan).toEqual({ streakDays: view.json().data.streakDays, lastFeedDate: view.json().data.lastFeedDate });
   });
 });

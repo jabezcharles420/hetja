@@ -526,3 +526,157 @@ describe("POST /api/v1/scans: photo handling", () => {
     await app.close();
   });
 });
+
+describe("POST /api/v1/scans: feed outcome (migration 0024)", () => {
+  const feeders: string[] = [];
+
+  async function insertFeeder(): Promise<{ id: string; auth: string }> {
+    const res = await query<{ id: string }>(
+      `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, verification_tier, consent_version)
+       VALUES ($1, 'OutcomeTest', 'feeder', 30, 'provisional', 'v1.0') RETURNING id`,
+      [`scan-outcome-${randomUUID()}`],
+    );
+    const id = res.rows[0].id;
+    feeders.push(id);
+    return { id, auth: `Bearer ${signAccessToken(id, config.JWT_SECRET, config.JWT_ACCESS_TTL)}` };
+  }
+
+  afterEach(async () => {
+    for (const id of feeders.splice(0)) {
+      await query(`DELETE FROM trust_events WHERE feeder_id = $1`, [id]);
+      await query(`DELETE FROM scans WHERE feeder_id = $1`, [id]);
+      await query(`DELETE FROM feeders WHERE id = $1`, [id]);
+    }
+  });
+
+  async function outcomeOf(clientUuid: string): Promise<string | null> {
+    const res = await query<{ feed_outcome: string | null }>(
+      `SELECT feed_outcome FROM scans WHERE client_uuid = $1`,
+      [clientUuid],
+    );
+    return res.rows[0]?.feed_outcome ?? null;
+  }
+
+  it("stores the outcome of a feed, and a replay can never rewrite it (INVARIANT 5)", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const clientUuid = randomUUID();
+    const capturedAt = new Date().toISOString();
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { "x-device-token": token },
+      payload: { clientUuid, dogSlug, type: "feed", capturedAt, outcome: "ate_some" },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json().data.created).toBe(true);
+    expect(await outcomeOf(clientUuid)).toBe("ate_some");
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { "x-device-token": token },
+      payload: { clientUuid, dogSlug, type: "feed", capturedAt, outcome: "didnt_eat" },
+    });
+    expect(replay.json().data.created).toBe(false);
+    expect(await outcomeOf(clientUuid)).toBe("ate_some");
+    await app.close();
+  });
+
+  it("ignores an outcome on a non-feed scan and rejects an unknown value", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const clientUuid = randomUUID();
+    const view = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { "x-device-token": token },
+      payload: { clientUuid, dogSlug, type: "view", capturedAt: new Date().toISOString(), outcome: "ate_all" },
+    });
+    expect(view.statusCode).toBe(200);
+    expect(await outcomeOf(clientUuid)).toBeNull();
+
+    const bad = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { "x-device-token": token },
+      payload: { clientUuid: randomUUID(), dogSlug, type: "feed", capturedAt: new Date().toISOString(), outcome: "sos" },
+    });
+    expect(bad.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("the database refuses an outcome outside the four values (CHECK constraint)", async () => {
+    await expect(
+      query(
+        `INSERT INTO scans (dog_id, client_uuid, scan_type, captured_at, received_at, review_status, feed_outcome)
+         VALUES ($1, $2, 'feed', now(), now(), 'pending', 'fine')`,
+        [dogId, randomUUID()],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("'unwell' only flags: no SOS case, no job, and review_status stays pending (INVARIANTS 14, 15)", async () => {
+    const app = buildServer(config);
+    const feeder = await insertFeeder();
+    const clientUuid = randomUUID();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { authorization: feeder.auth },
+      payload: { clientUuid, dogSlug, type: "feed", capturedAt: new Date().toISOString(), outcome: "unwell" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(await outcomeOf(clientUuid)).toBe("unwell");
+
+    const cases = await query<{ n: number }>(`SELECT count(*)::int AS n FROM sos_cases WHERE dog_id = $1`, [dogId]);
+    expect(cases.rows[0].n).toBe(0);
+    const sosScans = await query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM scans WHERE dog_id = $1 AND scan_type = 'sos'`,
+      [dogId],
+    );
+    expect(sosScans.rows[0].n).toBe(0);
+    const review = await query<{ review_status: string }>(
+      `SELECT review_status FROM scans WHERE client_uuid = $1`,
+      [clientUuid],
+    );
+    expect(review.rows[0].review_status).toBe("pending");
+    await app.close();
+  });
+
+  it("returns the streak to a signed-in feeder, on the first write and on a replay", async () => {
+    const app = buildServer(config);
+    const feeder = await insertFeeder();
+    const clientUuid = randomUUID();
+    const payload = { clientUuid, dogSlug, type: "feed", capturedAt: new Date().toISOString(), outcome: "ate_all" };
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { authorization: feeder.auth },
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    const streak = first.json().data.streak;
+    expect(streak.streakDays).toBe(1);
+    expect(streak.lastFeedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { authorization: feeder.auth },
+      payload,
+    });
+    expect(replay.json().data.created).toBe(false);
+    expect(replay.json().data.streak).toEqual(streak);
+
+    // Anonymous scans carry no streak at all.
+    const anon = await app.inject({
+      method: "POST",
+      url: "/api/v1/scans",
+      headers: { "x-device-token": issueDeviceToken(config.HETJA_DEVICE_SECRET) },
+      payload: { ...payload, clientUuid: randomUUID() },
+    });
+    expect(anon.json().data.streak).toBeUndefined();
+    await app.close();
+  });
+});

@@ -35,10 +35,22 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { wardName } from "@hetja/contracts";
 import { query } from "@hetja/db";
 import { requireFeeder } from "../lib/require-role.js";
 import { capabilitiesFor } from "../lib/require-role.js";
 import { REGISTRATION_BUDGET_MAX } from "../lib/enrol.js";
+
+interface MyDogRow {
+  slug: string;
+  name: string | null;
+  ward_id: string;
+  last_fed_at: Date | null;
+  my_last_fed_at: Date;
+}
+
+/** Upper bound on GET /feeders/me/dogs. A feeder with more is an NGO, and a page of 50 is plenty for a home screen. */
+const MY_DOGS_LIMIT = 50;
 
 interface MeRow {
   display_name: string;
@@ -97,6 +109,55 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         canRegister: holdsRegister && feeder.can_register,
         registrationBudget: { pending, max: REGISTRATION_BUDGET_MAX },
         sosOptIn: feeder.sos_opt_in,
+      },
+    };
+  });
+
+  /**
+   * GET /api/v1/feeders/me/dogs: the dogs this account has fed.
+   *
+   * Distinct dogs from the caller's OWN feed scans, the one they fed most
+   * recently first, at most MY_DOGS_LIMIT. Each carries:
+   *
+   *   lastFedAt     the dog's latest non-rejected feed by ANYONE (the "has
+   *                 somebody fed her today?" question); a time, never who
+   *   myLastFedAt   this caller's own latest feed of the dog (the sort key)
+   *
+   * No coordinates of any kind, not even coarsened: the ward is enough to
+   * find a dog you already know, and a list of where one person's dogs are is
+   * a list of where that person goes (INVARIANT 2's reasoning). Scoped to the
+   * caller's own scans, so it reveals nothing about any other feeder.
+   */
+  app.get("/api/v1/feeders/me/dogs", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+
+    const res = await query<MyDogRow>(
+      `SELECT d.slug, d.name, d.ward_id, mine.my_last_fed_at,
+              (SELECT max(a.captured_at) FROM scans a
+                WHERE a.dog_id = d.id AND a.scan_type = 'feed' AND a.review_status <> 'rejected') AS last_fed_at
+         FROM (SELECT s.dog_id, max(s.captured_at) AS my_last_fed_at
+                 FROM scans s
+                WHERE s.feeder_id = $1 AND s.scan_type = 'feed'
+                GROUP BY s.dog_id
+                ORDER BY my_last_fed_at DESC
+                LIMIT $2) mine
+         JOIN dogs d ON d.id = mine.dog_id
+        ORDER BY mine.my_last_fed_at DESC, d.slug`,
+      [auth.feederId, MY_DOGS_LIMIT],
+    );
+
+    return {
+      ok: true,
+      data: {
+        dogs: res.rows.map((r) => ({
+          slug: r.slug,
+          name: r.name ?? null,
+          wardId: r.ward_id,
+          wardName: wardName(r.ward_id),
+          lastFedAt: r.last_fed_at ? new Date(r.last_fed_at).toISOString() : null,
+          myLastFedAt: new Date(r.my_last_fed_at).toISOString(),
+        })),
       },
     };
   });

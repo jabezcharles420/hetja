@@ -169,10 +169,21 @@ describe("POST /api/v1/registrations: the mint", () => {
     // THE ASSERTION THAT MATTERS: take the exact URL we would etch onto the
     // tag and fetch it. A collar is printed once and glued to an animal; a
     // tag that 404s is found by a stranger standing over an injured dog.
+    //
+    // While the registration is inert, the public read is a 404 like an
+    // unknown slug ("invisible to every public surface"); the registrator who
+    // filed it can still check the etched URL resolves. Activation itself
+    // never needed this read (it is a POST /api/v1/scans).
     const url = new URL(data.collarUrl);
+    const anon = await app.inject({
+      method: "GET",
+      url: `/api/v1/dogs/${data.slug}${url.search}`,
+    });
+    expect(anon.statusCode).toBe(404);
     const profile = await app.inject({
       method: "GET",
       url: `/api/v1/dogs/${data.slug}${url.search}`,
+      headers: { authorization: `Bearer ${registrator.token}` },
     });
     expect(profile.statusCode).toBe(200);
     expect(profile.json().data.status).toBe("pending_activation");

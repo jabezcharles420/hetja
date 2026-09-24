@@ -6,7 +6,13 @@ import { deviceTokenSubject } from "../lib/device.js";
 import { applyVerificationGate, logTrustEvent, recomputeScore, type TxClient } from "../lib/trust.js";
 import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storage.js";
 import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
-import { dateInKolkata, updateFeedStreak } from "../lib/gamification.js";
+import {
+  currentStreak,
+  dateInKolkata,
+  getFeederGamification,
+  updateFeedStreak,
+  type StreakState,
+} from "../lib/gamification.js";
 
 interface DogIdRow {
   id: string;
@@ -222,6 +228,11 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "invalid scan payload", code: "INVALID_SCAN" } });
     }
     const { clientUuid, dogSlug, type, geo, photoBase64, capturedAt } = parsed.data;
+    // `outcome` only means something on a feed. On any other scan type it is
+    // ignored rather than refused: a 400 here would be permanent, and the
+    // offline queue drops a scan on a permanent 4xx, so a client bug in an
+    // optional field would cost the scan itself.
+    const feedOutcome = type === "feed" ? (parsed.data.outcome ?? null) : null;
 
     // Container validation + metadata strip happens HERE, synchronously, before
     // the scan row exists, not in the background writer below.
@@ -322,12 +333,33 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       );
 
       const created = (insertRes.rowCount ?? 0) === 1;
-      if (!created) return { created: false as const, scanId: undefined, activatedSlug: null, sosEligibleAt: null };
+      if (!created) {
+        return {
+          created: false as const,
+          scanId: undefined,
+          activatedSlug: null,
+          sosEligibleAt: null,
+          streak: null as StreakState | null,
+        };
+      }
 
       const scanId = insertRes.rows[0].id;
       if (geo) await applyLww(client, dog.id, geoWkt(geo.lat, geo.lng), captured, receivedAt);
+
+      // Feed outcome (migration 0024), INSIDE the `created` branch so a replay
+      // (created:false above) can never rewrite what the first submission
+      // said (INVARIANT 5). 'unwell' is stored and nothing more: it is a flag
+      // for a human, and it must never open an SOS case by itself
+      // (INVARIANT 14). Nor does it touch review_status, which INVARIANT 15
+      // counts toward pausing the feeder: reporting a sick dog is not a
+      // rejected scan.
+      if (feedOutcome !== null) {
+        await client.query(`UPDATE scans SET feed_outcome = $2 WHERE id = $1`, [scanId, feedOutcome]);
+      }
+
+      let streak: StreakState | null = null;
       if (type === "feed" && feederId) {
-        await updateFeedStreak(feederId, dateInKolkata(captured), client);
+        streak = await updateFeedStreak(feederId, dateInKolkata(captured), client);
         await logTrustEvent(
           { feederId, eventType: "feed", reason: "feed scan logged", refScanId: scanId },
           client,
@@ -346,7 +378,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
         activatedSlug = await activatePendingRegistration(client, dog.id, scanId);
         sosEligibleAt = await corroborateSosEligibility(client, dog.id);
       }
-      return { created: true as const, scanId, activatedSlug, sosEligibleAt };
+      return { created: true as const, scanId, activatedSlug, sosEligibleAt, streak };
     });
 
     if (result.created && result.scanId && photo) {
@@ -362,10 +394,30 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
     if (result.sosEligibleAt) {
       req.log.info({ dogId: dog.id }, "sos eligibility corroborated");
     }
+    if (result.created && feedOutcome === "unwell") {
+      // Visible to an operator reading the logs; deliberately no job, no case,
+      // no page (INVARIANT 14). The reporter is told, client-side, how to file
+      // an SOS if the dog needs one.
+      req.log.warn({ dogId: dog.id, scanId: result.scanId }, "feed reported dog unwell (flag only)");
+    }
+
+    // `streak` (optional, signed-in feeds only): the state updateFeedStreak
+    // just persisted. On a replay nothing was updated, so the CURRENT state is
+    // read instead; the client gets the same answer either way.
+    let streak: StreakState | null = result.streak;
+    if (!result.created && type === "feed" && feederId) {
+      const row = await getFeederGamification(feederId);
+      const state = { streakDays: row.streak_days, lastFeedDate: row.last_feed_date };
+      streak = { streakDays: currentStreak(state, dateInKolkata(new Date())), lastFeedDate: row.last_feed_date };
+    }
 
     return {
       ok: true,
-      data: { created: result.created, scanId: result.created ? result.scanId : undefined },
+      data: {
+        created: result.created,
+        scanId: result.created ? result.scanId : undefined,
+        ...(streak ? { streak: { streakDays: streak.streakDays, lastFeedDate: streak.lastFeedDate } } : {}),
+      },
     };
   });
 }

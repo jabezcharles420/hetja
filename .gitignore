@@ -21,7 +21,7 @@ apps/scan/dist/
 # The schema and hardening SQL are safe to track; the data is not.
 ops/supabase/*_data.sql
 
-# incremental tsc cache — regenerated on every build
+# incremental tsc cache, regenerated on every build
 *.tsbuildinfo
 
 # Playwright output. apps/web/playwright.config.ts deliberately points

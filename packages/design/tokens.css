@@ -98,7 +98,7 @@
   --h-s8: 64px;
   --h-s9: 96px;
   --h-gutter: 22px;
-  --h-section-y: clamp(90px, 12vw, 160px);
+  --h-section-y: clamp(64px, 12vw, 160px); /* 64 on phones: 90+90 between sections was a thumb-scroll tax */
   --h-nav-h: 52px;
 
   /* --- Geometry ----------------------------------------------------------- */

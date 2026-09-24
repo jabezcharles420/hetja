@@ -446,9 +446,22 @@ sup {
 }
 
 .h-btn-sm {
+  position: relative;
   font-size: var(--h-t-xs);
   padding: 6px 12px;
   min-height: 28px;
+}
+
+/* Small pills stay visually small but get a 44px touch target (HIG floor):
+ * an invisible hit area centred on the pill. */
+.h-btn-sm::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .h-btn-block {

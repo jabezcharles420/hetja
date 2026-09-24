@@ -73,6 +73,29 @@ void main(){
 /** Resolution divisor for the shader canvas. */
 const DOWNSCALE = 3;
 
+/**
+ * Lite mode: phones and weak devices get the CSS blobs only, held still.
+ * Hetja is used mostly on phones, often budget Android on 4G, outdoors in the
+ * heat; a full-viewport shader running every frame there is battery and
+ * thermal cost for decoration. Triggers: touch-first or narrow screens, Data
+ * Saver, or low memory / few cores (Chromium exposes both).
+ */
+export function isLiteDevice(): boolean {
+  if (typeof window === "undefined") return true;
+  const mq = (q: string): boolean => window.matchMedia?.(q).matches ?? false;
+  const nav = navigator as Navigator & {
+    connection?: { saveData?: boolean };
+    deviceMemory?: number;
+  };
+  return (
+    mq("(pointer: coarse)") ||
+    mq("(max-width: 899px)") ||
+    nav.connection?.saveData === true ||
+    (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4) ||
+    (typeof nav.hardwareConcurrency === "number" && nav.hardwareConcurrency <= 4)
+  );
+}
+
 export function Ambient({ variant = "aurora", contained = false, className }: AmbientProps): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [glState, setGlState] = useState<"pending" | "ready" | "none">("pending");
@@ -84,7 +107,7 @@ export function Ambient({ variant = "aurora", contained = false, className }: Am
 
     // jsdom and ancient browsers: no WebGL constructor → CSS blobs only.
     // (Checked first so jsdom never logs "getContext not implemented".)
-    if (typeof window.WebGLRenderingContext === "undefined") {
+    if (typeof window.WebGLRenderingContext === "undefined" || isLiteDevice()) {
       setGlState("none");
       return;
     }

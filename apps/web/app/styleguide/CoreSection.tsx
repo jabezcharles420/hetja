@@ -377,7 +377,7 @@ export function CoreSection(): React.JSX.Element {
           <p className="h-lede">
             Ten Mumbai regulars in Fluent 3D. <strong>Any real dog without a photo gets one of these, and keeps it.</strong>
           </p>
-          <div className="sg-grid sg-block" style={{ ["--min" as string]: "170px" }}>
+          <div className="sg-grid sg-block" style={{ ["--min" as string]: "130px" }}>
             {CAST.map((d, i) => (
               <Reveal key={d.key} delay={(i % 5) * 80} className="sg-dog">
                 <Dogmoji dog={d} size={84} />

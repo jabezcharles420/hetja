@@ -88,7 +88,10 @@
   bottom: calc(-30 * var(--u));
 }
 
-@media (prefers-reduced-motion: no-preference) {
+/* Drift only on large, fine-pointer screens. On phones the blobs are painted
+ * once and held still: animating four 60vmax blurred layers is real GPU work
+ * on a budget Android (see isLiteDevice in Ambient.tsx). */
+@media (prefers-reduced-motion: no-preference) and (min-width: 900px) and (pointer: fine) {
   .blob {
     will-change: transform;
     animation: drift var(--t) ease-in-out infinite alternate;

@@ -1,0 +1,23 @@
+/* Blur-fade rise. Only ever hidden once JS has armed it (see Reveal.tsx). */
+
+.reveal {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .armed {
+    opacity: 0;
+    transform: translateY(var(--reveal-y, 24px));
+    filter: blur(10px);
+  }
+
+  .armed.shown {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition:
+      opacity 900ms var(--h-ease-out) var(--reveal-delay, 0ms),
+      transform 1000ms var(--h-ease-out) var(--reveal-delay, 0ms),
+      filter 900ms var(--h-ease-out) var(--reveal-delay, 0ms);
+  }
+}

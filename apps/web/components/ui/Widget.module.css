@@ -1,0 +1,229 @@
+/* ---------------------------------------------------------------------------
+ * Widget: WidgetKit families at iPhone point sizes.
+ *
+ * 22px radius, 16px margin, soft float shadow (widgets sit on a wallpaper).
+ * Widths cap at the real point size and shrink with aspect-ratio so the
+ * content never reflows. Type follows Apple's widget scale: 13px semibold
+ * eyebrow, big rounded-feel numerals, 13px note.
+ * ------------------------------------------------------------------------- */
+
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--h-glass-edge);
+  text-align: left;
+  letter-spacing: -0.015em;
+}
+
+.light {
+  background: var(--h-base);
+  color: var(--h-ink);
+}
+
+.dark {
+  background: var(--h-dark-2);
+  color: var(--h-on-dark);
+}
+
+.small {
+  width: min(100%, 158px);
+  aspect-ratio: 1;
+}
+
+.medium {
+  width: min(100%, 338px);
+  aspect-ratio: 338 / 158;
+}
+
+.large {
+  width: min(100%, 338px);
+  aspect-ratio: 338 / 354;
+}
+
+.slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot_small {
+  width: min(100%, 158px);
+}
+
+.slot_medium,
+.slot_large {
+  width: min(100%, 338px);
+}
+
+.slot > .widget {
+  width: 100%;
+}
+
+.caption {
+  font-size: var(--h-t-xs);
+  font-weight: var(--h-w-medium);
+  color: var(--h-ink-muted);
+}
+
+:global(.h-section-dark) .caption {
+  color: var(--h-on-dark-muted);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: var(--h-w-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--h-ink-muted);
+}
+
+.dark .note {
+  color: var(--h-on-dark-muted);
+}
+
+/* --- Streak -------------------------------------------------------------- */
+.streak {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.streak .eyebrow {
+  color: var(--h-warn);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.flame {
+  font-size: 15px;
+}
+
+.streakNum {
+  margin-top: auto;
+  font-size: 56px;
+  font-weight: var(--h-w-bold);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.streakNum small {
+  margin-left: 4px;
+  font-size: 17px;
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.02em;
+}
+
+.streak .note {
+  margin-top: 4px;
+}
+
+/* --- Nearby -------------------------------------------------------------- */
+.nearby {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.nearbyLead {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nearbyLead .eyebrow {
+  color: var(--h-danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nearbyNum {
+  margin-top: auto;
+  font-size: 48px;
+  font-weight: var(--h-w-bold);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.nearbyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.nearbyList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nearbyList li + li {
+  padding-top: 6px;
+  border-top: 0.5px solid var(--h-ios-separator);
+}
+
+.dogName {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: var(--h-w-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dogStatus {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+/* --- Due ------------------------------------------------------------------ */
+.due {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dueIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--h-late-bg);
+  font-size: 18px;
+}
+
+.dueWhen {
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: var(--h-w-semibold);
+  color: var(--h-danger);
+}
+
+.dueWhat {
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}

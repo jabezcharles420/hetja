@@ -1,0 +1,96 @@
+/* ---------------------------------------------------------------------------
+ * ActivityRings: Fitness rings.
+ *
+ * Final values are the default paint (SSR, no-JS, reduced motion). The
+ * `armed` phase empties the arcs; `run` sweeps them in with Apple's long
+ * ease-out, ring by ring, then fades in the overlap lap and shadowed cap.
+ * ------------------------------------------------------------------------- */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  max-width: 100%;
+}
+
+.svg {
+  flex: none;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.arc {
+  stroke-dashoffset: var(--offset);
+}
+
+.svg[data-phase="armed"] .arc {
+  stroke-dashoffset: var(--circ);
+}
+
+.svg[data-phase="armed"] .lap,
+.svg[data-phase="armed"] .cap {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .svg[data-phase="run"] .arc {
+    transition: stroke-dashoffset 1.4s cubic-bezier(0.25, 0.8, 0.25, 1) var(--delay, 0ms);
+  }
+
+  .svg[data-phase="run"] .lap,
+  .svg[data-phase="run"] .cap {
+    animation: h-rings-in 400ms var(--h-ease) both;
+    animation-delay: calc(var(--delay, 0ms) + 1.2s);
+  }
+}
+
+@keyframes h-rings-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.legend {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.legendRow dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: var(--h-w-semibold);
+  color: var(--h-ink-muted);
+}
+
+.legendRow dt i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legendRow dd {
+  margin: 0;
+  font-size: var(--h-t-xl);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.legendRow dd span {
+  font-size: var(--h-t-sm);
+  font-weight: var(--h-w-medium);
+  color: var(--h-ink-muted);
+}
+
+:global(.h-section-dark) .legendRow dt,
+:global(.h-section-dark) .legendRow dd span {
+  color: var(--h-on-dark-muted);
+}

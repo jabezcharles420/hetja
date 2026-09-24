@@ -1,0 +1,52 @@
+/* GradientText. The sweep is a background-position move on a text-sized box:
+ * a paint, not a composite, which is why it is short and not looping by
+ * default. */
+
+.text {
+  color: var(--h-ink);
+}
+
+.ai {
+  --g: #c2410c, #d6246e, #7c3aed, #1d5fd6, #7c3aed, #d6246e, #c2410c;
+}
+
+.warm {
+  --g: #d6246e, #c2185b, #b8430f, #c2185b, #d6246e;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .text {
+    color: transparent;
+    background-image: linear-gradient(100deg, var(--g));
+    background-size: 200% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    /* Descenders stay inside the painted box. */
+    padding-bottom: 0.08em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .text {
+      /* 0.3s + 2 x 2.3s = 4.9s: ends inside the WCAG 2.2.2 five-second window. */
+      animation: sweep 2.3s var(--h-ease) 0.3s 2 both;
+    }
+
+    .loop {
+      animation-iteration-count: infinite;
+      animation-duration: 6s;
+    }
+  }
+}
+
+@keyframes sweep {
+  from {
+    background-position: 0% 50%;
+  }
+
+  to {
+    background-position: -200% 50%;
+  }
+}

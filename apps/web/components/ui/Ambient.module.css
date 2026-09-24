@@ -1,0 +1,110 @@
+/* Ambient aurora (Sidehoe .ambient). Blob sizes/offsets are written in --u,
+ * which is 1vmax for the fixed page background and 1cqmax for a contained
+ * preview, so the same numbers describe both. */
+
+.ambient {
+  --u: 1vmax;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--h-base);
+  contain: strict;
+}
+
+.contained {
+  --u: 1cqmax;
+  position: absolute;
+  z-index: 0;
+  border-radius: inherit;
+  container-type: size;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Hidden until the first frame is drawn: an undrawn alpha:false canvas is
+   * black, and the blobs underneath are a close match for frame one. */
+  opacity: 0;
+  transition: opacity 600ms var(--h-ease);
+}
+
+.canvas[data-ready] {
+  opacity: 1;
+}
+
+.blob {
+  position: absolute;
+  width: calc(60 * var(--u));
+  height: calc(60 * var(--u));
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--c) 0%, transparent 100%);
+  filter: blur(40px);
+  opacity: 0.6;
+}
+
+.blob:nth-child(1) {
+  --c: var(--h-aurora-1);
+  --t: 19s;
+  --x: calc(16 * var(--u));
+  --y: calc(10 * var(--u));
+  --k: 1.25;
+  left: calc(-28 * var(--u));
+  top: calc(-30 * var(--u));
+}
+
+.blob:nth-child(2) {
+  --c: var(--h-aurora-2);
+  --t: 23s;
+  --x: calc(-14 * var(--u));
+  --y: calc(14 * var(--u));
+  --k: 0.85;
+  right: calc(-30 * var(--u));
+  top: calc(-32 * var(--u));
+}
+
+.blob:nth-child(3) {
+  --c: var(--h-aurora-3);
+  --t: 27s;
+  --x: calc(12 * var(--u));
+  --y: calc(-16 * var(--u));
+  --k: 0.9;
+  left: calc(-32 * var(--u));
+  bottom: calc(-34 * var(--u));
+}
+
+.blob:nth-child(4) {
+  --c: var(--h-aurora-4);
+  --t: 21s;
+  --x: calc(-18 * var(--u));
+  --y: calc(-10 * var(--u));
+  --k: 1.2;
+  right: calc(-28 * var(--u));
+  bottom: calc(-30 * var(--u));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .blob {
+    will-change: transform;
+    animation: drift var(--t) ease-in-out infinite alternate;
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(calc(var(--x) * 0.4), var(--y)) scale(var(--k));
+  }
+
+  100% {
+    transform: translate(var(--x), calc(var(--y) * 0.3)) scale(1);
+  }
+}

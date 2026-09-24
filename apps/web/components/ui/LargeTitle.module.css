@@ -1,0 +1,95 @@
+/* ---------------------------------------------------------------------------
+ * LargeTitle: iOS large title → compact glass bar.
+ *
+ * Large: 34px bold, -0.03em (SF Display at 34pt tracks tight), 3px above the
+ * content. Compact: 44px glass bar, 17px semibold centred title. The bar is
+ * sticky with a negative bottom margin so it overlays the page instead of
+ * pushing it down, and is invisible/inert until the large title leaves.
+ * ------------------------------------------------------------------------- */
+
+.root {
+  position: relative;
+}
+
+.bar {
+  position: sticky;
+  top: var(--offset, 52px);
+  z-index: 40;
+  height: 44px;
+  margin-bottom: -44px;
+  display: grid;
+  place-items: center;
+  padding-inline: 56px;
+  background: var(--h-glass);
+  -webkit-backdrop-filter: var(--h-blur);
+  backdrop-filter: var(--h-blur);
+  box-shadow: 0 0.5px 0 var(--h-glass-edge);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bar[data-compact] {
+  opacity: 1;
+}
+
+.compactTitle {
+  font-size: var(--h-t-md);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.022em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transform: translateY(4px);
+}
+
+.bar[data-compact] .compactTitle {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bar {
+    transition: opacity 200ms var(--h-ease);
+  }
+
+  .compactTitle {
+    transition: transform 240ms var(--h-ease-out);
+  }
+}
+
+.large {
+  padding-top: 52px;
+  padding-bottom: 8px;
+  text-align: left;
+}
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: var(--h-w-bold);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  min-width: 0;
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.subtitle {
+  margin-top: 4px;
+  font-size: var(--h-t-sm);
+  line-height: 1.35;
+  color: var(--h-ink-muted);
+}

@@ -1,0 +1,64 @@
+/* LiquidGlass. Static surface; nothing animates here. */
+
+.glass {
+  --lg-blur: 14px;
+  --lg-r: var(--h-radius-pill);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  border-radius: var(--lg-r);
+  background: rgb(255 255 255 / 0.42);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(180%);
+  backdrop-filter: blur(var(--lg-blur)) saturate(180%);
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.12),
+    0 0 0 0.5px rgb(0 0 0 / 0.08);
+}
+
+/* Chromium upgrade: bend first, then frost (set only after the JS check). */
+.glass[data-refract] {
+  background: rgb(255 255 255 / 0.28);
+  backdrop-filter: var(--lg-refract) blur(calc(var(--lg-blur) * 0.4)) saturate(180%);
+}
+
+/* Specular rim: bright top-left edge, soft shadowed bottom-right. */
+.rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 1px 1px 0.5px rgb(255 255 255 / 0.9),
+    inset -1px -1px 0.5px rgb(255 255 255 / 0.35),
+    inset 0 0 12px rgb(255 255 255 / 0.35);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: inherit;
+  align-items: center;
+  gap: inherit;
+  width: 100%;
+}
+
+.defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+:global(.h-section-dark) .glass {
+  background: rgb(40 40 44 / 0.45);
+  color: var(--h-on-dark);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass[data-refract] {
+    background: var(--h-glass-strong);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

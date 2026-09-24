@@ -1,0 +1,98 @@
+/* ---------------------------------------------------------------------------
+ * CompareTable: Sidehoe `.compare`, subgrid rows.
+ *
+ * Columns 28px apart, hairline above every cell except the top one, 19px
+ * semibold claims over 15px grey detail; ≤640px the whole table scales down
+ * (14px gap, 13/15/17px) rather than stacking, exactly as Sidehoe does, so
+ * three columns still compare side by side on a phone.
+ * ------------------------------------------------------------------------- */
+
+.compare {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 0 28px;
+  text-align: left;
+}
+
+.col {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span var(--rows);
+  min-width: 0;
+}
+
+.cell {
+  padding: 20px 0;
+  border-top: 1px solid var(--h-rule);
+  font-size: var(--h-t-sm);
+  line-height: 1.35;
+  color: var(--h-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.cell b {
+  display: block;
+  color: var(--h-ink);
+  font-size: var(--h-t-lg);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.cell b + span {
+  display: block;
+  margin-top: 2px;
+}
+
+.top {
+  border-top: 0;
+  padding-bottom: 28px;
+}
+
+.glyph {
+  font-size: 44px;
+  line-height: 1;
+  height: 52px;
+  display: grid;
+  place-items: start;
+  align-items: center;
+}
+
+.glyph > :global(.h-avatar) {
+  --s: 52px;
+}
+
+.title {
+  margin: 12px 0 0;
+  font-size: var(--h-t-xl);
+  font-weight: var(--h-w-semibold);
+  letter-spacing: -0.02em;
+  color: var(--h-ink);
+}
+
+.subtitle {
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .compare {
+    gap: 0 14px;
+  }
+
+  .cell {
+    font-size: 13px;
+  }
+
+  .cell b {
+    font-size: var(--h-t-sm);
+  }
+
+  .title {
+    font-size: var(--h-t-md);
+  }
+
+  .glyph {
+    font-size: 34px;
+    height: 44px;
+  }
+}

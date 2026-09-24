@@ -1,0 +1,91 @@
+/* StickyZoom. Animates transform and clip-path only. */
+
+.root {
+  --from: 1.15;
+  --to: 1;
+  --r: 28px;
+  --len: 200vh;
+  position: relative;
+  /* clip, not hidden: hidden would make a scroll container and break sticky. */
+  overflow-x: clip;
+  view-timeline-name: --h-zoom;
+}
+
+.sticky {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 4vw, 48px);
+  padding-block: var(--h-s7);
+}
+
+.header {
+  text-align: center;
+  padding-inline: var(--h-gutter);
+}
+
+.media {
+  width: min(1080px, 100% - var(--h-gutter) * 2);
+  display: grid;
+  place-items: center;
+  transform: scale(var(--to));
+  clip-path: inset(0 round var(--r));
+  transform-origin: 50% 40%;
+}
+
+.footer {
+  padding-block: var(--h-s7) 0;
+}
+
+/* Pinning only when motion is allowed and some engine is driving it. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .root {
+      min-height: var(--len);
+    }
+
+    .sticky {
+      position: sticky;
+      top: 0;
+      min-height: 100vh;
+      min-height: 100svh;
+    }
+
+    .media {
+      will-change: transform;
+      animation: zoom linear both;
+      animation-timeline: --h-zoom;
+      animation-range: contain 0% contain 70%;
+    }
+  }
+
+  .root[data-js] {
+    min-height: var(--len);
+  }
+
+  .root[data-js] .sticky {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  .root[data-js] .media {
+    will-change: transform;
+    transform: scale(calc(var(--from) + (var(--to) - var(--from)) * min(1, var(--p, 1) / 0.7)));
+    clip-path: inset(0 round calc(var(--r) * min(1, var(--p, 1) / 0.7)));
+  }
+}
+
+@keyframes zoom {
+  from {
+    transform: scale(var(--from));
+    clip-path: inset(0 round 0);
+  }
+
+  to {
+    transform: scale(var(--to));
+    clip-path: inset(0 round var(--r));
+  }
+}

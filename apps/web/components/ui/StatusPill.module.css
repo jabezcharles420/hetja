@@ -1,0 +1,10 @@
+/* Layout only; colours come from the global .h-status-* tone classes. */
+.pill {
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.icon {
+  flex: none;
+  margin-left: -2px;
+}

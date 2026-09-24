@@ -1,0 +1,14 @@
+/* RouteFade: one short entrance, opacity + transform. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .fade {
+    animation: enter 420ms var(--h-ease-out) both;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

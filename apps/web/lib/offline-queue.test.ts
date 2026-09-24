@@ -275,7 +275,7 @@ describe("lib/offline-queue", () => {
     expect(dropped).toEqual([]);
   });
 
-  // The capture-time attestation contract: FeedButton mints a device token
+  // The capture-time attestation contract: the feed screen mints a device token
   // when the feed is captured, it is persisted with the queued record
   // (IndexedDB schema v2), and flush replays it as x-device-token. Before this
   // fix the replay sent NO credential at all: POST /api/v1/scans answered 401
@@ -285,6 +285,25 @@ describe("lib/offline-queue", () => {
     const { queued } = await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-at-capture" });
     expect(queued.deviceToken).toBe("tok-at-capture");
     expect(idbMock.store.get(queued.id)!.deviceToken).toBe("tok-at-capture");
+  });
+
+  it("persists the feed outcome and replays it in the scan body", async () => {
+    const { queued } = await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok", outcome: "unwell" });
+    expect(idbMock.store.get(queued.id)!.outcome).toBe("unwell");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: true } }));
+    expect(await flush()).toBe(1);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as Record<string, unknown>;
+    expect(body.outcome).toBe("unwell");
+    expect(body.type).toBe("feed");
+  });
+
+  it("sends no outcome key at all when the feeder picked none", async () => {
+    await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok" });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: true } }));
+    expect(await flush()).toBe(1);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as Record<string, unknown>;
+    expect("outcome" in body).toBe(false);
   });
 
   it("sends the persisted token as x-device-token when replaying an anonymous feed", async () => {

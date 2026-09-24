@@ -26,6 +26,7 @@ import type { RegistrationDetail } from "@/lib/api";
 import { extractCollarFromScan } from "@/components/QrScanner";
 import { captureGeo } from "@/lib/offline-queue";
 import { uuid } from "@/lib/idb";
+import { clearPendingPhoto, readPendingPhoto } from "@/lib/registration-photo";
 import RequireCapability from "@/components/RequireCapability";
 import PageHeader from "@/components/PageHeader";
 import contentStyles from "@/components/Content.module.css";
@@ -84,6 +85,9 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
     }
 
     try {
+      // The face photo from the New dog screen goes up with the activation
+      // scan: nothing about the dog is public before this moment.
+      const photoBase64 = readPendingPhoto(slug) ?? undefined;
       await api.createScan(
         {
           clientUuid: uuid(),
@@ -91,9 +95,11 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
           type: "retag",
           geo,
           capturedAt: new Date().toISOString(),
+          ...(photoBase64 ? { photoBase64 } : {}),
         },
         {},
       );
+      clearPendingPhoto(slug);
       setActivated(true);
       void load();
     } catch (err) {

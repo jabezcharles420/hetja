@@ -78,6 +78,15 @@ const RegistrationInput = z.object({
   approxAge: z.number().int().min(0).max(30).optional(),
   coatPattern: z.string().max(120).optional(),
   temperament: z.string().max(120).optional(),
+  /**
+   * The registrator's own word on medical status (migration 0025). Stored as
+   * a SELF-REPORT on dogs.vaccinated_reported / dogs.sterilised_reported and
+   * never surfaced as Vaccinated / Sterilised on any public read: only
+   * vet-verified medical records do that (routes/dogs.ts). Optional, so older
+   * clients are unaffected.
+   */
+  vaccinatedReported: z.boolean().optional(),
+  sterilisedReported: z.boolean().optional(),
   batchNo: z.string().min(1).max(40).default("self-serve"),
   material: z.string().min(1).max(40).default("TPU-Shore-95A"),
 });
@@ -98,6 +107,7 @@ class RegistrationDisabledError extends Error {
 
 interface RegistrationRow {
   slug: string;
+  name: string | null;
   status: string;
   ward_id: string;
   registered_at: Date | null;
@@ -201,6 +211,19 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
           app.config.HETJA_QR_SECRET,
         );
 
+        // Self-reported medical status, in the same transaction as the dog so
+        // a registration never exists half-written. COALESCE keeps NULL (not
+        // asked) distinct from false (asked, said no).
+        if (input.vaccinatedReported !== undefined || input.sterilisedReported !== undefined) {
+          await client.query(
+            `UPDATE dogs
+                SET vaccinated_reported = COALESCE($2, vaccinated_reported),
+                    sterilised_reported = COALESCE($3, sterilised_reported)
+              WHERE id = $1`,
+            [minted.dogId, input.vaccinatedReported ?? null, input.sterilisedReported ?? null],
+          );
+        }
+
         // Read the stamp back from the row rather than clocking it in JS: the
         // database's registered_at is the truth the expiry sweep will measure.
         const stamped = await client.query<{ registered_at: Date }>(
@@ -271,7 +294,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
     if (!auth) return reply;
 
     const res = await query<RegistrationRow>(
-      `SELECT slug, status, ward_id, registered_at, registered_by
+      `SELECT slug, name, status, ward_id, registered_at, registered_by
          FROM dogs
         WHERE registered_by = $1
         ORDER BY registered_at DESC NULLS LAST
@@ -284,6 +307,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
       data: {
         registrations: res.rows.map((row) => ({
           slug: row.slug,
+          name: row.name ?? null,
           status: row.status,
           wardId: row.ward_id,
           ...(row.registered_at
@@ -314,7 +338,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
         .send({ ok: false, error: { message: "invalid slug", code: "INVALID_SLUG" } });
     }
 
-    const res = await query<RegistrationRow>(`SELECT slug, status, ward_id, registered_at, registered_by FROM dogs WHERE slug = $1`, [
+    const res = await query<RegistrationRow>(`SELECT slug, name, status, ward_id, registered_at, registered_by FROM dogs WHERE slug = $1`, [
       slug,
     ]);
     const row = res.rows[0];
@@ -341,6 +365,8 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
       ok: true,
       data: {
         slug: row.slug,
+        // The name the registrator gave: the Collar ready screen prints it.
+        name: row.name ?? null,
         status: row.status,
         wardId: row.ward_id,
         registeredAt: row.registered_at?.toISOString() ?? null,

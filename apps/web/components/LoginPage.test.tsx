@@ -16,7 +16,7 @@
  * "cannot attest" branch here.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { DeviceTokenOutcome } from "@/lib/device";
 
@@ -65,16 +65,15 @@ const apiMock = api as unknown as {
 /** Shaped like a real issueDeviceToken() output. */
 const TOKEN = "MDZlNWFjM2YtODU5NS00OTZlLTg5YzAtZDYxZTY3YmVmMTllLA.qFq8kQ0mS7Vh2wAeQ1nZbGx0ZmYtc2ln";
 
-/** Fills in the email, submits, then fills in the code and submits. */
+/** Fills in the email, sends the code, then types the 6 digits (auto-submits). */
 async function signIn(code = "123456"): Promise<void> {
-  fireEvent.change(screen.getByLabelText("Email address"), {
+  fireEvent.change(screen.getByLabelText("Email"), {
     target: { value: "feeder@example.com" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Request code" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send code" }));
   await waitFor(() => expect(screen.queryByLabelText("6-digit code")).not.toBeNull());
 
   fireEvent.change(screen.getByLabelText("6-digit code"), { target: { value: code } });
-  fireEvent.click(screen.getByRole("button", { name: "Verify" }));
 }
 
 describe("feeder sign-in", () => {
@@ -91,7 +90,11 @@ describe("feeder sign-in", () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    window.history.replaceState({}, "", "/");
+  });
 
   it("verifies with an attested device token, never a bare UUID", async () => {
     render(<LoginPage />);
@@ -167,5 +170,100 @@ describe("feeder sign-in", () => {
     await waitFor(() => expect(screen.queryByText("bad_code")).not.toBeNull());
     // One attempt only: a wrong code must not be replayed, it consumes attempts.
     expect(apiMock.verifyOtp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("design v4 login screens", () => {
+  beforeEach(() => {
+    push.mockReset();
+    outcome = { ok: true, token: TOKEN, minted: true };
+    apiMock.requestOtp.mockReset();
+    apiMock.verifyOtp.mockReset();
+    apiMock.requestOtp.mockResolvedValue({ expiresAt: "2026-08-14T10:00:00.000Z" });
+    apiMock.verifyOtp.mockResolvedValue({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+      feeder: { displayName: "Priya", trustScore: 30, role: "feeder" },
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    window.history.replaceState({}, "", "/");
+  });
+
+  async function toCodeStep(): Promise<HTMLInputElement> {
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "priya.feeds@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    return (await screen.findByLabelText("6-digit code")) as HTMLInputElement;
+  }
+
+  it("ships the mock's copy on both steps, with the 5-minute expiry", async () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sign in.No password.");
+    expect(screen.getByText(/which dog hates the red scooter\./)).not.toBeNull();
+    cleanup();
+    await toCodeStep();
+    expect(screen.getByText("Check your email.")).not.toBeNull();
+    expect(screen.getByText("6 digits sent to priya.feeds@gmail.com. It works for 5 minutes.")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "‹ Change email" })).not.toBeNull();
+  });
+
+  it("is one hidden one-time-code input painted as six boxes", async () => {
+    const input = await toCodeStep();
+    expect(input.getAttribute("autocomplete")).toBe("one-time-code");
+    expect(input.getAttribute("inputmode")).toBe("numeric");
+    fireEvent.change(input, { target: { value: "4a8 2" } });
+    const boxes = screen.getAllByTestId("otp-box");
+    expect(boxes).toHaveLength(6);
+    expect(boxes.map((b) => b.textContent)).toEqual(["4", "8", "2", "", "", ""]);
+    expect(apiMock.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("auto-submits exactly once when the sixth digit lands, even if Verify is tapped too", async () => {
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482913" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/me"));
+    expect(apiMock.verifyOtp).toHaveBeenCalledTimes(1);
+    expect((apiMock.verifyOtp.mock.calls[0]![0] as { code: string }).code).toBe("482913");
+  });
+
+  it("asks for all six digits instead of sending a short code", async () => {
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+    expect(await screen.findByText("Type all 6 digits from the email.")).not.toBeNull();
+    expect(apiMock.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("counts the resend cooldown down from 0:30, then offers Resend", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await toCodeStep();
+    expect(screen.getByText("Resend in 0:30")).not.toBeNull();
+    for (let i = 0; i < 6; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
+    expect(screen.getByText("Resend in 0:24")).not.toBeNull();
+    for (let i = 0; i < 24; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
+    const resend = screen.getByRole("button", { name: "Resend" });
+    fireEvent.click(resend);
+    await waitFor(() => expect(apiMock.requestOtp).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByText("Resend in 0:30")).not.toBeNull());
+  });
+
+  it("returns to the page that sent the feeder here", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Ffeed%3Fdog%3Dabc234567");
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "123456" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/feed?dog=abc234567"));
   });
 });

@@ -1,0 +1,66 @@
+/* RequireCapability gate states, in the register screens' mist frame. */
+
+.page {
+  min-height: 100dvh;
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.top {
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+  padding-bottom: 24px;
+  max-width: 560px;
+}
+
+.title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.text {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-secondary);
+}
+
+.meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: 15px;
+  color: var(--h-danger);
+}

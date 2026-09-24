@@ -280,6 +280,94 @@ describe("POST /api/v1/registrations: the mint", () => {
   });
 });
 
+describe("POST /api/v1/registrations: self-reported medical status (migration 0025)", () => {
+  async function registerWith(feederToken: string, payload: Record<string, unknown>) {
+    return app.inject({
+      method: "POST",
+      url: "/api/v1/registrations",
+      headers: {
+        authorization: `Bearer ${feederToken}`,
+        "x-device-token": issueDeviceToken(config.HETJA_DEVICE_SECRET),
+      },
+      payload,
+    });
+  }
+
+  it("stores the toggles as self-reports and never shows them as Vaccinated / Sterilised", async () => {
+    const registrator = await makeFeeder("registrator");
+    const res = await registerWith(registrator.token, {
+      wardId: "K-West",
+      name: "Rani",
+      vaccinatedReported: true,
+      sterilisedReported: false,
+    });
+    expect(res.statusCode).toBe(201);
+    const { slug } = res.json().data as { slug: string };
+    slugsToClean.push(slug);
+
+    const row = await query<{ vaccinated_reported: boolean | null; sterilised_reported: boolean | null }>(
+      `SELECT vaccinated_reported, sterilised_reported FROM dogs WHERE slug = $1`,
+      [slug],
+    );
+    expect(row.rows[0]).toEqual({ vaccinated_reported: true, sterilised_reported: false });
+
+    // The profile's medical pills are vet-verified only: a registrator saying
+    // "vaccinated" leaves the public answer at "unknown".
+    const profile = await app.inject({
+      method: "GET",
+      url: `/api/v1/dogs/${slug}`,
+      headers: { authorization: `Bearer ${registrator.token}` },
+    });
+    expect(profile.statusCode).toBe(200);
+    const data = profile.json().data as Record<string, unknown>;
+    expect(data.vaccinated).toBe("unknown");
+    expect(data.sterilised).toBe("unknown");
+    expect(JSON.stringify(data)).not.toMatch(/reported/i);
+  });
+
+  it("keeps NULL (not asked) distinct from false when a client sends no toggles", async () => {
+    const registrator = await makeFeeder("registrator");
+    const res = await registerWith(registrator.token, { wardId: "K-West" });
+    expect(res.statusCode).toBe(201);
+    const { slug } = res.json().data as { slug: string };
+    slugsToClean.push(slug);
+
+    const row = await query<{ vaccinated_reported: boolean | null; sterilised_reported: boolean | null }>(
+      `SELECT vaccinated_reported, sterilised_reported FROM dogs WHERE slug = $1`,
+      [slug],
+    );
+    expect(row.rows[0]).toEqual({ vaccinated_reported: null, sterilised_reported: null });
+  });
+
+  it("400s on a non-boolean toggle rather than guessing", async () => {
+    const registrator = await makeFeeder("registrator");
+    const res = await registerWith(registrator.token, { wardId: "K-West", vaccinatedReported: "yes" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe("INVALID_REGISTRATION");
+  });
+
+  it("returns the dog's name on the registration reads (the Collar ready screen prints it)", async () => {
+    const registrator = await makeFeeder("registrator");
+    const res = await registerWith(registrator.token, { wardId: "K-West", name: "Rani" });
+    const { slug } = res.json().data as { slug: string };
+    slugsToClean.push(slug);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/registrations/${slug}`,
+      headers: { authorization: `Bearer ${registrator.token}` },
+    });
+    expect(detail.json().data.name).toBe("Rani");
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/registrations",
+      headers: { authorization: `Bearer ${registrator.token}` },
+    });
+    expect((list.json().data.registrations as Array<{ name: string | null }>)[0].name).toBe("Rani");
+  });
+});
+
 describe("GET /api/v1/registrations: my registrations", () => {
   it("lists only the caller's registrations, with no coordinates anywhere", async () => {
     const mine = await makeFeeder("registrator");

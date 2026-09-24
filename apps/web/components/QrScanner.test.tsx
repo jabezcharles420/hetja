@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
+/**
+ * Scan (design v4, screen 02): the camera opens by itself, decodes go through
+ * a GET /dogs/:slug existence check, a 404 is the inline "No dog with that
+ * code", and success is a FULL navigation to /d/<slug> (the profile is a
+ * different app behind Caddy) or, with ?intent=feed, /feed?dog=<slug>.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import QrScanner, { extractCollarFromScan } from "./QrScanner";
+import type { ReactNode } from "react";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 
@@ -9,13 +15,42 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-function fakeStream(): MediaStream {
-  return { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream;
+vi.mock("next/link", async () => {
+  const { createElement: el } = await import("react");
+  return {
+    default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
+      el("a", { href, ...rest }, children),
+  };
+});
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, api: { ...actual.api, getDog: vi.fn() } };
+});
+
+import QrScanner, { destinationFor, extractCollarFromScan, NO_DOG_MESSAGE } from "./QrScanner";
+import { api, ApiError } from "@/lib/api";
+
+const getDog = (api as unknown as { getDog: ReturnType<typeof vi.fn> }).getDog;
+const assign = vi.fn();
+
+interface FakeTrack {
+  stop: ReturnType<typeof vi.fn>;
+  getCapabilities?: () => { torch?: boolean };
+  applyConstraints: ReturnType<typeof vi.fn>;
 }
 
-/** Installs a fake `BarcodeDetector` global whose every `detect()` call
- * resolves with the given barcodes. Returns a teardown to remove it. */
-function installBarcodeDetector(barcodes: Array<{ rawValue: string; format: string }>): () => void {
+function fakeStream(torch = false): { stream: MediaStream; track: FakeTrack } {
+  const track: FakeTrack = {
+    stop: vi.fn(),
+    getCapabilities: () => (torch ? { torch: true } : {}),
+    applyConstraints: vi.fn().mockResolvedValue(undefined),
+  };
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
+  return { stream, track };
+}
+
+function installBarcodeDetector(barcodes: Array<{ rawValue: string; format: string }>): void {
   class FakeBarcodeDetector {
     detect(): Promise<Array<{ rawValue: string; format: string }>> {
       return Promise.resolve(barcodes);
@@ -26,9 +61,6 @@ function installBarcodeDetector(barcodes: Array<{ rawValue: string; format: stri
     configurable: true,
     writable: true,
   });
-  return () => {
-    delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
-  };
 }
 
 function stubMediaDevices(getUserMedia: (...args: unknown[]) => Promise<MediaStream>): void {
@@ -38,14 +70,22 @@ function stubMediaDevices(getUserMedia: (...args: unknown[]) => Promise<MediaStr
   });
 }
 
+beforeEach(() => {
+  push.mockReset();
+  getDog.mockReset();
+  assign.mockReset();
+  Object.defineProperty(window, "location", {
+    value: { ...window.location, assign, search: "" },
+    configurable: true,
+    writable: true,
+  });
+});
+
 afterEach(() => {
   vi.clearAllMocks();
   cleanup();
   delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
-  Object.defineProperty(window.navigator, "mediaDevices", {
-    value: undefined,
-    configurable: true,
-  });
+  Object.defineProperty(window.navigator, "mediaDevices", { value: undefined, configurable: true });
 });
 
 describe("extractCollarFromScan", () => {
@@ -69,108 +109,119 @@ describe("extractCollarFromScan", () => {
   });
 });
 
-describe("QrScanner", () => {
-  beforeEach(() => {
-    push.mockClear();
+describe("destinationFor (scan intent routing)", () => {
+  it("goes to the /d/ profile, keeping the signature", () => {
+    expect(destinationFor({ slug: "c3di5esh8", sig: "a b" }, null)).toBe("/d/c3di5esh8?s=a%20b");
+    expect(destinationFor({ slug: "c3di5esh8", sig: null }, null)).toBe("/d/c3di5esh8");
   });
 
-  it("renders the manual entry and no camera button when BarcodeDetector is absent", async () => {
-    render(<QrScanner />);
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Use camera" })).toBeNull();
-    });
-    expect(screen.getByLabelText("Collar code")).toBeTruthy();
-    expect(screen.getByText(/In-page scanning isn.t available in this browser/)).toBeTruthy();
-  });
-
-  it("does not request camera permission until the button is clicked", async () => {
-    const restore = installBarcodeDetector([]);
-    const getUserMedia = vi.fn().mockResolvedValue(fakeStream());
-    stubMediaDevices(getUserMedia);
-
-    render(<QrScanner />);
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Use camera" })).toBeTruthy();
-    });
-    expect(getUserMedia).not.toHaveBeenCalled();
-
-    // The manual fallback is present alongside the camera option, not just
-    // after a failure.
-    expect(screen.getByLabelText("Collar code")).toBeTruthy();
-
-    restore();
-  });
-
-  it("shows the denied message and still offers manual entry on NotAllowedError", async () => {
-    const restore = installBarcodeDetector([]);
-    const getUserMedia = vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError"));
-    stubMediaDevices(getUserMedia);
-
-    render(<QrScanner />);
-    await waitFor(() => screen.getByRole("button", { name: "Use camera" }));
-    fireEvent.click(screen.getByRole("button", { name: "Use camera" }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/Camera access was denied/)).toBeTruthy();
-    });
-    expect(screen.getByLabelText("Collar code")).toBeTruthy();
-
-    restore();
-  });
-
-  it("decodes a scanned collar URL and navigates to the right slug", async () => {
-    const restore = installBarcodeDetector([
-      { rawValue: "https://hetja.in/d/c3di5esh8?s=sig123", format: "qr_code" },
-    ]);
-    const getUserMedia = vi.fn().mockResolvedValue(fakeStream());
-    stubMediaDevices(getUserMedia);
-
-    render(<QrScanner />);
-    await waitFor(() => screen.getByRole("button", { name: "Use camera" }));
-    fireEvent.click(screen.getByRole("button", { name: "Use camera" }));
-
-    // An explicit, generous budget. The default is 1000ms, and this is the one
-    // assertion in the suite that waits on the scanner's real timer while CI
-    // runs every package's tests in parallel. It failed intermittently on the
-    // loaded runner while passing locally and in other jobs on the same commit,
-    // which blocked the Deploy workflow at its Gate. The component now attempts
-    // a decode immediately rather than only on the interval, so this should
-    // resolve on the first attempt; the raised ceiling is here so a busy
-    // machine cannot turn latency into a red build.
-    await waitFor(
-      () => {
-        expect(push).toHaveBeenCalledWith("/dog/c3di5esh8?s=sig123");
-      },
-      { timeout: 5000 },
-    );
-
-    restore();
+  it("goes to Log a feed for the scanned dog with ?intent=feed", () => {
+    expect(destinationFor({ slug: "c3di5esh8", sig: "x" }, "feed")).toBe("/feed?dog=c3di5esh8");
   });
 });
 
-/**
- * Regression: an unmounted component must not publish `window.BarcodeDetector`.
- *
- * This is the defect that made the suite above fail on CI while passing
- * locally, and it had nothing to do with the assertion that went red.
- *
- * The mount effect lazy-loads the ~13 KB WASM `barcode-detector` polyfill and
- * assigns it to the global. The assignment was not guarded by the effect's
- * `cancelled` flag, and the import can easily still be in flight after unmount
- * on a loaded machine. So: the first test here renders with no detector and
- * starts the import; its cleanup deletes the global; a later test installs a
- * fake and clicks "Use camera"; then the stale import resolves and overwrites
- * the fake with the real polyfill. The real polyfill dutifully tried to decode
- * pixels out of a jsdom <video> that has none, so no barcode was ever found,
- * `router.push` was never called, and the phase sat on "scanning" until the
- * test timed out, while the DOM looked entirely healthy.
- *
- * The fix is the `!cancelled` guard on that assignment. The package's own
- * side-effect write is a `??=`, which cannot overwrite a detector that is
- * already there, unlike the bare assignment, which is why only that one
- * needed guarding.
- */
-describe("polyfill global hygiene", () => {
+describe("QrScanner screen", () => {
+  it("shows the mock's copy and opens the camera without a button", async () => {
+    installBarcodeDetector([]);
+    const gum = vi.fn().mockResolvedValue(fakeStream().stream);
+    stubMediaDevices(gum);
+    render(<QrScanner />);
+    expect(screen.getByText("Point at the QR on the collar.")).not.toBeNull();
+    expect(screen.getByText("It opens by itself. No button needed.")).not.toBeNull();
+    expect(screen.getByText("No camera, or the QR is muddy?")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "View profile" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
+    await waitFor(() => expect(gum.mock.calls.length).toBe(1), { timeout: 3000 });
+    expect(screen.queryByRole("button", { name: /camera/i })).toBeNull();
+  });
+
+  it("hides the frame and focuses the code input when the camera is denied", async () => {
+    installBarcodeDetector([]);
+    stubMediaDevices(vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")));
+    render(<QrScanner />);
+    await waitFor(() => expect(screen.queryByTestId("scan-frame")).toBeNull());
+    expect(document.activeElement?.id).toBe("scan-collar-code");
+    expect(screen.getByText("No camera here.")).not.toBeNull();
+  });
+
+  it("verifies a decoded collar, then does a full navigation to /d/ with the signature", async () => {
+    installBarcodeDetector([{ rawValue: "https://hetja.in/d/c3di5esh8?s=sig123", format: "qr_code" }]);
+    const { stream, track } = fakeStream();
+    stubMediaDevices(vi.fn().mockResolvedValue(stream));
+    getDog.mockResolvedValue({ slug: "c3di5esh8" });
+    render(<QrScanner />);
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/d/c3di5esh8?s=sig123"));
+    expect(getDog).toHaveBeenCalledWith("c3di5esh8", "sig123");
+    expect(push).not.toHaveBeenCalled();
+    expect(track.stop).toHaveBeenCalled();
+  });
+
+  it("routes a scan to Log a feed when it came from Me (?intent=feed)", async () => {
+    window.location.search = "?intent=feed&dog=kaa234xyz";
+    installBarcodeDetector([{ rawValue: "https://hetja.in/d/c3di5esh8?s=sig123", format: "qr_code" }]);
+    stubMediaDevices(vi.fn().mockResolvedValue(fakeStream().stream));
+    getDog.mockResolvedValue({ slug: "c3di5esh8" });
+    render(<QrScanner />);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/feed?dog=c3di5esh8"));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("says 'No dog with that code' inline for a typed code the API does not know", async () => {
+    getDog.mockRejectedValue(new ApiError("dog not found", { status: 404, code: "DOG_NOT_FOUND" }));
+    render(<QrScanner />);
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "ABC 234 567" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    expect(await screen.findByText(NO_DOG_MESSAGE)).not.toBeNull();
+    expect(NO_DOG_MESSAGE).toBe("No dog with that code. Check the letters and try again.");
+    expect(getDog).toHaveBeenCalledWith("abc234567", null);
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("goes to the profile for a known typed code", async () => {
+    getDog.mockResolvedValue({ slug: "abc234567" });
+    render(<QrScanner />);
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc234567" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/d/abc234567"));
+  });
+
+  it("still goes to the profile when the check cannot reach the network (the profile works offline)", async () => {
+    getDog.mockRejectedValue(new ApiError("offline", { status: 0, code: "NETWORK_ERROR" }));
+    render(<QrScanner />);
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc234567" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/d/abc234567"));
+  });
+
+  it("refuses a short code without calling the API", async () => {
+    render(<QrScanner />);
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    expect(await screen.findByRole("alert")).not.toBeNull();
+    expect(getDog).not.toHaveBeenCalled();
+  });
+
+  it("offers Torch only when the camera supports it, and switches it with applyConstraints", async () => {
+    installBarcodeDetector([]);
+    const { stream, track } = fakeStream(true);
+    stubMediaDevices(vi.fn().mockResolvedValue(stream));
+    render(<QrScanner />);
+    const torch = await screen.findByRole("button", { name: "Torch" });
+    expect(torch.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(torch);
+    await waitFor(() => expect(torch.getAttribute("aria-pressed")).toBe("true"));
+    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ torch: true }] });
+  });
+
+  it("hides Torch when the camera has none", async () => {
+    installBarcodeDetector([]);
+    const gum = vi.fn().mockResolvedValue(fakeStream(false).stream);
+    stubMediaDevices(gum);
+    render(<QrScanner />);
+    await waitFor(() => expect(gum).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Torch" })).toBeNull();
+  });
+
   class UnrelatedDetector {
     detect(): Promise<[]> {
       return Promise.resolve([]);
@@ -179,25 +230,21 @@ describe("polyfill global hygiene", () => {
 
   it("does not let a stale in-flight import replace a detector installed since unmount", async () => {
     delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
-    stubMediaDevices(vi.fn().mockResolvedValue(fakeStream()));
+    const gum = vi.fn().mockResolvedValue(fakeStream().stream);
+    stubMediaDevices(gum);
 
-    // Render with no detector present: this is what starts the dynamic import.
     render(<QrScanner />);
     cleanup();
-    delete (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector;
-
-    // Whatever runs next installs its own detector and depends on it.
     Object.defineProperty(window, "BarcodeDetector", {
       value: UnrelatedDetector,
       configurable: true,
       writable: true,
     });
 
-    // Give the in-flight import time to settle, as a loaded runner would.
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    expect((window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector).toBe(
-      UnrelatedDetector,
-    );
+    expect((window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector).toBe(UnrelatedDetector);
+    // Nor may it open the camera for a page that is gone.
+    expect(gum).not.toHaveBeenCalled();
   }, 10_000);
 });

@@ -11,10 +11,10 @@
  *      `coarsenToWard`. The feeder's own device location is a separate,
  *      consented channel (captureGeo, browser prompt) and stays precise.
  *      The two are NOT interchangeable and the coarse one is not the
- *      preferred one: `FeedButton` takes the consented fix when there is one
+ *      preferred one: the feed screen takes the consented fix when there is one
  *      and only falls back to this value when there is not, because what the
  *      scan route stores becomes the centre of the SOS responder fan-out.
- *      See the precedence comment in components/FeedButton.tsx.
+ *      See the precedence comment in app/feed/FeedScreen.tsx.
  *   3. COMPRESS + STRIP: compressorjs re-encodes through a fresh <canvas>.
  *      `retainExif: false` means the output carries no EXIF/GPS at all.
  *      Verified against the library source: the ONLY code path that
@@ -101,7 +101,7 @@ export function compressPhoto(file: File): Promise<Blob> {
       // `compressorjs` is a dynamic import, so on a flaky connection where the
       // chunk is not already cached this fails with a ChunkLoadError, which is
       // exactly the network the feeder is on. `prepareFeedPhoto`'s Promise.all
-      // hung with it, so FeedButton's `finally { setBusy(false) }` never ran and
+      // hung with it, so the feed screen's `finally { setBusy(false) }` never ran and
       // the primary action stayed stuck on "Logging…" until a full page reload,
       // losing the photo and the feed. The `void` in front of the import chain
       // was also swallowing the rejection into an unhandled promise.

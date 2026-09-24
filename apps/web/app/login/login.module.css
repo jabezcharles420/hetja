@@ -1,94 +1,199 @@
+/* Screens 07 / 08, Login (Mobile App mock). Light aurora, no motion. */
+
 .page {
-  max-width: 440px;
-  margin: 0 auto;
-  padding: var(--h-s7) var(--h-gutter);
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: var(--h-s4);
+  color: var(--h-ink);
 }
 
-.topnav {
-  font-size: var(--h-t-sm);
-  color: var(--h-ink-muted);
+.form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.top {
+  flex: none;
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+}
+
+.back {
+  appearance: none;
+  border: 0;
+  background: none;
+  margin: 0;
+  padding: 0;
+  min-height: var(--h-target);
+  font-family: var(--h-font);
+  font-size: 17px;
+  color: var(--h-link);
+  cursor: pointer;
+}
+
+.back:focus-visible,
+.resendBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.bodyEmail,
+.bodyCode {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 72px 24px 16px;
+}
+
+.bodyEmail {
+  padding-top: calc(72px + env(safe-area-inset-top, 0px));
+}
+
+.bodyCode {
+  padding-top: 20px;
 }
 
 .title {
   margin: 0;
-  font-size: var(--h-t-plate);
-  font-weight: var(--h-w-semibold);
+  font-size: 44px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
 }
 
-.subtitle {
-  margin: 0 0 var(--h-s2);
-  color: var(--h-ink-muted);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--h-s3);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s5);
+.lead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--h-s2);
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-sm);
+  gap: 8px;
+  margin-top: 22px;
 }
 
-.field input {
-  background: var(--h-base);
+.input {
+  height: 60px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  margin: 0;
+  border-radius: var(--h-r-input);
+  background: var(--h-white);
+  box-shadow: var(--h-ring-input);
+  padding: 0 18px;
+  font-family: var(--h-font);
+  font-size: 19px;
   color: var(--h-ink);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: 0 var(--h-s3);
-  min-height: var(--h-target);
-  font-size: var(--h-t-lg);
-  font-variant-numeric: var(--h-num-tabular);
+  outline: none;
 }
 
-.field input:focus {
-  border-color: var(--h-ink);
+.input:focus {
+  box-shadow: var(--h-ring-focus);
 }
 
-.cta {
-  min-height: var(--h-target);
-  background: var(--h-accent);
-  color: var(--h-base);
-  border: none;
-  border-radius: var(--h-radius-fill);
-  padding: 0 var(--h-s4);
-  font-size: var(--h-t-md);
-  font-weight: var(--h-w-semibold);
+/* --- OTP --------------------------------------------------------------- */
+.otp {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-top: 22px;
+}
+
+/* One real input over the six painted boxes: autofill, paste and the
+ * numeric keyboard all behave as on any field. 16px font stops iOS zoom. */
+.otpInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 16px;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  z-index: 1;
+  cursor: text;
+}
+
+.box {
+  height: 64px;
+  border-radius: var(--h-r-otp);
+  background: var(--h-white);
+  box-shadow: var(--h-ring-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--h-mono);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--h-ink);
+}
+
+.boxActive {
+  box-shadow: var(--h-ring-focus);
+}
+
+.caret {
+  width: 2px;
+  height: 30px;
+  background: var(--h-blue);
+}
+
+.otpInput:focus-visible ~ .boxActive {
+  box-shadow: var(--h-ring-focus);
+}
+
+.resend {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--h-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.resendBtn {
+  appearance: none;
+  border: 0;
+  background: none;
+  margin: 0;
+  padding: 12px 0;
+  font-family: var(--h-font);
+  font-size: 15px;
+  color: var(--h-link);
   cursor: pointer;
 }
 
-.cta:disabled {
-  opacity: 0.6;
+.dev {
+  margin: 0;
+  font-size: 13px;
+  color: var(--h-secondary);
 }
 
 .status {
   margin: 0;
-  font-size: var(--h-t-sm);
-  color: var(--h-ink);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
 }
 
-.muted {
-  margin: 0;
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-xs);
-}
-
-.linkBtn {
-  background: transparent;
-  border: none;
-  color: var(--h-ink-muted);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: var(--h-t-sm);
-  min-height: var(--h-target-min);
+.page .footer {
+  /* The mock's 8px gap + 26px home-indicator strip under the button. */
+  padding-bottom: max(34px, calc(env(safe-area-inset-bottom, 0px) + 10px));
 }

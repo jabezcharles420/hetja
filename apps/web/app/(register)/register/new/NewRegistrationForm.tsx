@@ -1,236 +1,282 @@
 "use client";
 
 /**
- * Route protection is a UX boundary, not a security boundary. See
- * RequireCapability header. The API is the boundary.
+ * Screen 10, New dog (design v4). Route protection is a UX boundary, not a
+ * security boundary (see RequireCapability); the API is the boundary.
  *
- * Shape mirrors ScanEntry exactly: label + input + submit + role=alert error +
- * aria-describedby wiring + offline role=status notice. Warms the device token
- * on mount the way login/page.tsx's warmDeviceToken does, so PoW overlaps with
- * typing instead of stacking onto the submit tap.
+ * Name, ward (from GET /wards, shown "K/W · Andheri West"), and two
+ * self-reported toggles. The toggles are stored as the registrator's word
+ * only (vaccinatedReported / sterilisedReported, migration 0025): the public
+ * profile shows Vaccinated / Sterilised from vet records alone, which is what
+ * the caption promises. Warms the device token on mount so the proof-of-work
+ * overlaps typing instead of the tap.
  */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { BMC_WARD_CODES } from "@hetja/contracts";
-import { api, ApiError } from "@/lib/api";
-import { getDeviceToken, readCachedDeviceToken } from "@/lib/device";
+import { useRouter } from "next/navigation";
+import { Button, StickyFooter } from "@/components/ds";
+import { api, ApiError, type Ward } from "@/lib/api";
+import { deviceTokenFailureMessage, getDeviceToken, readCachedDeviceToken } from "@/lib/device";
+import { blobToBase64, stripDataPrefix } from "@/lib/offline-queue";
+import { prepareFeedPhoto } from "@/lib/photo";
+import { savePendingPhoto } from "@/lib/registration-photo";
 import RequireCapability from "@/components/RequireCapability";
-import PageHeader from "@/components/PageHeader";
-import contentStyles from "@/components/Content.module.css";
-import formStyles from "./new.module.css";
+import styles from "./new.module.css";
+
+export function wardLabel(w: Pick<Ward, "code" | "name">): string {
+  return `${w.code} · ${w.name}`;
+}
+
+function PhotoIcon(): React.JSX.Element {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}): React.JSX.Element {
+  const id = useId();
+  return (
+    <div className={styles.row}>
+      <span className={styles.toggleLabel} id={id}>
+        {label}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={id}
+        className={[styles.switch, checked ? styles.switchOn : ""].filter(Boolean).join(" ")}
+        onClick={() => onChange(!checked)}
+      >
+        <span className={styles.knob} />
+      </button>
+    </div>
+  );
+}
 
 function NewFormInner(): React.JSX.Element {
   const router = useRouter();
 
-  const [wardId, setWardId] = useState<string>(BMC_WARD_CODES[0]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [wardId, setWardId] = useState("");
   const [name, setName] = useState("");
-  const [sex, setSex] = useState<"" | "male" | "female" | "unknown">("");
-  const [approxAge, setApproxAge] = useState("");
-  const [coatPattern, setCoatPattern] = useState("");
-  const [temperament, setTemperament] = useState("");
+  const [vaccinated, setVaccinated] = useState(false);
+  const [sterilised, setSterilised] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Warm the device token on mount (same shape as login/page.tsx::warmDeviceToken).
   useEffect(() => {
-    if (readCachedDeviceToken()) return;
-    void getDeviceToken();
-  }, []);
-
-  useEffect(() => {
-    const sync = () => setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
-    const on = () => setOffline(false);
-    const off = () => setOffline(true);
-    sync();
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
+    if (!readCachedDeviceToken()) void getDeviceToken();
+    let cancelled = false;
+    (async () => {
+      try {
+        const [list, me] = await Promise.all([
+          api.getWards(),
+          api.getFeederMe().catch(() => null),
+        ]);
+        if (cancelled) return;
+        setWards(list.wards);
+        // Default to the feeder's own ward when we know it; otherwise make
+        // them choose rather than silently filing the dog under ward A.
+        if (me?.homeWard && list.wards.some((w) => w.id === me.homeWard)) setWardId(me.homeWard);
+      } catch {
+        if (!cancelled) setError("Could not load the ward list. Check your connection.");
+      }
+    })();
     return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
+      cancelled = true;
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+
+  const pickPhoto = (f: File | null) => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(f);
+    setPreview(f && typeof URL.createObjectURL === "function" ? URL.createObjectURL(f) : null);
+  };
+
+  const ward = wards.find((w) => w.id === wardId) ?? null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!wardId) {
+      setError("Pick the ward the dog lives in.");
+      return;
+    }
     setBusy(true);
     try {
-      // Best-effort device token for the x-device-token header (INVARIANT 6 gate).
+      // The x-device-token gate (INVARIANT 6). Permanent failures are said
+      // now; transient ones fall through to the API's own 401.
       let deviceToken: string | undefined;
-      try {
-        const { getDeviceToken: gdt } = await import("@/lib/device");
-        const outcome = await gdt();
-        if (outcome.ok) deviceToken = outcome.token;
-        else {
-          // Surface permanent failures; transient ones fall through to the API's 401.
-          if (outcome.reason === "insecure-context" || outcome.reason === "no-web-crypto") {
-            const { deviceTokenFailureMessage } = await import("@/lib/device");
-            throw new Error(deviceTokenFailureMessage(outcome.reason));
-          }
-        }
-      } catch (err) {
-        // If we threw a named failure above, surface it.
-        if (err instanceof Error && err.message.includes("secure connection")) {
-          setError(err.message);
-          setBusy(false);
-          return;
-        }
-        // Otherwise ignore: the request will 401 and we surface that message.
+      const outcome = await getDeviceToken();
+      if (outcome.ok) deviceToken = outcome.token;
+      else if (outcome.reason === "insecure-context" || outcome.reason === "no-web-crypto") {
+        setError(deviceTokenFailureMessage(outcome.reason));
+        return;
       }
 
-      const input: Record<string, unknown> = { wardId };
-      if (name.trim()) input.name = name.trim();
-      if (sex) input.sex = sex;
-      const ageNum = approxAge.trim() === "" ? undefined : Number(approxAge.trim());
-      if (ageNum !== undefined && !Number.isNaN(ageNum)) input.approxAge = ageNum;
-      if (coatPattern.trim()) input.coatPattern = coatPattern.trim();
-      if (temperament.trim()) input.temperament = temperament.trim();
+      const res = await api.createRegistration(
+        {
+          wardId,
+          ...(name.trim() ? { name: name.trim() } : {}),
+          vaccinatedReported: vaccinated,
+          sterilisedReported: sterilised,
+        },
+        deviceToken,
+      );
 
-      const res = await api.createRegistration(input as never, deviceToken);
-      router.push(`/register/${res.slug}`);
+      if (photo) {
+        try {
+          const prepared = await prepareFeedPhoto(photo);
+          savePendingPhoto(res.slug, stripDataPrefix(await blobToBase64(prepared.blob)));
+        } catch {
+          // The dog is registered; a photo can be added on the first feed.
+        }
+      }
+      router.push(`/register/${res.slug}/ready`);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "REGISTRATION_BUDGET_EXCEEDED" || err.code === "DEVICE_REGISTRATION_BUDGET_EXCEEDED") {
-          setError("Registration budget full: 2 pending at a time. Attach a collar to free a slot.");
+          setError("Two dogs are already waiting for their collars. Attach one to free a slot.");
         } else if (err.code === "REGISTRATION_DISABLED") {
-          setError("Registration is disabled for this account.");
+          setError("Registration is switched off for this account.");
         } else if (err.code === "UNAUTHENTICATED_DEVICE") {
           setError("Could not confirm this device. Check your connection and try again.");
         } else {
           setError(err.message);
         }
-      } else if (err instanceof Error) {
-        setError(err.message);
       } else {
-        setError("Could not create registration.");
+        setError("Could not save the dog. Try again.");
       }
     } finally {
       setBusy(false);
     }
   };
 
-  const fieldId = "register-ward";
-
   return (
-    <>
-      <PageHeader
-        kicker="Register"
-        title="Register a street dog"
-        intro="File a dog you look after. You’ll get a signed QR to laser-etch, and the registration stays inert until you scan it on the dog."
-      />
+    <form className={styles.page} onSubmit={(e) => void submit(e)} noValidate>
+      <div className={styles.top}>
+        <Link href="/register" className={styles.cancel}>
+          Cancel
+        </Link>
+      </div>
 
-      <section className={`${contentStyles.section} h-container`}>
-        <form className={formStyles.form} onSubmit={(e) => void submit(e)} noValidate>
-          {offline && (
-            <p className={formStyles.offline} role="status">
-              No signal. This form needs a connection to mint the collar. It will retry when you’re back.
-            </p>
-          )}
+      <div className={styles.body}>
+        <h1 className={styles.title}>New dog</h1>
 
-          <label className={formStyles.field} htmlFor={fieldId}>
-            <span className={formStyles.label}>Ward (BMC) *</span>
+        <div className={styles.photoRow}>
+          <label className={styles.photo} data-filled={preview ? "true" : undefined}>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className={styles.fileInput}
+              aria-describedby="reg-photo-help"
+              onChange={(e) => {
+                pickPhoto(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
+            />
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="The dog's face photo" className={styles.photoImg} />
+            ) : (
+              <span className={styles.photoEmpty}>
+                <PhotoIcon />
+                <span className={styles.photoCap}>Photo</span>
+              </span>
+            )}
+          </label>
+          <p className={styles.helper} id="reg-photo-help">
+            A clear face photo. Strangers use it to check they found the right dog.
+          </p>
+        </div>
+
+        <div className={styles.group}>
+          <label className={styles.row} htmlFor="reg-name">
+            <span className={styles.fieldText}>
+              <span className={styles.fieldLabel}>Name</span>
+              <input
+                id="reg-name"
+                className={styles.textInput}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={80}
+                autoCapitalize="words"
+                autoComplete="off"
+              />
+            </span>
+          </label>
+
+          <label className={[styles.row, styles.wardRow].join(" ")} htmlFor="reg-ward">
+            <span className={styles.fieldText}>
+              <span className={styles.fieldLabel}>Ward</span>
+              <span className={[styles.fieldValue, ward ? "" : styles.placeholder].filter(Boolean).join(" ")}>
+                {ward ? wardLabel(ward) : "Choose a ward"}
+              </span>
+            </span>
+            <span className={styles.chevron} aria-hidden="true">
+              ›
+            </span>
+            {/* The native picker, invisible over the row: the phone's own wheel. */}
             <select
-              id={fieldId}
-              className={formStyles.input}
+              id="reg-ward"
+              className={styles.select}
               value={wardId}
               onChange={(e) => setWardId(e.target.value)}
-              aria-describedby={error ? `${fieldId}-error` : undefined}
             >
-              {BMC_WARD_CODES.map((code: string) => (
-                <option key={code} value={code}>
-                  {code}
+              <option value="" disabled>
+                Choose a ward
+              </option>
+              {wards.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {wardLabel(w)}
                 </option>
               ))}
             </select>
           </label>
 
-          <label className={formStyles.field}>
-            <span className={formStyles.label}>Dog name (optional)</span>
-            <input
-              className={formStyles.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Kalu"
-              maxLength={80}
-              autoCapitalize="words"
-              aria-describedby={error ? `${fieldId}-error` : undefined}
-            />
-          </label>
+          <Toggle label="Vaccinated" checked={vaccinated} onChange={setVaccinated} />
+          <Toggle label="Sterilised" checked={sterilised} onChange={setSterilised} />
+        </div>
 
-          <label className={formStyles.field}>
-            <span className={formStyles.label}>Sex</span>
-            <select
-              className={formStyles.input}
-              value={sex}
-              onChange={(e) => setSex(e.target.value as never)}
-            >
-              <option value="">Unknown</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </label>
+        <p className={styles.caption}>Only the ward is ever shown. Vets can confirm medical status later.</p>
 
-          <label className={formStyles.field}>
-            <span className={formStyles.label}>Approx. age (years, optional)</span>
-            <input
-              className={formStyles.input}
-              value={approxAge}
-              onChange={(e) => setApproxAge(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
-              placeholder="e.g. 2"
-              inputMode="numeric"
-              maxLength={2}
-            />
-          </label>
-
-          <label className={formStyles.field}>
-            <span className={formStyles.label}>Coat / pattern (optional)</span>
-            <input
-              className={formStyles.input}
-              value={coatPattern}
-              onChange={(e) => setCoatPattern(e.target.value)}
-              placeholder="e.g. brown with white patch"
-              maxLength={120}
-            />
-          </label>
-
-          <label className={formStyles.field}>
-            <span className={formStyles.label}>Temperament (optional)</span>
-            <input
-              className={formStyles.input}
-              value={temperament}
-              onChange={(e) => setTemperament(e.target.value)}
-              placeholder="e.g. friendly, shy in crowds"
-              maxLength={120}
-            />
-          </label>
-
-          <button type="submit" className={formStyles.submit} disabled={busy}>
-            {busy ? "Registering…" : "Register and get QR"}
-          </button>
-
-          {error && (
-            <p className={formStyles.error} id={`${fieldId}-error`} role="alert">
-              {error}
-            </p>
-          )}
-
-          <p className={formStyles.hint}>
-            Two pending registrations at a time. Attaching a tag frees a slot. The QR is signed under the server’s secret, so reprinting keeps the
-            same slug.
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
           </p>
-        </form>
+        )}
+      </div>
 
-        <p style={{ marginTop: "var(--h-s5)" }}>
-          <Link href="/register" style={{ color: "var(--h-ink-muted)", textDecoration: "underline", textUnderlineOffset: 3 }}>
-            ← Back to registrations
-          </Link>
-        </p>
-      </section>
-    </>
+      <StickyFooter background="mist" className={styles.footer}>
+        <Button type="submit" fullWidth disabled={busy} aria-busy={busy || undefined}>
+          Save &amp; print collar
+        </Button>
+      </StickyFooter>
+    </form>
   );
 }
 

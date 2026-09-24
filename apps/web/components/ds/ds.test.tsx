@@ -40,7 +40,7 @@ describe("StatusPill", () => {
     ["danger", "alert"],
   ] as const)("%s renders an icon and its words", (variant, icon) => {
     const { container } = render(
-      createElement(StatusPill, { variant, icon, children: "Vaccinated" }),
+      <StatusPill variant={variant} icon={icon}>Vaccinated</StatusPill>,
     );
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
@@ -51,7 +51,7 @@ describe("StatusPill", () => {
 
   it("uses the handoff check path", () => {
     const { container } = render(
-      createElement(StatusPill, { variant: "ok", icon: "check", children: "Fed" }),
+      <StatusPill variant="ok" icon="check">Fed</StatusPill>,
     );
     expect(container.querySelector("path")?.getAttribute("d")).toBe("M3 8.5l3 3 7-7");
   });
@@ -184,7 +184,7 @@ describe("TabBar", () => {
 
 describe("Button", () => {
   it("sos renders the ! circle inside a real button", () => {
-    render(createElement(Button, { variant: "sos", children: "This dog needs help" }));
+    render(<Button variant="sos">This dog needs help</Button>);
     const btn = screen.getByRole("button", { name: /This dog needs help/ });
     expect(btn.tagName).toBe("BUTTON");
     expect(btn.getAttribute("type")).toBe("button");
@@ -195,7 +195,7 @@ describe("Button", () => {
 
   it("sos with href is a real link", () => {
     render(
-      createElement(Button, { variant: "sos", href: "/dog/ddr017xk2/sos", children: "This dog needs help" }),
+      <Button variant="sos" href="/dog/ddr017xk2/sos">This dog needs help</Button>,
     );
     const link = screen.getByRole("link", { name: /This dog needs help/ });
     expect(link.getAttribute("href")).toBe("/dog/ddr017xk2/sos");
@@ -203,7 +203,7 @@ describe("Button", () => {
   });
 
   it("tel: links render a plain anchor", () => {
-    render(createElement(Button, { variant: "tinted", href: "tel:+911234", children: "Call" }));
+    render(<Button variant="tinted" href="tel:+911234">Call</Button>);
     expect(screen.getByRole("link", { name: "Call" }).getAttribute("href")).toBe("tel:+911234");
   });
 });
@@ -211,16 +211,15 @@ describe("Button", () => {
 describe("StickyFooter and SectionFade", () => {
   it("StickyFooter renders its caption", () => {
     render(
-      createElement(StickyFooter, {
-        caption: "Alerts his feeders and a vet nearby.",
-        children: createElement(Button, { variant: "sos", children: "This dog needs help" }),
-      }),
+      <StickyFooter caption="Alerts his feeders and a vet nearby.">
+        <Button variant="sos">This dog needs help</Button>
+      </StickyFooter>,
     );
     expect(screen.getByText("Alerts his feeders and a vet nearby.")).toBeTruthy();
   });
 
   it("SectionFade leaves content visible without IntersectionObserver", () => {
-    const { container } = render(createElement(SectionFade, { children: "Three steps." }));
+    const { container } = render(<SectionFade>Three steps.</SectionFade>);
     expect(screen.getByText("Three steps.")).toBeTruthy();
     expect(container.firstElementChild?.className).not.toMatch(/hidden/);
   });

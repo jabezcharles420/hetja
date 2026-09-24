@@ -193,7 +193,7 @@ interface RequestOptions {
  * Imported lazily so that `lib/api` stays usable in contexts (tests, SSR) where
  * the device module's browser dependencies are absent.
  *
- * Exported since the capture-time attestation fix: FeedButton needs exactly
+ * Exported since the capture-time attestation fix: the feed screen needs exactly
  * this best-effort semantics when a feed is captured offline (never throw,
  * never block, undefined on failure), and duplicating the lazy-import dance
  * would drift from it.
@@ -334,7 +334,45 @@ export interface DogProfile {
   microStory: string | null;
   lastSeenAt: string | null;
   geo: GeoPoint | null;
+  // Design-v4 additions (routes/dogs.ts). Optional so a cached older payload
+  // still type-checks: every consumer must tolerate their absence.
+  /** Locality of the ward, e.g. "Andheri West". Ward level only (INVARIANT 2). */
+  wardName?: string | null;
+  /** Vet-verified only: "unknown" is the honest default, never "no". */
+  vaccinated?: "yes" | "unknown";
+  sterilised?: "yes" | "no" | "unknown";
+  /** Latest non-rejected feed by anyone. A time, never who. */
+  lastFedAt?: string | null;
+  feederCount?: number;
+  storyAuthorCount?: number;
+  /** Absolute photo URL, or null. */
+  photoUrl?: string | null;
 }
+
+/** One of the 24 BMC wards (GET /api/v1/wards). */
+export interface Ward {
+  /** Canonical id stored on the dog, e.g. "K-West". */
+  id: string;
+  /** Short slash form, e.g. "K/W". */
+  code: string;
+  /** Locality, e.g. "Andheri West". */
+  name: string;
+}
+
+/** A dog the signed-in feeder has fed (GET /api/v1/feeders/me/dogs). */
+export interface MyDog {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardName: string | null;
+  /** Latest feed of this dog by ANYONE. */
+  lastFedAt: string | null;
+  /** This feeder's own latest feed of it. */
+  myLastFedAt: string;
+}
+
+/** How the dog ate, as the feeder saw it (scans.feed_outcome, migration 0024). */
+export type FeedOutcomeValue = "ate_all" | "ate_some" | "didnt_eat" | "unwell";
 
 export interface MedicalRecord {
   record_type: string;
@@ -388,6 +426,8 @@ export interface VerifyResult {
 export interface ScanResult {
   created: boolean;
   scanId?: string;
+  /** Signed-in feeds only: the streak after this feed. */
+  streak?: { streakDays: number; lastFeedDate: string | null };
 }
 
 export type SosSeverity = "minor" | "serious" | "critical";
@@ -426,12 +466,27 @@ export interface StreakData {
   trustScore: number;
   streakDays: number;
   badges: string[];
+  /** Asia/Kolkata calendar day (YYYY-MM-DD) of the last feed, or null. */
+  lastFeedDate?: string | null;
+  nextBadgeHint?: unknown;
+  /** First day (YYYY-MM-DD) of the current run; null with no live streak. */
+  streakStart?: string | null;
+  trustLevel?: TrustLevel;
+}
+
+export interface TrustLevel {
+  /** "New feeder" | "Trusted feeder". */
+  name: string;
+  level: number;
+  /** Trust score that reaches the next level; null at the top. */
+  nextThreshold: number | null;
 }
 
 export type RegistrationStatus = "pending_activation" | "active" | "expired" | "lost" | "deceased" | "adopted" | "relocated";
 
 export interface RegistrationSummary {
   slug: string;
+  name?: string | null;
   status: string;
   wardId: string;
   registeredAt?: string;
@@ -440,6 +495,8 @@ export interface RegistrationSummary {
 
 export interface RegistrationDetail {
   slug: string;
+  /** The dog's name as registered (null when none was given). */
+  name?: string | null;
   status: string;
   wardId: string;
   registeredAt: string | null;
@@ -456,6 +513,14 @@ export interface CreateRegistrationInput {
   temperament?: string;
   batchNo?: string;
   material?: string;
+  /**
+   * The registrator's own word on medical status (migration 0025). Stored as
+   * a self-report only: the public profile never shows these as Vaccinated /
+   * Sterilised, only vet-verified records do ("Vets can confirm medical
+   * status later").
+   */
+  vaccinatedReported?: boolean;
+  sterilisedReported?: boolean;
 }
 
 export interface CreateRegistrationResult {
@@ -492,12 +557,22 @@ export function dogPhotoUrl(dog: Pick<DogProfile, "photoKey">): string | null {
 }
 
 export const api = {
-  /** Anonymous public profile for a QR collar slug + HMAC signature. */
-  getDog: (slug: string, sig: string) =>
+  /**
+   * Anonymous public profile for a collar slug. With a QR signature the API
+   * verifies it; without one (a typed code) the slug's check character is the
+   * gate. Either way an unknown code is a 404 DOG_NOT_FOUND.
+   */
+  getDog: (slug: string, sig?: string | null) =>
     request<DogProfile>(
-      `/dogs/${encodeURIComponent(slug)}?s=${encodeURIComponent(sig)}`,
+      `/dogs/${encodeURIComponent(slug)}${sig ? `?s=${encodeURIComponent(sig)}` : ""}`,
       { auth: false },
     ),
+
+  /** The 24 BMC wards, for the registration ward picker. Public. */
+  getWards: () => request<{ wards: Ward[] }>(`/wards`, { auth: false }),
+
+  /** Dogs this feeder has fed, most recent first (Me screen). */
+  getMyDogs: () => request<{ dogs: MyDog[] }>(`/feeders/me/dogs`),
 
   /** Anonymous verified medical records for a dog. */
   getDogMedical: (slug: string) =>
@@ -546,18 +621,27 @@ export const api = {
    * offline queue treated that as retryable, every queued record re-uploaded
    * its photo bytes on every app open, forever, and was never accepted once.
    *
-   * FIXED at CAPTURE time, exactly as this comment long prescribed: FeedButton
-   * mints a device token when the feed is captured (bestEffortDeviceToken),
+   * FIXED at CAPTURE time, exactly as this comment long prescribed: the Log a
+   * feed screen (app/feed) mints a device token when the feed is captured (bestEffortDeviceToken),
    * enqueueFeed persists it with the queued record (IndexedDB schema v2), and
    * flush replays it via `opts.deviceToken`. Minting here, on the REPLAY path,
    * would still be the wrong shape (a proof-of-work round trip per queued
    * record per flush), so the replay only ever presents what capture stored.
    * Tokenless records queued before schema v2 cannot be retroactively
    * attested; offline-queue drops them through recordDroppedFeed instead of
-   * retrying them forever. See lib/offline-queue.ts and components/FeedButton.tsx.
+   * retrying them forever. See lib/offline-queue.ts and app/feed/FeedScreen.tsx.
    */
   createScan: (
-    input: { clientUuid: string; dogSlug: string; type: "feed" | "retag"; geo?: GeoPoint; photoBase64?: string; capturedAt: string },
+    input: {
+      clientUuid: string;
+      dogSlug: string;
+      type: "feed" | "retag";
+      geo?: GeoPoint;
+      photoBase64?: string;
+      capturedAt: string;
+      /** Feeds only; the API ignores it on other scan types. */
+      outcome?: FeedOutcomeValue;
+    },
     opts: { deviceToken?: string } = {},
   ) => request<ScanResult>(`/scans`, { method: "POST", body: input, deviceToken: opts.deviceToken }),
 

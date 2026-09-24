@@ -44,6 +44,42 @@ describe("lib/api", () => {
     await expect(api.getDog("abc234567", "sig123")).resolves.toEqual(dog);
   });
 
+  it("omits ?s= for a typed code and encodes a QR signature when there is one", async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: {} }));
+    await api.getDog("abc234567");
+    await api.getDog("abc234567", null);
+    await api.getDog("abc234567", "a+b/c");
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${API_BASE}/dogs/abc234567`);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`${API_BASE}/dogs/abc234567`);
+    expect(fetchMock.mock.calls[2]![0]).toBe(`${API_BASE}/dogs/abc234567?s=a%2Bb%2Fc`);
+  });
+
+  it("reads the wards anonymously and my dogs with the session", async () => {
+    setAccessToken("tok");
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { wards: [], dogs: [] } }));
+    await api.getWards();
+    await api.getMyDogs();
+    const [wardsUrl, wardsInit] = fetchMock.mock.calls[0]!;
+    const [dogsUrl, dogsInit] = fetchMock.mock.calls[1]!;
+    expect(wardsUrl).toBe(`${API_BASE}/wards`);
+    expect((wardsInit.headers as Record<string, string>).authorization).toBeUndefined();
+    expect(dogsUrl).toBe(`${API_BASE}/feeders/me/dogs`);
+    expect((dogsInit.headers as Record<string, string>).authorization).toBe("Bearer tok");
+    setAccessToken(null);
+  });
+
+  it("posts the self-reported medical toggles with a registration", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(201, { ok: true, data: { slug: "abc234567" } }));
+    await api.createRegistration({ wardId: "K-West", vaccinatedReported: true, sterilisedReported: false }, "dev");
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(init.body as string)).toEqual({
+      wardId: "K-West",
+      vaccinatedReported: true,
+      sterilisedReported: false,
+    });
+    expect((init.headers as Record<string, string>)["x-device-token"]).toBe("dev");
+  });
+
   it("attaches the Bearer token from localStorage when present", async () => {
     setAccessToken("tok-abc");
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { records: [] } }));

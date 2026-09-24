@@ -14,6 +14,7 @@
 import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
 import { api, ApiError, getAccessToken } from "./api";
+import type { FeedOutcomeValue } from "./api";
 
 export const SYNC_TAG = "hetja-feed-flush";
 
@@ -23,13 +24,15 @@ export interface EnqueueInput {
   geo?: { lat: number; lng: number };
   /**
    * Attested device token minted by the CALLER at capture time
-   * (FeedButton → bestEffortDeviceToken). Persisted with the record so a
+   * (the feed screen → bestEffortDeviceToken). Persisted with the record so a
    * flush days later can present a credential minted in the capture's
    * context. Deliberately NOT minted here: this module's flush is the replay
    * path, and a challenge/PoW round trip per queued record per flush is the
    * wrong shape (see api.ts's createScan note).
    */
   deviceToken?: string;
+  /** "How did it go?" (optional). Stored with the record and replayed as-is. */
+  outcome?: FeedOutcomeValue;
 }
 
 export interface FeedOutcome {
@@ -92,6 +95,7 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     geo: input.geo,
     capturedAt: new Date().toISOString(),
     deviceToken: input.deviceToken,
+    ...(input.outcome ? { outcome: input.outcome } : {}),
   });
 
   const offline = !isOnLine();
@@ -188,6 +192,7 @@ export async function flush(
           geo: item.geo,
           photoBase64: item.photo,
           capturedAt: item.capturedAt,
+          ...(item.outcome ? { outcome: item.outcome } : {}),
         },
         // The capture-time credential. Harmless alongside a Bearer: the route
         // prefers the Bearer for attribution, and this token is what makes an

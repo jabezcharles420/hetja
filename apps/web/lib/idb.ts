@@ -26,6 +26,11 @@ export interface QueuedScan {
    * dropped-feeds path rather than retrying them forever.
    */
   deviceToken?: string;
+  /**
+   * Feed outcome ("How did it go?"), optional. Schemaless like the rest of the
+   * record, so no DB_VERSION bump: older records simply have none.
+   */
+  outcome?: "ate_all" | "ate_some" | "didnt_eat" | "unwell";
 }
 
 const DB_NAME = "hetja-feeder";

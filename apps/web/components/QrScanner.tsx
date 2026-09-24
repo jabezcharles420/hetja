@@ -1,36 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button, CollarCodeInput } from "@/components/ds";
+import { api, ApiError } from "@/lib/api";
 import { parseCollarCode } from "@/lib/collar";
-import ScanEntry, { type ScanEntryProps } from "./ScanEntry";
 import styles from "./QrScanner.module.css";
 
 /**
- * The Barcode Detection API has no types in this project's TypeScript DOM
- * lib (it is a WICG proposal shipped by Chromium and Safari 17+, not yet in
- * the DOM standard TS ships types for). Declared narrowly to just what this
- * file uses.
+ * Screen 02, Scan (design v4). Full-screen dark camera with a 250px bracket
+ * frame, and a white bottom sheet for typing the code when there is no camera
+ * or the QR is muddy.
+ *
+ * The camera opens by itself ("It opens by itself. No button needed."). The
+ * native BarcodeDetector is used where it exists; elsewhere the small
+ * `barcode-detector` polyfill is imported lazily, so it only ever loads here.
+ *
+ * Every code, scanned or typed, is checked against GET /dogs/:slug before we
+ * leave the page, so a wrong code gets the inline "No dog with that code"
+ * instead of a dead profile. The profile (/d/<slug>) is a different app
+ * served by Caddy, so that hop is a full navigation (window.location.assign),
+ * not a client-side route change. With `?intent=feed` (from Me) a scan goes
+ * to /feed?dog=<scanned slug> instead.
  */
+
 declare global {
-  // TS 7's lib.dom already ships the native `BarcodeDetector`,
-  // `DetectedBarcode` and `BarcodeDetectorOptions` types, so only the
-  // instance abstraction used across the native API and the polyfill is
-  // declared here.
+  // TS 7's lib.dom already ships `BarcodeDetector`, `DetectedBarcode` and
+  // `BarcodeDetectorOptions`; only the instance shape shared by the native API
+  // and the polyfill is declared here.
   interface BarcodeDetectorInstance {
     detect(image: CanvasImageSource): Promise<DetectedBarcode[]>;
   }
 }
-
-type Phase =
-  | "unsupported"
-  | "idle"
-  | "starting"
-  | "scanning"
-  | "denied"
-  | "no-camera"
-  | "busy"
-  | "error";
 
 export interface ScannedCollar {
   slug: string;
@@ -39,12 +41,10 @@ export interface ScannedCollar {
 
 /**
  * Extracts a collar slug (and an optional `?s=` signature) from decoded QR
- * text. A real collar QR encodes a full URL
- * (`https://hetja.in/d/<slug>?s=<sig>`), but this also accepts a bare
- * `/d/<slug>` path or a bare 9-character code, so a differently-shaped QR
- * (or a pasted value) still resolves. Returns null for anything that isn't
- * a valid collar code, so callers can tell "not a Hetja collar" apart from
- * a real decode.
+ * text. A real collar QR encodes a full URL (`https://hetja.in/d/<slug>?s=<sig>`),
+ * but a bare `/d/<slug>` path or a bare 9-character code resolve too. Returns
+ * null for anything that is not a valid collar code, so callers can tell "not
+ * a Hetja collar" apart from a real decode.
  */
 export function extractCollarFromScan(rawValue: string): ScannedCollar | null {
   const trimmed = rawValue.trim();
@@ -72,106 +72,52 @@ export function extractCollarFromScan(rawValue: string): ScannedCollar | null {
   return { slug: parsed.slug, sig };
 }
 
-function messageFor(phase: Phase): string | null {
-  switch (phase) {
-    case "unsupported":
-      return "In-page scanning isn’t available in this browser. Point your phone’s own camera app at the QR on the collar, or type the code below.";
-    case "denied":
-      return "Camera access was denied. Turn it on in your browser’s site settings, or type the code below.";
-    case "no-camera":
-      return "No camera was found on this device. Type the code below instead.";
-    case "busy":
-      return "The camera is busy or unavailable right now. Type the code below instead.";
-    case "error":
-      return "Couldn’t start the camera. Type the code below instead.";
-    default:
-      return null;
-  }
+export const NO_DOG_MESSAGE = "No dog with that code. Check the letters and try again.";
+export const NOT_A_COLLAR_MESSAGE = "That QR isn't a Hetja collar. Try the one on the collar tag.";
+
+/** Where a resolved collar goes. /d/ is the profile app, so it is a full URL. */
+export function destinationFor(collar: ScannedCollar, intent: string | null): string {
+  if (intent === "feed") return `/feed?dog=${encodeURIComponent(collar.slug)}`;
+  const qs = collar.sig ? `?s=${encodeURIComponent(collar.sig)}` : "";
+  return `/d/${collar.slug}${qs}`;
 }
 
-export interface QrScannerProps {
-  /** Forwarded to the always-available manual entry fallback. */
-  entry?: ScanEntryProps;
+type CameraState = "checking" | "starting" | "scanning" | "off";
+
+interface TorchCapable {
+  getCapabilities?: () => MediaTrackCapabilities & { torch?: boolean };
+  applyConstraints: (c: MediaTrackConstraints) => Promise<void>;
 }
 
-/**
- * In-page QR scanner for the /scan flow, using the native `BarcodeDetector`
- * API, with zero dependencies. Camera access is never requested on mount: it
- * only starts behind the explicit "Use camera" button below, because an
- * unprompted permission dialog is the one people reflexively deny.
- *
- * Falls through to the existing `ScanEntry` manual entry whenever the API
- * is unsupported, permission is denied, no camera exists, or the camera is
- * busy. Each gets its own copy, and the manual path is always present so
- * scanning failure is never a dead end.
- */
-export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element {
+export default function QrScanner(): React.JSX.Element {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("unsupported");
+  // Held in a ref so the camera callbacks (and the mount effect that opens
+  // the camera) never re-run because a router object changed identity.
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  const [camera, setCamera] = useState<CameraState>("checking");
   const [mismatch, setMismatch] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetectorInstance | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const detectingRef = useRef(false);
+  const resolvingRef = useRef(false);
+  /** The camera was running when the tab was hidden, so reopen it on return. */
+  const pausedRef = useRef(false);
+  /** False once unmounted: the lazy import and getUserMedia can outlive us. */
+  const aliveRef = useRef(true);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
 
-  // Feature-detect after mount only. Checking eagerly during render would
-  // read `window` during SSR (throwing) or disagree with the server-rendered
-  // markup on first client paint (a hydration mismatch); the effect runs
-  // once hydration is done.
-  useEffect(() => {
-    const hasCamera = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
-    let cancelled = false;
-    (async () => {
-      let hasDetector = typeof window !== "undefined" && typeof window.BarcodeDetector !== "undefined";
-      if (!hasDetector) {
-        // Enhancement stack Phase 0 #3 (Sec-ant/barcode-detector): lazy-load
-        // the ~3 KB JS + ~13 KB WASM polyfill behind a dynamic import so iOS
-        // Safari / Firefox get QR scanning without paying for it up front.
-        //
-        // The default entry (not `/pure`) is deliberate: it carries the global
-        // type declarations for `BarcodeDetector`, `DetectedBarcode` and
-        // `BarcodeDetectorOptions` that this file's `declare global` block
-        // builds on. Its own `import "./polyfill.js"` publishes the global with
-        // a `??=`, which cannot overwrite a detector that is already there,
-        // unlike the bare assignment below, which is why only that one needed
-        // guarding.
-        try {
-          const { BarcodeDetector: Polyfill } = await import("barcode-detector");
-          // `!cancelled` is load-bearing, not defensive tidiness. This writes to
-          // a GLOBAL, and the await above can outlive the component: the import
-          // pulls ~13 KB of WASM, so on a slow or busy machine it can still be
-          // in flight long after unmount. Without this guard an unmounted
-          // component would install the polyfill over whatever the page had put
-          // there since, publishing to `window` on behalf of a component that
-          // no longer exists.
-          //
-          // That is not hypothetical. It made the scanner suite fail on CI while
-          // passing locally: the first test renders with no detector and starts
-          // this import; its cleanup deletes `window.BarcodeDetector`; a later
-          // test installs a fake one and clicks "Use camera"; then this import
-          // finally resolved and replaced the fake with the real polyfill. The
-          // real polyfill then tried to decode pixels from a jsdom <video> that
-          // has none, so no barcode was ever found, `router.push` was never
-          // called, and the phase sat on "scanning" until the test timed out.
-          // Intermittent, environment-dependent, and nothing to do with the
-          // assertion that failed.
-          if (!cancelled && typeof window !== "undefined") {
-            (window as unknown as {
-              BarcodeDetector?: new (options?: BarcodeDetectorOptions) => BarcodeDetectorInstance;
-            }).BarcodeDetector = Polyfill as never;
-          }
-          hasDetector = true;
-        } catch {
-          hasDetector = false;
-        }
-      }
-      if (!cancelled) setPhase(hasDetector && hasCamera ? "idle" : "unsupported");
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const focusInput = useCallback(() => {
+    sheetRef.current?.querySelector<HTMLInputElement>("input")?.focus();
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -179,57 +125,76 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    const stream = streamRef.current;
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     if (videoRef.current) {
       try {
         videoRef.current.srcObject = null;
       } catch {
-        // Some test/DOM environments don't implement srcObject at all.
+        // Some DOM environments do not implement srcObject.
       }
     }
     detectorRef.current = null;
     detectingRef.current = false;
+    setTorchSupported(false);
+    setTorchOn(false);
   }, []);
 
-  // Stop the camera the moment the tab is hidden: a live MediaStream left
-  // running drains battery and keeps the camera light on. Also stop on
-  // unmount.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) {
-        stopCamera();
-        setPhase((p) => (p === "scanning" || p === "starting" ? "idle" : p));
+  const go = useCallback(
+    (collar: ScannedCollar) => {
+      // Read at the moment of leaving rather than via useSearchParams, so the
+      // page needs no Suspense boundary and server-renders the whole screen.
+      const intent = new URLSearchParams(window.location.search).get("intent");
+      const dest = destinationFor(collar, intent);
+      if (intent === "feed") routerRef.current.push(dest);
+      else window.location.assign(dest);
+    },
+    [],
+  );
+
+  /**
+   * Checks the code exists, then leaves. Only a 404 stops us: on a network
+   * failure the profile app (which works from cache) is the better place to
+   * be than an error here.
+   */
+  const resolve = useCallback(
+    async (collar: ScannedCollar): Promise<boolean> => {
+      if (resolvingRef.current) return false;
+      resolvingRef.current = true;
+      setBusy(true);
+      try {
+        await api.getDog(collar.slug, collar.sig);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          setError(NO_DOG_MESSAGE);
+          setCode(collar.slug);
+          resolvingRef.current = false;
+          setBusy(false);
+          return false;
+        }
       }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      stopCamera();
-    };
-  }, [stopCamera]);
+      go(collar);
+      return true;
+    },
+    [go],
+  );
 
   const tick = useCallback(async () => {
     const video = videoRef.current;
     const detector = detectorRef.current;
-    if (!video || !detector || detectingRef.current) return;
+    if (!video || !detector || detectingRef.current || resolvingRef.current) return;
     detectingRef.current = true;
     try {
-      const barcodes = await detector.detect(video);
-      const hit = barcodes.find((b) => b.format === "qr_code" && b.rawValue);
+      const hits = await detector.detect(video);
+      const hit = hits.find((b) => b.format === "qr_code" && b.rawValue);
       if (hit) {
         const collar = extractCollarFromScan(hit.rawValue);
-        if (collar) {
-          stopCamera();
-          setPhase("idle");
-          setMismatch(null);
-          const qs = collar.sig ? `?s=${encodeURIComponent(collar.sig)}` : "";
-          router.push(`/dog/${collar.slug}${qs}`);
+        if (!collar) {
+          setMismatch(NOT_A_COLLAR_MESSAGE);
         } else {
-          setMismatch("That QR isn’t a Hetja collar code. Keep the camera steady and try again.");
+          setMismatch(null);
+          const left = await resolve(collar);
+          if (left) stopCamera();
         }
       }
     } catch {
@@ -237,23 +202,44 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
     } finally {
       detectingRef.current = false;
     }
-  }, [router, stopCamera]);
+  }, [resolve, stopCamera]);
 
   const startCamera = useCallback(async () => {
-    setMismatch(null);
-    setPhase("starting");
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setCamera("off");
+      return;
+    }
+    setCamera("starting");
     try {
+      if (typeof window.BarcodeDetector === "undefined") {
+        const { BarcodeDetector: Polyfill } = await import("barcode-detector");
+        // Never publish the polyfill for a component that has unmounted, and
+        // never over a detector someone installed meanwhile (the import pulls
+        // ~13 KB of WASM and can outlive this page on a slow phone).
+        if (aliveRef.current && typeof window.BarcodeDetector === "undefined") {
+          (window as unknown as {
+            BarcodeDetector?: new (o?: BarcodeDetectorOptions) => BarcodeDetectorInstance;
+          }).BarcodeDetector = Polyfill as never;
+        }
+      }
+      if (!aliveRef.current) return;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
+      if (!aliveRef.current) {
+        // Unmounted while the permission prompt was up: never leave the
+        // camera light on for a page that is gone.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const video = videoRef.current;
       if (video) {
         try {
           video.srcObject = stream;
         } catch {
-          // Some test/DOM environments don't implement srcObject at all.
+          // Some DOM environments do not implement srcObject.
         }
         try {
           await video.play();
@@ -261,97 +247,153 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
           // Autoplay can be blocked; detection still runs on the live frame.
         }
       }
-      if (typeof window.BarcodeDetector === "undefined") {
-        stopCamera();
-        setPhase("unsupported");
-        return;
+      const track = stream.getVideoTracks?.()[0] as unknown as TorchCapable | undefined;
+      try {
+        setTorchSupported(Boolean(track?.getCapabilities?.().torch));
+      } catch {
+        setTorchSupported(false);
       }
       detectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
-      setPhase("scanning");
-      // Try to decode straight away, then every 350ms.
-      //
-      // This used to be `setInterval` alone, so the FIRST decode attempt could
-      // not happen until a full interval after the camera was ready: a flat
-      // 350ms of live preview pointed at a collar with nothing being read. Most
-      // scans are of a QR already centred in frame by the time the camera
-      // opens, so that delay was pure latency on the common path.
-      //
-      // It also made the test for this the only timing-sensitive one in the
-      // suite: it had to outwait a 350ms timer inside Testing Library's default
-      // 1000ms waitFor budget, on a runner executing every package's suite in
-      // parallel. That went red intermittently: the same commit passed one CI
-      // job and failed two others, which is what blocked the deploy pipeline at
-      // its Gate.
-      //
-      // `tick` is safe to call before the first frame: it returns early unless
-      // both the video element and the detector exist, guards re-entrancy with
-      // detectingRef, and treats a mid-frame decode failure as routine.
+      setCamera("scanning");
+      // Decode straight away, then every 350ms: most collars are already in
+      // frame by the time the camera opens.
       void tick();
-      intervalRef.current = setInterval(() => {
-        void tick();
-      }, 350);
-    } catch (err) {
+      intervalRef.current = setInterval(() => void tick(), 350);
+    } catch {
+      // Denied, no camera, busy, or no decoder: the typed code is the way in.
       stopCamera();
-      const name = err instanceof DOMException ? err.name : "";
-      if (name === "NotAllowedError") setPhase("denied");
-      else if (name === "NotFoundError") setPhase("no-camera");
-      else if (name === "NotReadableError") setPhase("busy");
-      else setPhase("error");
+      setCamera("off");
     }
   }, [stopCamera, tick]);
 
-  const cancel = useCallback(() => {
-    stopCamera();
-    setMismatch(null);
-    setPhase("idle");
-  }, [stopCamera]);
+  // Open the camera on arrival; stop it when the tab is hidden (a live
+  // stream drains the battery and keeps the camera light on) and reopen it
+  // when the feeder comes back.
+  useEffect(() => {
+    aliveRef.current = true;
+    void startCamera();
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (streamRef.current) {
+          stopCamera();
+          pausedRef.current = true;
+          setCamera("checking");
+        }
+      } else if (pausedRef.current && !resolvingRef.current) {
+        pausedRef.current = false;
+        void startCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      aliveRef.current = false;
+      document.removeEventListener("visibilitychange", onVisibility);
+      stopCamera();
+    };
+  }, [startCamera, stopCamera]);
 
-  const notice = messageFor(phase);
-  const showPreview = phase === "starting" || phase === "scanning";
+  // No camera: hide the frame and put the cursor where the feeder can use it.
+  useEffect(() => {
+    if (camera === "off") focusInput();
+  }, [camera, focusInput]);
+
+  const toggleTorch = async () => {
+    const track = streamRef.current?.getVideoTracks?.()[0] as unknown as TorchCapable | undefined;
+    if (!track) return;
+    const next = !torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setTorchOn(next);
+    } catch {
+      setTorchSupported(false);
+    }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseCollarCode(code);
+    if (!parsed.ok) {
+      setError(code.length < 9 ? "That code is 9 characters. Check the collar and try again." : NO_DOG_MESSAGE);
+      focusInput();
+      return;
+    }
+    setError(null);
+    void resolve({ slug: parsed.slug, sig: null });
+  };
+
+  const off = camera === "off";
 
   return (
-    <div className={styles.wrap}>
-      {phase !== "unsupported" && (
-        <div className={styles.camera}>
-          {showPreview ? (
-            <div className={styles.preview}>
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video ref={videoRef} className={styles.video} muted playsInline aria-label="Camera preview" />
-              <p className={styles.status} role="status">
-                {phase === "starting" ? "Starting camera…" : "Point the camera at the QR on the collar."}
-              </p>
-              {mismatch && (
-                <p className={styles.mismatch} role="alert">
-                  {mismatch}
-                </p>
-              )}
-              <button type="button" className={styles.cancel} onClick={cancel}>
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <>
-              <button type="button" className={styles.useCamera} onClick={() => void startCamera()}>
-                Use camera
-              </button>
-              {notice && (
-                <p className={styles.notice} role="alert">
-                  {notice}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
+    <div className={styles.screen}>
+      <div className={styles.top}>
+        <Link href="/" className={styles.back} aria-label="Home">
+          ‹ Home
+        </Link>
+        {torchSupported && (
+          <button
+            type="button"
+            className={[styles.torch, torchOn ? styles.torchOn : ""].filter(Boolean).join(" ")}
+            aria-pressed={torchOn}
+            onClick={() => void toggleTorch()}
+          >
+            Torch
+          </button>
+        )}
+      </div>
 
-      {phase === "unsupported" && notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
+      <div className={styles.camera} data-camera={camera}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          ref={videoRef}
+          className={[styles.video, camera === "scanning" ? styles.live : ""].filter(Boolean).join(" ")}
+          muted
+          playsInline
+          aria-hidden="true"
+        />
+        {!off && (
+          <div className={styles.frame} aria-hidden="true" data-testid="scan-frame">
+            <span className={styles.tl} />
+            <span className={styles.tr} />
+            <span className={styles.bl} />
+            <span className={styles.br} />
+          </div>
+        )}
+        {off ? (
+          <>
+            <h1 className={styles.title}>No camera here.</h1>
+            <p className={styles.sub}>Type the code printed under the QR.</p>
+          </>
+        ) : (
+          <>
+            <h1 className={styles.title}>Point at the QR on the collar.</h1>
+            <p className={styles.sub}>It opens by itself. No button needed.</p>
+          </>
+        )}
+        {mismatch && (
+          <p className={styles.mismatch} role="alert">
+            {mismatch}
+          </p>
+        )}
+      </div>
 
-      <div className={styles.entry}>
-        <ScanEntry {...entry} />
+      <div className={styles.sheet} ref={sheetRef}>
+        <form className={styles.form} onSubmit={submit} noValidate>
+          <label className={styles.prompt} htmlFor="scan-collar-code">
+            No camera, or the QR is muddy?
+          </label>
+          <CollarCodeInput
+            id="scan-collar-code"
+            value={code}
+            onChange={(next) => {
+              setCode(next);
+              if (error) setError(null);
+            }}
+            error={error ?? undefined}
+          />
+          <Button type="submit" fullWidth shadow={false} disabled={busy}>
+            View profile
+          </Button>
+        </form>
       </div>
     </div>
   );

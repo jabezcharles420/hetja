@@ -506,6 +506,8 @@ jobs:
             # One proxy hop: cloudflared -> Caddy (loopback) -> API.
             printf 'TRUST_PROXY=1\nCORS_ORIGINS=https://hetja.in,https://www.hetja.in\n'
             printf 'STORAGE_BACKEND=local\nSTORAGE_LOCAL_DIR=/srv/hetja/photos\n'
+            # Absolute photo URLs in dog profiles (Caddy serves /photos/* on api.hetja.in).
+            printf 'PUBLIC_API_ORIGIN=https://api.hetja.in\n'
           } > "$RUNNER_TEMP/api.env"
           printf 'NEXT_PUBLIC_API_URL=https://api.hetja.in\n' > "$RUNNER_TEMP/web.env"
 

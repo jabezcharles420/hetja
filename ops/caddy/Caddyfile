@@ -88,6 +88,19 @@ http://hetja.in {
 
 	# QR collar landing -- the URL etched on the collar:
 	#   https://hetja.in/d/<9-char-slug>?s=<hmac-sig>
+	# The collar page's Inter subset (Android only; Apple devices use SF and
+	# never request it). The one cacheable file under /d/: it is a static font,
+	# not life-safety state, and re-downloading 13.6 KB on every scan over 4G
+	# is exactly what the page's budget exists to prevent. Not `immutable`:
+	# the filename is not content-hashed. More specific than /d/*, so Caddy
+	# matches it first; every other /d/ path stays no-store.
+	handle /d/inter-scan.woff2 {
+		header Cache-Control "public, max-age=2592000"
+		reverse_proxy 127.0.0.1:8081 {
+			import real_ip
+		}
+	}
+
 	handle /d/* {
 		header Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8081 {

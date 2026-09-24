@@ -1,0 +1,54 @@
+/* CollarCode (handoff "Collar code"; profile card in the Mobile App mock). */
+
+.card {
+  background: var(--h-mist);
+  border-radius: var(--h-r-inner);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.code {
+  font-family: var(--h-mono);
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--h-ink);
+  display: flex;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+.say {
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--h-text-mid);
+}
+
+.copy {
+  padding: 0 14px;
+  flex: none;
+}
+
+.large {
+  padding: 22px 20px;
+}
+
+.large .body {
+  gap: 8px;
+}
+
+.large .code {
+  font-size: 38px;
+  gap: 18px;
+}

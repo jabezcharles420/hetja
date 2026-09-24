@@ -1,0 +1,106 @@
+/* TopNav (handoff "TopNav"). Mobile 56 / desktop 52, frosted, hairline. */
+
+.nav {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  background: var(--h-frost);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--h-frost-line);
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+}
+
+.solid {
+  background: var(--h-frost-strong);
+}
+
+.inner {
+  height: var(--h-nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-inline: calc(var(--h-gutter) + env(safe-area-inset-left, 0px))
+    calc(var(--h-gutter) + env(safe-area-inset-right, 0px));
+  margin-inline: auto;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.links {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 28px;
+  align-items: center;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--h-ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+}
+
+.signIn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 16px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+/* Desktop layout. */
+.desktop .inner {
+  height: 52px;
+  max-width: calc(var(--h-content) + var(--h-gutter) * 2);
+}
+
+.desktop .links {
+  display: flex;
+}
+
+.desktop .signIn {
+  font-size: 13px;
+}
+
+@media (min-width: 1024px) {
+  .responsive .inner {
+    height: 52px;
+    max-width: calc(var(--h-content) + var(--h-gutter) * 2);
+  }
+  .responsive .links {
+    display: flex;
+  }
+  .responsive .signIn {
+    font-size: 13px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover,
+  .signIn:hover {
+    text-decoration: underline;
+  }
+}
+
+/* /hetja: muted, no frost, no hairline, no blue. */
+.memorial {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 0;
+}

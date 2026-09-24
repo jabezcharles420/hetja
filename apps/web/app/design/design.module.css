@@ -1,0 +1,507 @@
+/* /design: a copy of the "Hetja Design System" mock's layout, values taken
+ * from its inline styles. Showcase-only chrome (the #ececf0 canvas, swatch
+ * chips, image-slot placeholders) lives here, not in the components. */
+
+.canvas {
+  background: #ececf0;
+  color: var(--h-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet {
+  font-family: var(--h-font);
+  padding: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  /* The mock's 1360 is content-box (no reset there); ours is border-box. */
+  max-width: calc(1360px + 144px);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.h1 {
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.h1small {
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.lead {
+  font-size: 21px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+  max-width: 720px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 24px;
+}
+
+.article {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  line-height: normal;
+}
+
+.gap18 {
+  gap: 18px;
+}
+
+.gap14 {
+  gap: 14px;
+}
+
+.gap10 {
+  gap: 10px;
+}
+
+.gap12 {
+  gap: 12px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.h2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: normal;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--h-secondary);
+  line-height: normal;
+}
+
+.p15 {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  text-wrap: wrap;
+}
+
+.max760 {
+  max-width: 760px;
+  text-wrap: pretty;
+}
+
+.mono {
+  font-family: var(--h-mono);
+}
+
+/* Colour card */
+.swatches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chip {
+  height: 64px;
+  border-radius: 16px;
+}
+
+.chipRing {
+  box-shadow: inset 0 0 0 1px var(--h-line);
+}
+
+.swName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.auroraChip {
+  height: 72px;
+  border-radius: 16px;
+  background: radial-gradient(60% 90% at 0% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    radial-gradient(50% 90% at 100% 0%, var(--h-aurora-peach) 0%, transparent 70%),
+    radial-gradient(60% 90% at 70% 100%, var(--h-aurora-rose) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+.states {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.stateChip {
+  height: 40px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.okChip {
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+}
+
+.warnChip {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+}
+
+.neutralChip {
+  background: var(--h-neutral-bg);
+  color: var(--h-neutral);
+}
+
+/* Type card */
+.typeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--h-divider);
+  padding-top: 14px;
+}
+
+.tDisplay {
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.tTitle {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.tHeading {
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tBody {
+  font-size: 17px;
+  line-height: 1.47;
+}
+
+/* Buttons card */
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btnRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Pills */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pills8 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Avatars */
+.avatars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+}
+
+.avatarCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--h-text-mid);
+  border: 1px dashed rgba(0, 0, 0, 0.28);
+}
+
+.slotIcon {
+  opacity: 0.7;
+}
+
+.slot_apricot {
+  background: var(--h-av-apricot-bg);
+}
+.slot_lilac {
+  background: var(--h-av-lilac-bg);
+}
+.slot_mint {
+  background: var(--h-av-mint-bg);
+}
+.slot_rose {
+  background: var(--h-av-rose-bg);
+}
+.slot_sky {
+  background: var(--h-av-sky-bg);
+}
+
+.vRule {
+  width: 1px;
+  height: 120px;
+  background: var(--h-divider);
+}
+
+/* Spacing */
+.spaces {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.space {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.spaceBox {
+  background: var(--h-blue);
+}
+
+.spaceNum {
+  font-size: 12px;
+  color: var(--h-secondary);
+}
+
+.shapeNote {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--h-text-mid);
+}
+
+/* Bars */
+.navDemo {
+  border-radius: 20px;
+  overflow: hidden;
+  background: radial-gradient(80% 140% at 0% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    var(--h-aurora-base);
+  padding: 0 0 20px;
+}
+
+.navDemo > header > div {
+  padding-inline: 16px;
+}
+
+.navNote {
+  font-size: 13px;
+  color: var(--h-secondary);
+  padding: 10px 16px 0;
+}
+
+.tabDemo {
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--h-mist);
+}
+
+/* The sheet's demo bar is 64 tall; the real TabBar (and every screen mock)
+ * is 56. Override here only, so the sheet lines up with the mock. */
+.tabDemo ul {
+  height: 64px;
+}
+
+/* Privacy band card */
+.bandHead {
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.bandP {
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-band-sub);
+}
+
+/* ---- In context ---------------------------------------------------- */
+.phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.phone {
+  width: 390px;
+  border-radius: 40px;
+  overflow: hidden;
+  background: var(--h-white);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+}
+
+.mist {
+  background: var(--h-mist);
+}
+
+.memorial {
+  background: var(--h-memorial-bg);
+}
+
+.phoneBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px;
+}
+
+.heroDemo {
+  padding: 40px 20px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+}
+
+.heroTitle {
+  font-size: 60px;
+  line-height: 0.98;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.avatarRow {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+
+.overlap {
+  margin-left: -10px;
+}
+
+.story {
+  font-size: 17px;
+  line-height: 1.47;
+}
+
+.byline {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.sheetDemo {
+  padding: 22px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.callRows {
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.streak {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.streakTop {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.streakNum {
+  font-size: 56px;
+  line-height: 0.85;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.streakUnit {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  padding-bottom: 2px;
+}
+
+.badges {
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid var(--h-divider);
+  padding-top: 10px;
+}
+
+.myDogs {
+  padding: 2px 4px 0;
+  margin-bottom: -6px;
+}
+
+.desktop {
+  width: 1440px;
+  flex: none;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.16);
+}
+
+.sheetWide {
+  max-width: none;
+}
+
+.deskHero {
+  height: 240px;
+}

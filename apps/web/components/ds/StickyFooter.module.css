@@ -1,0 +1,45 @@
+/* StickyFooter (Mobile App mock: profile 03, SOS 04, feed 06, Me 09). */
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px calc(var(--h-gutter) + env(safe-area-inset-right, 0px))
+    calc(10px + env(safe-area-inset-bottom, 0px))
+    calc(var(--h-gutter) + env(safe-area-inset-left, 0px));
+  z-index: 10;
+}
+
+.sticky {
+  position: sticky;
+  bottom: 0;
+}
+
+.white {
+  background: var(--h-white);
+}
+
+.mist {
+  background: var(--h-mist);
+}
+
+.fade {
+  padding-top: 12px;
+  background: linear-gradient(transparent, var(--h-mist) 30%);
+}
+
+.none {
+  background: transparent;
+}
+
+.divider {
+  box-shadow: var(--h-sh-footer);
+}
+
+.caption {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--h-secondary);
+  text-align: center;
+}

@@ -1,0 +1,23 @@
+/* Logo: 30px ink circle + "Hetja" 21/700 at -0.02em. */
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  color: var(--h-ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+/* As a link (in the nav) it needs the full 44px touch target. */
+a.logo {
+  min-height: var(--h-target);
+}
+
+.mark {
+  flex: none;
+}
+
+.memorial {
+  color: var(--h-text-mid);
+}

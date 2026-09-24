@@ -1,0 +1,76 @@
+/* Aurora recipes, verbatim from the mocks' inline backgrounds. `transparent`
+ * stands in for rgba(<colour>, 0): gradients interpolate in premultiplied
+ * alpha, so the two render identically. */
+
+.aurora {
+  position: relative;
+  isolation: isolate;
+  background: var(--aurora);
+}
+
+.home {
+  --aurora: radial-gradient(90% 38% at 0% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    radial-gradient(80% 30% at 100% 6%, var(--h-aurora-peach) 0%, transparent 70%),
+    radial-gradient(90% 30% at 60% 55%, var(--h-aurora-rose) 0%, transparent 70%),
+    radial-gradient(80% 25% at 0% 90%, var(--h-aurora-coral) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+.desktop {
+  --aurora: radial-gradient(40% 60% at 5% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    radial-gradient(35% 55% at 70% 0%, var(--h-aurora-peach) 0%, transparent 70%),
+    radial-gradient(40% 60% at 100% 70%, var(--h-aurora-rose) 0%, transparent 70%),
+    radial-gradient(35% 50% at 20% 100%, var(--h-aurora-coral) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+.light {
+  --aurora: radial-gradient(70% 40% at 0% 0%, var(--h-aurora-light-pink) 0%, transparent 70%),
+    radial-gradient(60% 35% at 100% 5%, var(--h-aurora-light-peach) 0%, transparent 70%),
+    var(--h-aurora-light-base);
+}
+
+.about {
+  --aurora: radial-gradient(90% 70% at 0% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    radial-gradient(80% 60% at 100% 10%, var(--h-aurora-peach) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+.faq {
+  --aurora: radial-gradient(90% 70% at 100% 0%, var(--h-aurora-rose) 0%, transparent 70%),
+    radial-gradient(80% 60% at 0% 20%, var(--h-aurora-peach) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+.contact {
+  --aurora: radial-gradient(90% 60% at 0% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+    var(--h-aurora-base);
+}
+
+/* Drift: the gradient moves on a pseudo-element so content never repaints.
+ * overflow: clip (not hidden) keeps sticky descendants such as TopNav working. */
+@media (prefers-reduced-motion: no-preference) {
+  .drift {
+    background: var(--h-aurora-base);
+    overflow: clip;
+  }
+  .drift::before {
+    content: "";
+    position: absolute;
+    inset: -6%;
+    z-index: -1;
+    background: var(--aurora);
+    animation: drift 40s ease-in-out infinite alternate;
+    will-change: transform;
+    pointer-events: none;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.04);
+  }
+}

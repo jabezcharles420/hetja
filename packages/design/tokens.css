@@ -26,6 +26,14 @@
   --h-divider: #e8e8ed;        /* row dividers inside cards                 */
   --h-mist: #f5f5f7;           /* app background, inner cards               */
   --h-white: #ffffff;          /* cards                                     */
+  --h-quiet: #e8e8ed;          /* quiet button fill (same hex as divider)   */
+
+  /* Bars (TopNav / TabBar), from the mock's inline values. */
+  --h-frost: rgba(255, 255, 255, 0.6);        /* top nav on aurora          */
+  --h-frost-strong: rgba(255, 255, 255, 0.72); /* top nav on white / mist   */
+  --h-frost-line: rgba(0, 0, 0, 0.05);        /* top nav bottom border      */
+  --h-tab-bg: rgba(255, 255, 255, 0.92);
+  --h-tab-line: #e3e3e8;                      /* tab bar top border         */
 
   --h-blue: #0071e3;           /* primary button                            */
   --h-blue-press: #0062c4;
@@ -50,6 +58,10 @@
   --h-aurora-peach: #ffcbb8;
   --h-aurora-rose: #ffc2ec;
   --h-aurora-coral: #ffd0c4;
+  /* Paler "light" aurora used behind Login (Mobile App mock, screens 07/08). */
+  --h-aurora-light-base: #fdf8f9;
+  --h-aurora-light-pink: #ffc9e6;
+  --h-aurora-light-peach: #ffd9c9;
 
   /* Black privacy band. */
   --h-band: #000000;

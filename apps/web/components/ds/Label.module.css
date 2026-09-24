@@ -1,0 +1,16 @@
+/* Label (handoff type table): 13 / 600 / caps / +0.06em. */
+
+.label {
+  display: block;
+  font-family: var(--h-font);
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.band {
+  color: var(--h-band-sub);
+}

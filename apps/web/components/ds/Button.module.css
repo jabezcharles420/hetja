@@ -1,0 +1,178 @@
+/* Button (design v4 handoff, "Buttons"). Press = darker fill + scale(.98);
+ * no hover animation on touch; on a real pointer, hover shows the press colour. */
+
+.btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--h-r-pill);
+  font-family: var(--h-font);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease-out, background-color 80ms ease-out;
+}
+
+.btn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.flat {
+  box-shadow: none !important;
+}
+
+.full {
+  display: flex;
+  width: 100%;
+}
+
+/* --- primary: 56 / 17 600 / blue shadow -------------------------------- */
+.primary {
+  height: var(--h-btn-h);
+  padding: 0 28px;
+  background: var(--h-blue);
+  color: var(--h-white);
+  font-size: 17px;
+  box-shadow: var(--h-sh-btn);
+}
+
+.primary.hero {
+  height: 58px;
+  font-size: 18px;
+  box-shadow: var(--h-sh-btn-hero);
+}
+
+.primary:active {
+  background: var(--h-blue-press);
+}
+
+/* --- sos: 60 / 18 700, 22px white "!" circle -------------------------- */
+.sos {
+  height: var(--h-btn-sos-h);
+  padding: 0 28px;
+  background: var(--h-sos);
+  color: var(--h-white);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sos:active {
+  background: var(--h-sos-press);
+}
+
+.bang {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--h-white);
+  color: var(--h-sos);
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- quiet: 44 / 15 600 on #e8e8ed ------------------------------------ */
+.quiet {
+  height: var(--h-target);
+  padding: 0 20px;
+  background: var(--h-quiet);
+  color: var(--h-ink);
+  font-size: 15px;
+}
+
+/* --- tinted: 44 (48 lg) on blue tint ---------------------------------- */
+.tinted {
+  height: var(--h-target);
+  padding: 0 20px;
+  background: var(--h-blue-tint);
+  color: var(--h-blue-tint-ink);
+  font-size: 15px;
+}
+
+.quiet.lg,
+.tinted.lg {
+  height: 48px;
+  font-size: 16px;
+}
+
+.quiet:active,
+.tinted:active {
+  filter: brightness(0.95);
+}
+
+/* --- link: 17 link blue, 44 target ------------------------------------ */
+.link {
+  height: var(--h-target);
+  padding: 0 4px;
+  background: transparent;
+  color: var(--h-link);
+  font-size: 17px;
+  font-weight: 400;
+  gap: 0;
+}
+
+.link:active {
+  color: var(--h-blue-press);
+}
+
+/* --- navPill: 36 / 14 600 blue ---------------------------------------- */
+.navPill {
+  height: 36px;
+  padding: 0 16px;
+  background: var(--h-blue);
+  color: var(--h-white);
+  font-size: 14px;
+}
+
+.navPill:active {
+  background: var(--h-blue-press);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover,
+  .navPill:hover {
+    background: var(--h-blue-press);
+  }
+  .sos:hover {
+    background: var(--h-sos-press);
+  }
+  .quiet:hover,
+  .tinted:hover {
+    filter: brightness(0.95);
+  }
+  .link:hover {
+    color: var(--h-blue-press);
+  }
+  .btn:disabled:hover {
+    filter: none;
+  }
+  .primary:disabled:hover {
+    background: var(--h-blue);
+  }
+  .sos:disabled:hover {
+    background: var(--h-sos);
+  }
+}

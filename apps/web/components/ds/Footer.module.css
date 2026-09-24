@@ -1,0 +1,125 @@
+/* Footer (Pages mock 01; Desktop Landing 18 for the one-line layout). */
+
+.footer {
+  background: var(--h-mist);
+  color: var(--h-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.inner {
+  padding: 36px calc(var(--h-gutter) + env(safe-area-inset-right, 0px)) 20px
+    calc(var(--h-gutter) + env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: calc(var(--h-content) + var(--h-gutter) * 2);
+  margin-inline: auto;
+}
+
+.primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.pLink {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--h-ink);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.secondary {
+  border-top: 1px solid var(--h-line);
+  padding-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+}
+
+.sLink {
+  color: var(--h-secondary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.deskTag {
+  display: none;
+}
+
+.clear {
+  padding-bottom: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pLink:hover,
+  .sLink:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Desktop: one line, 13px, links left, secondary right. */
+.desktop .inner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding-block: 40px;
+}
+.desktop .primary,
+.desktop .secondary {
+  gap: 24px;
+  border: 0;
+  padding: 0;
+}
+.desktop .pLink,
+.desktop .sLink {
+  font-size: 13px;
+  line-height: 1.2;
+  min-height: 0;
+}
+.desktop .deskTag {
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+}
+.desktop .tagline {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .responsive .inner {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding-block: 40px;
+  }
+  .responsive .primary,
+  .responsive .secondary {
+    gap: 24px;
+    border: 0;
+    padding: 0;
+  }
+  .responsive .pLink,
+  .responsive .sLink {
+    font-size: 13px;
+    line-height: 1.2;
+    min-height: 0;
+  }
+  .responsive .deskTag {
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .responsive .tagline {
+    display: none;
+  }
+}

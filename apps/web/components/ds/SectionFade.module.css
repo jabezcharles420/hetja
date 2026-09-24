@@ -1,0 +1,24 @@
+/* SectionFade: only the "hidden" state (set after mount, below the fold)
+ * changes anything, so no-JS rendering is the finished page. */
+
+.fade {
+  transition: opacity var(--h-dur) var(--h-ease), transform var(--h-dur) var(--h-ease);
+}
+
+.static,
+.shown {
+  opacity: 1;
+  transform: none;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hidden {
+    opacity: 1;
+    transform: none;
+  }
+}

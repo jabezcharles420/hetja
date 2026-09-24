@@ -1,0 +1,62 @@
+/* Badge (Me screen streak badges): 44 circle, 15/700 mark, 12px label. */
+
+.badge {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.label {
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--h-text-mid);
+}
+
+.locked .mark {
+  box-shadow: var(--h-ring-input);
+  color: var(--h-secondary);
+}
+
+.locked .label {
+  color: var(--h-secondary);
+}
+
+.apricot {
+  background: var(--h-av-apricot-bg);
+  color: var(--h-av-apricot-ink);
+}
+
+.lilac {
+  background: var(--h-av-lilac-bg);
+  color: var(--h-av-lilac-ink);
+}
+
+.mint {
+  background: var(--h-av-mint-bg);
+  color: var(--h-av-mint-ink);
+}
+
+.rose {
+  background: var(--h-av-rose-bg);
+  color: var(--h-av-rose-ink);
+}
+
+.sky {
+  background: var(--h-av-sky-bg);
+  color: var(--h-av-sky-ink);
+}

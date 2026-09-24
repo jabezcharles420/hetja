@@ -1,0 +1,67 @@
+/* TabBar (handoff "TabBar"): 56 + safe area, 92% white, #e3e3e8 top line. */
+
+.bar {
+  background: var(--h-tab-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--h-tab-line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+.fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+}
+
+.list {
+  height: var(--h-tab-h);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+}
+
+.item {
+  display: flex;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--h-secondary);
+  text-decoration: none;
+}
+
+.indicator {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.active {
+  color: var(--h-ink);
+}
+
+.active .indicator {
+  background: var(--h-ink);
+}
+
+@media print {
+  .bar {
+    display: none;
+  }
+}

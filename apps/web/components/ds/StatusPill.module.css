@@ -1,0 +1,57 @@
+/* StatusPill (handoff "Status pills"): 36 / 0 14 0 10 / 15 600 / gap 6. */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border-radius: var(--h-r-pill);
+  font-family: var(--h-font);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.icon {
+  flex: none;
+}
+
+.default {
+  height: 36px;
+  padding: 0 14px 0 10px;
+  font-size: 15px;
+  gap: 6px;
+}
+
+.row {
+  height: 30px;
+  padding: 0 10px 0 8px;
+  font-size: 13px;
+  gap: 4px;
+}
+
+.small {
+  height: 26px;
+  padding: 0 10px 0 7px;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.ok {
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+}
+
+.warn {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+}
+
+.neutral {
+  background: var(--h-neutral-bg);
+  color: var(--h-neutral);
+}
+
+.danger {
+  background: var(--h-danger-bg);
+  color: var(--h-danger);
+}

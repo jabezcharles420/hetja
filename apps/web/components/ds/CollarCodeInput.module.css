@@ -1,0 +1,93 @@
+/* CollarCodeInput (handoff "CollarCodeInput"): 60 tall, radius 16, mono 24,
+ * +0.12em, inset ring instead of a border. The ghost layer and the input share
+ * every metric so the "___" slots line up with the typed text. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prompt {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.field {
+  position: relative;
+  height: 60px;
+  border-radius: var(--h-r-input);
+  box-shadow: var(--h-ring-input);
+  background: var(--h-white);
+}
+
+.field:focus-within {
+  box-shadow: var(--h-ring-focus);
+}
+
+.invalid,
+.invalid:focus-within {
+  box-shadow: inset 0 0 0 2px var(--h-danger);
+}
+
+.ghost,
+.input {
+  font-family: var(--h-mono);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  /* A monospace space is 0.6em + the 0.12em tracking; pull it back so the
+   * gap between groups is the mock's 14px. */
+  word-spacing: calc(14px - 0.72em);
+  padding: 0 18px;
+  white-space: pre;
+}
+
+.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  color: var(--h-tertiary);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ghostTyped {
+  color: transparent;
+}
+
+.input {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--h-ink);
+  border-radius: inherit;
+  text-transform: uppercase;
+  outline: none;
+  caret-color: var(--h-blue);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.helper {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--h-secondary);
+}
+
+.error {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-danger);
+}

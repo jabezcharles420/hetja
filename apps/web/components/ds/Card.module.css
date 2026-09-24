@@ -1,0 +1,30 @@
+/* Card (handoff "Card"). */
+
+.card {
+  border-radius: var(--h-r-card);
+  padding: var(--h-s6);
+}
+
+.white {
+  background: var(--h-white);
+  color: var(--h-ink);
+}
+
+.mist {
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.black {
+  background: var(--h-band);
+  color: var(--h-band-ink);
+}
+
+.bordered {
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+}
+
+.desktop {
+  border-radius: var(--h-r-card-lg);
+  padding: 40px;
+}

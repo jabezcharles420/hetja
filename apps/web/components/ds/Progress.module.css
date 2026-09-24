@@ -1,0 +1,39 @@
+/* Progress (Me screen trust card): white, radius 20, 12 / 18 padding. */
+
+.card {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.target {
+  color: var(--h-secondary);
+}
+
+.track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--h-divider);
+  overflow: hidden;
+}
+
+.fill {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--h-ink);
+}

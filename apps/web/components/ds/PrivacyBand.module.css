@@ -1,0 +1,94 @@
+/* PrivacyBand (Pages mock 01 + Desktop Landing 18). */
+
+.band {
+  background: var(--h-band);
+  color: var(--h-band-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 24px;
+  gap: 16px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-band-sub);
+}
+
+.headline {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.support {
+  font-size: 18px;
+  line-height: 1.47;
+  color: var(--h-band-sub);
+  max-width: 760px;
+}
+
+.link {
+  font-size: 17px;
+  color: var(--h-band-link);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+  /* 44px touch target without adding to the mock's visual rhythm. */
+  min-height: var(--h-target);
+  margin-block: calc((1.2em - var(--h-target)) / 2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration: underline;
+  }
+}
+
+.desktop {
+  padding: 140px var(--h-gutter);
+  gap: 22px;
+}
+.desktop .label {
+  font-size: 15px;
+}
+.desktop .headline {
+  font-size: 96px;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+.desktop .support {
+  font-size: 23px;
+  line-height: 1.45;
+}
+.desktop .link {
+  font-size: 21px;
+}
+
+@media (min-width: 1024px) {
+  .responsive {
+    padding: 140px var(--h-gutter);
+    gap: 22px;
+  }
+  .responsive .label {
+    font-size: 15px;
+  }
+  .responsive .headline {
+    font-size: 96px;
+    line-height: 0.95;
+    letter-spacing: -0.055em;
+  }
+  .responsive .support {
+    font-size: 23px;
+    line-height: 1.45;
+  }
+  .responsive .link {
+    font-size: 21px;
+  }
+}

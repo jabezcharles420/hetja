@@ -1,0 +1,71 @@
+/* ListRow (handoff "ListRow"): 14 gap, title 17/600, sub 15 secondary,
+ * divider between rows only. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  list-style: none;
+}
+
+.row:not(:last-child) {
+  border-bottom: 1px solid var(--h-divider);
+}
+
+.compact {
+  min-height: 60px;
+  gap: 12px;
+}
+
+.tall {
+  min-height: 76px;
+  gap: 12px;
+}
+
+.leading,
+.trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.title {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--h-ink);
+}
+
+.sub {
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--h-secondary);
+}
+
+.group {
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 24px;
+}
+
+.g_mist {
+  background: var(--h-mist);
+  padding: 8px 16px;
+}
+
+.g_white {
+  background: var(--h-white);
+}
+
+.g_none {
+  padding: 0;
+  border-radius: 0;
+}

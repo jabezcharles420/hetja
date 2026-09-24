@@ -72,6 +72,28 @@ for (const route of STATIC_ROUTES) {
      * can move text off the background it was measured against. */
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
+    /* Marketing sections fade in as they scroll into view (SectionFade:
+     * opacity + translate, 400 ms). Analysed before that, axe measures text at
+     * partial opacity and reports e.g. #e4e4e7 on white at 1.17:1, a colour no
+     * reader ever sees. So read the page the way a person does: scroll through
+     * it, come back to the top, and wait until every animation has finished.
+     * Nothing is excluded from the audit; this only waits for the final paint. */
+    await page.evaluate(async () => {
+      const step = Math.max(200, Math.floor(window.innerHeight * 0.8));
+      for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 60));
+      }
+      window.scrollTo(0, 0);
+      await new Promise((r) => setTimeout(r, 60));
+      // Finite animations only: the home aurora's slow drift loops forever and
+      // its `finished` promise never settles.
+      const finite = document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity);
+      await Promise.all(finite.map((a) => a.finished.catch(() => undefined)));
+    });
+
     const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
 
     const blocking = results.violations.filter(

@@ -114,8 +114,14 @@
   color: var(--h-band-sub);
 }
 
+/* Links inside running text are underlined, not just blue: colour alone is
+ * not enough to tell a link from its paragraph (WCAG 1.4.1; axe
+ * link-in-text-block flagged "Read why we built Hetja." on /about). */
 .link {
   color: var(--h-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 .black .link {

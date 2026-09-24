@@ -7,7 +7,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Hetja · Every street has a hero",
   description:
-    "Every street has a hero. Scan a collar, log a feed, and join the feeders, vets, and neighbours who show up for Mumbai's stray dogs.",
+    "Hetja, for Mumbai's street dogs. Scan the QR on a dog's collar. See who they are, if they've eaten, and whether they've had their shots.",
   manifest: "/manifest.webmanifest",
   applicationName: "Hetja",
   appleWebApp: {

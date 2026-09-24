@@ -1,36 +1,35 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
-import { createElement, type ReactNode } from "react";
+import { cleanup, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 
-afterEach(cleanup);
-
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 vi.mock("next/link", async () => {
   const { createElement: el } = await import("react");
   return {
-    default: ({ href, children }: { href: string; children: ReactNode }) =>
-      el("a", { href }, children),
+    default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
+      el("a", { href, ...rest }, children),
   };
 });
 
 import LandingPage from "@/app/page";
-import Logo from "./Logo";
+import { formatCount, getImpactStats } from "@/app/_home/impact";
 
-// Helpers: the landing page fetches GET /api/v1/stats/impact server-side
-// with next: { revalidate: 60 }. In tests we stub global fetch.
+// The home page fetches GET /api/v1/stats/impact server-side with
+// next: { revalidate: 60 }. Tests stub global fetch.
 function stubFetchOk(data: { dogsTracked: number; feedsLogged: number; livesTouched: number }) {
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true, data }),
-    } as Response),
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, data }) } as Response),
   );
 }
 
@@ -38,73 +37,68 @@ function stubFetchFailure() {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
 }
 
-describe("landing page", () => {
-  it("renders the hero with kicker, headline and sub copy", async () => {
+const text = () => (document.body.textContent ?? "").replace(/\s+/g, " ");
+
+describe("home page (Pages 01 + Landing 18)", () => {
+  it("renders the hero: badge, headline and the two-tone lead", async () => {
     stubFetchFailure();
     render(await LandingPage());
-    expect(screen.getByText("Mumbai\u2019s street heroes")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Every street has a hero." })).toBeTruthy();
-    expect(screen.getByText(/built by and for/)).toBeTruthy();
-    vi.unstubAllGlobals();
-  });
-
-  it("links the hero CTAs to scan and login", async () => {
-    stubFetchFailure();
-    render(await LandingPage());
-    const scan = screen.getByRole("link", { name: "Scan a collar" });
-    expect(scan.getAttribute("href")).toBe("/scan");
-    const feeders = screen.getAllByRole("link", { name: "Become a feeder" });
-    expect(feeders.length).toBe(2);
-    for (const feeder of feeders) {
-      expect(feeder.getAttribute("href")).toBe("/login");
-    }
-    vi.unstubAllGlobals();
-  });
-
-  it("shows the stats strip with honest placeholders when the API is unreachable", async () => {
-    stubFetchFailure();
-    render(await LandingPage());
-    expect(screen.getAllByText("-").length).toBe(3);
-    expect(screen.getByText("dogs tracked")).toBeTruthy();
-    expect(screen.getByText("feeds logged")).toBeTruthy();
-    expect(screen.getByText("lives touched")).toBeTruthy();
-    // Keep existing h-stat-value styling even on fallback.
-    expect(document.querySelectorAll(".h-stat-value").length).toBe(3);
-    vi.unstubAllGlobals();
-  });
-
-  it("shows live impact numbers when the API succeeds", async () => {
-    stubFetchOk({ dogsTracked: 42, feedsLogged: 128, livesTouched: 37 });
-    render(await LandingPage());
-    expect(screen.getByText("42")).toBeTruthy();
-    expect(screen.getByText("128")).toBeTruthy();
-    expect(screen.getByText("37")).toBeTruthy();
-    expect(screen.getByText("dogs tracked")).toBeTruthy();
-    expect(screen.getByText("feeds logged")).toBeTruthy();
-    expect(screen.getByText("lives touched")).toBeTruthy();
-    // Styling preserved
-    const values = document.querySelectorAll(".h-stat-value");
-    expect(values.length).toBe(3);
-    expect(values[0].textContent).toBe("42");
-    expect(values[1].textContent).toBe("128");
-    expect(values[2].textContent).toBe("37");
-    vi.unstubAllGlobals();
-  });
-
-  it("falls back to placeholders when the API returns non-ok envelope", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ ok: false, error: { message: "db hiccup" } }),
-      } as unknown as Response),
+    expect(screen.getByText("for Mumbai's street dogs")).toBeTruthy();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent?.replace(/\s+/g, " ").trim()).toBe("Every street has a hero.");
+    const ink = screen.getByText(
+      "See who they are, if they've eaten, and whether they've had their shots.",
     );
-    render(await LandingPage());
-    expect(screen.getAllByText("-").length).toBe(3);
-    vi.unstubAllGlobals();
+    expect(ink.tagName).toBe("SPAN");
+    expect(text()).toContain(
+      "Scan the QR on a dog's collar. See who they are, if they've eaten, and whether they've had their shots. Then carry on with your day, slightly more attached.",
+    );
   });
 
-  it("fetches impact stats with ISR revalidate 60", async () => {
+  it("links Scan a collar and the type-a-code link to /scan, and Become a feeder to /login", async () => {
+    stubFetchFailure();
+    render(await LandingPage());
+    expect(screen.getByRole("link", { name: "Scan a collar" }).getAttribute("href")).toBe("/scan");
+    expect(screen.getByRole("link", { name: /Or type a collar code/ }).getAttribute("href")).toBe(
+      "/scan#code",
+    );
+    expect(screen.getByRole("link", { name: /Become a feeder/ }).getAttribute("href")).toBe("/login");
+  });
+
+  it("shows honest '-' placeholders, never the mock's 412 / 1,086, when the API is unreachable", async () => {
+    stubFetchFailure();
+    render(await LandingPage());
+    expect(screen.getByTestId("stat-dogs").textContent).toBe("-");
+    expect(screen.getByTestId("stat-feeds").textContent).toBe("-");
+    expect(screen.getByText("dogs with collars")).toBeTruthy();
+    expect(screen.getByText("feeds logged")).toBeTruthy();
+    expect(text()).not.toContain("412");
+    expect(text()).not.toContain("1,086");
+  });
+
+  it("shows live counts, Indian-grouped, when the API succeeds", async () => {
+    stubFetchOk({ dogsTracked: 412, feedsLogged: 125086, livesTouched: 37 });
+    render(await LandingPage());
+    expect(screen.getByTestId("stat-dogs").textContent).toBe("412");
+    expect(screen.getByTestId("stat-feeds").textContent).toBe("1,25,086");
+  });
+
+  it("falls back to placeholders on a non-ok envelope, an HTTP error or a bad payload", async () => {
+    for (const res of [
+      { ok: true, json: async () => ({ ok: false, error: { message: "db hiccup" } }) },
+      { ok: false, json: async () => ({}) },
+      { ok: true, json: async () => ({ ok: true, data: { dogsTracked: "12", feedsLogged: 1, livesTouched: 1 } }) },
+      { ok: true, json: async () => ({ ok: true, data: { dogsTracked: Infinity, feedsLogged: 1, livesTouched: 1 } }) },
+    ]) {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(res as unknown as Response));
+      render(await LandingPage());
+      expect(screen.getByTestId("stat-dogs").textContent).toBe("-");
+      expect(screen.getByTestId("stat-feeds").textContent).toBe("-");
+      cleanup();
+    }
+  });
+
+  it("fetches impact stats once, with ISR revalidate 60", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ ok: true, data: { dogsTracked: 1, feedsLogged: 2, livesTouched: 3 } }),
@@ -112,52 +106,89 @@ describe("landing page", () => {
     vi.stubGlobal("fetch", fetchSpy);
     render(await LandingPage());
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const url = fetchSpy.mock.calls[0][0] as string;
-    expect(url).toContain("/api/v1/stats/impact");
+    expect(fetchSpy.mock.calls[0][0] as string).toContain("/api/v1/stats/impact");
     const opts = fetchSpy.mock.calls[0][1] as { next?: { revalidate?: number } };
     expect(opts?.next?.revalidate).toBe(60);
-    vi.unstubAllGlobals();
   });
 
-  it("renders the three how-it-works steps", async () => {
+  it("ships every line of the home copy (mobile and desktop wording)", async () => {
     stubFetchFailure();
     render(await LandingPage());
-    expect(screen.getByText("Scan")).toBeTruthy();
-    expect(screen.getByText("See")).toBeTruthy();
-    expect(screen.getByText("Act")).toBeTruthy();
-    vi.unstubAllGlobals();
+    const body = text();
+    for (const line of [
+      "Hetja",
+      "Today in Mumbai",
+      "Today in Mumbai.",
+      "Bruno was fed 3 times today. He will tell you it was zero.",
+      "Three steps. No app to install.",
+      "It's a website. It works on the phone you already have.",
+      "Scan the collar.",
+      "Any phone camera. Or type the 9 letters printed under the QR.",
+      "Meet the dog.",
+      "Name, ward, shots, and a few lines from the people who feed them. Usually about biscuits.",
+      "Help, if they need it.",
+      "One red button tells nearby feeders and a vet. You don't need an account for that.",
+      "For the people who already show up.",
+      "Feeders keep a streak.",
+      "Log each feed in two taps. Other feeders on your lane see it, so nobody gets double dinner. In theory.",
+      "Two taps per feed. Others on your lane see it, so nobody gets double dinner. In theory.",
+      "23",
+      "days",
+      "Vets write it once.",
+      "Medical records can't be edited or deleted. Corrections are added on top, with a name and date.",
+      "Medical records can't be edited or deleted. Corrections go on top, with a name and a date.",
+      "Anti-rabies vaccine",
+      "12 Mar 2026",
+      "Dr. A. Mehta · locked",
+      "Bruno",
+      "K/W ward · Andheri West",
+      "Vaccinated",
+      "Sterilised",
+      "Scared of scooters, not of cats.",
+      "Collar code",
+      "Bruno turned up in 2019 and decided the lane was his.",
+      "This dog needs help",
+      "Kaali · guards the chaiwala",
+      "Fed 3 times. Claims zero.",
+      "Motu · sterilised 2024",
+      "Rani · afraid of pigeons",
+      "Sheru · 11 years on the job",
+      "Ward, not street.",
+      "Hetja never shows where a dog sleeps. Collar codes are random, so nobody can list every dog in the city. A register of strays can protect them or target them. We built it for the first one.",
+      "Read the privacy page",
+    ]) {
+      expect(body, line).toContain(line);
+    }
+    expect(body).toMatch(/DDR\s*017\s*XK2/);
+    expect(body).not.toContain("\u2014");
   });
 
-  it("navigates to a dog profile when a valid collar code is submitted", async () => {
+  it("links the privacy band to /privacy", async () => {
     stubFetchFailure();
-    push.mockClear();
     render(await LandingPage());
-    const input = screen.getByLabelText("Collar code");
-    fireEvent.change(input, { target: { value: "ABC234567" } });
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    expect(push).toHaveBeenCalledWith("/dog/abc234567");
-    vi.unstubAllGlobals();
-  });
-
-  it("rejects an invalid collar code without navigating", async () => {
-    stubFetchFailure();
-    push.mockClear();
-    render(await LandingPage());
-    const input = screen.getByLabelText("Collar code");
-    fireEvent.change(input, { target: { value: "short" } });
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    expect(push).not.toHaveBeenCalled();
-    expect(screen.getByText(/That code looks incomplete/)).toBeTruthy();
-    vi.unstubAllGlobals();
+    expect(screen.getByRole("link", { name: /Read the privacy page/ }).getAttribute("href")).toBe(
+      "/privacy",
+    );
   });
 });
 
-describe("Logo", () => {
-  it("renders the wordmark and a paw mark", () => {
-    render(createElement(Logo, { href: "/" }));
-    expect(screen.getByText("Hetja")).toBeTruthy();
-    expect(document.querySelector(".h-logo-mark")).not.toBeNull();
-    const link = screen.getByRole("link", { name: "Hetja" });
-    expect(link.getAttribute("href")).toBe("/");
+describe("impact helpers", () => {
+  it("formatCount groups the Indian way and shows '-' for missing values", () => {
+    expect(formatCount(0)).toBe("0");
+    expect(formatCount(1086)).toBe("1,086");
+    expect(formatCount(125000)).toBe("1,25,000");
+    expect(formatCount(null)).toBe("-");
+    expect(formatCount(undefined)).toBe("-");
+    expect(formatCount(Number.NaN)).toBe("-");
+  });
+
+  it("getImpactStats returns null on a negative count", async () => {
+    stubFetchOk({ dogsTracked: -1, feedsLogged: 2, livesTouched: 3 });
+    expect(await getImpactStats()).toBeNull();
+  });
+
+  it("getImpactStats returns the three counts on success", async () => {
+    stubFetchOk({ dogsTracked: 4, feedsLogged: 5, livesTouched: 6 });
+    expect(await getImpactStats()).toEqual({ dogsTracked: 4, feedsLogged: 5, livesTouched: 6 });
   });
 });

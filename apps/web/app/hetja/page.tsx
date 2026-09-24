@@ -46,6 +46,8 @@ const FACETS: Facet[] = [
 interface Song {
   numeral: string;
   name: string;
+  title: string;
+  artist: string;
   track: string;
   videoId: string;
 }
@@ -57,41 +59,82 @@ const SONGS: Record<string, Song> = {
   shelter: {
     numeral: "i. shelter",
     name: "shelter",
+    title: "This Place Is a Shelter",
+    artist: "Ólafur Arnalds",
     track: "Ólafur Arnalds · This Place Is a Shelter",
     videoId: "wMSDPLOSHyQ",
   },
   earth: {
     numeral: "ii. earth",
     name: "earth",
+    title: "Þú ert jörðin",
+    artist: "Ólafur Arnalds",
     track: "Ólafur Arnalds · Þú ert jörðin",
     videoId: "dpmxL93Hg_M",
   },
   someday: {
     numeral: "iii. someday",
     name: "someday",
+    title: "Saman",
+    artist: "Ólafur Arnalds",
     track: "Ólafur Arnalds · Saman",
     videoId: "jzcWhWrDnAY",
   },
 };
 
-function SongBlock({ song }: { song: Song }): React.JSX.Element {
+const SONG_ORDER: Song[] = [SONGS.shelter, SONGS.earth, SONGS.someday];
+
+/* Where each song plays in the story: a quiet cue that jumps to its row in
+ * "Three songs" (Pages 17 lists the songs after the essay). */
+function SongCue({ song }: { song: Song }): React.JSX.Element {
   return (
-    <section className={styles.song} data-testid={`song-${song.name}`}>
-      <h3 className={styles.songHeading}>{song.numeral}</h3>
-      <p className={styles.songTrack}>
-        <span aria-hidden="true">▶&nbsp;</span>
+    <p className={styles.cue}>
+      <a href={`#song-${song.name}`}>
+        {song.numeral}
+        <span aria-hidden="true">&nbsp;&middot;&nbsp;</span>
+        <span className="h-sr-only">, </span>
         {song.track}
-      </p>
-      <div className={styles.embed}>
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${song.videoId}`}
-          title={song.track}
-          loading="lazy"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
-      </div>
+      </a>
+    </p>
+  );
+}
+
+function SongList(): React.JSX.Element {
+  return (
+    <section className={styles.songs} aria-labelledby="three-songs">
+      <h2 id="three-songs" className={styles.songsLabel}>
+        Three songs
+      </h2>
+      <ol className={styles.songList}>
+        {SONG_ORDER.map((song, i) => (
+          <li
+            key={song.name}
+            id={`song-${song.name}`}
+            className={styles.song}
+            data-testid={`song-${song.name}`}
+          >
+            <div className={styles.songHead}>
+              <span className={styles.songNum} aria-hidden="true">
+                {i + 1}
+              </span>
+              <div>
+                <h3 className={styles.songTitle}>{song.title}</h3>
+                <p className={styles.songArtist}>{song.artist}</p>
+              </div>
+            </div>
+            <div className={styles.embed}>
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${song.videoId}`}
+                title={song.track}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -100,20 +143,15 @@ export default function HetjaMemorialPage(): React.JSX.Element {
   return (
     <div className={styles.page}>
       <header className={styles.masthead}>
-        <p className={styles.word} data-testid="hetja-word">
+        <h1 className={styles.word} data-testid="hetja-word">
           Hetja
-        </p>
+        </h1>
         <p className={styles.ipa}>/ˈhɛtja/&nbsp;&nbsp;Icelandic, noun</p>
         <p className={styles.definition} data-testid="hetja-definition">
           hero
         </p>
+        <p className={styles.caption}>no tag &middot; no name &middot; 3 km of road</p>
       </header>
-
-      {/* The signature element, inverted: every dog's collar code sits in a
-          grey pill like this one. Hetja never had a tag, so the pill renders
-          literally empty. */}
-      <div className={`h-plate ${styles.plate}`} data-testid="hetja-plate" aria-hidden="true" />
-      <p className={styles.plateCaption}>no tag &middot; no name &middot; 3 km of road</p>
 
       <article className={styles.prose}>
         <h2 className={styles.heading}>In memory of Hetja</h2>
@@ -258,7 +296,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
         <p>Neither will I.</p>
 
-        <SongBlock song={SONGS.shelter} />
+        <SongCue song={SONGS.shelter} />
 
         <p>You were my shelter that day.</p>
         <p>
@@ -283,7 +321,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
           way to the gate.
         </p>
 
-        <SongBlock song={SONGS.earth} />
+        <SongCue song={SONGS.earth} />
 
         <p>Þú ert jörðin: you are the earth.</p>
         <p>
@@ -313,7 +351,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
         <p>This is the work.</p>
 
-        <SongBlock song={SONGS.someday} />
+        <SongCue song={SONGS.someday} />
 
         <p>
           I don&rsquo;t know if there is a heaven. I have never been sure. But if there
@@ -345,6 +383,8 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         <p>And one last thing, the thing I never said at the gate:</p>
         <p className={styles.thanks}>Thank you.</p>
       </article>
+
+      <SongList />
     </div>
   );
 }

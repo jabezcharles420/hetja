@@ -1,27 +1,40 @@
+/* PageHeader: the Pages 12 header (pill, 40/1.02 title, 18/1.47 lead). */
+
 .header {
-  background: var(--h-base);
-  padding: var(--h-s7) 0;
-  border-bottom: var(--h-hairline) solid var(--h-rule);
+  padding-block: calc(var(--page-top, 0px) + 36px) 24px;
+  line-height: normal;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
 }
 
 .kicker {
-  margin-bottom: var(--h-s4);
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
 }
 
 .title {
-  font-size: var(--h-t-plate);
-  line-height: 1.1;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.01em;
-  color: var(--h-ink);
-  margin: 0 0 var(--h-s4);
+  font-size: 40px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
   max-width: 22ch;
 }
 
 .intro {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-lg);
-  line-height: 1.65;
+  font-size: 18px;
+  line-height: 1.47;
+  color: var(--h-secondary);
   max-width: 60ch;
-  margin: 0;
 }

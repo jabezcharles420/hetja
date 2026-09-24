@@ -1,84 +1,69 @@
 /*
- * /hetja: a memorial, not a utility screen. Set like an Apple Newsroom long
- * read: a large dictionary-entry masthead, then one calm centred column.
- * No accent colour appears anywhere on this page (grief is not an alert) and
- * nothing animates. Ink, ink-muted and the grey surface only.
- *
- * Spacing is a single flow rule on .prose (`> * + *`) rather than `p + p`,
- * because the v2 rule only spaced CONSECUTIVE paragraphs: the closing letter
- * sat inside a wrapper div and rendered as one unbroken wall of text.
+ * /hetja (Pages 17): a memorial, not a utility screen. Off-white memorial
+ * background, a centred dictionary-entry masthead, the essay in the serif at
+ * 19/1.6 with 22px between paragraphs, sans headings, then "Three songs" as
+ * list rows with their embeds. No aurora, no blue, no red, no animation:
+ * ink, secondary and the memorial divider only.
  */
 
 .page {
-  padding-inline: calc(var(--h-gutter) + env(safe-area-inset-left, 0px));
-  padding-block: 0 clamp(64px, 10vw, 128px);
+  background: var(--h-memorial-bg);
+  color: var(--h-ink);
+  padding-top: var(--page-top, 0px);
+  line-height: normal;
+  min-height: 100vh;
 }
 
 /* --- The word, set like a dictionary entry --- */
 
 .masthead {
+  padding: 88px calc(28px + env(safe-area-inset-right, 0px)) 72px
+    calc(28px + env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding-block: clamp(72px, 12vw, 150px) 0;
+  gap: 10px;
 }
 
 .word {
-  font-size: clamp(72px, 16vw, 168px);
-  line-height: 0.95;
-  font-weight: var(--h-w-bold);
-  letter-spacing: var(--h-track-hero);
-  color: var(--h-ink);
-  margin: 0;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
 }
 
 .ipa {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-sm);
-  letter-spacing: 0.02em;
-  margin: 18px 0 0;
+  font-size: 16px;
+  color: var(--h-secondary);
 }
 
 .definition {
-  color: var(--h-ink);
-  font-size: var(--h-t-lede);
+  font-family: var(--h-serif);
   font-style: italic;
-  font-weight: var(--h-w-regular);
-  margin: 6px 0 0;
+  font-size: 22px;
 }
 
-/* --- The empty plate ---
- * Every other dog's collar code is set in a grey pill (.h-plate). Hetja never
- * had a collar, so it gets the same pill with nothing in it. Do not add a
- * dash, an ellipsis or a placeholder here. `display: block` overrides the
- * global inline-flex so the empty pill centres instead of collapsing left.
- */
-.plate {
-  display: block;
-  width: min(280px, 72%);
-  height: 56px;
-  margin: clamp(40px, 6vw, 64px) auto 14px;
-  padding: 0;
-  border-radius: var(--h-radius-pill);
-  background: var(--h-gray);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
-}
-
-.plateCaption {
-  text-align: center;
-  color: var(--h-ink-muted);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  margin: 0;
+.caption {
+  font-size: 14px;
+  color: var(--h-secondary);
+  margin-top: 40px;
+  letter-spacing: 0.02em;
 }
 
 /* --- Body --- */
 
 .prose {
-  max-width: 36em;
-  margin: clamp(72px, 11vw, 136px) auto 0;
-  color: var(--h-ink);
-  font-size: clamp(17px, 1.55vw, 19px);
-  line-height: 1.62;
-  letter-spacing: -0.012em;
+  max-width: calc(640px + 56px);
+  margin-inline: auto;
+  padding: 0 calc(28px + env(safe-area-inset-right, 0px)) 48px
+    calc(28px + env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  font-family: var(--h-serif);
+  font-size: 19px;
+  line-height: 1.6;
 }
 
 .prose p {
@@ -88,63 +73,44 @@
   widows: 3;
 }
 
-/* One flow rule for the whole essay; headings and set pieces override it. */
-.prose > * + * {
-  margin-top: 1.1em;
-}
-
-.heading {
-  font-size: clamp(30px, 4.2vw, 44px);
-  line-height: 1.08;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: var(--h-track-display);
-  text-wrap: balance;
-  color: var(--h-ink);
-}
-
-.prose > .heading {
-  margin-top: clamp(72px, 10vw, 120px);
-}
-
-.prose > .heading:first-child {
-  margin-top: 0;
-}
-
-.prose > .heading + * {
-  margin-top: 0.8em;
-}
-
-.prose strong {
-  font-weight: var(--h-w-semibold);
-}
-
 .prose em {
   font-style: italic;
 }
 
-.prose a {
-  color: var(--h-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.prose strong {
+  font-weight: 600;
 }
 
-/* --- Facets ---
- * Each "Why…" is a piece of one argument, not a numbered step: a short
- * subheading and its paragraph, divided by a hairline, never a numeral.
- */
+.heading {
+  font-family: var(--h-font);
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+/* A new part of the essay gets more air than a paragraph break. */
+.prose > .heading:not(:first-child) {
+  margin-top: 34px;
+}
+
+/* --- Facets: a short lead and its paragraph, divided by a hairline --- */
+
 .facets {
   list-style: none;
+  margin: 0;
   padding: 0;
-  margin-bottom: 0;
-}
-
-.prose > .facets {
-  margin-top: 1.6em;
+  display: flex;
+  flex-direction: column;
 }
 
 .facet {
-  padding-block: 1.5em;
-  border-top: 1px solid var(--h-rule);
+  padding-block: 22px;
+  border-top: 1px solid var(--h-memorial-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .facet:last-child {
@@ -152,106 +118,153 @@
 }
 
 .facetLead {
-  font-size: 1em;
-  line-height: 1.35;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.015em;
+  font-size: 19px;
+  line-height: 1.4;
+  font-weight: 600;
   text-wrap: balance;
-  margin: 0;
 }
 
-.facetLead + p {
-  margin-top: 0.4em;
-  color: var(--h-ink);
-}
+/* --- The closing letter, set apart on a faint tint so it reads as a letter --- */
 
-/* --- The closing letter ---
- * Set apart on the grey surface so it reads as a letter, not more argument.
- */
 .letter {
-  background: var(--h-gray);
-  border-radius: var(--h-radius-tile);
-  padding: clamp(28px, 5vw, 52px);
-}
-
-.prose > .letter {
-  margin-top: clamp(56px, 8vw, 88px);
-}
-
-.letter > p + p {
-  margin-top: 1.1em;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--h-r-inner);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .letterClose {
-  font-weight: var(--h-w-medium);
+  font-style: italic;
 }
 
-/* --- Movements ---
- * The essay is scored, not sectioned: a centred ✦ marks each movement the
- * way a record side turns over. Ink-muted; never an accent.
- */
+/* --- Movements: a centred mark, and the sentence that turns the story --- */
+
 .break {
   text-align: center;
-  color: var(--h-ink-faint);
-  font-size: var(--h-t-sm);
+  color: var(--h-tertiary);
+  font-family: var(--h-font);
+  font-size: 14px;
   line-height: 1;
+  padding-block: 10px;
 }
 
-.prose > .break {
-  margin-block: clamp(56px, 8vw, 88px);
-}
-
-.prose > .break + * {
-  margin-top: 0;
-}
-
-/* The sentence that turns the story, given its own silence. */
 .turn {
-  font-size: clamp(24px, 3.2vw, 32px);
-  line-height: 1.25;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: var(--h-track-display);
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 600;
   text-align: center;
   text-wrap: balance;
   max-width: 18em;
   margin-inline: auto;
 }
 
-/* --- Songs --- */
-
-.prose > .song {
-  margin-block: clamp(56px, 8vw, 88px);
-}
-
-.prose > .song + * {
-  margin-top: 0;
-}
-
-.songHeading {
-  font-size: clamp(21px, 2.2vw, 24px);
+.thanks {
+  font-size: 32px;
   line-height: 1.2;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.015em;
+  font-style: italic;
+  text-align: center;
+  padding-top: 10px;
+}
+
+/* Where a song plays: a quiet line that jumps to its row below. */
+.cue {
+  font-family: var(--h-font);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+  text-align: center;
+  letter-spacing: 0.02em;
+  padding-block: 6px;
+}
+
+.cue a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--h-memorial-divider);
+  text-underline-offset: 4px;
+  display: inline-block;
+  padding-block: 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cue a:hover {
+    color: var(--h-ink);
+    text-decoration-color: currentColor;
+  }
+}
+
+/* --- Three songs (list rows, each with its embed) --- */
+
+.songs {
+  max-width: calc(640px + 56px);
+  margin-inline: auto;
+  padding: 0 calc(28px + env(safe-area-inset-right, 0px)) 64px
+    calc(28px + env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.songsLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+  padding-bottom: 8px;
+}
+
+.songList {
+  list-style: none;
   margin: 0;
+  padding: 0;
 }
 
-/* The ▶ track line doubles as the accessible name of the iframe below it. */
-.songTrack {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-sm);
-  margin: 4px 0 16px;
+.song {
+  border-top: 1px solid var(--h-memorial-divider);
+  scroll-margin-top: 16px;
 }
 
-/* Black while the lazy iframe loads, so an unloaded embed reads as a player,
- * not an empty bordered box. */
+.song:last-child {
+  border-bottom: 1px solid var(--h-memorial-divider);
+}
+
+.songHead {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 10px;
+}
+
+.songNum {
+  width: 28px;
+  flex: none;
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.songTitle {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.songArtist {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+/* Black while the lazy iframe loads, so an unloaded embed reads as a player. */
 .embed {
   position: relative;
   aspect-ratio: 16 / 9;
   width: 100%;
-  border-radius: var(--h-radius-card);
+  margin-bottom: 16px;
+  border-radius: 16px;
   overflow: hidden;
   background: #000;
-  box-shadow: var(--h-shadow-card);
 }
 
 .embed iframe {
@@ -262,50 +275,49 @@
   border: 0;
 }
 
-.thanks {
-  font-size: clamp(32px, 5vw, 52px);
-  line-height: 1.1;
-  font-style: italic;
-  font-weight: var(--h-w-regular);
-  letter-spacing: var(--h-track-display);
-  text-align: center;
-}
-
-.prose > .thanks {
-  margin-top: clamp(40px, 6vw, 64px);
+@media (min-width: 1024px) {
+  .masthead {
+    padding-top: 120px;
+    padding-bottom: 96px;
+  }
 }
 
 /* --- Print ---
  * The page is sometimes printed and shared. Keep headings with their text,
- * never split a facet, the letter or a song block across a page, and replace
- * the video embeds (which print as blank rectangles) with the track line.
- */
+ * never split a facet, the letter or a song row across a page, and drop the
+ * video embeds (they print as blank rectangles): the row keeps the title. */
 @media print {
   .page {
     padding: 0;
+    min-height: 0;
+    background: #fff;
   }
 
   .masthead {
-    padding-top: 0;
+    padding: 0 0 24pt;
   }
 
-  .word {
-    font-size: 72pt;
-  }
-
-  .prose {
+  .prose,
+  .songs {
     max-width: none;
-    margin-top: 36pt;
+    padding: 0;
     font-size: 11.5pt;
     line-height: 1.5;
+    gap: 10pt;
   }
 
-  /* A ✦ always travels with the passage it introduces. The turn is NOT chained
-   * to the heading after it: that chain (✦ + turn + heading + paragraph) was
-   * too tall to fit, so the ✦ was stranded alone at the foot of page 1. */
+  .heading {
+    font-size: 20pt;
+  }
+
+  .prose > .heading:not(:first-child) {
+    margin-top: 16pt;
+  }
+
   .heading,
   .facetLead,
-  .songHeading,
+  .songsLabel,
+  .cue,
   .break {
     break-after: avoid;
     page-break-after: avoid;
@@ -320,25 +332,16 @@
     page-break-inside: avoid;
   }
 
-  .heading {
-    font-size: 20pt;
-  }
-
-  .prose > .heading {
-    margin-top: 28pt;
-  }
-
   .letter {
     background: none;
-    border: 1px solid var(--h-rule);
+    border: 1px solid var(--h-memorial-divider);
   }
 
   .embed {
     display: none;
   }
 
-  .prose > .song,
-  .prose > .break {
-    margin-block: 20pt;
+  .songs {
+    margin-top: 20pt;
   }
 }

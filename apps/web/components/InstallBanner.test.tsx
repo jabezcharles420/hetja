@@ -28,7 +28,7 @@ describe("InstallBanner", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders the amber install pill with a dismiss control", () => {
+  it("renders the install card with a dismiss control", () => {
     render(createElement(InstallBanner));
     expect(screen.getByText(/Add Hetja to your home screen/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();

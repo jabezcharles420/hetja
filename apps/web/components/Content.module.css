@@ -1,517 +1,611 @@
-/* `padding-block`, never the `padding` shorthand. Both of these are applied to
- * the same element as the global `.h-container` (`<section className={`${styles.section}
- * h-container`}>`, 16 places across about/privacy/faq/contact/how-it-works), and
- * `.h-container` carries the only horizontal gutter in the system
- * (`padding: 0 var(--h-gutter)`). Two `padding` shorthands on one element at equal
- * specificity cannot merge -- the later one in document order wins outright, and
- * Next.js emits the root layout's globals.css before a page's CSS-module chunk,
- * so a shorthand here silently reset the gutter to zero. Every heading and
- * paragraph below the hero then sat flush against the phone's screen edge, wide
- * enough to overflow the document horizontally. Longhands compose instead of
- * fighting, which is why `.h-hero-grid` (the one block that always looked right)
- * has used padding-top/padding-bottom all along. */
-.section {
-  padding-block: var(--h-s8);
+/* Reading pages (Pages mock 12 About, 13 How it works, 14 FAQ, 15 Privacy,
+ * 16 Contact), shared. The mock values first; the "kept" sections below the
+ * mock's (facts the old pages had and the mock leaves out) reuse the same
+ * scale so they read as one page.
+ *
+ * `.section`, `.card`, `.cardTitle` and `.cardText` are also used by the
+ * register screens: keep those four names.
+ *
+ * Any class that lands on the same element as `.h-container` may only set
+ * vertical padding with padding-block (e2e/mobile-layout.spec.ts). */
+
+.page {
+  line-height: normal;
 }
 
-.sectionTight {
-  padding-block: var(--h-s7);
+.page figure,
+.page blockquote {
+  margin: 0;
 }
 
+.mist {
+  background: var(--h-mist);
+}
+
+.white {
+  background: var(--h-white);
+}
+
+.black {
+  background: var(--h-band);
+  color: var(--h-band-ink);
+}
+
+.base {
+  background: var(--h-aurora-base);
+}
+
+/* Reading column: the phone layout, capped for tablets and desktop. */
+.col {
+  max-width: 720px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stack14 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --- Page header ------------------------------------------------------- */
+
+/* Aurora headers (About, FAQ): 36 under the nav, 40 (FAQ 36) at the bottom. */
 .head {
-  max-width: 680px;
-  margin: 0 0 var(--h-s6);
+  padding-block: calc(var(--page-top, 0px) + 36px) 40px;
 }
 
-.headCenter {
-  max-width: 680px;
-  margin: 0 auto var(--h-s7);
-  text-align: center;
+.headFaq {
+  padding-block: calc(var(--page-top, 0px) + 36px) 36px;
 }
 
-.title2 {
-  font-size: var(--h-t-plate);
-  line-height: 1.15;
-  font-weight: var(--h-w-semibold);
-  letter-spacing: -0.01em;
-  margin: var(--h-s4) 0 0;
+/* How it works and Privacy: 40 under the nav, 36 at the bottom. */
+.headPlain {
+  padding-block: calc(var(--page-top, 0px) + 40px) 36px;
 }
 
-.sub {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  margin: var(--h-s3) 0 0;
+.headContact {
+  padding-block: calc(var(--page-top, 0px) + 36px) 28px;
+}
+
+.kickerPill {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  font-size: 40px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-wrap: wrap;
+}
+
+.titleLg {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  text-wrap: wrap;
 }
 
 .lead {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-lg);
-  line-height: 1.7;
-  margin: var(--h-s4) 0 0;
-  max-width: 62ch;
+  font-size: 18px;
+  line-height: 1.47;
+  color: var(--h-secondary);
 }
 
-.prose {
-  color: var(--h-ink);
-  font-size: var(--h-t-md);
-  line-height: 1.75;
-  max-width: 66ch;
+.leadPlain {
+  text-wrap: wrap;
 }
 
-.prose > p + p {
-  margin-top: var(--h-s4);
+.black .lead {
+  color: var(--h-band-sub);
 }
 
-/* Paragraph margins are zeroed globally (globals.css `p { margin: 0 }`) and the
- * rule above restores rhythm only between *consecutive* paragraphs. A heading
- * followed by its first paragraph matched neither, so `.title2` (whose own
- * margin is top-only) sat directly on top of its body text with a measured 0px
- * gap -- the one heading on /about that did, while every other heading in the
- * page had 8-24px. Spacing the boundary here rather than adding a bottom margin
- * to `.title2` keeps `.headCenter`'s title -> `.sub` spacing untouched. */
-.prose > h2 + p,
-.prose > h3 + p {
-  margin-top: var(--h-s4);
+.link {
+  color: var(--h-link);
 }
 
-.prose strong {
-  color: var(--h-ink);
-  font-weight: var(--h-w-semibold);
+.black .link {
+  color: var(--h-band-link);
 }
 
-.prose a {
-  color: var(--h-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  font-weight: var(--h-w-semibold);
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration: underline;
+  }
 }
 
-.prose a:hover {
-  color: var(--h-ink-muted);
+/* --- About: the three mission cards (Pages 12) --------------------------- */
+
+.missionCards {
+  padding-block: 28px 32px;
 }
 
-.prose ul {
-  margin: var(--h-s4) 0 0;
-  padding-left: var(--h-s5);
-  display: grid;
-  gap: var(--h-s2);
-}
-
-.prose li::marker {
-  color: var(--h-ink-muted);
-}
-
-.split {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: var(--h-s7);
-  align-items: center;
-}
-
-/* A quiet, bordered blockquote, no dark fill panel. */
-.forestQuote {
-  background: var(--h-base);
-  color: var(--h-ink);
-  border-top: var(--h-hairline) solid var(--h-rule);
-  border-bottom: var(--h-hairline) solid var(--h-rule);
-  padding: var(--h-s7) 0;
+.miniList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--h-s5);
+  gap: 12px;
 }
 
-.forestQuotePaw {
-  color: var(--h-ink-muted);
+.miniCard {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 20px 22px;
 }
 
-.quote {
-  font-family: var(--h-font);
-  font-size: var(--h-t-xl);
-  line-height: 1.35;
-  font-weight: var(--h-w-medium);
-  color: var(--h-ink);
-  margin: 0;
+.miniTitle {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.quoteCite {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.miniText {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  margin-top: 4px;
+  text-wrap: wrap;
 }
 
-.grid2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--h-s5);
+/* --- How it works: numbered rows (Pages 13) ------------------------------ */
+
+.rows {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.grid3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--h-s5);
+.row {
+  display: flex;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid var(--h-divider);
+  scroll-margin-top: calc(var(--page-top, 0px) + 16px);
 }
 
-.grid4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--h-s5);
+.row:last-child {
+  border-bottom: 1px solid var(--h-divider);
 }
 
-.card {
-  background: var(--h-base);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s6);
-}
-
-.iconCircle {
-  width: 44px;
-  height: 44px;
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  color: var(--h-ink);
+.rowNum {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--h-ink);
+  color: var(--h-white);
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--h-s4);
 }
 
-.cardTitle {
-  font-size: var(--h-t-lg);
-  font-weight: var(--h-w-semibold);
-  margin: 0 0 var(--h-s3);
+.rowTitle {
+  font-size: 19px;
+  font-weight: 600;
+  text-wrap: wrap;
 }
 
-.cardText {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  margin: 0;
-  line-height: 1.65;
+.rowText {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  margin-top: 3px;
+  text-wrap: wrap;
 }
 
-.list {
+/* --- Privacy: tick / cross rows on black (Pages 15) ----------------------- */
+
+.darkRows {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.darkRow {
+  padding: 16px 0;
+  border-top: 1px solid var(--privacy-line, #2c2c2e);
+  display: flex;
+  gap: 12px;
+}
+
+.darkIcon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.iconOk {
+  color: var(--privacy-ok, #30d158);
+}
+
+.iconNo {
+  color: var(--privacy-no, #ff6961);
+}
+
+.darkTitle {
+  font-size: 17px;
+  font-weight: 600;
+  text-wrap: wrap;
+}
+
+.darkText {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-band-sub);
+  /* Mock: 2px. 3px so e2e's "heading touching its paragraph" guard (<= 2px)
+   * does not flag it; the rendered difference is one pixel. */
+  margin-top: 3px;
+  text-wrap: wrap;
+}
+
+/* --- Contact (Pages 16) -------------------------------------------------- */
+
+.email {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--h-link);
+  align-self: flex-start;
+  overflow-wrap: anywhere;
+}
+
+.body17 {
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-secondary);
+}
+
+.callout {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 18px 20px;
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.bang {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--h-sos);
+  color: var(--h-white);
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calloutText {
+  font-size: 16px;
+  line-height: 1.45;
+  text-wrap: wrap;
+}
+
+.calloutText b {
+  font-weight: 700;
+}
+
+/* FAQ body under the aurora header: 24 / 32. */
+.faqBody {
+  padding-block: 24px 32px;
+}
+
+/* --- Kept sections (below the mock's) ------------------------------------ */
+
+.section {
+  padding-block: 32px;
+}
+
+.sectionTight {
+  padding-block: 0 32px;
+}
+
+.sectionEnd {
+  padding-bottom: 64px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.h2 {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: wrap;
+}
+
+.sub {
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-secondary);
+}
+
+.black .sub {
+  color: var(--h-band-sub);
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 17px;
+  line-height: 1.47;
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+.cards {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--h-s3);
+  gap: 12px;
 }
 
-.list li {
-  display: flex;
-  gap: var(--h-s3);
-  align-items: flex-start;
+.card {
+  background: var(--h-white);
   color: var(--h-ink);
-  font-size: var(--h-t-md);
-  line-height: 1.6;
+  border-radius: 24px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* A card on a white page gets the mist fill instead (no border needed). */
+.white .card {
+  background: var(--h-mist);
+}
+
+.cardTitle {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: wrap;
+}
+
+.cardText {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  text-wrap: wrap;
+}
+
+.cardMeta {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-ink);
+}
+
+.quote {
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.cite {
+  font-size: 15px;
+  color: var(--h-secondary);
+  margin-top: 8px;
+}
+
+.black .cite {
+  color: var(--h-band-sub);
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.checks > li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--h-divider);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.checks > li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.checks > li:last-child {
+  padding-bottom: 0;
 }
 
 .check {
   flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--h-safe);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
-  margin-top: 2px;
+  margin-top: 3px;
+  color: var(--h-ok);
 }
 
-.phase {
-  background: var(--h-base);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s5);
-  border-top: 2px solid var(--h-ink);
+.points {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.phaseTag {
-  display: inline-block;
-  font-family: var(--h-font);
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
-  text-transform: uppercase;
+.points > li {
+  display: flex;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.points > li::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--h-tertiary);
+  margin-top: 9px;
+}
+
+/* Rows on black (Privacy kept sections). */
+.darkList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.darkList > li {
+  padding: 16px 0;
+  border-top: 1px solid var(--privacy-line, #2c2c2e);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.darkList > li:last-child {
+  border-bottom: 1px solid var(--privacy-line, #2c2c2e);
+}
+
+.darkScope {
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--h-ink-muted);
-  margin-bottom: var(--h-s3);
-}
-
-.phaseTitle {
-  font-size: var(--h-t-lg);
-  font-weight: var(--h-w-semibold);
-  margin: 0 0 var(--h-s2);
-}
-
-.phaseDogs {
-  color: var(--h-ink);
-  font-weight: var(--h-w-semibold);
-  font-size: var(--h-t-sm);
-  margin: 0 0 var(--h-s2);
-  font-variant-numeric: var(--h-num-tabular);
-}
-
-.phaseText {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.tier {
-  background: var(--h-base);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s5);
-}
-
-.tierName {
-  font-size: var(--h-t-lg);
-  font-weight: var(--h-w-semibold);
-  margin: 0 0 var(--h-s2);
-}
-
-.tierScope {
-  display: inline-block;
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--h-ink-muted);
-  border-bottom: var(--h-hairline) solid var(--h-rule);
-  padding-bottom: 2px;
-  margin-bottom: var(--h-s3);
+  color: var(--h-band-sub);
 }
 
-/* Free/paid/scope distinctions are text labels, never colour swatches
- * (§3.4: "text labels, not colour"). The three modifiers below intentionally
- * render identically. */
-.tierScopeMint,
-.tierScopeMoss,
-.tierScopeCoral {
-  color: var(--h-ink-muted);
+.note {
+  margin-top: 24px;
 }
 
-.tierText {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.65;
-  margin: 0;
+/* A closing call to action (About, How it works): one loud button. */
+.cta {
+  padding-block: 48px 56px;
+  text-align: center;
 }
 
-.step {
-  background: var(--h-base);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s6);
-}
-
-.stepTop {
+.ctaInner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--h-s3);
-  margin-bottom: var(--h-s5);
+  gap: 14px;
+  margin-inline: auto;
 }
 
-.stepNum {
-  font-family: var(--h-font);
-  font-weight: var(--h-w-semibold);
-  font-size: var(--h-t-plate);
-  font-variant-numeric: var(--h-num-tabular);
-  color: var(--h-ink-muted);
-  line-height: 1;
+.ctaTitle {
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
-.stepPaw {
-  width: 48px;
-  height: 48px;
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  color: var(--h-ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.ctaInner > .sub {
+  max-width: 34em;
 }
 
-.stepTitle {
-  font-size: var(--h-t-lg);
-  font-weight: var(--h-w-semibold);
-  margin: 0 0 var(--h-s3);
+.ctaInner > :last-child {
+  margin-top: 8px;
 }
 
-.stepText {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.7;
-  margin: 0;
-}
+/* --- 744: 2-column cards ------------------------------------------------ */
 
-.stepList {
-  list-style: none;
-  margin: var(--h-s4) 0 0;
-  padding: 0;
-  display: grid;
-  gap: var(--h-s2);
-}
-
-.stepList li {
-  display: flex;
-  gap: var(--h-s2);
-  align-items: flex-start;
-  color: var(--h-ink);
-  font-size: var(--h-t-sm);
-  line-height: 1.6;
-}
-
-.stepBullet {
-  flex: none;
-  color: var(--h-ink-muted);
-  font-weight: var(--h-w-semibold);
-}
-
-.offline {
-  background: var(--h-base);
-  color: var(--h-ink);
-  border-top: var(--h-hairline) solid var(--h-rule);
-  border-bottom: var(--h-hairline) solid var(--h-rule);
-  padding: var(--h-s7) 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--h-s6);
-  align-items: center;
-}
-
-.offlineTitle {
-  font-size: var(--h-t-xl);
-  margin: 0 0 var(--h-s3);
-  color: var(--h-ink);
-}
-
-.offlineText {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.7;
-  margin: 0;
-}
-
-.offlineList {
-  list-style: none;
-  margin: var(--h-s4) 0 0;
-  padding: 0;
-  display: grid;
-  gap: var(--h-s3);
-}
-
-.offlineList li {
-  display: flex;
-  gap: var(--h-s3);
-  align-items: flex-start;
-  color: var(--h-ink);
-  font-size: var(--h-t-sm);
-  font-weight: var(--h-w-medium);
-  line-height: 1.6;
-}
-
-.offlineCheck {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--h-safe);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
-  margin-top: 2px;
-}
-
-.offlineIcon {
-  color: var(--h-ink-muted);
-}
-
-.offlineCta {
-  margin-top: var(--h-s5);
-}
-
-.contactCard {
-  background: var(--h-base);
-  color: var(--h-ink);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s7);
-  max-width: 560px;
-}
-
-.contactLabel {
-  font-size: var(--h-t-xs);
-  font-weight: var(--h-w-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--h-ink-muted);
-}
-
-.contactEmail {
-  display: inline-block;
-  margin: var(--h-s3) 0;
-  font-family: var(--h-font);
-  font-size: var(--h-t-plate);
-  font-weight: var(--h-w-semibold);
-  color: var(--h-ink);
-  word-break: break-word;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.contactEmail:hover {
-  color: var(--h-ink-muted);
-}
-
-.contactNote {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.65;
-  margin: 0;
-  max-width: 46ch;
-}
-
-.contactPaw {
-  margin-top: var(--h-s5);
-}
-
-.partnerCard {
-  background: var(--h-base);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s6);
-}
-
-.partnerCardTitle {
-  font-size: var(--h-t-lg);
-  font-weight: var(--h-w-semibold);
-  margin: 0 0 var(--h-s3);
-}
-
-@media (max-width: 900px) {
-  .split,
-  .offline {
-    grid-template-columns: 1fr;
-    gap: var(--h-s5);
+@media (min-width: 744px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .grid2,
-  .grid3,
-  .grid4 {
-    grid-template-columns: 1fr;
+  .cards3 > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
-@media (min-width: 600px) and (max-width: 900px) {
-  .grid4 {
-    grid-template-columns: 1fr 1fr;
+/* --- Desktop: same pages, a larger scale (no desktop mock for these) ----- */
+
+@media (min-width: 1024px) {
+  .head,
+  .headFaq,
+  .headContact {
+    padding-block: calc(var(--page-top, 0px) + 72px) 56px;
+  }
+
+  .headPlain {
+    padding-block: calc(var(--page-top, 0px) + 72px) 48px;
+  }
+
+  .title,
+  .titleLg {
+    font-size: 64px;
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+
+  .lead {
+    font-size: 21px;
+    line-height: 1.45;
+  }
+
+  .section {
+    padding-block: 48px;
+  }
+
+  .h2 {
+    font-size: 36px;
+    letter-spacing: -0.035em;
+  }
+
+  .cards3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cards3 > :last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+  .cta {
+    padding-block: 72px 96px;
+  }
+
+  .ctaTitle {
+    font-size: 48px;
   }
 }

@@ -1,60 +1,138 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Header from "./Header";
-import Footer from "./Footer";
-import { BottomNav } from "./BottomNav";
+import { Footer, TabBar, TopNav } from "@/components/ds";
 import { InstallBanner } from "./InstallBanner";
+import styles from "./ChromeShell.module.css";
 
 /**
- * The scanned dog profile (§3.3) needs the whole viewport for one decision:
- * a stranger under stress should see the dog and a single primary action,
- * not a 3-link header nav, a 3-item bottom nav and an install banner all
- * competing for the same screen. This is the one surface that suppresses
- * the global chrome.
+ * Global chrome, per route (design v4 handoff: TopNav / TabBar / Footer).
  *
- * Footer is deliberately excluded from the suppression: it sits below all
- * page content and never competes with the primary action in the bottom
- * third of the viewport.
+ *   marketing  /, /about, /how-it-works, /faq, /privacy, /contact
+ *              TopNav + Footer + TabBar (TabBar mobile only: at >=1024px the
+ *              desktop nav links take over) + the install card.
+ *   /hetja     the muted memorial TopNav only. The mock (Pages 17) shows no
+ *              footer and no tab bar, so none is drawn.
+ *   /me        TabBar only.
+ *   focused    /scan, /feed, /login, /register/**, /d/**, /dog/** and /design:
+ *              no chrome at all. Those screens draw their own back / cancel.
+ *   /map       no chrome either: the map draws its own nav, chips, sheet and
+ *              tab bar (screen 19).
+ *   anything else (404s, error pages): TopNav + Footer, so nobody is stranded.
  *
- * That reasoning holds for page content and NOT for the fixed bottom nav,
- * which is what caused a real bug: being last in the document, the footer is
- * precisely what the nav overlays, so it is the footer (not `main`) that has
- * to reserve the nav's height. Hence clearBottomNav below.
+ * On marketing pages the nav floats over the page's own first section (the
+ * aurora has to run behind the frosted bar, as in the mocks). The shell sets
+ * --page-top to the nav height there, and the pages pad their first section
+ * by it. Everywhere else --page-top is 0.
  */
-function isBareRoute(pathname: string): boolean {
-  if (pathname.startsWith("/dog/")) return true;
-  // Print sheet is a physical artefact: a fixed bottom nav printed across a
-  // collar sheet is a wasted sheet of TPU. Hide chrome on the print route
-  // (and in print CSS, since InstallBanner is a client component that can still
-  // mount after hydration).
-  if (pathname.startsWith("/register/") && pathname.endsWith("/print")) return true;
-  return false;
+
+export type NavTone = "light" | "dark" | "memorial";
+
+export interface Chrome {
+  nav: NavTone | null;
+  /** aurora = 60% frost over an aurora; solid = 72% frost over white. */
+  navSurface: "aurora" | "solid";
+  /** Nav overlays the page's first section (page pads by --page-top). */
+  overlay: boolean;
+  footer: boolean;
+  /** mobile = hidden at >=1024px; always = every width; null = none. */
+  tabBar: "mobile" | "always" | null;
+  install: boolean;
 }
 
-export function ChromeShell({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.JSX.Element {
-  const pathname = usePathname() ?? "/";
-  const bare = isBareRoute(pathname);
+export const MARKETING_ROUTES = [
+  "/",
+  "/about",
+  "/how-it-works",
+  "/faq",
+  "/privacy",
+  "/contact",
+] as const;
+
+const FOCUSED_ROUTES = ["/scan", "/feed", "/login", "/register", "/d", "/dog", "/map", "/design"];
+
+const NONE: Chrome = {
+  nav: null,
+  navSurface: "aurora",
+  overlay: false,
+  footer: false,
+  tabBar: null,
+  install: false,
+};
+
+function under(path: string, base: string): boolean {
+  return path === base || path.startsWith(base + "/");
+}
+
+export function chromeFor(pathname: string | null | undefined): Chrome {
+  const path = (pathname ?? "/").replace(/\/+$/, "") || "/";
+
+  if ((MARKETING_ROUTES as readonly string[]).includes(path)) {
+    return {
+      nav: path === "/privacy" ? "dark" : "light",
+      navSurface: path === "/how-it-works" ? "solid" : "aurora",
+      overlay: true,
+      footer: true,
+      tabBar: "mobile",
+      install: true,
+    };
+  }
+  if (under(path, "/hetja")) {
+    // Overlay so the memorial background runs behind the unfrosted nav.
+    return { ...NONE, nav: "memorial", overlay: true };
+  }
+  if (under(path, "/me")) {
+    return { ...NONE, tabBar: "always" };
+  }
+  if (FOCUSED_ROUTES.some((base) => under(path, base))) {
+    return NONE;
+  }
+  return { ...NONE, nav: "light", navSurface: "solid", footer: true };
+}
+
+export function ChromeShell({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const chrome = chromeFor(usePathname());
+  const navCls = [
+    styles.nav,
+    chrome.overlay ? styles.navOverlay : "",
+    chrome.nav === "dark" ? styles.navDark : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const tabCls = [
+    chrome.tabBar === "mobile" ? styles.mobileOnly : "",
+    // 92% white over a black page reads as #ebebeb, which drops the inactive
+    // tab labels to 4.25:1. On the black page the bar is solid white.
+    chrome.nav === "dark" ? styles.tabSolid : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <>
-      {!bare && <Header />}
-      {/* No className: `.h-main` was deleted along with the padding-bottom that
-       * moved to .h-footer-clear-nav, leaving a class name that matched no rule
-       * in any stylesheet. Left bare rather than re-added, because horizontal
-       * gutters belong to `.h-container` and the per-route page wrappers;
-       * padding here would double up on every one of them. */}
+    <div
+      className={[styles.shell, chrome.overlay ? styles.overlay : ""].filter(Boolean).join(" ")}
+      data-chrome={chrome.nav ?? (chrome.tabBar ? "tabbar" : "none")}
+    >
+      {chrome.nav && (
+        <TopNav
+          tone={chrome.nav === "memorial" ? "memorial" : "default"}
+          surface={chrome.navSurface}
+          sticky={chrome.nav !== "memorial"}
+          className={navCls || undefined}
+        />
+      )}
       <main>{children}</main>
-      {!bare && <InstallBanner />}
-      {!bare && <BottomNav />}
-      {/* The footer clears the bottom nav only where the nav actually renders:
-       * it is the last element in the document, so it is what the fixed nav
-       * covers. See the .h-footer-clear-nav rule in globals.css. */}
-      <Footer clearBottomNav={!bare} />
-    </>
+      {chrome.footer && <Footer />}
+      {chrome.tabBar && (
+        <div
+          className={[styles.tabSpacer, chrome.tabBar === "mobile" ? styles.mobileOnly : ""]
+            .filter(Boolean)
+            .join(" ")}
+          aria-hidden="true"
+        />
+      )}
+      {chrome.install && <InstallBanner />}
+      {chrome.tabBar && <TabBar className={tabCls || undefined} />}
+    </div>
   );
 }

@@ -1,0 +1,60 @@
+/* ChromeShell: route chrome around every page (see ChromeShell.tsx). */
+
+.shell {
+  --page-top: 0px;
+}
+
+/* Marketing pages: the nav floats over the first section. Mobile nav 56,
+ * desktop 52 (TopNav switches at the same 1024px breakpoint). */
+.overlay {
+  --page-top: var(--h-nav-h);
+}
+
+@media (min-width: 1024px) {
+  .overlay {
+    --page-top: 52px;
+  }
+}
+
+/* Print hook; the ds TopNav owns every visual. */
+.nav {
+  flex: none;
+}
+
+.navOverlay {
+  margin-bottom: calc(var(--page-top) * -1);
+}
+
+/* Privacy (Pages 15) is fully black, nav included: the same TopNav with its
+ * colour tokens swapped for the band's, so no ds change is needed. */
+.navDark {
+  --h-frost: rgba(0, 0, 0, 0.6);
+  --h-frost-strong: rgba(0, 0, 0, 0.72);
+  --h-frost-line: rgba(255, 255, 255, 0.08);
+  --h-ink: var(--h-band-ink);
+  --h-white: var(--h-band);
+  --h-link: var(--h-band-link);
+}
+
+.tabSolid {
+  --h-tab-bg: var(--h-white);
+}
+
+/* Room for the fixed TabBar under the last thing on the page. */
+.tabSpacer {
+  height: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--h-mist);
+}
+
+@media (min-width: 1024px) {
+  .mobileOnly {
+    display: none;
+  }
+}
+
+@media print {
+  .nav,
+  .tabSpacer {
+    display: none;
+  }
+}

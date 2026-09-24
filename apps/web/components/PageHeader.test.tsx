@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import PageHeader from "./PageHeader";
 
 describe("PageHeader", () => {
-  it("renders the kicker pill, Fraunces title and intro", () => {
+  it("renders the kicker pill, the page title and the intro", () => {
     render(
       <PageHeader
         kicker="Our mission"

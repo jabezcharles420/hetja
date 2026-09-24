@@ -1,0 +1,827 @@
+/* Home: Pages mock 01 (390 base), 2-column cards at 744, Desktop Landing 18
+ * at >=1024. Values are the mocks' inline values. Where the mock sets no
+ * line-height the browser default ("normal") is what it rendered with, so
+ * both sections reset to normal and set line-height only where the mock does. */
+
+.hero,
+.mist,
+.bandWrap {
+  line-height: normal;
+}
+
+/* The mock sets text-wrap: pretty on the hero lead only. */
+.stepText,
+.roleText,
+.joke {
+  text-wrap: wrap;
+}
+
+/* The desktop floating avatars hang past the art column. */
+.hero {
+  overflow: clip;
+}
+
+/* --- Hero ------------------------------------------------------------- */
+
+.heroGrid {
+  display: flex;
+  flex-direction: column;
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  padding-block: calc(var(--page-top, 0px) + 40px) 36px;
+}
+
+.badge {
+  height: 40px;
+  padding: 0 16px 0 6px;
+  border-radius: var(--h-r-pill);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: normal;
+  color: var(--h-ink);
+  white-space: nowrap;
+}
+
+.badge b {
+  font-weight: 700;
+}
+
+.badgeSub {
+  color: var(--h-secondary);
+}
+
+.title {
+  font-size: 60px;
+  line-height: 0.98;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  text-wrap: wrap;
+}
+
+.lead {
+  font-size: 19px;
+  line-height: 1.42;
+  color: var(--h-secondary);
+}
+
+.leadInk {
+  color: var(--h-ink);
+}
+
+.avatarRow {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+
+.avatar + .avatar {
+  margin-left: -10px;
+}
+
+.ctas {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* The link's 44px target is centred on the mock's 17px text line. */
+.textLink {
+  margin-block: -16px -12px;
+}
+
+/* Pages 01 phone: 270 wide + 16px padding a side (the mock is content-box,
+ * so it renders 302 x 466), 9px ink bezel, cropped by the hero's bottom. */
+.mPhoneWrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 9px;
+}
+
+.mPhone {
+  width: 302px;
+  height: 466px;
+  flex: none;
+  border-radius: 44px 44px 0 0;
+  background: var(--h-white);
+  box-shadow: 0 0 0 9px var(--h-ink), 0 30px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  padding: 36px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.mPhoto {
+  height: 150px;
+  flex: none;
+  border-radius: 20px;
+  background: var(--h-av-apricot-bg);
+}
+
+.mName {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.mWard {
+  font-size: 13px;
+  color: var(--h-secondary);
+  margin-top: -6px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mCode {
+  background: var(--h-mist);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-family: var(--h-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  display: flex;
+  gap: 10px;
+}
+
+.mStory {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.heroArt {
+  min-width: 0;
+}
+
+.dArt {
+  display: none;
+}
+
+/* --- Mist: stats, steps, the two role cards ---------------------------- */
+
+.mist {
+  background: var(--h-mist);
+  padding-block: 56px;
+}
+
+.mistGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stats" "head" "steps" "side";
+  row-gap: 16px;
+}
+
+.areaStats {
+  grid-area: stats;
+  display: flex;
+}
+
+.areaHead {
+  grid-area: head;
+}
+
+.areaSide {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mist .statsCard {
+  flex: 1;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.statsLabel {
+  order: 0;
+}
+
+.statsGrid {
+  order: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.statNum {
+  font-size: 52px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.statLabel {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.joke {
+  order: 2;
+  font-size: 17px;
+  line-height: 1.45;
+  border-top: 1px solid var(--h-divider);
+  padding-top: 16px;
+}
+
+.sectionTitle {
+  font-size: 40px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-align: center;
+  text-wrap: wrap;
+  padding: 36px 0 8px;
+}
+
+.peopleTitle {
+  padding-top: 40px;
+}
+
+.sectionSub {
+  font-size: 23px;
+  color: var(--h-secondary);
+  text-align: center;
+}
+
+.steps {
+  grid-area: steps;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step {
+  background: var(--h-white);
+  border-radius: var(--h-r-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stepNum {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-secondary);
+}
+
+.stepTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: wrap;
+}
+
+.stepText {
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.mist .roleCard {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.roleTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: wrap;
+}
+
+.roleText {
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.streak {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.streakNum {
+  font-size: 88px;
+  line-height: 0.85;
+  font-weight: 700;
+  letter-spacing: -0.055em;
+}
+
+.streakUnit {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.record {
+  background: var(--h-mist);
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.recordRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+
+.recordRow b {
+  font-weight: 700;
+}
+
+.recordDate {
+  color: var(--h-secondary);
+  white-space: nowrap;
+}
+
+.recordBy {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+/* --- Breakpoint helpers --------------------------------------------------- */
+
+@media (max-width: 1023.98px) {
+  .dOnly {
+    display: none !important;
+  }
+}
+
+/* The desktop line break also reads best on a tablet's wider hero. */
+@media (max-width: 743.98px) {
+  .dBr {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mOnly {
+    display: none !important;
+  }
+  .mBr {
+    display: none;
+  }
+}
+
+/* --- 744: 2-column cards ------------------------------------------------ */
+
+@media (min-width: 744px) {
+  .heroGrid .heroText {
+    max-width: 600px;
+  }
+
+  .mistGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "stats stats" "head head" "steps steps" "side side";
+    column-gap: 16px;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .steps > .step:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .areaSide {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .peopleTitle {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- 1024: Desktop Landing 18 ----------------------------------------- */
+
+@media (min-width: 1024px) {
+  .hero[data-aurora] {
+    --aurora: radial-gradient(40% 60% at 5% 0%, var(--h-aurora-pink) 0%, transparent 70%),
+      radial-gradient(35% 55% at 70% 0%, var(--h-aurora-peach) 0%, transparent 70%),
+      radial-gradient(40% 60% at 100% 70%, var(--h-aurora-rose) 0%, transparent 70%),
+      radial-gradient(35% 50% at 20% 100%, var(--h-aurora-coral) 0%, transparent 70%),
+      var(--h-aurora-base);
+  }
+
+  /* 1440 frame: text from x=180 (the 1080 column), art column 520 wide
+   * ending 120 from the right edge, i.e. 60px past the text column. */
+  .heroGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 520px;
+    column-gap: 40px;
+    align-items: center;
+    min-height: 900px;
+    padding-top: var(--page-top, 0px);
+    padding-left: max(var(--h-gutter), calc((100% - var(--h-content)) / 2));
+    padding-right: max(var(--h-gutter), calc((100% - var(--h-content)) / 2 - 60px));
+  }
+
+  .heroGrid .heroText {
+    max-width: none;
+    margin: 0;
+    padding-inline: 0;
+    padding-block: 0;
+    align-items: flex-start;
+    text-align: left;
+    gap: 28px;
+  }
+
+  .badge {
+    align-self: flex-start;
+    height: 42px;
+    padding: 0 18px 0 7px;
+    gap: 9px;
+  }
+
+  .title {
+    font-size: clamp(76px, 7.23vw, 104px);
+    line-height: 0.94;
+    letter-spacing: -0.055em;
+  }
+
+  .lead {
+    font-size: 23px;
+    line-height: 1.4;
+    max-width: 600px;
+  }
+
+  .ctas {
+    flex-direction: row;
+    align-items: center;
+    gap: 28px;
+    margin-top: 6px;
+  }
+
+  .heroText .ctas .scanBtn {
+    width: auto;
+    height: 56px;
+    padding: 0 32px;
+    font-size: 19px;
+  }
+
+  .heroText .ctas .textLink {
+    margin-block: 0;
+    font-size: 19px;
+  }
+
+  .mPhoneWrap {
+    display: none;
+  }
+
+  .dArt {
+    display: block;
+    position: relative;
+    width: 520px;
+    height: 780px;
+  }
+
+  .dArtInner {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 520px;
+    height: 780px;
+  }
+
+  .dPhone {
+    position: absolute;
+    left: 110px;
+    top: 40px;
+    /* 300 x 620 content box + padding, as the mock renders it. */
+    width: 336px;
+    height: 668px;
+    border-radius: 52px;
+    background: var(--h-white);
+    box-shadow: 0 0 0 10px var(--h-ink), 0 40px 80px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    padding: 48px 18px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dNotch {
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+    width: 92px;
+    height: 26px;
+    border-radius: 14px;
+    background: var(--h-ink);
+  }
+
+  .dPhoto {
+    height: 180px;
+    flex: none;
+    border-radius: 22px;
+    background: var(--h-av-apricot-bg);
+  }
+
+  .dName {
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .dWard {
+    font-size: 14px;
+    color: var(--h-secondary);
+    margin-top: -6px;
+  }
+
+  .dPhone .pills > span {
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .dCodeCard {
+    background: var(--h-mist);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dCodeLabel {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--h-secondary);
+  }
+
+  .dCode {
+    font-family: var(--h-mono);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    display: flex;
+    gap: 10px;
+  }
+
+  .dStory {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .dSos {
+    margin-top: auto;
+    margin-bottom: 22px;
+    height: 48px;
+    flex: none;
+    border-radius: var(--h-r-pill);
+    background: var(--h-sos);
+    color: var(--h-white);
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .float {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* DogAvatar's fixed sizes stop at 104 / 120; the mock's are 88 to 116. */
+  .float .floatAv {
+    width: var(--d) !important;
+    height: var(--d) !important;
+    font-size: calc(var(--d) * 0.4) !important;
+    box-shadow: var(--h-sh-avatar);
+  }
+
+  .chip {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: var(--h-r-pill);
+    background: var(--h-white);
+    box-shadow: var(--h-sh-chip);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .fKaali {
+    left: -40px;
+    top: 120px;
+  }
+  .fBruno {
+    left: -70px;
+    top: 400px;
+  }
+  .fMotu {
+    right: -40px;
+    top: 60px;
+  }
+  .fRani {
+    right: -60px;
+    top: 330px;
+  }
+  .fSheru {
+    left: 250px;
+    top: 640px;
+  }
+
+  /* Mist: 120 / 180 at 1440 (the 1080 column). */
+  .mist {
+    padding-block: 120px;
+  }
+
+  .mistGrid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-areas: "head head" "steps steps" "stats side";
+    column-gap: 20px;
+    row-gap: 0;
+  }
+
+  .areaHead {
+    margin-bottom: 64px;
+  }
+
+  .sectionTitle {
+    font-size: 64px;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    padding: 0;
+  }
+
+  .sectionSub {
+    margin-top: 24px;
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .steps > .step:last-child {
+    grid-column: auto;
+  }
+
+  .step {
+    border-radius: var(--h-r-card-lg);
+    padding: 40px;
+    gap: 10px;
+  }
+
+  .stepNum {
+    font-size: 17px;
+  }
+
+  .stepTitle {
+    font-size: 32px;
+    letter-spacing: -0.03em;
+  }
+
+  .stepText {
+    font-size: 19px;
+  }
+
+  .areaStats,
+  .areaSide {
+    margin-top: 44px;
+  }
+
+  .areaSide {
+    display: flex;
+    gap: 20px;
+  }
+
+  .mist .statsCard {
+    border-radius: var(--h-r-card-lg);
+    padding: 48px;
+    gap: 14px;
+  }
+
+  .statsTitle {
+    order: 0;
+    font-size: 40px;
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+  }
+
+  .joke {
+    order: 1;
+    font-size: 19px;
+    line-height: normal;
+    color: var(--h-secondary);
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .statsGrid {
+    order: 2;
+    gap: 24px;
+    margin-top: auto;
+    padding-top: 40px;
+  }
+
+  .statNum {
+    font-size: 112px;
+    line-height: 0.9;
+    letter-spacing: -0.06em;
+  }
+
+  .statLabel {
+    font-size: 19px;
+    margin-top: 8px;
+  }
+
+  .mist .roleCard {
+    border-radius: var(--h-r-card-lg);
+    padding: 40px;
+    gap: 10px;
+  }
+
+  .roleTitle {
+    font-size: 30px;
+    letter-spacing: -0.03em;
+  }
+
+  .roleText {
+    font-size: 18px;
+  }
+
+  .streak {
+    margin-top: 10px;
+  }
+
+  .streakUnit {
+    font-size: 24px;
+  }
+
+  .record {
+    padding: 14px 18px;
+    margin-top: 8px;
+  }
+
+  .recordRow {
+    font-size: 16px;
+  }
+}
+
+/* 1024 to 1279: the 520 art column does not fit beside the headline, so the
+ * art is drawn at 72% (the layout box shrinks with it), with room on both
+ * sides for the avatars and chips that hang past it. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr) 375px;
+    column-gap: 64px;
+    padding-right: 64px;
+  }
+
+  .dArt {
+    width: 375px;
+    height: 562px;
+  }
+
+  .dArtInner {
+    transform: scale(0.72);
+    transform-origin: top left;
+  }
+}

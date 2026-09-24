@@ -297,6 +297,12 @@ export default function QrScanner(): React.JSX.Element {
     if (camera === "off") focusInput();
   }, [camera, focusInput]);
 
+  // The home page's "Or type a collar code ›" links to /scan#code: the person
+  // chose typing, so the cursor goes straight to the input.
+  useEffect(() => {
+    if (window.location.hash === "#code") focusInput();
+  }, [focusInput]);
+
   const toggleTorch = async () => {
     const track = streamRef.current?.getVideoTracks?.()[0] as unknown as TorchCapable | undefined;
     if (!track) return;

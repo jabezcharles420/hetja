@@ -1,56 +1,55 @@
+/* Install card: white, radius 20, floating-chip shadow, 12px above the TabBar. */
+
 .banner {
   position: fixed;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
-  transform: translateX(-50%);
-  z-index: 55;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 25;
+  max-width: 420px;
+  margin-inline: auto;
   display: flex;
   align-items: center;
   gap: var(--h-s3);
-  max-width: min(92vw, 420px);
-  background: var(--h-base);
+  padding: 10px 6px 10px 16px;
+  background: var(--h-white);
   color: var(--h-ink);
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
-  padding: var(--h-s2) var(--h-s3) var(--h-s2) var(--h-s5);
-  font-family: var(--h-font);
+  border-radius: var(--h-r-inner);
+  box-shadow: var(--h-sh-chip), inset 0 0 0 1px var(--h-divider);
 }
 
 .text {
-  margin: 0;
-  font-size: var(--h-t-sm);
-  font-weight: var(--h-w-medium);
-  line-height: 1.4;
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.35;
 }
 
 .install {
   flex: none;
-  min-height: 40px;
-  padding: 0 var(--h-s4);
-  border: none;
-  border-radius: var(--h-radius);
-  background: var(--h-ink);
-  color: var(--h-base);
-  font-family: var(--h-font);
-  font-size: var(--h-t-sm);
-  font-weight: var(--h-w-semibold);
-  cursor: pointer;
 }
 
 .dismiss {
   flex: none;
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: var(--h-radius);
+  width: var(--h-target);
+  height: var(--h-target);
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
   background: transparent;
-  color: var(--h-ink);
-  font-size: 20px;
-  line-height: 1;
+  color: var(--h-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1024px) {
+  .banner {
+    display: none;
+  }
+}
+
+@media print {
   .banner {
     display: none;
   }

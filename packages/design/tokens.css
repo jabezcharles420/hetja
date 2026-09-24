@@ -32,7 +32,7 @@
   --h-frost: rgba(255, 255, 255, 0.6);        /* top nav on aurora          */
   --h-frost-strong: rgba(255, 255, 255, 0.72); /* top nav on white / mist   */
   --h-frost-line: rgba(0, 0, 0, 0.05);        /* top nav bottom border      */
-  --h-tab-bg: rgba(255, 255, 255, 0.92);
+  --h-tab-bg: rgba(255, 255, 255, 0.96);  /* handoff says .92; over the black privacy band that blends to #ebebeb and inactive labels fall to 4.25:1. .96 blends to #f5f5f5 (4.65:1). */
   --h-tab-line: #e3e3e8;                      /* tab bar top border         */
 
   --h-blue: #0071e3;           /* primary button                            */

@@ -135,6 +135,14 @@ describe("QrScanner screen", () => {
     expect(screen.queryByRole("button", { name: /camera/i })).toBeNull();
   });
 
+  it("focuses the code input when arriving from 'Or type a collar code' (#code)", async () => {
+    installBarcodeDetector([]);
+    stubMediaDevices(vi.fn().mockReturnValue(new Promise(() => {})));
+    (window.location as { hash: string }).hash = "#code";
+    render(<QrScanner />);
+    await waitFor(() => expect(document.activeElement?.id).toBe("scan-collar-code"));
+  });
+
   it("hides the frame and focuses the code input when the camera is denied", async () => {
     installBarcodeDetector([]);
     stubMediaDevices(vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")));

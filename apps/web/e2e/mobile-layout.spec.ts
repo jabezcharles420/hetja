@@ -95,8 +95,25 @@ const PROBE = `(() => {
     if (!isVisible(el)) continue;
     /* Empty wrappers have no visible ink to be flush against anything. */
     if (!(el.textContent || "").trim()) continue;
-    const r = el.getBoundingClientRect();
-    texts.push({ selector: describe(el), left: r.left, right: r.right });
+    /* Measure the ink, not the box: a full-width cell whose label is centred
+     * (a tab bar item, a centred card) has a box that starts at 0 while its
+     * text sits well inside the gutter. So take the union of the element's
+     * own text nodes' rectangles: where the glyphs actually are. */
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    let left = Infinity;
+    let right = -Infinity;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!(n.textContent || "").trim()) continue;
+      range.selectNodeContents(n);
+      for (const rect of range.getClientRects()) {
+        if (rect.width < 1 || rect.height < 1) continue;
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+      }
+    }
+    if (left === Infinity) continue;
+    texts.push({ selector: describe(el), left, right });
   }
 
   /* Heading immediately followed by a paragraph, measured border-box to

@@ -1,89 +1,134 @@
-.list {
-  display: grid;
-  gap: var(--h-s8);
-}
+/* FAQ chips + accordion card (Pages 14). */
 
-.groupTitle {
-  font-size: var(--h-t-xl);
-  margin: 0 0 var(--h-s4);
+.wrap {
   display: flex;
-  align-items: center;
-  gap: var(--h-s3);
+  flex-direction: column;
+  gap: 12px;
+  line-height: normal;
 }
 
-.groupIcon {
-  flex: none;
-  width: 40px;
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  position: relative;
   height: 40px;
-  border: var(--h-hairline) solid var(--h-rule);
-  border-radius: var(--h-radius);
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
   color: var(--h-ink);
+  font-family: var(--h-font);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
+/* 44px hit area around the mock's 40px chip. */
+.chip::before {
+  content: "";
+  position: absolute;
+  inset: -2px 0;
+}
+
+.chipOn {
+  background: var(--h-ink);
+  color: var(--h-white);
+}
+
+.chip:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.card {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 0 20px;
+}
+
+.card[hidden] {
+  display: none;
 }
 
 .item {
-  border-bottom: var(--h-hairline) solid var(--h-rule);
+  border-bottom: 1px solid var(--h-divider);
 }
 
-.item:first-child {
-  border-top: var(--h-hairline) solid var(--h-rule);
+.item:last-child {
+  border-bottom: 0;
 }
 
-.questionWrap {
-  margin: 0;
-}
-
-.question {
-  width: 100%;
+.q {
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--h-s4);
-  padding: var(--h-s4) 0;
-  background: transparent;
-  border: none;
-  font-family: var(--h-font);
-  font-size: var(--h-t-md);
-  font-weight: var(--h-w-semibold);
-  color: var(--h-ink);
-  text-align: left;
+  gap: 12px;
+  list-style: none;
   cursor: pointer;
-  min-height: var(--h-target);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.question:hover {
-  color: var(--h-ink-muted);
+.q::-webkit-details-marker {
+  display: none;
+}
+
+.q:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.qText {
+  font-size: 17px;
+  font-weight: 600;
+  text-wrap: wrap;
 }
 
 .toggle {
   flex: none;
-  width: 24px;
-  height: 24px;
-  color: var(--h-ink-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--h-t-md);
-  font-weight: var(--h-w-semibold);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--h-secondary);
 }
 
-.answer {
-  padding: 0 0 var(--h-s4);
+.toggle::before {
+  content: "+";
 }
 
-.answer p {
-  color: var(--h-ink-muted);
-  font-size: var(--h-t-md);
-  line-height: 1.7;
-  margin: 0;
-  max-width: 62ch;
+/* Open: the mock's 18px row padding, the question on one line, the answer 8
+ * below it. The summary keeps a 44px target (18 + text + 8). */
+.item[open] > .q {
+  min-height: 0;
+  align-items: flex-start;
+  padding: 18px 0 8px;
+}
+
+.item[open] .toggle::before {
+  content: "\2013";
+}
+
+.a {
+  font-size: 16px;
+  line-height: 1.47;
+  color: var(--h-text-mid);
+  padding-bottom: 18px;
+  text-wrap: wrap;
+}
+
+@media print {
+  .chips {
+    display: none;
+  }
+  .card[hidden] {
+    display: block;
+  }
 }

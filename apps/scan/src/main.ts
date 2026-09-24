@@ -5,6 +5,7 @@ import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
 import { listDroppedFeeds, clearDroppedFeeds } from "./dropped";
 import { wirePanel, setPanelProfile } from "./panel";
+import { wireHistory } from "./sos";
 
 const SLUG = parseSlug(location.pathname);
 const SIG = new URLSearchParams(location.search).get("s") ?? "";
@@ -77,6 +78,7 @@ async function checkQueue(): Promise<void> {
 }
 
 wirePanel(SLUG);
+wireHistory();
 registerServiceWorker();
 void view();
 void checkQueue();

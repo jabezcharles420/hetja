@@ -3,144 +3,152 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#f5f5f7" />
+<meta name="theme-color" content="#ffffff" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Hetja</title>
 <meta name="description" content="Scan a collar to see this dog and get it help." />
 <link rel="icon" href="data:," />
 <style>
-/* Hetja scan panel: v3 (Apple / Sidehoe direction) on the tokens in
-   packages/design/tokens.css. Values below are copied by hand (not
-   @imported) because this stylesheet is inlined into the hot-path HTML, so
-   the panel cannot afford a second stylesheet request. This copy omits
-   tokens the panel does not use, but every name it carries must keep the
+/* Hetja collar page: design v4 (docs/design/v4-handoff, screens 03 to 05) on
+   the tokens in packages/design/tokens.css. Values below are copied by hand
+   (not @imported) because this stylesheet is inlined into the hot-path HTML,
+   so the page cannot afford a second stylesheet request. This copy omits
+   tokens the page does not use, but every name it carries must keep the
    exact value it has in tokens.css; change both together.
 
-   Font: deliberately NOT self-hosting Inter here. apps/web's variable Inter
-   file is 48KB on its own, more than this surface's entire 40KB budget, and
-   the target is p95 TTI < 800ms on 4G. --h-font is the same token name
-   apps/web uses; its value is the tokens.css stack MINUS "Inter" (SF on
-   Apple devices, then the system fallbacks), so zero font bytes.
+   Font: --h-font is the tokens.css stack verbatim. Apple devices match
+   -apple-system (real SF, zero bytes) before "Inter" is ever reached, so
+   they never download the file below. Everyone else (Android) gets a small
+   self-hosted Inter subset: basic Latin plus the few symbols this page
+   prints (· ‹ › ’ …), weights 400 to 700 as one variable file, no hinting,
+   about 13 KB. font-display: swap, so text renders at once in the fallback
+   and the file never blocks the SOS button.
 
-   No aurora, no WebGL, no webfonts, nothing that loops: this is a working
-   screen for a stranger standing over a dog. Depth comes from soft shadow
-   and grey grouped surfaces only. */
-:root{--h-base:#ffffff;--h-gray:#f5f5f7;--h-ink:#1d1d1f;--h-ink-muted:#6e6e73;--h-ink-faint:#86868b;--h-rule:#d2d2d7;--h-accent:#0071e3;--h-link:#0066cc;--h-imessage:#0a84ff;--h-danger-fill:#ff3b30;--h-safe:#1d7a36;
---h-font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
---h-t-plate:32px;--h-t-xl:24px;--h-t-lg:19px;--h-t-md:17px;--h-t-sm:15px;--h-t-xs:12px;--h-w-regular:400;--h-w-medium:500;--h-w-semibold:600;--h-w-bold:700;--h-track-body:-0.022em;--h-track-display:-0.028em;--h-num-tabular:"tnum" 1,"lnum" 1;
---h-s1:4px;--h-s2:8px;--h-s3:12px;--h-s4:16px;--h-s5:24px;--h-s6:32px;--h-s7:48px;--h-gutter:22px;
---h-radius:18px;--h-radius-sm:12px;--h-radius-card:20px;--h-radius-tile:28px;--h-radius-pill:980px;
---h-shadow-card:0 30px 60px -30px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.05);--h-shadow-float:0 12px 40px rgba(0,0,0,0.16);--h-shadow-cta:0 10px 30px rgba(0,113,227,0.3);
---h-glass:rgba(255,255,255,0.72);--h-blur:saturate(180%) blur(20px);--h-glass-edge:rgba(0,0,0,0.08);
---h-target:48px;--h-target-min:44px;--h-dur:160ms;--h-ease:cubic-bezier(0.2,0,0.2,1);--h-ease-out:cubic-bezier(0.2,0.7,0.2,1)}
-@media (prefers-reduced-motion:reduce){:root{--h-dur:0ms}}
+   Plain white, no aurora, no animation, nothing that loops: this is a
+   working screen for a stranger standing over a dog on a budget phone. */
+@font-face{font-family:"Inter";font-style:normal;font-weight:400 700;font-display:swap;src:url(/d/inter-scan.woff2) format("woff2");unicode-range:U+0020-007E,U+00A0,U+00B7,U+00D7,U+2019,U+2026,U+2039,U+203A}
+:root{--h-ink:#1d1d1f;--h-secondary:#6e6e73;--h-text-mid:#48484d;--h-line:#d2d2d7;--h-divider:#e8e8ed;--h-mist:#f5f5f7;--h-white:#ffffff;
+--h-link:#0066cc;--h-blue:#0071e3;--h-blue-tint:#e8f1fc;--h-blue-tint-ink:#0062c4;--h-sos:#d70015;--h-sos-press:#b80012;
+--h-ok-bg:#e6f4ea;--h-ok:#1a7a35;--h-warn-bg:#fff3e0;--h-warn:#9a5200;--h-neutral-bg:#f2f2f5;--h-neutral:#48484d;--h-danger-bg:#fde8ea;--h-danger:#b80012;
+--h-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Inter","Helvetica Neue",Roboto,Helvetica,Arial,sans-serif;
+--h-mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
+--h-gutter:20px;--h-r-input:16px;--h-r-inner:20px;--h-r-card:28px;--h-r-pill:999px;
+--h-sh-footer:0 -1px 0 #e8e8ed;--h-ring-input:inset 0 0 0 1.5px var(--h-line);--h-ring-focus:inset 0 0 0 2px var(--h-blue);--h-focus:3px solid rgba(0,113,227,0.45);
+--h-btn-sos-h:60px;--h-target:44px}
 *{box-sizing:border-box;margin:0;padding:0}
-html{background:linear-gradient(var(--h-gray),var(--h-base) 380px) no-repeat,var(--h-base);color:var(--h-ink)}
-body{font-family:var(--h-font);font-size:var(--h-t-md);font-weight:var(--h-w-regular);letter-spacing:var(--h-track-body);line-height:1.47;-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+html{background:var(--h-white);color:var(--h-ink);-webkit-text-size-adjust:100%}
+body{font-family:var(--h-font);font-size:17px;line-height:1.47;-webkit-font-smoothing:antialiased;max-width:480px;margin:0 auto;background:var(--h-white)}
 .hidden{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 a{color:var(--h-link);text-decoration:none}
-.topline{height:env(safe-area-inset-top)}
-main{flex:1;display:flex;flex-direction:column;padding:var(--h-s4) var(--h-gutter) calc(var(--h-s5) + env(safe-area-inset-bottom))}
-.muted{color:var(--h-ink-muted);font-size:var(--h-t-sm);margin-top:var(--h-s2)}
-#status{font-size:28px;font-weight:var(--h-w-bold);letter-spacing:var(--h-track-display);line-height:1.14;margin-top:var(--h-s6)}
-#note{position:sticky;top:calc(var(--h-s2) + env(safe-area-inset-top));z-index:5}
-.banner{background:var(--h-glass);-webkit-backdrop-filter:var(--h-blur);backdrop-filter:var(--h-blur);box-shadow:0 0 0 1px var(--h-glass-edge),0 6px 20px rgba(0,0,0,.08);border-radius:var(--h-radius);color:var(--h-ink);font-size:var(--h-t-sm);line-height:1.35;padding:var(--h-s3) var(--h-s4);margin:var(--h-s2) 0}
-.photo{aspect-ratio:4/3;background:var(--h-gray);border-radius:var(--h-radius-tile);box-shadow:var(--h-shadow-card);overflow:hidden;margin-top:var(--h-s2)}
+a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus-visible){outline:var(--h-focus);outline-offset:2px}
+[tabindex="-1"]:focus{outline:none}
+.view{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+.body{flex:1;display:flex;flex-direction:column;gap:16px;padding:calc(8px + env(safe-area-inset-top)) var(--h-gutter) 24px}
+.foot{position:sticky;bottom:0;z-index:2;background:var(--h-white);display:flex;flex-direction:column;gap:8px;padding:14px var(--h-gutter) max(16px,env(safe-area-inset-bottom))}
+.foot.line{box-shadow:var(--h-sh-footer)}
+.title{font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em}
+.lead{font-size:17px;line-height:1.4;color:var(--h-secondary)}
+.label{font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--h-secondary)}
+.cap{font-size:13px;line-height:1.35;color:var(--h-secondary);text-align:center}
+#note:empty{display:none}
+.banner{background:var(--h-mist);border-radius:var(--h-r-input);font-size:15px;line-height:1.4;padding:12px 16px}
+#state{padding-top:24px;display:flex;flex-direction:column;gap:8px}
+/* 03 Dog profile */
+#profile{display:flex;flex-direction:column;gap:16px}
+.photo{height:210px;border-radius:var(--h-r-card);overflow:hidden;flex:none;background:var(--h-mist)}
 .photo img{width:100%;height:100%;object-fit:cover;display:block}
-.photo .placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 45%,var(--h-base),var(--h-gray) 70%)}
-.dogmoji{width:136px;height:136px;border-radius:50%;background:linear-gradient(#fff0b8,#ffd966);display:flex;align-items:center;justify-content:center;font-size:76px;line-height:1;box-shadow:0 0 0 4px var(--h-base),0 12px 30px rgba(178,120,0,.22);font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-.id{text-align:center;margin-top:var(--h-s5)}
-.dog-name{font-size:40px;font-weight:var(--h-w-bold);letter-spacing:var(--h-track-display);line-height:1.08;overflow-wrap:anywhere}
-.id-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--h-s2) var(--h-s3);margin-top:var(--h-s3)}
-.plate{display:inline-block;background:var(--h-gray);border-radius:var(--h-radius-pill);padding:var(--h-s1) 18px;font-size:var(--h-t-plate);font-weight:var(--h-w-semibold);letter-spacing:.06em;line-height:1.25;font-feature-settings:var(--h-num-tabular);font-variant-numeric:tabular-nums;box-shadow:inset 0 0 0 1px var(--h-glass-edge)}
-.ward{font-size:var(--h-t-sm);color:var(--h-ink-muted)}
-.listen{display:inline-flex;align-items:center;min-height:var(--h-target-min);padding:0 var(--h-s3);margin-top:var(--h-s1);font:inherit;font-size:var(--h-t-sm);color:var(--h-link);background:none;border:0;cursor:pointer}
-.facts{background:var(--h-gray);border-radius:var(--h-radius-tile);padding:var(--h-s4);margin-top:var(--h-s5)}
-.status-block,.full-record{background:var(--h-base);border-radius:var(--h-radius-sm);overflow:hidden}
-.status-row{position:relative;display:flex;align-items:center;gap:var(--h-s3);min-height:var(--h-target);padding:10px var(--h-s4);color:var(--h-ink-faint)}
-.status-row+.status-row::before{content:"";position:absolute;top:0;right:0;left:48px;border-top:.5px solid var(--h-rule)}
-.status-row.ok{color:var(--h-safe)}
-.status-icon{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center}
-.status-label{font-weight:var(--h-w-medium);color:var(--h-ink)}
-.status-row.ok .status-label{color:var(--h-safe)}
-.status-value{margin-left:auto;text-align:right;font-size:var(--h-t-sm);color:var(--h-ink-muted)}
-.full-record{margin-top:var(--h-s3)}
-.full-record summary{display:flex;align-items:center;justify-content:space-between;min-height:var(--h-target);padding:0 var(--h-s4);font-weight:var(--h-w-medium);cursor:pointer;list-style:none}
-.full-record summary::-webkit-details-marker{display:none}
-.full-record summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--h-ink-faint);border-bottom:2px solid var(--h-ink-faint);transform:rotate(-45deg);transition:transform var(--h-dur) var(--h-ease)}
-.full-record[open] summary::after{transform:rotate(45deg)}
-.fr-body{padding:0 var(--h-s4) var(--h-s4);font-size:var(--h-t-sm);color:var(--h-ink-muted)}
-.fr-row{display:flex;justify-content:space-between;gap:var(--h-s3);padding:var(--h-s2) 0;border-top:.5px solid var(--h-rule)}
-.fr-story{margin-top:var(--h-s2);color:var(--h-ink)}
-.stale-note{color:var(--h-ink-muted);font-size:var(--h-t-xs);text-align:center;margin-top:var(--h-s3)}
-.spacer{flex:1;min-height:var(--h-s6)}
-.cta-zone{padding-top:var(--h-s4)}
-.primary-cta{width:100%;min-height:56px;padding:0 var(--h-s5);background:var(--h-danger-fill);color:#fff;border:none;border-radius:var(--h-radius-pill);box-shadow:0 10px 30px rgba(255,59,48,.3);font:inherit;font-size:var(--h-t-lg);font-weight:var(--h-w-bold);letter-spacing:-0.01em;display:flex;align-items:center;justify-content:center;gap:var(--h-s2);cursor:pointer;transition:transform var(--h-dur) var(--h-ease),opacity var(--h-dur) var(--h-ease)}
-.primary-cta.calm{background:var(--h-accent);box-shadow:var(--h-shadow-cta)}
-.primary-cta:active{transform:scale(.98)}
-.primary-cta:disabled{opacity:.4;box-shadow:none;cursor:default;transform:none}
-.log-feed-link{display:flex;align-items:center;justify-content:center;min-height:var(--h-target);margin-top:var(--h-s2);font-size:var(--h-t-md)}
-.source-link{display:flex;align-items:center;justify-content:center;min-height:var(--h-target-min);color:var(--h-ink-muted);font-size:var(--h-t-xs)}
-a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--h-imessage);outline-offset:2px;border-radius:var(--h-radius-sm)}
-.primary-cta:focus-visible{border-radius:var(--h-radius-pill)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 44px);max-width:436px;background:rgba(29,29,31,.88);-webkit-backdrop-filter:var(--h-blur);backdrop-filter:var(--h-blur);color:#fff;border-radius:var(--h-radius);box-shadow:var(--h-shadow-float);padding:var(--h-s3) var(--h-s4);font-size:var(--h-t-sm);text-align:center;z-index:10}
-.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity var(--h-dur) var(--h-ease);z-index:15}
-.backdrop.open{opacity:1}
-.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:480px;height:55vh;max-height:55dvh;background:var(--h-gray);border-radius:14px 14px 0 0;box-shadow:var(--h-shadow-float);transform:translateY(100%);transition:transform var(--h-dur) var(--h-ease-out);display:flex;flex-direction:column;z-index:20;padding:0 var(--h-s4) calc(var(--h-s4) + env(safe-area-inset-bottom))}
-.sheet.open{transform:translateY(0)}
-.sheet-grab{width:36px;height:5px;border-radius:var(--h-radius-pill);background:var(--h-rule);margin:6px auto 0;flex:none}
-.sheet-close{position:absolute;top:var(--h-s2);right:var(--h-s2);width:var(--h-target-min);height:var(--h-target-min);padding:7px;border:none;border-radius:50%;background:#e3e3e8;background-clip:content-box;font:inherit;font-size:20px;line-height:1;color:var(--h-ink-muted);cursor:pointer}
-.sheet-body{flex:1;overflow-y:auto;padding-top:var(--h-s4)}
-.sheet-title{font-size:22px;font-weight:var(--h-w-bold);letter-spacing:var(--h-track-display);line-height:1.2;margin:0 var(--h-s7) var(--h-s4) var(--h-s1)}
-.sev-list{display:flex;flex-direction:column;background:var(--h-base);border-radius:var(--h-radius-sm);overflow:hidden}
-.sev-btn{position:relative;display:flex;align-items:center;min-height:52px;border:0;background:var(--h-base);font:inherit;font-size:var(--h-t-md);font-weight:var(--h-w-medium);color:var(--h-ink);text-align:left;padding:0 40px 0 var(--h-s4);cursor:pointer}
-.sev-btn+.sev-btn{box-shadow:inset 0 .5px 0 var(--h-rule)}
-.sev-btn::after{content:"";position:absolute;right:20px;top:50%;width:8px;height:8px;margin-top:-4px;border-right:2px solid var(--h-ink-faint);border-top:2px solid var(--h-ink-faint);transform:rotate(45deg)}
-.sev-btn:active{background:#e5e5ea}
-.sheet-status{color:var(--h-ink-muted);font-size:var(--h-t-sm);margin:var(--h-s2) var(--h-s1) var(--h-s3)}
-.care-row{background:var(--h-base);border-radius:var(--h-radius-sm);padding:var(--h-s4);margin-bottom:10px}
-.care-eyebrow{display:flex;justify-content:space-between;gap:var(--h-s2);font-size:var(--h-t-xs);font-weight:var(--h-w-semibold);letter-spacing:.02em;color:var(--h-ink-muted);text-transform:uppercase}
-.care-dist{font-feature-settings:var(--h-num-tabular);font-variant-numeric:tabular-nums}
-.care-name{font-size:var(--h-t-md);font-weight:var(--h-w-semibold);margin:var(--h-s1) 0}
-.care-phone{font-size:var(--h-t-sm);color:var(--h-ink-muted);margin-bottom:var(--h-s3)}
-.care-actions{display:flex;gap:var(--h-s2)}
-.care-btn{flex:1;min-height:var(--h-target);display:flex;align-items:center;justify-content:center;border-radius:var(--h-radius-pill);background:var(--h-gray);color:var(--h-link);font-size:var(--h-t-md);font-weight:var(--h-w-semibold)}
-.care-btn.disabled{color:var(--h-ink-muted)}
-.firstaid{background:var(--h-base);border-radius:var(--h-radius-sm);padding:var(--h-s4);font-size:var(--h-t-sm);color:var(--h-ink-muted)}
+.initial{height:100%;display:flex;align-items:center;justify-content:center;font-size:84px;font-weight:700;letter-spacing:-0.035em}
+.name-blk{display:flex;flex-direction:column;gap:6px}
+.name{font-size:40px;line-height:1;font-weight:700;letter-spacing:-0.035em;overflow-wrap:anywhere}
+.ward{font-size:17px;line-height:1.3;color:var(--h-secondary)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{height:36px;padding:0 14px 0 10px;border-radius:var(--h-r-pill);font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pill svg{flex:none}
+.pill.sm{height:32px;padding:0 12px 0 8px;font-size:14px}
+.ok{background:var(--h-ok-bg);color:var(--h-ok)}.warn{background:var(--h-warn-bg);color:var(--h-warn)}
+.neutral{background:var(--h-neutral-bg);color:var(--h-neutral)}.danger{background:var(--h-danger-bg);color:var(--h-danger)}
+.code-card{background:var(--h-mist);border-radius:var(--h-r-inner);padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.code-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.code-col{display:flex;flex-direction:column;gap:4px}
+.code{font-family:var(--h-mono);font-size:30px;line-height:1.2;font-weight:600;letter-spacing:0.06em;display:flex;gap:14px}
+.say{font-size:15px;line-height:1.35;color:var(--h-secondary)}
+.quiet{height:var(--h-target);padding:0 14px;border-radius:var(--h-r-pill);background:#e8e8ed;font-size:15px;font-weight:600;flex:none}
+.quiet:active{background:var(--h-line)}
+.story{font-size:17px;line-height:1.47;text-wrap:pretty}
+.by{font-size:15px;color:var(--h-secondary)}
+.btn{width:100%;border-radius:var(--h-r-pill);display:flex;align-items:center;justify-content:center;gap:10px;touch-action:manipulation}
+.sos{height:var(--h-btn-sos-h);background:var(--h-sos);color:#fff;font-size:18px;font-weight:700}
+.sos:active{background:var(--h-sos-press);transform:scale(.98)}
+.sos:disabled{opacity:.35;cursor:default;transform:none;background:var(--h-sos)}
+.sos svg{flex:none}
+.sos:focus-visible{outline-offset:3px}
+/* 04 SOS, step 1 */
+.top{height:52px;flex:none;display:flex;align-items:center;padding:0 var(--h-gutter);margin-top:env(safe-area-inset-top)}
+.back{min-height:var(--h-target);font-size:17px;color:var(--h-link);margin-left:-4px;padding:0 4px}
+.sos-body{gap:14px;padding-top:4px}
+.opts{border:0;display:flex;flex-direction:column;gap:10px;margin-top:6px;min-width:0}
+.opt{position:relative;box-sizing:content-box;min-height:84px;border-radius:var(--h-r-inner);box-shadow:inset 0 0 0 1.5px var(--h-line);padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt.on{box-shadow:inset 0 0 0 3px var(--h-ink);background:var(--h-mist)}
+.dot{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #aeaeb2;flex:none;display:flex;align-items:center;justify-content:center;color:#fff}
+.dot svg{visibility:hidden}
+.opt.on .dot{background:var(--h-ink);box-shadow:none}
+.opt.on .dot svg{visibility:visible}
+.opt-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.opt-t{font-size:18px;line-height:1.25;font-weight:600}
+.opt-s{font-size:15px;line-height:1.3;color:var(--h-secondary)}
+.add{min-height:52px;width:100%;border-radius:var(--h-r-input);background:var(--h-mist);display:flex;align-items:center;padding:0 16px;font-size:16px;color:var(--h-text-mid);text-align:left}
+.extras{display:flex;flex-direction:column;gap:10px}
+.field{width:100%;min-height:96px;border:0;border-radius:var(--h-r-input);box-shadow:var(--h-ring-input);padding:12px 16px;font:inherit;font-size:17px;color:var(--h-ink);resize:vertical;background:var(--h-white)}
+.field:focus{outline:none;box-shadow:var(--h-ring-focus)}
+.field::placeholder{color:#86868b}
+.photo-row{display:flex;align-items:center;gap:12px}
+/* 05 SOS sent */
+.sent-body{gap:14px;padding-top:calc(28px + env(safe-area-inset-top))}
+.big-ic{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.msg{font-size:17px;line-height:1.47}
+.call-l{margin-top:10px}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;min-height:76px;padding:8px 0}
+.row+.row{border-top:1px solid var(--h-divider)}
+.row-txt{flex:1;min-width:0}
+.row-t{font-size:17px;line-height:1.3;font-weight:600}
+.row-s{font-size:15px;line-height:1.35;color:var(--h-secondary)}
+.tint{height:48px;padding:0 20px;border-radius:var(--h-r-pill);background:var(--h-blue-tint);color:var(--h-blue-tint-ink);font-size:16px;font-weight:600;display:flex;align-items:center;flex:none}
+.tint:active{background:#d5e6fa}
+.link-btn{height:52px;width:100%;font-size:17px;color:var(--h-link)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom));width:calc(100% - 40px);max-width:440px;background:var(--h-ink);color:#fff;border-radius:var(--h-r-input);padding:12px 16px;font-size:15px;text-align:center;z-index:10}
 </style>
 </head>
 <body>
-<div class="topline" aria-hidden="true"></div>
-<main>
-  <div id="state" class="state">
-    <p id="status">Loading&hellip;</p>
-    <p id="sub" class="muted"></p>
+<main id="v-profile" class="view">
+  <div class="body">
+    <div id="state">
+      <p id="status" class="title">Loading&hellip;</p>
+      <p id="sub" class="lead"></p>
+    </div>
+    <div id="note"></div>
+    <section id="profile" class="hidden" aria-live="polite"></section>
   </div>
-  <div id="note"></div>
-  <section id="profile" class="hidden" aria-live="polite"></section>
-  <div class="spacer" aria-hidden="true"></div>
-  <div class="cta-zone">
-    <button type="button" id="primary-cta" class="primary-cta" disabled>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><rect x="7" y="2" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="12" width="2" height="2" rx="1" fill="currentColor"/></svg>
+  <div class="foot line">
+    <button type="button" id="primary-cta" class="btn sos" disabled>
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="11" fill="#fff"/><path d="M11 5.8v6.4" stroke="#d70015" stroke-width="2.8" stroke-linecap="round"/><circle cx="11" cy="16" r="1.6" fill="#d70015"/></svg>
       <span>This dog needs help</span>
     </button>
-    <a href="#" id="log-feed-link" class="log-feed-link">Log a feed</a>
-    <a href="https://github.com/jabezcharles420/hetja" class="source-link" target="_blank" rel="noopener">Source</a>
+    <p id="cta-cap" class="cap">Alerts this dog's feeders and a vet nearby.</p>
   </div>
 </main>
+<section id="v-sos" class="view hidden" aria-label="SOS"></section>
+<section id="v-sent" class="view hidden" aria-label="SOS sent"></section>
 <div id="toast" class="toast hidden" role="status"></div>
-<div id="sheet-backdrop" class="backdrop hidden"></div>
-<div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheet-h" aria-hidden="true">
-  <div class="sheet-grab" aria-hidden="true"></div>
-  <button type="button" id="sheet-close" class="sheet-close" aria-label="Close">&times;</button>
-  <div id="sheet-body" class="sheet-body"></div>
-</div>
 <!-- Served under /d/ on purpose. A relative "./main.js" resolves to
      /d/main.js only for /d/<slug> and breaks for any other depth, while a
      root-absolute "/main.js" leaves this path prefix entirely and is routed
      to the Next.js app by the reverse proxy, which 404s. Requesting
      /d/main.js explicitly is correct at every depth and stays within the
-     single /d/* proxy route. -->
+     single /d/* proxy route. The font URL above follows the same rule. -->
 <script src="/d/main.js" defer></script>
 </body>
 </html>

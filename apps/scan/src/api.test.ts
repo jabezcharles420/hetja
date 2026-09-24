@@ -122,6 +122,51 @@ describe("apps/scan profile mapping (real API contract)", () => {
     expect(profile.coatPattern).toBeUndefined();
   });
 
+  it("maps the design v4 fields when the API sends them", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(
+        realApiPayload({
+          wardName: "Andheri West",
+          vaccinated: "yes",
+          sterilised: "no",
+          lastFedAt: "2026-09-24T10:00:00.000Z",
+          feederCount: 3,
+          storyAuthorCount: 2,
+          photoUrl: "https://hetja.in/photos/x.webp",
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { profile } = await fetchDogProfile("c3di5esh8", "sig");
+    expect(profile.wardName).toBe("Andheri West");
+    expect(profile.vaccinated).toBe("yes");
+    expect(profile.sterilised).toBe("no");
+    expect(profile.lastFedAt).toBe("2026-09-24T10:00:00.000Z");
+    expect(profile.feederCount).toBe(3);
+    expect(profile.storyAuthorCount).toBe(2);
+    // The API's own photoUrl wins over the photoKey construction.
+    expect(profile.photoUrl).toBe("https://hetja.in/photos/x.webp");
+  });
+
+  it("keeps 'no feeds' (null) distinct from 'not sent' (absent)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(realApiPayload({ lastFedAt: null }))));
+    expect((await fetchDogProfile("c3di5esh8", "sig")).profile.lastFedAt).toBeNull();
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(realApiPayload())));
+    expect((await fetchDogProfile("c3di5esh8", "sig")).profile.lastFedAt).toBeUndefined();
+  });
+
+  it("drops v4 values outside the contract instead of trusting them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(realApiPayload({ vaccinated: "maybe", sterilised: 1, feederCount: -2 }))),
+    );
+    const { profile } = await fetchDogProfile("c3di5esh8", "sig");
+    expect(profile.vaccinated).toBeUndefined();
+    expect(profile.sterilised).toBeUndefined();
+    expect(profile.feederCount).toBeUndefined();
+  });
+
   it("propagates the X-Hetja-Stale header as the stale flag", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(realApiPayload(), { "X-Hetja-Stale": "1" }),

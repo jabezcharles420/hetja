@@ -22,6 +22,9 @@ export interface CareProvider {
   lat?: number;
   lng?: number;
   address?: string;
+  /** Place label ("Andheri West"); the ward slot of a row's meta line. */
+  locality?: string;
+  hoursNote?: string;
 }
 
 export interface CareResult {
@@ -47,7 +50,8 @@ export async function fetchNearbyCare(lat: number, lng: number, maxKm = 8): Prom
   }
 }
 
-function normalizeList(body: unknown): CareProvider[] {
+/** Also parses POST /api/v1/reports's `nearbyCare` (same provider shape). */
+export function normalizeList(body: unknown): CareProvider[] {
   return extractArray(body)
     .map(normalizeProvider)
     .filter((p): p is CareProvider => p !== null)
@@ -86,6 +90,8 @@ function normalizeProvider(raw: unknown): CareProvider | null {
     lat: num(r.lat),
     lng: num(r.lng),
     address: str(r.address),
+    locality: str(r.locality),
+    hoursNote: str(r.hoursNote) ?? str(r.hours_note),
   };
 }
 
@@ -112,32 +118,8 @@ function num(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
-/** Text-label eyebrow, never a colour swatch (WCAG 2.2 SC 1.4.1). */
-export function eyebrow(p: CareProvider): string {
-  const parts: string[] = [p.costTier ? p.costTier.toUpperCase() : "COST UNKNOWN"];
-  if (p.hasAmbulance) parts.push("AMBULANCE");
-  if (p.is24x7) parts.push("24×7");
-  return parts.join(" · ");
-}
-
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
-
-/** geo: URI when we have coordinates, else a plain maps search URL. No map
- * library, no tiles enter the bundle either way. */
-export function directionsHref(p: CareProvider): string {
-  if (p.lat != null && p.lng != null) {
-    return `geo:${p.lat},${p.lng}?q=${p.lat},${p.lng}(${encodeURIComponent(p.name)})`;
-  }
-  const q = encodeURIComponent(p.address ?? p.name);
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
-}
-
-export function fmtDistance(km?: number): string {
-  if (km == null) return "";
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(1)} km`;
 }
 
 export function getPosition(timeoutMs = 6000): Promise<{ lat: number; lng: number } | undefined> {

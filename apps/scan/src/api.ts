@@ -33,6 +33,19 @@ export interface DogProfile {
   microStory?: string;
   photoUrl?: string;
   lastSeenAt?: string;
+  /** Locality name for the ward ("Andheri West"), from the API. */
+  wardName?: string;
+  /** Design v4 status fields. Absent on an older API: fall back to the legacy ones. */
+  vaccinated?: "yes" | "unknown";
+  sterilised?: "yes" | "no" | "unknown";
+  /**
+   * ISO time of the latest feed. `null` means the API says there has been no
+   * feed; `undefined` means the API did not say at all, and the pill is then
+   * left out rather than claiming "no feeds".
+   */
+  lastFedAt?: string | null;
+  feederCount?: number;
+  storyAuthorCount?: number;
 }
 
 export interface ProfileResult {
@@ -85,9 +98,9 @@ function extractData(body: unknown): Record<string, unknown> {
  * surface strangers actually use. Field names here must mirror dogs.ts; a
  * test pins the mapping against a real payload.
  *
- * sex/approxAge/coatPattern stay optional on DogProfile for ui.ts's "Full
- * record" line and speech output, but nothing populates them today: the API
- * does not send them, and inventing values would claim more than it knows.
+ * sex is read when present (it picks "his"/"her" over the dog's name), but
+ * the API does not send it today; approxAge/coatPattern are not read at all.
+ * Inventing values would claim more than the system knows.
  */
 function normalizeProfile(d: Record<string, unknown>): DogProfile {
   return {
@@ -98,15 +111,31 @@ function normalizeProfile(d: Record<string, unknown>): DogProfile {
     abcStatus: optString(d.abcStatus),
     vaccine: normalizeVaccine(optString(d.vaccineStatus)),
     microStory: optString(d.microStory),
-    photoUrl: photoUrlFromKey(optString(d.photoKey)),
+    photoUrl: photoUrlFrom(optString(d.photoUrl), optString(d.photoKey)),
     lastSeenAt: optString(d.lastSeenAt),
+    sex: optString(d.sex),
+    wardName: optString(d.wardName),
+    vaccinated: d.vaccinated === "yes" || d.vaccinated === "unknown" ? d.vaccinated : undefined,
+    sterilised:
+      d.sterilised === "yes" || d.sterilised === "no" || d.sterilised === "unknown" ? d.sterilised : undefined,
+    lastFedAt: d.lastFedAt === null ? null : optString(d.lastFedAt),
+    feederCount: optCount(d.feederCount),
+    storyAuthorCount: optCount(d.storyAuthorCount),
   };
 }
 
-/** Same construction as apps/web/lib/api.ts's dogPhotoUrl(): origin + "/" + key. */
-function photoUrlFromKey(photoKey?: string): string | undefined {
+/**
+ * The API's own `photoUrl` when it sends one (design v4 contract), otherwise
+ * the same construction as apps/web/lib/api.ts's dogPhotoUrl(): origin + "/" + key.
+ */
+function photoUrlFrom(photoUrl?: string, photoKey?: string): string | undefined {
+  if (photoUrl) return photoUrl;
   if (!photoKey) return undefined;
   return `${API_ORIGIN}/${photoKey}`;
+}
+
+function optCount(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : undefined;
 }
 
 /**

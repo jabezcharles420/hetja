@@ -15,6 +15,7 @@ const MIME = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".webmanifest": "application/manifest+json",
+  ".woff2": "font/woff2",
 };
 
 const server = http.createServer(async (req, res) => {

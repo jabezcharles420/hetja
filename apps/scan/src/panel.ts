@@ -1,13 +1,14 @@
 /**
- * The action panel: the one primary CTA ("This dog needs help") that opens
- * the severity sheet, and the quiet "Log a feed" text link beneath it.
- * Strangers must not choose between two buttons of equal weight: the CTA
- * is a button, feed-logging is a link.
+ * The one loud button on the profile: "This dog needs help" (SOS red, pinned
+ * in the footer). It opens screen 04 in place.
+ *
+ * The design gives this screen exactly one action (hard rule 1), so the old
+ * quiet "Log a feed" link is gone from here; feeders log feeds from apps/web
+ * (screen 06). The offline feed queue this page flushes on open is unchanged
+ * (main.ts).
  */
 import type { DogProfile } from "./api";
-import { openSeverity } from "./sheet";
-import { logFeed } from "./offline";
-import { toast, setNote } from "./ui";
+import { openSos } from "./sos";
 
 let currentSlug = "";
 let currentProfile: DogProfile | undefined;
@@ -15,7 +16,7 @@ let currentProfile: DogProfile | undefined;
 export function wirePanel(slug: string): void {
   currentSlug = slug;
   document.querySelector("#primary-cta")?.addEventListener("click", () => {
-    openSeverity({ slug: currentSlug, profile: currentProfile });
+    openSos({ slug: currentSlug, profile: currentProfile });
   });
   // The emergency CTA is enabled by a VALID SLUG, not by a successful profile
   // fetch. `index.html` ships it `disabled` so it cannot be pressed before the
@@ -25,20 +26,17 @@ export function wirePanel(slug: string): void {
   // GET /api/v1/dogs/<slug> (a stranger on flaky 4G, standing over an injured
   // dog) rendered "Can't reach Hetja right now" above a permanently greyed-out
   // "This dog needs help". Nothing in the SOS path needs the profile:
-  // `openSeverity` reads `ctx.slug`, `fileReport` posts `{dogSlug, severity}`,
-  // and `sheet.ts` types `profile` as optional, using it only to decorate the
-  // SMS fallback body. The page that exists to summon help disabled the button
-  // that summons help, for a reason unrelated to summoning help.
+  // `openSos` reads `ctx.slug`, `fileReport` posts `{dogSlug, severity}`, and
+  // `sos.ts` types `profile` as optional, using it only for the dog's name,
+  // ward and the SMS fallback body. The page that exists to summon help
+  // disabled the button that summons help, for a reason unrelated to
+  // summoning help.
   setPanelEnabled(isPlausibleSlug(slug));
-  document.querySelector("#log-feed-link")?.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    void onLogFeed();
-  });
 }
 
 /**
- * Records the profile for the SMS fallback body. Deliberately does NOT touch
- * the CTA's enabled state; see `wirePanel`.
+ * Records the profile for the SOS screens' copy and the SMS fallback body.
+ * Deliberately does NOT touch the CTA's enabled state; see `wirePanel`.
  */
 export function setPanelProfile(profile: DogProfile | undefined): void {
   currentProfile = profile;
@@ -56,19 +54,4 @@ function setPanelEnabled(enabled: boolean): void {
  */
 function isPlausibleSlug(slug: string): boolean {
   return slug.length > 0;
-}
-
-async function onLogFeed(): Promise<void> {
-  const link = document.querySelector<HTMLAnchorElement>("#log-feed-link");
-  link?.setAttribute("aria-disabled", "true");
-  toast("Opening camera…", 2500);
-  try {
-    const outcome = await logFeed(currentSlug);
-    toast(outcome.message, 6000);
-    if (outcome.evictionSoon) {
-      setNote("Upload soon: offline logs are cleared from this device after ~7 days.");
-    }
-  } finally {
-    link?.removeAttribute("aria-disabled");
-  }
 }

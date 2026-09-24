@@ -1,55 +1,71 @@
-import type { DogProfile, VaccineStatus } from "./api";
+/**
+ * Screen 03 (dog profile) plus the small shared bits every view uses: the
+ * status pill, the icons, view switching and the toast.
+ *
+ * Design v4 (docs/design/v4-handoff, "03 Dog profile"): plain white, no
+ * motion, the photo, the name and ward line, three status pills, the collar
+ * code card, the story, and one red button pinned in the footer. Every pill
+ * carries an icon AND words (hard rule 2); an unknown status is a neutral
+ * "unknown" pill, never a blank.
+ */
+import type { DogProfile } from "./api";
+import {
+  collarGroups,
+  lastFedText,
+  pastelIndex,
+  PASTELS,
+  possessive,
+  sayCollarCode,
+  wardLine,
+  writtenByLine,
+} from "./format";
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
 /* ---------------------------------------------------------------------------
- * Web Speech (Phase 0 of the enhancement stack, §E.7 / §M.9).
- * Zero-dependency native speechSynthesis: closes the illiterate-user gap on
- * the scan page. Honesty rule: the Listen button only exists when the
- * browser actually supports speechSynthesis.
+ * Icons: the exact paths from the handoff (StatusPill), 16x16 viewBox,
+ * painted with currentColor. The alert "!" is drawn, not typed, so it cannot
+ * fall back to a different font's glyph.
  * ------------------------------------------------------------------------- */
-const SPEECH_SUPPORTED = typeof window !== "undefined" && "speechSynthesis" in window;
+export type IconName = "check" | "clock" | "cross" | "alert";
 
-function stopSpeech(): void {
-  if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
+export function icon(name: IconName, size = 16, stroke = 2.2): string {
+  const inner =
+    name === "check"
+      ? `<path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"/>`
+      : name === "clock"
+        ? '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+        : name === "cross"
+          ? '<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+          : '<circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2v4.6" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/><circle cx="8" cy="11.6" r="1.15" fill="#fff"/>';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${inner}</svg>`;
 }
 
-function speakDog(p: DogProfile): void {
-  if (!SPEECH_SUPPORTED) return;
-  const bits = [
-    `This dog is named ${p.name}.`,
-    p.sex ? `${p.sex}.` : "",
-    p.approxAge !== undefined ? `Around ${p.approxAge} years old.` : "",
-    // `p.vaccine` is a VaccineStatus OBJECT, not a string. Interpolating it
-    // directly made the page read "Vaccination: object Object." aloud, and a
-    // template literal accepts any type, so TypeScript never objected. This is
-    // the accessibility affordance for a non-literate bystander on a
-    // life-safety page, so it is the one place where the spoken text is the
-    // whole feature.
-    p.vaccine
-      ? p.vaccine.label
-        ? `Vaccination on record: ${p.vaccine.label}.`
-        : p.vaccine.upToDate
-          ? "Vaccination is up to date."
-          : "Vaccination status is not confirmed."
-      : "",
-    p.abcStatus ? `Sterilisation: ${p.abcStatus}.` : "",
-    p.microStory ?? "",
-    "If this dog is hurt, press the red button to alert nearby responders.",
-  ].filter(Boolean);
-  const utterance = new SpeechSynthesisUtterance(bits.join(" "));
-  utterance.lang = "en-IN";
-  utterance.rate = 1;
-  window.speechSynthesis.speak(utterance);
+export type Tone = "ok" | "warn" | "neutral" | "danger";
+
+/** StatusPill. `small` is the 32px size screen 05 uses. */
+export function pill(tone: Tone, name: IconName, text: string, small = false): string {
+  return `<span class="pill ${tone}${small ? " sm" : ""}">${icon(name, small && name === "clock" ? 14 : 16)}${escapeHtml(text)}</span>`;
 }
 
-const CHECK_SVG =
-  '<svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-/* Not-confirmed marker. The state is carried by the row's words ("Unknown",
- * "pending", ...); this dash keeps the rows aligned so a check mark is never
- * the only difference a reader has to spot (WCAG 2.2 SC 1.4.1). */
-const DASH_SVG =
-  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M4 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+/* ---------------------------------------------------------------------------
+ * Views. The three screens are sections of one static page; switching is a
+ * class toggle, not a navigation, so SOS never waits on a network round trip.
+ * ------------------------------------------------------------------------- */
+export type View = "profile" | "sos" | "sent";
+let current: View = "profile";
+
+export function showView(v: View): void {
+  current = v;
+  for (const id of ["profile", "sos", "sent"] as const) $(`#v-${id}`).classList.toggle("hidden", id !== v);
+  window.scrollTo(0, 0);
+  // Move focus to the new screen's heading so a screen reader announces it.
+  document.querySelector<HTMLElement>(`#v-${v} [data-focus]`)?.focus();
+}
+
+export function currentView(): View {
+  return current;
+}
 
 export function setStatus(text: string): void {
   $("#status").textContent = text;
@@ -63,18 +79,18 @@ export function renderProfile(p: DogProfile, stale: boolean): void {
   $("#state").classList.add("hidden");
   const app = $("#profile");
   app.classList.remove("hidden");
-  app.innerHTML = buildCard(p, stale);
-  if (SPEECH_SUPPORTED) {
-    stopSpeech();
-    app.querySelector<HTMLButtonElement>(".listen")?.addEventListener("click", () => speakDog(p));
-  }
+  app.innerHTML = buildProfile(p);
+  // A dog nobody feeds on Hetja has no feeders to alert; say only what happens.
+  $("#cta-cap").textContent =
+    p.feederCount === 0 ? "Alerts a vet nearby." : `Alerts ${possessive(p.name, p.sex)} feeders and a vet nearby.`;
+  const copy = app.querySelector<HTMLButtonElement>("#copy");
+  copy?.addEventListener("click", () => void copyCode(p.slug, copy));
   if (stale) {
-    setNote("You're offline. Showing a saved profile. Vaccination and ABC status may be outdated.");
+    setNote("You're offline. Showing a saved profile. Vaccination and sterilisation status may be outdated.");
   }
 }
 
 export function renderError(message: string): void {
-  if (SPEECH_SUPPORTED) stopSpeech();
   $("#state").classList.remove("hidden");
   const app = $("#profile");
   app.classList.add("hidden");
@@ -83,8 +99,8 @@ export function renderError(message: string): void {
   setSub(message);
 }
 
-export function setNote(html: string): void {
-  $("#note").innerHTML = `<p class="banner">${html}</p>`;
+export function setNote(text: string): void {
+  $("#note").innerHTML = `<p class="banner">${escapeHtml(text)}</p>`;
 }
 
 export function clearNote(): void {
@@ -100,89 +116,91 @@ export function toast(message: string, ms = 4000): void {
   toastTimer = setTimeout(() => el.classList.add("hidden"), ms);
 }
 
-function buildCard(p: DogProfile, stale: boolean): string {
-  const metaBits = [p.sex, p.approxAge !== undefined ? `~${p.approxAge}y` : undefined, p.coatPattern]
-    .filter((s): s is string => !!s)
-    .join(" · ");
-  const abc = fmtAbc(p.abcStatus);
-  const vaccine = fmtVaccine(p.vaccine);
-  const lastSeen = p.lastSeenAt
-    ? `<div class="fr-row"><span>Last seen</span><span>${escapeHtml(p.lastSeenAt)}</span></div>`
-    : "";
-  const story = p.microStory
-    ? escapeHtml(p.microStory)
-    : `No story yet. Help us learn about ${escapeHtml(p.name)}.`;
-
+function buildProfile(p: DogProfile): string {
+  const ward = wardLine(p.wardId, p.wardName);
+  const groups = collarGroups(p.slug);
   return `
     <div class="photo">${photoMarkup(p)}</div>
-    <div class="id">
-      <h1 class="dog-name">${escapeHtml(p.name)}</h1>
-      <div class="id-meta">
-        <span class="plate">${escapeHtml(p.slug)}</span>
-        ${p.wardId ? `<span class="ward">Ward ${escapeHtml(p.wardId)}</span>` : ""}
-      </div>
-      ${SPEECH_SUPPORTED ? `<button type="button" class="listen" aria-label="Listen to this dog's profile">Listen</button>` : ""}
+    <div class="name-blk">
+      <h1 class="name" tabindex="-1" data-focus>${escapeHtml(p.name)}</h1>
+      ${ward ? `<p class="ward">${escapeHtml(ward)}</p>` : ""}
     </div>
-    <div class="facts">
-      <div class="status-block">
-        ${statusRow("Vaccinated", vaccine.ok, vaccine.text)}
-        ${statusRow("Sterilised", abc.ok, abc.text)}
-      </div>
-      <details class="full-record">
-        <summary>Full record</summary>
-        <div class="fr-body">
-          ${metaBits ? `<div class="fr-row"><span>${escapeHtml(metaBits)}</span></div>` : ""}
-          ${lastSeen}
-          <p class="fr-story">${story}</p>
+    <div class="pills">${statusPills(p)}</div>
+    <div class="code-card">
+      <div class="code-row">
+        <div class="code-col">
+          <p class="label">Collar code</p>
+          <p class="code">${groups.map((g) => `<span>${escapeHtml(g)}</span>`).join("")}</p>
         </div>
-      </details>
+        <button type="button" id="copy" class="quiet">Copy</button>
+      </div>
+      <p class="say">Say it: ${escapeHtml(sayCollarCode(p.slug))}</p>
     </div>
-    ${stale ? `<p class="stale-note">Showing a saved copy from before you went offline.</p>` : ""}
+    ${storyMarkup(p)}
   `;
 }
 
-function statusRow(label: string, ok: boolean, text: string): string {
-  return `<div class="status-row${ok ? " ok" : ""}">
-    <span class="status-icon">${ok ? CHECK_SVG : DASH_SVG}</span>
-    <span class="status-label">${escapeHtml(label)}</span>
-    <span class="status-value">${escapeHtml(text)}</span>
-  </div>`;
+function statusPills(p: DogProfile): string {
+  // The v4 fields when the API sends them, the legacy ones otherwise: a
+  // vaccineStatus string only exists for a VERIFIED record (see api.ts).
+  const vacc = p.vaccinated ?? (p.vaccine ? "yes" : "unknown");
+  const ster = p.sterilised ?? legacySterilised(p.abcStatus);
+  const out = [
+    vacc === "yes" ? pill("ok", "check", "Vaccinated") : pill("neutral", "alert", "Vaccination unknown"),
+    ster === "yes"
+      ? pill("ok", "check", "Sterilised")
+      : ster === "no"
+        ? pill("neutral", "cross", "Not sterilised")
+        : pill("neutral", "alert", "Sterilisation unknown"),
+  ];
+  if (p.lastFedAt === null) out.push(pill("neutral", "clock", "No feeds logged yet"));
+  else if (p.lastFedAt) {
+    const t = lastFedText(p.lastFedAt);
+    if (t) out.push(pill("neutral", "clock", t));
+  }
+  return out.join("");
+}
+
+function legacySterilised(abc?: string): "yes" | "unknown" {
+  const low = abc?.toLowerCase();
+  return low === "sterilized" || low === "sterilised" || low === "done" || low === "abc_done" ? "yes" : "unknown";
+}
+
+function storyMarkup(p: DogProfile): string {
+  if (p.microStory) {
+    return `<p class="story">${escapeHtml(p.microStory)}</p><p class="by">${escapeHtml(
+      writtenByLine(p.name, p.sex, p.storyAuthorCount),
+    )}</p>`;
+  }
+  const who = possessive(p.name, p.sex);
+  const by =
+    p.feederCount === 0 ? "Nobody has written one yet." : `${who.charAt(0).toUpperCase()}${who.slice(1)} feeders haven't written one yet.`;
+  return `<p class="story">No story yet.</p><p class="by">${escapeHtml(by)}</p>`;
 }
 
 function photoMarkup(p: DogProfile): string {
-  if (p.photoUrl) return `<img src="${escapeAttr(p.photoUrl)}" alt="${escapeAttr(p.name)}" loading="eager" />`;
-  // Dogmoji placeholder: the dog-face emoji glyph in a pastel gradient
-  // circle. Scan uses the system emoji font only (0 bytes); apps/web's 3D
-  // Fluent Emoji WebPs are deliberately not shipped on this hot path.
-  const label = `No photo of ${p.name || "this dog"} yet`;
-  return `<div class="placeholder" role="img" aria-label="${escapeAttr(label)}"><span class="dogmoji" aria-hidden="true">\u{1F436}</span></div>`;
+  if (p.photoUrl) return `<img src="${escapeHtml(p.photoUrl)}" alt="Photo of ${escapeHtml(p.name)}" />`;
+  // DogAvatar fallback from the handoff: the dog's initial on its stable
+  // pastel. No emoji and no image bytes on this hot path.
+  const [bg, ink] = PASTELS[pastelIndex(p.slug)]!;
+  const initial = (p.name.trim().charAt(0) || "?").toUpperCase();
+  return `<div class="initial" style="background:${bg};color:${ink}" role="img" aria-label="No photo of ${escapeHtml(
+    p.name,
+  )} yet">${escapeHtml(initial)}</div>`;
 }
 
-function fmtAbc(v?: string): { text: string; ok: boolean } {
-  if (!v) return { text: "Unknown", ok: false };
-  const low = v.toLowerCase();
-  const ok = low === "sterilized" || low === "done" || low === "abc_done";
-  return { text: ok ? "Yes" : v, ok };
-}
-
-function fmtVaccine(v?: VaccineStatus): { text: string; ok: boolean } {
-  if (!v) return { text: "Unknown", ok: false };
-  // The route's own rendering, verbatim: it carries the vaccine name and the
-  // date, which the parsed rabies/DHPP hints below can lose when the record's
-  // name is neither. The ✓ stays gated on upToDate ("a verified record
-  // exists"), not on the label being presentable.
-  if (v.label) return { text: v.label, ok: v.upToDate };
-  if (!v.upToDate) return { text: "Unknown / pending", ok: false };
-  const parts = [v.rabvLast ? `Rabies ${v.rabvLast}` : undefined, v.dhppLast ? `DHPP ${v.dhppLast}` : undefined].filter(
-    (s): s is string => !!s,
-  );
-  return { text: parts.length > 0 ? parts.join(", ") : "Up to date", ok: true };
+async function copyCode(slug: string, btn: HTMLButtonElement): Promise<void> {
+  const text = collarGroups(slug).join(" ");
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "Copied";
+    setTimeout(() => (btn.textContent = "Copy"), 2000);
+  } catch {
+    // No clipboard (http, old WebView): show the code so it can be read out.
+    toast(`Collar code ${text}`);
+  }
 }
 
 export function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
-
-function escapeAttr(s: string): string {
-  return escapeHtml(s).replace(/`/g, "&#96;");
+  return s.replace(/[&<>"'`]/g, (c) => `&#${c.charCodeAt(0)};`);
 }

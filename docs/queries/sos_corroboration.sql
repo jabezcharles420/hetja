@@ -1,4 +1,4 @@
--- sos_corroboration.sql — canonical derivation of a dog's SOS eligibility.
+-- sos_corroboration.sql: canonical derivation of a dog's SOS eligibility.
 -- This is the read-side twin of the materialising UPDATE in
 -- apps/api/src/routes/scans.ts (corroborateSosEligibility): same predicate,
 -- committed here so the two cannot drift apart unobserved. INVARIANT 12 makes
@@ -14,18 +14,18 @@
 --
 -- Eligible when EITHER
 --   * >= 2 geotagged scans from distinct subjects, where a subject is
---     COALESCE(feeder_id::text, 'dev:' || device_token) — one identity per
+--     COALESCE(feeder_id::text, 'dev:' || device_token): one identity per
 --     account or attested device, so one phone scanning twice corroborates
 --     nothing; OR
 --   * 1 geotagged scan by a verified feeder: role IN ('admin','vet',
 --     'bmc_officer') or verification_tier = 'verified' (set only from the box,
---     cli/grant-verified.ts). trust_score is deliberately not consulted — see
+--     cli/grant-verified.ts). trust_score is deliberately not consulted; see
 --     INVARIANTS.md's recorded defect where one feed moved a score by 60 and
 --     made score gates decorative.
 --
 -- Representative literal below (a stand-in dog id) rather than $n parameters,
 -- following the care_nearby.sql precedent: check-queries.sh passes 'x' to
--- parameterised queries, which fails on the uuid cast — reporting a fixture
+-- parameterised queries, which fails on the uuid cast, reporting a fixture
 -- problem as if it were a schema one.
 UPDATE dogs d
    SET sos_eligible_at = now()

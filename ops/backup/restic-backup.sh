@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hetja restic backup — encrypted snapshots of configs, secrets (env files)
+# Hetja restic backup: encrypted snapshots of configs, secrets (env files)
 # and a daily Postgres dump. Silent on success; a non-zero exit marks the
 # systemd unit failed, which is what a heartbeat check should watch for.
 # Enhancement stack §L.2 (Phase 1 #7).
@@ -32,10 +32,10 @@ case "$RESTIC_REPOSITORY" in
   rclone:*)
     command -v rclone >/dev/null 2>&1 || {
       echo "restic: RESTIC_REPOSITORY is an rclone remote but the rclone binary is missing." >&2
-      echo "restic: install it (curl https://rclone.org/install.sh | sudo bash) and configure the remote — see ops/backup/BACKUPS.md." >&2
+      echo "restic: install it (curl https://rclone.org/install.sh | sudo bash) and configure the remote; see ops/backup/BACKUPS.md." >&2
       exit 1; }
     # `rclone about` is the cheapest call that proves the remote is not just
-    # named but actually authorised — an expired OAuth token fails here rather
+    # named but actually authorised: an expired OAuth token fails here rather
     # than halfway through uploading a dump.
     remote=${RESTIC_REPOSITORY#rclone:}; remote=${remote%%:*}
     rclone about "${remote}:" >/dev/null 2>&1 || {
@@ -51,7 +51,7 @@ case "$RESTIC_REPOSITORY" in
   *)
     # A local path. Warn rather than fail: it is a legitimate staging setup, but
     # it is not off-box, and the docs should not be the only place that says so.
-    echo "restic: WARNING — repository '$RESTIC_REPOSITORY' looks local. If it is on this box's disk it does not survive losing this box." >&2
+    echo "restic: WARNING: repository '$RESTIC_REPOSITORY' looks local. If it is on this box's disk it does not survive losing this box." >&2
     ;;
 esac
 
@@ -60,7 +60,7 @@ PW=${RESTIC_PASSWORD_FILE:-/root/.backup-env.restic-pw}
 
 # Interim: daily logical dump of the production DB (as superuser via the
 # rootasdba ident map) so we have DB protection even without wal-g PITR.
-# Force the local socket — never inherit a TCP PGHOST from the caller.
+# Force the local socket; never inherit a TCP PGHOST from the caller.
 DUMP_DIR=$(mktemp -d /tmp/hetja-pgdump.XXXXXX)
 trap 'rm -rf "$DUMP_DIR"' EXIT
 PGHOST=/var/run/postgresql PGUSER=postgres \

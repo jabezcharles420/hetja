@@ -5,7 +5,7 @@
  * Why this file exists: POST /api/v1/scans requires a feeder Bearer OR an
  * x-device-token (routes/scans.ts), and this page has no accounts. flush used
  * to send NO credential at all, so every queued feed was refused with 401
- * UNAUTHENTICATED_DEVICE and — postScan branching on res.ok — never removed
+ * UNAUTHENTICATED_DEVICE and (postScan branching on res.ok) never removed
  * from IndexedDB: each one re-uploaded its photo bytes on every page open,
  * forever, over mobile data. The fix mints the token at CAPTURE time, persists
  * it with the queued record (schema v2), and replays it on flush; records
@@ -42,7 +42,7 @@ vi.mock("./idb", () => ({
   uuid: () => crypto.randomUUID(),
 }));
 
-// getDeviceToken resolves undefined on failure and never throws — mirrored
+// getDeviceToken resolves undefined on failure and never throws, mirrored
 // here so both the success and the cannot-mint capture paths are exercised.
 const deviceMock = vi.hoisted(() => ({ token: undefined as string | undefined }));
 vi.mock("./device", () => ({
@@ -113,12 +113,12 @@ describe("flushQueue", () => {
   });
 
   it("drops a tokenless schema-v1 record through onDrop instead of retrying it forever", async () => {
-    const legacy = seedItem(); // no deviceToken — pre-v2 record
+    const legacy = seedItem(); // no deviceToken: pre-v2 record
 
     const drops: Array<{ item: QueuedScan; reason: string }> = [];
     const sent = await flushQueue((item, reason) => drops.push({ item, reason }));
 
-    // Nothing was uploaded — the record cannot be retroactively attested.
+    // Nothing was uploaded: the record cannot be retroactively attested.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(sent).toBe(0);
     // …but it is gone from the queue, ending the re-upload-on-every-open loop.

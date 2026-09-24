@@ -1,5 +1,5 @@
 /**
- * Attested device tokens for the feeder PWA — the client half of INVARIANT 6,
+ * Attested device tokens for the feeder PWA: the client half of INVARIANT 6,
  * and the reason a feeder can log in at all.
  *
  * THE BUG THIS FIXES
@@ -8,7 +8,7 @@
  * `verifyDeviceToken(deviceToken, HETJA_DEVICE_SECRET)`. A real device token is
  * `<base64url(deviceId)>.<base64url(HMAC(secret, deviceId))>`. The login page
  * used to send a bare `uuid()` from `@/lib/idb`, cached under
- * `hetja.deviceToken` — no `.` separator at all, so `deviceTokenSubject` bailed
+ * `hetja.deviceToken`, with no `.` separator at all, so `deviceTokenSubject` bailed
  * at its very first guard (`dot <= 0`) and `POST /api/v1/auth/verify` answered
  * 401 BAD_DEVICE_TOKEN. Every web login attempt failed, and always had; it was
  * never a regression, just a client that had never implemented the flow.
@@ -24,8 +24,8 @@
  *
  * WHAT THIS MODULE DOES *NOT* DO, ON PURPOSE
  *
- * It never invents a token. The old code's fallback — "if storage is broken,
- * return a fresh uuid()" — is what made the failure invisible: the request went
+ * It never invents a token. The old code's fallback ("if storage is broken,
+ * return a fresh uuid()") is what made the failure invisible: the request went
  * out looking well-formed and came back 401 with a generic message. Every
  * failure here is named (see `DeviceTokenFailure`) and every name maps to
  * something a user can act on, because on the login path there is nothing to
@@ -44,15 +44,15 @@ import { api, ApiError } from "./api";
  * Where the minted token lives.
  *
  * Shared with `apps/scan` deliberately (it uses this same key). In production
- * Caddy serves both from ONE hostname — the feeder PWA at `hetja.in/*` and the
- * collar landing page at `hetja.in/d/*` — so they read the same localStorage,
+ * Caddy serves both from ONE hostname (the feeder PWA at `hetja.in/*` and the
+ * collar landing page at `hetja.in/d/*`), so they read the same localStorage,
  * and a device token is not app-specific: one endpoint mints it, one secret
  * verifies it. A feeder who scanned a collar before signing in therefore pays
  * for the proof-of-work once rather than twice.
  *
  * That sharing joins no records server-side. `auth.ts` only *verifies* the token
- * and then discards it — nothing writes it, or the deviceId it attests, next to
- * a feeder row — while the deviceId is stored only for anonymous writes
+ * and then discards it; nothing writes it, or the deviceId it attests, next to
+ * a feeder row, while the deviceId is stored only for anonymous writes
  * (`scans.device_token`, keyed via `deviceTokenSubject`). So an anonymous SOS
  * and a later login from the same browser do not become linkable because they
  * shared this key.
@@ -61,7 +61,7 @@ export const DEVICE_TOKEN_KEY = "hetja.deviceToken.v1";
 
 /**
  * The key the broken implementation used. Every value it ever held is a bare
- * UUID that the API rejects, so there is nothing to migrate — but browsers that
+ * UUID that the API rejects, so there is nothing to migrate, but browsers that
  * ever opened the old login page still have one sitting there, and it must be
  * cleaned out rather than left to be read by some future code path that trusts
  * whatever it finds. `readCachedDeviceToken` removes it on first call.
@@ -73,8 +73,8 @@ export const LEGACY_DEVICE_TOKEN_KEY = "hetja.deviceToken";
  *
  * At the configured difficulty (DEVICE_POW_DIFFICULTY=16, i.e. 16 effective
  * bits, ~65k expected SHA-256 digests) this is roughly 1 s on a desktop and a
- * few seconds on a cheap Android — see the budget arithmetic in
- * `apps/scan/src/device.test.ts`. 20 s is the same budget the scan page uses,
+ * few seconds on a cheap Android (see the budget arithmetic in
+ * `apps/scan/src/device.test.ts`). 20 s is the same budget the scan page uses,
  * for the same reason: the failure mode of being too impatient is worse than a
  * slow spinner, because here it is a feeder who cannot sign in.
  */
@@ -97,7 +97,7 @@ export type DeviceTokenOutcome =
 /** True iff `value` has the *shape* `issueDeviceToken` produces: two non-empty
  * canonical-base64url parts separated by a single `.`.
  *
- * This is a screen, not a validation — only the server can check the HMAC. It
+ * This is a screen, not a validation: only the server can check the HMAC. It
  * exists to catch the one value we know is in the wild: the bare `uuid()` the
  * old login page cached. A UUID's characters are all inside the base64url
  * alphabet, so the `.` is what gives it away, exactly as it does in
@@ -130,7 +130,7 @@ export function readCachedDeviceToken(): string | undefined {
   }
 }
 
-/** Forget the cached token. Called when the server rejects it — the one case
+/** Forget the cached token. Called when the server rejects it, the one case
  * where a syntactically fine token is known-bad (HETJA_DEVICE_SECRET rotated,
  * so every token minted under the old secret is now worthless). Without this,
  * a secret rotation would lock every returning browser out of login
@@ -159,8 +159,8 @@ let inFlight: Promise<DeviceTokenOutcome> | undefined;
  * Returns an attested device token: the cached one, or a freshly minted one.
  *
  * Concurrent callers share one mint. The login page calls this twice on the
- * happy path — once speculatively when the code is requested, once for real at
- * verify time — and a second proof-of-work solve would be pure waste.
+ * happy path (once speculatively when the code is requested, once for real at
+ * verify time), and a second proof-of-work solve would be pure waste.
  */
 export async function getDeviceToken(): Promise<DeviceTokenOutcome> {
   const cached = readCachedDeviceToken();
@@ -224,7 +224,7 @@ async function mintDeviceToken(): Promise<DeviceTokenOutcome> {
  *
  * Note what the secure-context message has to explain, because it is a real trap
  * on this project: `crypto.subtle` exists only in a secure context. `localhost`
- * is exempt, so `pnpm dev` over plain HTTP works fine — but opening the same dev
+ * is exempt, so `pnpm dev` over plain HTTP works fine, but opening the same dev
  * server from a phone on the LAN (`http://192.168.1.5:3100`) is NOT a secure
  * context, so the proof-of-work is impossible and login cannot work there at
  * all. Production is unaffected: Cloudflare terminates TLS, so the browser
@@ -233,20 +233,20 @@ async function mintDeviceToken(): Promise<DeviceTokenOutcome> {
 export function deviceTokenFailureMessage(reason: DeviceTokenFailure): string {
   switch (reason) {
     case "insecure-context":
-      return "Sign-in needs a secure connection. This page is on plain http:// — open Hetja over https:// (or on localhost) and try again.";
+      return "Sign-in needs a secure connection. This page is on plain http://. Open Hetja over https:// (or on localhost) and try again.";
     case "no-web-crypto":
       return "This browser is missing the cryptography support sign-in needs. Please try a current Chrome, Safari or Firefox.";
     case "challenge-unavailable":
       return "Could not reach Hetja to confirm this device. Check your connection and try again.";
     case "pow-timeout":
-      return "Confirming this device took too long here. Please try again — keep the screen on while it works.";
+      return "Confirming this device took too long here. Please try again, and keep the screen on while it works.";
     case "mint-rejected":
       return "Hetja could not confirm this device. Please try again in a moment.";
   }
 }
 
 /** True for the API error that means "the device token you sent is not one of
- * ours" — the signal to throw the cached token away and mint a new one. */
+ * ours": the signal to throw the cached token away and mint a new one. */
 export function isBadDeviceTokenError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401 && err.code === "BAD_DEVICE_TOKEN";
 }

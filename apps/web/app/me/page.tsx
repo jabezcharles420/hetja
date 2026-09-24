@@ -45,7 +45,7 @@ export default function MePage(): React.JSX.Element {
 
   /**
    * SOS responder consent. `feeders.sos_opt_in` defaults to false, the fan-out
-   * filters on it, and PATCH /api/v1/feeders/me is its only writer — until this
+   * filters on it, and PATCH /api/v1/feeders/me is its only writer. Until this
    * checkbox existed no feeder could ever be paged, so the "neighbours on it"
    * promise the SOS flow makes had nobody behind it. Optimistic flip, reverted
    * on failure, with the outcome spoken via role="status".
@@ -134,7 +134,7 @@ export default function MePage(): React.JSX.Element {
           <p className={styles.consentHint}>
             Pages go out as a push notification to feeders who have fed nearby recently.
             {me.trustScore < SOS_PAGE_TRUST_FLOOR
-              ? ` Only feeders with a trust score of ${SOS_PAGE_TRUST_FLOOR} or more are paged — yours is ${me.trustScore}, so keep logging feeds.`
+              ? ` Only feeders with a trust score of ${SOS_PAGE_TRUST_FLOOR} or more are paged. Yours is ${me.trustScore}, so keep logging feeds.`
               : " You can switch this off at any time."}
           </p>
           {optStatus && (

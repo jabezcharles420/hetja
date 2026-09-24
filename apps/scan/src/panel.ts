@@ -1,7 +1,7 @@
 /**
  * The action panel: the one primary CTA ("This dog needs help") that opens
  * the severity sheet, and the quiet "Log a feed" text link beneath it.
- * Strangers must not choose between two buttons of equal weight — the CTA
+ * Strangers must not choose between two buttons of equal weight: the CTA
  * is a button, feed-logging is a link.
  */
 import type { DogProfile } from "./api";
@@ -22,8 +22,8 @@ export function wirePanel(slug: string): void {
   // handler above is attached; this is the moment it becomes real.
   //
   // It used to be enabled only by `setPanelProfile(profile)`, so one failed
-  // GET /api/v1/dogs/<slug> — a stranger on flaky 4G, standing over an injured
-  // dog — rendered "Can't reach Hetja right now" above a permanently greyed-out
+  // GET /api/v1/dogs/<slug> (a stranger on flaky 4G, standing over an injured
+  // dog) rendered "Can't reach Hetja right now" above a permanently greyed-out
   // "This dog needs help". Nothing in the SOS path needs the profile:
   // `openSeverity` reads `ctx.slug`, `fileReport` posts `{dogSlug, severity}`,
   // and `sheet.ts` types `profile` as optional, using it only to decorate the
@@ -38,7 +38,7 @@ export function wirePanel(slug: string): void {
 
 /**
  * Records the profile for the SMS fallback body. Deliberately does NOT touch
- * the CTA's enabled state — see `wirePanel`.
+ * the CTA's enabled state; see `wirePanel`.
  */
 export function setPanelProfile(profile: DogProfile | undefined): void {
   currentProfile = profile;
@@ -66,7 +66,7 @@ async function onLogFeed(): Promise<void> {
     const outcome = await logFeed(currentSlug);
     toast(outcome.message, 6000);
     if (outcome.evictionSoon) {
-      setNote("Upload soon — offline logs are cleared from this device after ~7 days.");
+      setNote("Upload soon: offline logs are cleared from this device after ~7 days.");
     }
   } finally {
     link?.removeAttribute("aria-disabled");

@@ -1,6 +1,6 @@
 # Hetja
 
-*Hetja* is Icelandic for **hero**. Not the metaphorical kind — the literal kind:
+*Hetja* is Icelandic for **hero**. Not the metaphorical kind. The literal kind:
 someone who acts with courage when they have nothing to gain and everything to
 lose.
 
@@ -24,7 +24,7 @@ box, and it should not be owned.
 Anyone can read the code that decides how a dog's location is coarsened, how an
 emergency is escalated, and what a stranger is allowed to see. If we get any of
 that wrong, someone outside this project should be able to prove it. The
-[invariants](docs/INVARIANTS.md) are not marketing — they are commitments, and
+[invariants](docs/INVARIANTS.md) are not marketing; they are commitments, and
 publishing the code is what turns a commitment into something auditable instead
 of something you have to take on trust.
 
@@ -38,8 +38,8 @@ Fork it. Run it in your city. Tell us what we got wrong.
 
 ```
 apps/
-  scan/     the public collar landing — static HTML + vanilla TS, <40 KB gzipped
-  web/      the feeder PWA — Next.js 14 App Router
+  scan/     the public collar landing: static HTML + vanilla TS, <40 KB gzipped
+  web/      the feeder PWA: Next.js 14 App Router
   api/      Fastify gateway
   worker/   job queue: SOS fan-out, escalation, retention
   ai/       Python: photo validation, re-identification (Phase 2)
@@ -47,7 +47,7 @@ packages/
   db/       migrations, seed, connection pool
   contracts/  zod schemas shared client ↔ server
   ledger/   hash-chain + daily anchor
-  design/   design tokens — one source of truth for both surfaces
+  design/   design tokens: one source of truth for both surfaces
 docs/
   queries/  every documented SQL query, EXPLAIN-checked in CI
 ops/        bootstrap, systemd units, Caddy, Supabase migration, runbook
@@ -55,7 +55,7 @@ ops/        bootstrap, systemd units, Caddy, Supabase migration, runbook
 
 The public scan page is deliberately framework-free. A citizen standing over an
 injured dog on 4G gets served static HTML under a hard 40 KB gzipped budget,
-enforced in CI — a framework runtime alone would exceed it.
+enforced in CI; a framework runtime alone would exceed it.
 
 ## Running it
 
@@ -85,7 +85,7 @@ Rationale in [docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).
 ## Specification
 
 Fifteen numbered invariants (fourteen from the original build guide, one
-added during implementation) encode decisions that must not regress —
+added during implementation) encode decisions that must not regress:
 random slugs, ward-level coordinates for anonymous reads, HMAC'd phone
 numbers, offline conflict resolution on `captured_at`, ledger chaining from
 the first migration. Several are enforced by CI gates rather than
@@ -101,7 +101,7 @@ path and the database all read Hetja now.
 [GNU AGPL-3.0](LICENSE).
 
 Chosen deliberately over a permissive licence. Anyone may use, modify and run
-Hetja — but anyone who runs a *modified* version as a network service must publish
+Hetja, but anyone who runs a *modified* version as a network service must publish
 their changes. That is what makes the promises in this README checkable rather
 than merely stated: every deployment's geo-coarsening, escalation logic and
 anonymous-read surface stays inspectable, including deployments we do not control.
@@ -125,4 +125,4 @@ The most useful contributions right now are not code:
 
 For code, the invariants are the contract. If a change touches geo precision,
 phone handling, the ledger, or anonymous write paths, expect the security gate in
-CI to argue with you — that is the gate working.
+CI to argue with you. That is the gate working.

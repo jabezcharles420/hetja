@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ops/deploy-remote.sh — server-side half of the Hetja deploy pipeline.
+# ops/deploy-remote.sh: server-side half of the Hetja deploy pipeline.
 #
 # Invoked over SSH by .github/workflows/deploy.yml AFTER it has already
 # rsynced a prebuilt release (apps/web's standalone bundle + apps/scan's
@@ -9,7 +9,7 @@
 # running it on this 2 GB box alongside the live services is what OOM-killed
 # the web app before (see apps/web/next.config.mjs), so web and scan are always
 # built on the GitHub runner and arrive here as finished bundles. @hetja/api and
-# @hetja/worker are plain `tsc` — seconds, negligible memory — and they run from
+# @hetja/worker are plain `tsc` (seconds, negligible memory) and they run from
 # the git checkout rather than from a release directory, so they are built HERE
 # from the exact SHA being deployed.
 #
@@ -49,7 +49,7 @@
 # Usage:
 #   ops/deploy-remote.sh <release-name>
 #
-# <release-name> must already exist as a directory under $RELEASES_DIR —
+# <release-name> must already exist as a directory under $RELEASES_DIR;
 # the workflow creates and populates it via rsync before calling this
 # script.
 #
@@ -63,11 +63,11 @@
 #                         (default: /root/hetja)
 #   HETJA_APP_SHA        commit to build api + worker from. The workflow passes
 #                         $GITHUB_SHA. If UNSET, the checkout is left entirely
-#                         alone and api/worker are only restarted — the old,
-#                         silently-stale behaviour, so it logs loudly.
+#                         alone and api/worker are only restarted (the old,
+#                         silently-stale behaviour), so it logs loudly.
 #
 # Optional Postgres env (PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD/
-# PGSSLMODE) — used only to look up a real collar slug for the `/d/<slug>`
+# PGSSLMODE), used only to look up a real collar slug for the `/d/<slug>`
 # health check. If unset, or no dog row is found, that one check is
 # skipped with a warning rather than failing the whole deploy (the same
 # "skip, don't fail, on an empty seed" precedent ops/bootstrap.sh already
@@ -112,7 +112,7 @@ if [ -L "$CURRENT_LINK" ]; then
 fi
 
 # Whatever the checkout is on right now, so a failed deploy can put api and
-# worker back exactly where they were — the checkout's counterpart to
+# worker back exactly where they were: the checkout's counterpart to
 # $PREVIOUS_RELEASE above.
 PREVIOUS_SHA=""
 if [ -n "$APP_SHA" ] && [ -d "$CHECKOUT_DIR/.git" ]; then
@@ -129,8 +129,8 @@ point_current_at() {
 # `git reset --hard` is deliberate over `git pull`: pull can open a merge or
 # refuse outright when the checkout has drifted, and a deploy must be able to
 # state exactly which commit is running. reset only touches TRACKED files, so
-# the gitignored .env.production files — which hold the QR secret, the database
-# password and the SMTP credentials — are left alone. Losing those would
+# the gitignored .env.production files (which hold the QR secret, the database
+# password and the SMTP credentials) are left alone. Losing those would
 # invalidate every printed collar, so their presence is asserted, not assumed.
 sync_and_build_services() { # $1 = target sha
   local sha="$1" pkg env_file

@@ -5,7 +5,7 @@
  * e2e/mobile-layout.spec.ts asserts that no visible text element starts within
  * 8px of the viewport edge. The gate's "Checking access…" paragraph carried its
  * gutter as inline padding on the <p> itself, so the element's own box began at
- * x=0 and the spec flagged it — but only when it happened to sample /register
+ * x=0 and the spec flagged it, but only when it happened to sample /register
  * during the loading frame, which made the a11y workflow flaky rather than red.
  * Wrapping every state in the shared container puts the text where the rest of
  * the site puts it and makes the check deterministic.

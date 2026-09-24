@@ -38,14 +38,14 @@
 # Be precise about what this buys, because an earlier version of this comment
 # was not: it said the rewrite exists so "@fastify/rate-limit would [not] cap
 # the whole city as one IP". There is no @fastify/rate-limit in this
-# repository — it is not a dependency of apps/api and is registered nowhere.
+# repository. It is not a dependency of apps/api and is registered nowhere.
 # Nor should there be a general one: INVARIANT 6 rate-limits per account or per
 # attested device token and never per IP, deliberately, because Indian carrier
 # CGNAT puts hundreds of real subscribers behind one address.
 #
 # What the rewrite actually fixes today is request logging (apps/api's pino
 # serializer records request.ip) and any future per-IP flood cap on device-token
-# MINTING — bounding how many tokens an address can obtain is a different
+# MINTING. Bounding how many tokens an address can obtain is a different
 # subject from capping what a user may do, and is the one place an IP limit is
 # the right tool.
 #
@@ -54,7 +54,7 @@
 # empty header rather than its original value. That is the safe direction (an
 # empty value cannot be spoofed into a trusted one), and apps/api pins
 # `trustProxy` to a hop count rather than `true` so a forged header from a
-# non-proxy is ignored — but TRUST_PROXY must actually be set in
+# non-proxy is ignored, but TRUST_PROXY must actually be set in
 # .env.production or Fastify ignores X-Forwarded-For entirely and request.ip
 # stays loopback. See apps/api/src/config.ts.
 (real_ip) {
@@ -69,7 +69,7 @@ http://hetja.in {
 
 	# Cache-Control policy (enhancement stack §M.4). Cloudflare Cache Rules on
 	# the dashboard are the edge half; these headers are the origin half of the
-	# same contract. /d/* and the API catch-all are no-store — SOS state
+	# same contract. /d/* and the API catch-all are no-store: SOS state
 	# changes underneath and a stale collar page is a life-safety bug, not a
 	# perf regression. Guarded by ops/check-caddy-cache.sh in CI. Order
 	# matters: more specific handles first (care* before the API catch-all).
@@ -104,7 +104,7 @@ http://hetja.in {
 	# `${NEXT_PUBLIC_API_URL}/${photoKey}` = https://api.hetja.in/photos/<id>.webp,
 	# apps/api registers no static handler at all (no @fastify/static anywhere),
 	# and the api.hetja.in vhost below had only the two /api/v1 handles and no
-	# catch-all — so every photo URL matched nothing. The feature had tests, a
+	# catch-all, so every photo URL matched nothing. The feature had tests, a
 	# storage layer and an upload pipeline, and no way to look at the result.
 	#
 	# The path arithmetic is load-bearing: storage keys are `photos/<uuid>.<ext>`
@@ -116,7 +116,7 @@ http://hetja.in {
 	#
 	# /srv/hetja/photos, NOT /root/hetja/data/photos, and that is a correctness
 	# fix rather than a preference. Caddy runs as `User=caddy` (the distro unit),
-	# and /root is mode 0700 root:root — so the caddy user cannot even traverse
+	# and /root is mode 0700 root:root, so the caddy user cannot even traverse
 	# into it, let alone read a file. Measured on the live box: with the handler
 	# pointed inside /root, every photo URL returned
 	#
@@ -136,7 +136,7 @@ http://hetja.in {
 	#
 	# Long-lived cache is safe here in a way it is not for /d/*: the filename is a
 	# random UUID, so the bytes at a given URL never change. This is also the one
-	# thing on the box that most wants caching — a dog photo is orders of
+	# thing on the box that most wants caching: a dog photo is orders of
 	# magnitude larger than any JSON response, on a Mumbai 4G connection.
 	#
 	# Safe to serve publicly ONLY because the API now strips metadata server-side
@@ -191,7 +191,7 @@ http://api.hetja.in {
 
 	# Dog photos. This vhost is the one that actually matters for them:
 	# apps/web/lib/api.ts builds photo URLs from NEXT_PUBLIC_API_URL, which
-	# .env.example sets to https://api.hetja.in — so before this block existed,
+	# .env.example sets to https://api.hetja.in, so before this block existed,
 	# every dog photo resolved to a hostname whose only two handlers were the two
 	# /api/v1 ones above, with no catch-all. See the matching block on hetja.in
 	# for the path arithmetic and why serving these publicly is safe.
@@ -206,7 +206,7 @@ http://api.hetja.in {
 	# for itself.
 	#
 	# Without this, Caddy has no route for an unmatched path on this vhost and
-	# returns an EMPTY 200 — no body, no content-type, not even the security
+	# returns an EMPTY 200: no body, no content-type, not even the security
 	# headers from `common`. Measured live before this block existed:
 	#
 	#   GET /healthz                -> 200, 0 bytes   (never reached Fastify)
@@ -216,7 +216,7 @@ http://api.hetja.in {
 	#
 	# `/healthz` is the one that matters: apps/api/src/server.ts registers it and
 	# it never ran. Any uptime monitor pointed at https://api.hetja.in/healthz
-	# reported HEALTHY WITH THE API PROCESS DEAD — a false green on the only
+	# reported HEALTHY WITH THE API PROCESS DEAD, a false green on the only
 	# signal an operator watches. It also meant every unknown path returned 200
 	# to third-party clients, which every client-side error handler reads as
 	# success-with-no-data rather than as the 404 it is.

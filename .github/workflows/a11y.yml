@@ -11,7 +11,7 @@ name: a11y + mobile layout
 # So this runs on its own, in parallel, with no Postgres service and no secrets.
 # The pages under test (/, /about, /privacy, /faq, /how-it-works, /contact) are
 # fully static: no API, no database, no NEXT_PUBLIC_* values needed to render
-# them. /dog/[slug] and /scan are deliberately NOT covered here — they need the
+# them. /dog/[slug] and /scan are deliberately NOT covered here; they need the
 # Fastify API and a real database, which is exactly the cost this split avoids.
 # See apps/web/e2e/routes.ts.
 
@@ -28,8 +28,8 @@ concurrency:
 # Least privilege for GITHUB_TOKEN. With no `permissions:` block the token
 # inherits the repository default, which on repos created before GitHub changed
 # it is read/write across every scope. Nothing in these workflows writes to the
-# repo through the API — they read code, run gates, and (in deploy.yml) reach
-# the box over SSH — so read-only on contents is the whole requirement.
+# repo through the API. They read code, run gates, and (in deploy.yml) reach
+# the box over SSH, so read-only on contents is the whole requirement.
 permissions:
   contents: read
 
@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          # Under build/ rather than the Playwright defaults — see the
+          # Under build/ rather than the Playwright defaults; see the
           # outputDir comment in apps/web/playwright.config.ts for why.
           path: apps/web/build
           retention-days: 14

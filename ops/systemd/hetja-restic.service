@@ -6,7 +6,7 @@
 #
 # This unit is committed deliberately. docs/CREDITS.md and ops/RUNBOOK.md both
 # asserted a "hetja-restic.timer (daily 02:15 IST)" that existed only on the
-# live box and in no committed file — so a fresh box provisioned from this repo
+# live box and in no committed file, so a fresh box provisioned from this repo
 # got no backups at all, while the docs said otherwise. That is the failure this
 # file closes.
 Description=Hetja encrypted backup (pg_dump + configs -> restic)

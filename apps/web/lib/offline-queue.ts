@@ -7,7 +7,7 @@
  *
  * `flush` replays the queue via POST /api/v1/scans in FIFO order. The API is
  * idempotent by clientUuid (ON CONFLICT DO NOTHING), so a replay that returns
- * `created: false` is treated as already-handled and dropped — it is never
+ * `created: false` is treated as already-handled and dropped; it is never
  * re-queued. Transport failures keep the record for a later retry.
  */
 
@@ -27,7 +27,7 @@ export interface EnqueueInput {
    * flush days later can present a credential minted in the capture's
    * context. Deliberately NOT minted here: this module's flush is the replay
    * path, and a challenge/PoW round trip per queued record per flush is the
-   * wrong shape — see api.ts's createScan note.
+   * wrong shape (see api.ts's createScan note).
    */
   deviceToken?: string;
 }
@@ -55,7 +55,7 @@ export interface FeedOutcome {
  *
  * A wasted request is cheaper than a queue that silently never sends, so the
  * unknown case fails toward attempting. `navigator.onLine === false` is the only
- * value that means offline; note that a `true` is only ever a hint anyway — it
+ * value that means offline; note that a `true` is only ever a hint anyway: it
  * says the interface has a link, not that the internet is reachable.
  */
 function isOnLine(): boolean {
@@ -118,7 +118,7 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
  *
  *   - INVARIANT 4 clamps `capturedAt` clock skew to ±15 minutes
  *     (`packages/contracts` schemas). So **every feed queued offline for longer
- *     than fifteen minutes became a permanent 400** — which is precisely the
+ *     than fifteen minutes became a permanent 400**, which is precisely the
  *     case the offline queue exists to serve, a feeder out of signal for an
  *     afternoon. It then retried on every app open, forever.
  *   - `DOG_NOT_FOUND` (the collar was retired between queueing and syncing) is
@@ -132,7 +132,7 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
  * over Mumbai 4G, forever, to be rejected again.
  *
  * Retry only what can plausibly change: transport failures, server faults,
- * throttling, and auth (the feeder may simply log in again — dropping a real
+ * throttling, and auth (the feeder may simply log in again; dropping a real
  * feed because an access token expired would destroy data the queue was built to
  * protect).
  */
@@ -150,15 +150,15 @@ function isRetryable(err: unknown): boolean {
  * Replays the whole queue against POST /api/v1/scans (FIFO). Returns the number
  * of scans acknowledged (created or deduped).
  *
- * Records are removed on success, and also on a permanently-failing response —
+ * Records are removed on success, and also on a permanently-failing response;
  * see `isRetryable`. A permanent drop is reported through `onDrop` rather than
  * happening silently: the caller is the only layer that can tell the feeder
  * their feed did not count, and INVARIANT 14's reasoning ("a flag nobody looks
  * at is a silent rejection with extra steps") applies here too.
  *
  * Tokenless records (queued before schema v2) get one extra rule: with no
- * session they can never be accepted — a token minted now would attest this
- * device at flush time, not when the photo was taken — so they are dropped
+ * session they can never be accepted (a token minted now would attest this
+ * device at flush time, not when the photo was taken), so they are dropped
  * through onDrop immediately instead of re-uploading their photo bytes on
  * every app open, forever, to be 401'd again. With a live session they are
  * still worth ONE attempt: the Bearer path attributes scans server-side
@@ -199,7 +199,7 @@ export async function flush(
       await removeQueued(item.id);
       sent++;
     } catch (err) {
-      if (isRetryable(err)) continue; // keep queued — retried on the next flush
+      if (isRetryable(err)) continue; // keep queued; retried on the next flush
       await removeQueued(item.id);
       if (err instanceof ApiError) onDrop?.(item, err);
     }
@@ -235,19 +235,19 @@ export function listDroppedFeeds(): DroppedFeed[] {
   }
 }
 
-/** Clear the list — call once the feeder has actually been shown it. */
+/** Clear the list. Call once the feeder has actually been shown it. */
 export function clearDroppedFeeds(): void {
   try {
     localStorage?.removeItem(DROPPED_FEEDS_KEY);
   } catch {
-    /* private mode / storage disabled — nothing to clear */
+    /* private mode / storage disabled; nothing to clear */
   }
 }
 
 /**
  * Records a permanently-refused feed so it is not silently destroyed.
  *
- * Deliberately **metadata only** — dogSlug, capturedAt, the error code — and NOT
+ * Deliberately **metadata only** (dogSlug, capturedAt, the error code) and NOT
  * the photo bytes. The queued record carries a base64 image, and copying those
  * into localStorage would move a multi-megabyte payload into a ~5 MB
  * synchronous-access store that the rest of the app also needs. Bounded to the
@@ -256,7 +256,7 @@ export function clearDroppedFeeds(): void {
  * The honest limit: the photo IS lost. What survives is enough to tell the
  * feeder which dog and when, so the feed can be logged again deliberately rather
  * than the app quietly pretending it never happened. That is the INVARIANT 14
- * principle — "a flag nobody looks at is a silent rejection with extra steps" —
+ * principle ("a flag nobody looks at is a silent rejection with extra steps")
  * applied to a queue rather than to AI validation.
  */
 function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
@@ -270,7 +270,7 @@ function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
   // Console first, so the record exists even if storage is unavailable
   // (Safari private mode throws on setItem).
   console.warn(
-    `offline-queue: dropped a queued feed for ${item.dogSlug} — the server ` +
+    `offline-queue: dropped a queued feed for ${item.dogSlug}: the server ` +
       `refused it permanently (${err.status}${err.code ? ` ${err.code}` : ""}). ` +
       "It will not be retried. See listDroppedFeeds().",
   );
@@ -281,14 +281,14 @@ function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
       JSON.stringify([entry, ...listDroppedFeeds()].slice(0, DROPPED_FEEDS_MAX)),
     );
   } catch {
-    /* storage full or blocked — the console warning above is the fallback */
+    /* storage full or blocked; the console warning above is the fallback */
   }
   // Let any mounted UI react without this module knowing about React.
   //
   // Guarded on `typeof window`, and in its OWN try/catch after the write above
   // rather than sharing one. Two reasons, both real rather than defensive habit:
   // this module is imported by a Next.js client component, so it can be
-  // evaluated where `window` does not exist (and `window?.x` does not help —
+  // evaluated where `window` does not exist (and `window?.x` does not help:
   // optional chaining still throws a ReferenceError on an undeclared
   // identifier); and if the dispatch shared a try block with the write, a throw
   // here would look identical to "storage blocked" while actually having
@@ -298,7 +298,7 @@ function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
       window.dispatchEvent(new CustomEvent("hetja:feed-dropped", { detail: entry }));
     }
   } catch {
-    /* no DOM to notify — the record is stored and the warning is logged */
+    /* no DOM to notify; the record is stored and the warning is logged */
   }
 }
 
@@ -308,7 +308,7 @@ function recordDroppedFeed(item: QueuedScan, err: ApiError): void {
  * Passes `recordDroppedFeed` rather than calling `flush()` bare. That matters:
  * `flush`'s contract says a permanent drop is "reported through onDrop rather
  * than happening silently", and for a while this was the ONLY caller and passed
- * nothing — so the claim was false and every permanently-refused feed vanished
+ * nothing, so the claim was false and every permanently-refused feed vanished
  * without trace. A default that discards is worse than no default.
  */
 export async function flushOnOpen(): Promise<number> {

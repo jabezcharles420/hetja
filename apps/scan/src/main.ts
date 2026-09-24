@@ -14,7 +14,7 @@ let viewInFlight = false;
 async function view(): Promise<void> {
   if (viewInFlight) return;
   if (!isValidSlug(SLUG)) {
-    renderError("Unrecognized code — check the collar and scan again.");
+    renderError("Unrecognized code. Check the collar and scan again.");
     return;
   }
   viewInFlight = true;
@@ -25,7 +25,7 @@ async function view(): Promise<void> {
     const { profile, stale } = await fetchDogProfile(SLUG, SIG);
     renderProfile(profile, stale);
     setPanelProfile(profile);
-    document.title = `${profile.name} — Hetja`;
+    document.title = `${profile.name} · Hetja`;
   } catch {
     renderError("Can't reach Hetja right now. If you're offline, medical status shown may be outdated.");
     setPanelProfile(undefined);
@@ -38,7 +38,7 @@ function registerServiceWorker(): void {
   if (!("serviceWorker" in navigator)) return;
   try {
     // Served at /d/service-worker.js. A worker's default scope is the
-    // directory of its own URL — /d/ — which already covers every /d/<slug>
+    // directory of its own URL (/d/), which already covers every /d/<slug>
     // page this app serves, so no Service-Worker-Allowed header is needed.
     void navigator.serviceWorker.register("/d/service-worker.js").catch(() => undefined);
   } catch {
@@ -50,7 +50,7 @@ async function checkQueue(): Promise<void> {
   try {
     await flushOnOpen();
     // Feeds the flush just gave up on (queued before captures carried a
-    // device token — they cannot be retroactively attested). Told here, once,
+    // device token, so they cannot be retroactively attested). Told here, once,
     // then cleared: the visitor is standing on the page the feed was logged
     // from, which is the only moment the message can land.
     const dropped = listDroppedFeeds();
@@ -61,14 +61,14 @@ async function checkQueue(): Promise<void> {
       const s = dropped.length === 1 ? "" : "s";
       message +=
         `${dropped.length} earlier feed log${s} couldn't be uploaded and ${dropped.length === 1 ? "was" : "were"} ` +
-        `removed rather than retried — please log ${dropped.length === 1 ? "it" : "them"} again. `;
+        `removed rather than retried. Please log ${dropped.length === 1 ? "it" : "them"} again. `;
     }
     if (queued.length > 0) {
       const soon = await evictionSoonCount();
       const s = queued.length === 1 ? "" : "s";
       message += soon > 0
-        ? `${queued.length} feed log${s} waiting to upload — cleared from this device after ~7 days. Get online to sync.`
-        : `${queued.length} feed log${s} queued — will upload when you're online.`;
+        ? `${queued.length} feed log${s} waiting to upload. They're cleared from this device after ~7 days. Get online to sync.`
+        : `${queued.length} feed log${s} queued and will upload when you're online.`;
     }
     if (message) setNote(message.trim());
   } catch {
@@ -84,7 +84,7 @@ void checkQueue();
 /**
  * Telemetry loads AFTER the page is usable, as its own chunk.
  *
- * `web-vitals` was a static import, which put it in `main.js` — measured at
+ * `web-vitals` was a static import, which put it in `main.js`, measured at
  * ~3.2 KB gzipped of an 11.7 KB bundle, so a quarter of the JavaScript on the
  * critical path of a page whose entire design constraint is that a stranger on
  * 4G can load it while standing over an injured dog. (The header comment in

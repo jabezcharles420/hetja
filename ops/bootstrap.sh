@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ops/bootstrap.sh — bring the Hetja stack up on a fresh box,
+# ops/bootstrap.sh: bring the Hetja stack up on a fresh box,
 # unattended. Implements AGENTS.md sections (d) Bootstrap and (e) Verify as
 # one idempotent script: safe to re-run, and it exits non-zero the moment
 # anything is wrong so a coding agent (or CI) can tell success from failure
@@ -7,7 +7,7 @@
 #
 # Usage: run as root from a fresh clone, after apps/api/.env.production and
 # apps/web/.env.production have been created from their .env.example
-# templates and filled in (see AGENTS.md section (c) — in particular,
+# templates and filled in (see AGENTS.md section (c); in particular,
 # HETJA_QR_SECRET must be the value carried over from the previous
 # deployment, never freshly generated).
 set -euo pipefail
@@ -53,16 +53,16 @@ log()  { printf -- '==> %s\n' "$*"; }
 fail() { printf 'FATAL: %s\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
-# 1. Prerequisites — fail with a clear, specific message, not a stack trace.
+# 1. Prerequisites: fail with a clear, specific message, not a stack trace.
 # ---------------------------------------------------------------------------
 log "checking prerequisites"
 
 command -v node >/dev/null 2>&1 || fail \
-  "node is not installed. Install Node 20+ (see .nvmrc). This box also needs a LOCAL PostgreSQL 16 with PostGIS, pgvector and pgcrypto — the authoritative database is local, not Supabase (AGENTS.md sections b and c)."
+  "node is not installed. Install Node 20+ (see .nvmrc). This box also needs a LOCAL PostgreSQL 16 with PostGIS, pgvector and pgcrypto; the authoritative database is local, not Supabase (AGENTS.md sections b and c)."
 command -v pnpm >/dev/null 2>&1 || fail \
   "pnpm is not installed. Run 'corepack enable' or install pnpm matching the 'packageManager' field in package.json."
 command -v caddy >/dev/null 2>&1 || fail \
-  "caddy is not installed. Install it (https://caddyserver.com/docs/install) — it is the only process meant to be reachable from outside this box; see ops/caddy/HOSTING.md if this box has no public IP."
+  "caddy is not installed. Install it (https://caddyserver.com/docs/install); it is the only process meant to be reachable from outside this box; see ops/caddy/HOSTING.md if this box has no public IP."
 command -v systemctl >/dev/null 2>&1 || fail \
   "systemctl is not available. This script installs systemd units for the four services and will not work on a box without systemd."
 command -v openssl >/dev/null 2>&1 || fail \
@@ -76,7 +76,7 @@ NODE_BIN="$(command -v node)"
 
 for f in apps/api/.env.production apps/web/.env.production; do
   if [ ! -f "$f" ]; then
-    fail "$f is missing. Copy ${f%.production}.example to $f and fill it in — see AGENTS.md section (c). HETJA_QR_SECRET in particular must be carried over from the previous deployment, never freshly generated, or every printed collar QR silently stops verifying."
+    fail "$f is missing. Copy ${f%.production}.example to $f and fill it in; see AGENTS.md section (c). HETJA_QR_SECRET in particular must be carried over from the previous deployment, never freshly generated, or every printed collar QR silently stops verifying."
   fi
 done
 
@@ -94,7 +94,7 @@ for pkg in @hetja/ledger @hetja/contracts @hetja/db @hetja/api @hetja/worker @he
 done
 
 # ---------------------------------------------------------------------------
-# 3. Render + install the systemd units — the four services plus the backup
+# 3. Render + install the systemd units: the four services plus the backup
 #    timer.
 # ---------------------------------------------------------------------------
 log "rendering systemd units (__REPO_ROOT__=$REPO_ROOT, __NODE_BIN__=$NODE_BIN)"
@@ -127,14 +127,14 @@ systemctl enable --now hetja-restic.timer
 
 # hetja-walg.timer is INSTALLED but deliberately NOT enabled here. Base backups
 # are useless without continuous WAL archiving, and turning that on needs
-# `archive_mode = on` plus a full PostgreSQL restart — a maintenance-window
+# `archive_mode = on` plus a full PostgreSQL restart, a maintenance-window
 # decision, not something bootstrap should do to a running box. Enable it as
 # step 3 of ops/backup/BACKUPS.md, after step 2's restart.
-log "hetja-walg.timer installed but not enabled — see ops/backup/BACKUPS.md (needs a PG restart first)."
+log "hetja-walg.timer installed but not enabled; see ops/backup/BACKUPS.md (needs a PG restart first)."
 
 if [ ! -r /root/.backup-env ]; then
   log "WARN: /root/.backup-env is missing, so hetja-restic.service will fail on its first run."
-  log "WARN: backups are NOT running on this box until you create it — see ops/backup/BACKUPS.md."
+  log "WARN: backups are NOT running on this box until you create it; see ops/backup/BACKUPS.md."
 fi
 if command -v restic >/dev/null 2>&1; then
   log "restic present: $(restic version 2>/dev/null | head -1)"
@@ -144,11 +144,11 @@ fi
 
 if [ -f ops/caddy/Caddyfile ]; then
   systemctl enable --now caddy 2>/dev/null || \
-    log "WARN: could not enable caddy via systemd — start it manually with ops/caddy/Caddyfile (see ops/caddy/HOSTING.md if this box has no public IP)."
+    log "WARN: could not enable caddy via systemd; start it manually with ops/caddy/Caddyfile (see ops/caddy/HOSTING.md if this box has no public IP)."
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Verify — the curl ladder from AGENTS.md section (e).
+# 4. Verify: the curl ladder from AGENTS.md section (e).
 # ---------------------------------------------------------------------------
 log "waiting for services to come up"
 sleep 3
@@ -205,7 +205,7 @@ if [ -n "$SLUG" ]; then
   check_status_and_type "scan dog page" "http://127.0.0.1:8081/d/${SLUG}" 200 "text/html"
   check_status_and_type "scan bundle"   "http://127.0.0.1:8081/d/main.js" 200 "text/javascript"
 else
-  log "WARN: no seeded dog found — skipping /d/<slug> and /d/main.js checks. Run 'pnpm --filter @hetja/db seed' and re-run this script to exercise them."
+  log "WARN: no seeded dog found, skipping /d/<slug> and /d/main.js checks. Run 'pnpm --filter @hetja/db seed' and re-run this script to exercise them."
 fi
 
 for svc in hetja-api hetja-web hetja-worker hetja-scan; do
@@ -218,7 +218,7 @@ for svc in hetja-api hetja-web hetja-worker hetja-scan; do
 done
 
 if [ "$status" -ne 0 ]; then
-  fail "one or more verification checks failed — see FAIL lines above."
+  fail "one or more verification checks failed; see FAIL lines above."
 fi
 
 log "bootstrap complete"

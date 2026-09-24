@@ -8,9 +8,9 @@ const API_BASE = "/api/v1";
  * Is this failure worth retrying, or will it fail identically forever?
  *
  * Mirrors apps/web/lib/offline-queue.ts's isRetryable. `postScan` used to
- * return `res.ok` and the loop kept anything falsy, so a permanent 4xx —
+ * return `res.ok` and the loop kept anything falsy, so a permanent 4xx (
  * INVALID_PHOTO (undecodable bytes), DOG_NOT_FOUND (tag retired between
- * capture and sync), a 413, a capturedAt outside INVARIANT 4's window — was
+ * capture and sync), a 413, a capturedAt outside INVARIANT 4's window) was
  * re-uploaded with its photo bytes on every page open, forever, over mobile
  * data, to be refused again. Transport failures, 5xx and throttling (408/425/
  * 429) can plausibly change and stay queued. 401 is the one 4xx with a side
@@ -29,7 +29,7 @@ type PostOutcome = { ok: true } | { ok: false; retry: true } | { ok: false; retr
  * carries is not one the server accepts any more (HETJA_DEVICE_SECRET was
  * rotated, or the row was minted under an old secret), and the same cached
  * value would be attached to every FUTURE capture too. The queued record
- * itself is dropped — attaching a token minted now would attest this device at
+ * itself is dropped: attaching a token minted now would attest this device at
  * flush time, not when the photo was taken, which is exactly the retroactive
  * attestation this pipeline refuses.
  */
@@ -37,7 +37,7 @@ function forgetCachedDeviceToken(): void {
   try {
     (globalThis as { localStorage?: { removeItem(key: string): void } }).localStorage?.removeItem(DEVICE_TOKEN_KEY);
   } catch {
-    /* no storage here (service worker) — the page will fail closed on its next mint */
+    /* no storage here (service worker); the page will fail closed on its next mint */
   }
 }
 
@@ -46,7 +46,7 @@ function forgetCachedDeviceToken(): void {
  * scans acknowledged.
  *
  * `onDrop` receives records that can never be accepted so the caller can tell
- * the visitor — a permanent drop must never be silent (INVARIANT 14's
+ * the visitor. A permanent drop must never be silent (INVARIANT 14's
  * reasoning: "a flag nobody looks at is a silent rejection with extra steps").
  * The page-open path passes recordDroppedFeed; the background-sync handler
  * passes it too, where it degrades to a console warning (no DOM there).
@@ -57,8 +57,8 @@ export async function flushQueue(onDrop?: (item: QueuedScan, reason: string) => 
   for (const item of items) {
     // Schema-v1 leftovers: queued before feed captures minted a device token.
     // A token minted NOW would attest this device at flush time, not when the
-    // photo was taken — retroactive attestation of exactly the kind this
-    // pipeline exists to avoid — so these cannot be fixed, only reported.
+    // photo was taken (retroactive attestation of exactly the kind this
+    // pipeline exists to avoid), so these cannot be fixed, only reported.
     // Removing them is what ends the old behaviour: re-uploading their photo
     // bytes on every page open, forever, to be refused with 401 again.
     if (!item.deviceToken) {
@@ -72,7 +72,7 @@ export async function flushQueue(onDrop?: (item: QueuedScan, reason: string) => 
       sent++;
     } else if (!outcome.retry) {
       // Permanently refused: remove it so it stops re-uploading its photo on
-      // every open, and say so — a silent drop is the failure INVARIANT 14's
+      // every open, and say so: a silent drop is the failure INVARIANT 14's
       // reasoning forbids.
       await removeQueued(item.id);
       onDrop?.(item, outcome.reason);
@@ -92,7 +92,7 @@ async function postScan(item: QueuedScan): Promise<PostOutcome> {
         // token persisted with the record is the only credential the replay
         // can present. flush used to send NO credential at all, get 401
         // UNAUTHENTICATED_DEVICE every time, and treat res.ok === false as
-        // "keep queued" — which is where the forever-retry came from.
+        // "keep queued", which is where the forever-retry came from.
         ...(item.deviceToken ? { "x-device-token": item.deviceToken } : {}),
       },
       body: JSON.stringify({

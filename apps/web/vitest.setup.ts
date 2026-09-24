@@ -24,8 +24,8 @@ const localStorageMock: Storage = {
  * load-bearing rather than stylistic.
  *
  * `vi.stubGlobal` records whatever `globalThis.localStorage` read as when this
- * file ran, and `vi.unstubAllGlobals()` — which suites here call in `afterEach`
- * to drop their `fetch` stub — puts that original back. On Node 20 (what CI
+ * file ran, and `vi.unstubAllGlobals()`, which suites here call in `afterEach`
+ * to drop their `fetch` stub, puts that original back. On Node 20 (what CI
  * runs) there is no native `localStorage`, so under jsdom the original is
  * jsdom's own working Storage and restoring it is harmless. On Node 22+ there
  * IS a native `globalThis.localStorage`: a lazy accessor that evaluates to
@@ -37,7 +37,7 @@ const localStorageMock: Storage = {
  * That failed silently in exactly the wrong way: `lib/offline-queue.ts` guards
  * its writes with `typeof localStorage === "undefined"`, correctly, so the drop
  * record was simply skipped and the suite reported "the dropped feed was not
- * recorded" — a harness artifact wearing the costume of a data-loss bug, and one
+ * recorded": a harness artifact wearing the costume of a data-loss bug, and one
  * that only appears off the CI Node version. A property vitest never registered
  * as a stub is a property `unstubAllGlobals()` cannot take away.
  */

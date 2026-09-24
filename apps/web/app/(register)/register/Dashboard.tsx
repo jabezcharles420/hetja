@@ -6,7 +6,7 @@
  * The access token lives in localStorage; Next middleware runs server-side
  * and sees only cookies/headers, so it either always redirects or never does.
  * This component is a client-side gate reading GET /feeders/me. The API is
- * the boundary — this is the courtesy.
+ * the boundary; this is the courtesy.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -26,7 +26,7 @@ function daysLeft(expiresAt?: string): number | null {
 function Countdown({ expiresAt }: { expiresAt?: string }): React.JSX.Element | null {
   const d = daysLeft(expiresAt);
   if (d === null) return null;
-  if (d <= 0) return <span style={{ color: "var(--h-accent)", fontWeight: 600 }}>Expired — scan still reactivates</span>;
+  if (d <= 0) return <span style={{ color: "var(--h-accent)", fontWeight: 600 }}>Expired. Scanning still reactivates it</span>;
   if (d <= 7) return <span style={{ color: "var(--h-accent)", fontWeight: 600 }}>{d} days left</span>;
   return <span>{d} days left</span>;
 }
@@ -58,7 +58,7 @@ function DashboardInner(): React.JSX.Element {
       <PageHeader
         kicker="Register"
         title="Your registrations"
-        intro="A registration is inert until you print the QR, laser-etch it, and scan it on the dog. The countdown is the channel that works on iOS — Web Push needs add-to-home-screen and the native shell does not exist yet, so the dashboard is the reminder."
+        intro="A registration is inert until you print the QR, laser-etch it, and scan it on the dog. The countdown is the channel that works on iOS: Web Push needs add-to-home-screen and the native shell does not exist yet, so the dashboard is the reminder."
       />
 
       <section className={`${contentStyles.section} h-container`}>
@@ -129,7 +129,7 @@ function DashboardInner(): React.JSX.Element {
         <div style={{ marginTop: "var(--h-s7)", maxWidth: 560, color: "var(--h-ink-muted)", fontSize: "var(--h-t-sm)", lineHeight: 1.6 }}>
           <p>
             Reminders are a <strong style={{ color: "var(--h-ink)" }}>days-left countdown</strong> on this page, not email. We do not store your
-            email address (INVARIANT 3) and Web Push on iOS needs add-to-home-screen — the native shell does not exist yet — so this dashboard is
+            email address (INVARIANT 3) and Web Push on iOS needs add-to-home-screen (the native shell does not exist yet), so this dashboard is
             the channel that works everywhere.
           </p>
         </div>

@@ -2,10 +2,10 @@
 
 One contract, two halves. Caddy sets the origin headers; Cloudflare Cache Rules
 honor the same paths at the edge. **/d/* (collar pages) and the API catch-all
-are `no-store` on purpose** — a collar page shows SOS state that changes
+are `no-store` on purpose**: a collar page shows SOS state that changes
 underneath it, so a stale copy is a life-safety bug, not a perf regression.
 
-## Origin half (Caddy) — `ops/caddy/Caddyfile`
+## Origin half (Caddy): `ops/caddy/Caddyfile`
 
 | Path | `Cache-Control` | Why |
 |---|---|---|
@@ -40,7 +40,7 @@ curl -sI https://hetja.in/api/v1/care?lat=19.07&lng=72.88 | grep -i cache-contro
 
 `ops/check-caddy-cache.sh` asserts the Caddy half of the contract on every
 push (no-store on `/d/*`, no `max-age` on it, 60 s on `care*`, immutable on
-`_next/static`). The Cloudflare dashboard half is manual — check it after any
+`_next/static`). The Cloudflare dashboard half is manual; check it after any
 tunnel/domain reconfiguration.
 
 ## Related: real client IPs
@@ -48,4 +48,4 @@ tunnel/domain reconfiguration.
 The same Caddy config carries the `real_ip` snippet (`header_up X-Forwarded-For
 {CF-Connecting-IP}` + `trusted_proxies cloudflare` from the
 `caddy-cloudflare-ip` module) so the API rate-limiter sees per-stranger
-addresses through the tunnel — see `ops/caddy/HOSTING.md`.
+addresses through the tunnel; see `ops/caddy/HOSTING.md`.

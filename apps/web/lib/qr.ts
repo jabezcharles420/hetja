@@ -1,24 +1,24 @@
 /**
  * QR generation for the printable collar sheet.
  *
- * Uses `qrcode-generator` (MIT, zero runtime dependencies, ~13 KB) — not
+ * Uses `qrcode-generator` (MIT, zero runtime dependencies, ~13 KB), not
  * `qrcode` (which drags in yargs/pngjs for a CLI nobody uses here).
  *
  * IMPORTANT: `apps/scan` must never import this module. The scan bundle is
  * held under a 40 KB gzipped CI gate (`pnpm --filter @hetja/scan size:gate`)
- * — the page a stranger loads on a street — and importing a QR encoder there
+ * because it is the page a stranger loads on a street, and importing a QR encoder there
  * blows it. This encoder is intentionally web-only.
  *
  * Do NOT hand-roll a Reed–Solomon encoder. Its failure mode is a code that
- * scans on the developer's iPhone and not on a ₹8,000 Android — the same class
+ * scans on the developer's iPhone and not on a ₹8,000 Android: the same class
  * of silent physical failure that AGENTS.md warns about for HETJA_QR_SECRET.
  *
  * SIZE ARITHMETIC (decides whether a tag scans in the rain)
  *
  * The collar URL is `https://hetja.in/d/` (19 chars) + slug (9) + `?s=` (3)
  * + unpadded base64url SHA-256 (43) = 74 characters of byte-mode data.
- *   Version 4 at ECC M holds 62 bytes — too small.
- *   Version 5 (37×37) at ECC M holds 106 bytes — this one.
+ *   Version 4 at ECC M holds 62 bytes, too small.
+ *   Version 5 (37×37) at ECC M holds 106 bytes: this one.
  * The spec-mandated 4-module quiet zone each side makes the SVG grid
  * 37 + 2*4 = 45 units across. At 40×40 mm that is 0.889 mm per module,
  * comfortably above the floor for laser etching and a cheap phone camera.
@@ -33,7 +33,7 @@
 
 import qrcode from "qrcode-generator";
 
-// Version 5 at ECC M — see arithmetic above.
+// Version 5 at ECC M; see arithmetic above.
 const QR_VERSION = 5 as const;
 const QR_ECC: "M" = "M";
 const QR_MODULES = 37; // version 5 => 37×37 modules
@@ -64,7 +64,7 @@ function escapeXml(s: string): string {
  * Build an SVG for a collar URL.
  *
  * Uses a single merged <path> (fewer DOM nodes, better for a slow print
- * pipeline) rather than one <rect> per dark module — both are valid; path is
+ * pipeline) rather than one <rect> per dark module. Both are valid; path is
  * chosen here. Quiet zone is left white; caller sets background.
  */
 export function buildCollarQrSvg(collarUrl: string): CollarQrSvg {
@@ -79,7 +79,7 @@ export function buildCollarQrSvg(collarUrl: string): CollarQrSvg {
     // Still render: grid becomes count + 2*QUIET, but flag label so the sheet
     // shows the real module size rather than the expected one.
     // In practice qrcode-generator with typeNumber 5 refuses to bump for 74
-    // bytes at M — this is a guard for future data-size changes.
+    // bytes at M; this is a guard for future data-size changes.
   }
 
   // Build a single path of 1×1 squares, offset by quiet zone.
@@ -89,7 +89,7 @@ export function buildCollarQrSvg(collarUrl: string): CollarQrSvg {
       if (qr.isDark(r, c)) {
         const x = c + QUIET_MODULES;
         const y = r + QUIET_MODULES;
-        // M x y h1 v1 h-1 z  — 1×1 rect as path
+        // M x y h1 v1 h-1 z  (1×1 rect as path)
         parts.push(`M${x} ${y}h1v1h-1z`);
       }
     }

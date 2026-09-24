@@ -64,7 +64,7 @@ export default function ScanEntry({
     <div className={styles.wrap}>
       {offline && (
         <p className={styles.offline} role="status">
-          No signal — profiles load from cache, and any feeds you log will sync
+          No signal. Profiles load from cache, and any feeds you log will sync
           when you&rsquo;re back.
         </p>
       )}

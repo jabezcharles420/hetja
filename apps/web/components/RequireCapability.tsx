@@ -4,7 +4,7 @@
  * Route protection is a UX boundary, not a security boundary.
  *
  * The access token lives in localStorage, and Next middleware runs
- * server-side and sees only cookies and headers — so anything built there
+ * server-side and sees only cookies and headers, so anything built there
  * either always redirects or never does. This component is a client-side
  * gate that reads GET /feeders/me and either renders its children or
  * redirects to /login. The API is the boundary; this is the courtesy.

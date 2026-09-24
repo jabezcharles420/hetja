@@ -5,7 +5,7 @@
 #
 # This gate exists because of a specific failure, not as a general tidiness
 # rule. docs/CREDITS.md and ops/RUNBOOK.md both documented a
-# `hetja-restic.timer` running daily at 02:15 IST. The timer was real — on one
+# `hetja-restic.timer` running daily at 02:15 IST. The timer was real, on one
 # hand-configured box. It was in no committed file, `ops/bootstrap.sh` did not
 # install it, and `ops/deploy-remote.sh` did not either. So a box provisioned
 # from this repository had no backups whatsoever while two documents said it
@@ -14,7 +14,7 @@
 #
 # The reverse direction matters too. A unit listed in bootstrap.sh but missing
 # from the repo makes bootstrap fail hard (it calls `fail` on a missing
-# template), which is at least loud — but catching it in CI is cheaper than
+# template), which is at least loud, but catching it in CI is cheaper than
 # catching it while provisioning.
 set -u
 cd "$(dirname "$0")/.."
@@ -27,7 +27,7 @@ fail=0
 [ -d "$UNIT_DIR" ]  || { echo "FAIL: $UNIT_DIR not found"; exit 1; }
 
 # `-printf` is a GNU find extension. BSD find (macOS) does not have it, and on a
-# failure it prints its usage to stderr and exits non-zero with EMPTY stdout — so
+# failure it prints its usage to stderr and exits non-zero with EMPTY stdout, so
 # this gate did not misreport, it reported "FAIL: no systemd units found", which
 # reads as a real repo problem rather than "this gate cannot run here". AGENTS.md
 # §a tells a developer to run the gates locally before pushing, so a macOS clone
@@ -41,7 +41,7 @@ while read -r name; do
   if grep -qF "$UNIT_DIR/$name" "$BOOTSTRAP"; then
     echo "PASS: $name is installed by bootstrap.sh"
   else
-    echo "FAIL: $UNIT_DIR/$name exists but ops/bootstrap.sh never installs it — a fresh box would not get it"
+    echo "FAIL: $UNIT_DIR/$name exists but ops/bootstrap.sh never installs it; a fresh box would not get it"
     fail=1
   fi
 done <<< "$units"

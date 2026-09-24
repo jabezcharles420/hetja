@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup-tunnel.sh — attach this VPS to a Cloudflare Tunnel for hetja.in.
+# setup-tunnel.sh: attach this VPS to a Cloudflare Tunnel for hetja.in.
 #
 # Why a tunnel: this container has no public IP. It sits on 10.10.10.101 behind
 # NAT, and the only forwarded port is SSH. External 80/443/8080 on

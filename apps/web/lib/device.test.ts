@@ -4,7 +4,7 @@
  * What went wrong, and what these tests are therefore about: the login page used
  * to send a bare `uuid()` as its device token. `POST /api/v1/auth/verify` gates
  * on `verifyDeviceToken`, whose first act is to find the `.` separating the
- * base64url deviceId from its HMAC — a UUID has none, so the guard `dot <= 0`
+ * base64url deviceId from its HMAC; a UUID has none, so the guard `dot <= 0`
  * rejected it and every web login attempt in the app's history returned 401.
  * There was no test asserting anything about the *shape* of what was sent, which
  * is precisely why it could ship and stay shipped.

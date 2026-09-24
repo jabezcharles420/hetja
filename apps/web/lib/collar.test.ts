@@ -30,21 +30,21 @@ describe("parseCollarCode", () => {
   it("rejects a code shorter than 9 characters", () => {
     expect(parseCollarCode("abc23456")).toEqual({
       ok: false,
-      error: "That code looks incomplete — it should be 9 characters",
+      error: "That code looks incomplete. It should be 9 characters",
     });
   });
 
   it("rejects a code longer than 9 characters", () => {
     expect(parseCollarCode("abc2345678")).toEqual({
       ok: false,
-      error: "That code looks incomplete — it should be 9 characters",
+      error: "That code looks incomplete. It should be 9 characters",
     });
   });
 
   it("rejects an empty code", () => {
     expect(parseCollarCode("   ")).toEqual({
       ok: false,
-      error: "That code looks incomplete — it should be 9 characters",
+      error: "That code looks incomplete. It should be 9 characters",
     });
   });
 

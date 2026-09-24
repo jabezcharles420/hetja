@@ -1,4 +1,4 @@
--- care_nearby.sql — canonical nearest-care-provider query
+-- care_nearby.sql: canonical nearest-care-provider query
 -- (GET /api/v1/care in apps/api/src/routes/care.ts, reused by
 -- POST /api/v1/reports in sos.ts, and the Supabase RPC twin
 -- public.get_nearby_care in ops/supabase/03_hardening.sql).

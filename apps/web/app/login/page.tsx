@@ -32,13 +32,13 @@ export default function LoginPage(): React.JSX.Element {
    *
    * `POST /api/v1/auth/verify` refuses to look at an OTP without one
    * (routes/auth.ts gates on `verifyDeviceToken`), and minting costs a
-   * proof-of-work solve — about a second on a desktop, a few on a cheap phone.
+   * proof-of-work solve: about a second on a desktop, a few on a cheap phone.
    * Doing it here overlaps that cost with the wait for the email instead of
    * stacking it on top of the tap the feeder is watching.
    *
    * Deliberately fire-and-forget for transient failures: the verify step calls
    * `getDeviceToken()` again and will retry then. The two permanent failures are
-   * the exception — if this browser cannot do Web Crypto at all, saying so now is
+   * the exception: if this browser cannot do Web Crypto at all, saying so now is
    * far kinder than letting someone type a code that cannot possibly be
    * accepted, so those overwrite the "code sent" message.
    */
@@ -59,7 +59,7 @@ export default function LoginPage(): React.JSX.Element {
       setDevCode(res.devCode);
       setExpiresAt(res.expiresAt);
       setStep("code");
-      setStatus(res.devCode ? `Dev build — your code is ${res.devCode}` : "Code sent to your email.");
+      setStatus(res.devCode ? `Dev build: your code is ${res.devCode}` : "Code sent to your email.");
       void warmDeviceToken();
     } catch (err) {
       setStatus(err instanceof ApiError ? err.message : "Could not send the code.");
@@ -118,7 +118,7 @@ export default function LoginPage(): React.JSX.Element {
       setStatus("Verifying…");
       const res = await submitVerify(device.token);
       // BOTH halves. This used to keep only the access token, so every session
-      // ended after JWT_ACCESS_TTL with nothing to renew it — see lib/api.ts.
+      // ended after JWT_ACCESS_TTL with nothing to renew it. See lib/api.ts.
       setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
       router.push("/me");
     } catch (err) {
@@ -135,7 +135,7 @@ export default function LoginPage(): React.JSX.Element {
       </nav>
 
       <h1 className={styles.title}>Feeder sign-in</h1>
-      <p className={styles.subtitle}>Email-based OTP — no password needed.</p>
+      <p className={styles.subtitle}>Email-based OTP, no password needed.</p>
 
       {step === "email" ? (
         <form className={styles.form} onSubmit={(e) => void requestCode(e)}>

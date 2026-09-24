@@ -21,7 +21,7 @@ const exifrMock = vi.hoisted(() => {
     state,
     // One-shot: the first gps() call models reading the ORIGINAL file (has
     // GPS); subsequent calls model re-reading the COMPRESSED output (must
-    // have none) — that is exactly what assertExifFree guards against.
+    // have none); that is exactly what assertExifFree guards against.
     gps: vi.fn(async () => {
       if (state.failGps) throw new Error("boom");
       const g = state.gps;

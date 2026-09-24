@@ -3,8 +3,8 @@
  *
  * The API previously had no `/api/v1/devices/*` route at all, so anonymous
  * POST /api/v1/reports always 401'd -- sheet.ts filed the report without a
- * device token and just showed "Couldn't confirm the report automatically
- * -- please also call below." on failure. This module gets a real token so
+ * device token and just showed "Couldn't confirm the report automatically.
+ * Please also call below." on failure. This module gets a real token so
  * that degrade path stops firing on every single report.
  *
  * Obtained *lazily*: getDeviceToken() is only called from a write path that

@@ -15,7 +15,7 @@
  * THE REFRESH FLOW EXISTED ONLY ON THE SERVER. Migration 0017 and
  * POST /api/v1/auth/refresh were built precisely because "the registrator flow
  * silently 401s when the 15-minute access token dies mid-form with no way to
- * renew it" — and then the login page stored only the access token and threw
+ * renew it". And then the login page stored only the access token and threw
  * the refresh token away, and nothing in this client ever called the route.
  * Every web session therefore died after JWT_ACCESS_TTL (15 minutes in
  * production): the next authenticated call 401'd, this module wiped the token,
@@ -67,7 +67,7 @@ export function setAccessToken(token: string | null): void {
     if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token);
     else localStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch {
-    /* storage unavailable (private mode) — auth simply won't persist */
+    /* storage unavailable (private mode); auth simply won't persist */
   }
 }
 
@@ -90,7 +90,7 @@ export function setRefreshToken(token: string | null): void {
     if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token);
     else localStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
-    /* storage unavailable (private mode) — the session simply won't persist */
+    /* storage unavailable (private mode); the session simply won't persist */
   }
 }
 
@@ -111,7 +111,7 @@ let refreshInFlight: Promise<boolean> | undefined;
 
 /**
  * Exchange the stored refresh token for a fresh pair. Resolves true when the
- * session was renewed and stored, false when it could not be — no refresh
+ * session was renewed and stored, false when it could not be: no refresh
  * token, the server refused it (REFRESH_REUSED, BAD_REFRESH_TOKEN, FEEDER_GONE),
  * or the network failed. Never throws.
  *
@@ -121,8 +121,8 @@ let refreshInFlight: Promise<boolean> | undefined;
  *
  * Single-flight: several requests can fail on the same expired access token in
  * the same tick (the /me page fires two). Each refresh token is one-time-use
- * on the server — presenting it twice is treated as theft and revokes every
- * session the feeder holds — so the second caller must WAIT for the first
+ * on the server (presenting it twice is treated as theft and revokes every
+ * session the feeder holds), so the second caller must WAIT for the first
  * exchange, not race it with the same token.
  */
 export async function refreshSession(): Promise<boolean> {
@@ -171,7 +171,7 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   auth?: boolean;
-  /** Override the deadline. `0` disables it — use only where a caller imposes its own. */
+  /** Override the deadline. `0` disables it; use only where a caller imposes its own. */
   timeoutMs?: number;
   /** Sent as `x-device-token` for endpoints that accept device attestation. */
   deviceToken?: string;
@@ -241,7 +241,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     }
   }
   // The API accepts a feeder Bearer token OR an attested device token. Sending
-  // both is harmless — the route prefers the Bearer — and it means a signed-in
+  // both is harmless (the route prefers the Bearer), and it means a signed-in
   // feeder whose access token has expired still gets the anonymous path rather
   // than a hard 401.
   if (deviceToken) headers["x-device-token"] = deviceToken;
@@ -253,8 +253,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       // `fetch` does NOT time out on its own. A refused connection rejects
-      // quickly, but a socket that opens and then stalls — the normal failure on
-      // a congested cell network, rather than a clean refusal — hangs until the
+      // quickly, but a socket that opens and then stalls (the normal failure on
+      // a congested cell network, rather than a clean refusal) hangs until the
       // browser's own limit, which is minutes. On the SOS modal that meant the
       // button sat disabled reading "Sending SOS…" indefinitely, on the one
       // screen where the user has to learn it failed so they can phone a vet
@@ -268,8 +268,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
     throw new ApiError(
       timedOut
-        ? "Hetja took too long to respond — try again."
-        : "Could not reach Hetja — check your connection.",
+        ? "Hetja took too long to respond. Try again."
+        : "Could not reach Hetja. Check your connection.",
       {
         status: timedOut ? 408 : 0,
         code: timedOut ? "TIMEOUT" : "NETWORK_ERROR",
@@ -478,7 +478,7 @@ export interface FeederMe {
   canRegister: boolean;
   registrationBudget: { pending: number; max: number };
   capabilities: string[];
-  /** SOS responder consent — the ONLY gate on being paged (routes/sos.ts fan-out). */
+  /** SOS responder consent: the ONLY gate on being paged (routes/sos.ts fan-out). */
   sosOptIn: boolean;
 }
 
@@ -522,7 +522,7 @@ export const api = {
    *
    * 401s here are about the proof of work, not about any session: BAD_POW,
    * CHALLENGE_EXPIRED, CHALLENGE_REUSED. The challenge must be handed back
-   * byte-identical to what the server issued — it carries an HMAC over its own
+   * byte-identical to what the server issued: it carries an HMAC over its own
    * parameters, so re-serialising a mutated copy fails with BAD_CHALLENGE.
    */
   requestDeviceToken: (input: { challenge: PowChallenge; solution: PowSolution }) =>
@@ -542,7 +542,7 @@ export const api = {
    *
    * The server accepts a feeder Bearer OR an `x-device-token` header
    * (apps/api/src/routes/scans.ts). This client used to send ONLY the Bearer,
-   * so an ANONYMOUS feed returned 401 UNAUTHENTICATED_DEVICE — and because the
+   * so an ANONYMOUS feed returned 401 UNAUTHENTICATED_DEVICE, and because the
    * offline queue treated that as retryable, every queued record re-uploaded
    * its photo bytes on every app open, forever, and was never accepted once.
    *
@@ -550,8 +550,8 @@ export const api = {
    * mints a device token when the feed is captured (bestEffortDeviceToken),
    * enqueueFeed persists it with the queued record (IndexedDB schema v2), and
    * flush replays it via `opts.deviceToken`. Minting here, on the REPLAY path,
-   * would still be the wrong shape — a proof-of-work round trip per queued
-   * record per flush — so the replay only ever presents what capture stored.
+   * would still be the wrong shape (a proof-of-work round trip per queued
+   * record per flush), so the replay only ever presents what capture stored.
    * Tokenless records queued before schema v2 cannot be retroactively
    * attested; offline-queue drops them through recordDroppedFeed instead of
    * retrying them forever. See lib/offline-queue.ts and components/FeedButton.tsx.
@@ -566,8 +566,8 @@ export const api = {
    *
    * `deviceToken` in the body is REQUIRED for an anonymous caller
    * (apps/api/src/routes/sos.ts returns 401 UNAUTHENTICATED_DEVICE without it).
-   * This client never sent one, so the single primary action on the dog page —
-   * "This dog needs help" — failed for exactly the persona the page exists for:
+   * This client never sent one, so the single primary action on the dog page,
+   * "This dog needs help", failed for exactly the persona the page exists for:
    * a stranger with no account. The user was shown the raw server string
    * "attested device token required", on a screen that deliberately strips all
    * navigation, so there was not even a way to sign in from there.
@@ -608,7 +608,7 @@ export const api = {
   /**
    * Update own profile. `PATCH /api/v1/feeders/me` is strict: at least one of
    * the two fields, nothing else. `sosOptIn` is THE consent surface for the SOS
-   * fan-out — `feeders.sos_opt_in` defaults to false and nothing else writes
+   * fan-out: `feeders.sos_opt_in` defaults to false and nothing else writes
    * it, so until the web exposed this no feeder could ever be paged.
    */
   updateFeederMe: (input: { sosOptIn?: boolean; displayName?: string }) =>

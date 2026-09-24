@@ -19,8 +19,8 @@ vi.mock("@/lib/photo", () => ({
 
 // FeedButton mints the device token at CAPTURE time (the capture-time
 // attestation fix) via bestEffortDeviceToken, which lazily imports this module.
-// Without the mock the real mint would run here — a network round trip plus a
-// proof-of-work solve — and every test would hang in "Logging feed…".
+// Without the mock the real mint would run here (a network round trip plus a
+// proof-of-work solve) and every test would hang in "Logging feed…".
 vi.mock("@/lib/device", () => ({
   getDeviceToken: vi.fn(async () => ({ ok: true, token: "tok-at-capture" })),
 }));
@@ -123,7 +123,7 @@ describe("FeedButton", () => {
 
   it("falls back to ward-coarsened photo EXIF GPS when there is no consented fix", async () => {
     // captureGeo resolves undefined when the browser prompt is denied, dismissed
-    // or times out. The photo's ward-level point is better than nothing there —
+    // or times out. The photo's ward-level point is better than nothing there;
     // it stays coarsened on purpose, because photo EXIF is a silent, unconsented
     // channel and the capture may not be where the feeder is standing.
     captureGeoMock.mockResolvedValueOnce(undefined);

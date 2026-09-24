@@ -7,8 +7,8 @@
  *   const FILES = ["dist/index.html", "dist/main.js", "dist/service-worker.js"];
  *
  * which measured the bundle only as long as the bundle had exactly those three
- * files. The moment anything is code-split — and `import()` is the correct fix
- * for keeping non-critical work off this page's critical path — esbuild emits an
+ * files. The moment anything is code-split (and `import()` is the correct fix
+ * for keeping non-critical work off this page's critical path), esbuild emits an
  * extra chunk that the gate silently stopped counting. So the gate became MORE
  * permissive precisely when splitting started, and a chunk could grow without
  * limit while CI reported the budget intact.
@@ -27,7 +27,7 @@ const MAX_BYTES = 40 * 1024;
 
 /**
  * Artifacts that are not part of what a visitor downloads for a page view.
- * Deliberately a short, explicit list — anything not named here counts.
+ * Deliberately a short, explicit list: anything not named here counts.
  */
 const EXCLUDE = [
   /\.map$/, // source maps: never requested by a browser unless devtools is open

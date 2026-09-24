@@ -133,7 +133,7 @@ type Probe = {
 };
 
 for (const route of STATIC_ROUTES) {
-  test.describe(`mobile layout @390px — ${route}`, () => {
+  test.describe(`mobile layout @390px: ${route}`, () => {
     let probe: Probe;
 
     test.beforeEach(async ({ page }) => {

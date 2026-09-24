@@ -3,7 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import styles from "@/components/Content.module.css";
 
 export const metadata: Metadata = {
-  title: "Privacy — Hetja",
+  title: "Privacy · Hetja",
   description:
     "How Hetja handles your data under the Digital Personal Data Protection Act: hashed email addresses, coarsened location, clear access tiers, and erasure rights.",
 };
@@ -19,7 +19,7 @@ const STORED_POINTS = [
   },
   {
     title: "Location, coarsened",
-    text: "We only keep location at ward or cell level — the same grain as a neighbourhood. Exact coordinates are never stored, on any tier.",
+    text: "We only keep location at ward or cell level, the same grain as a neighbourhood. Exact coordinates are never stored, on any tier.",
   },
   {
     title: "The medical ledger",
@@ -30,7 +30,7 @@ const STORED_POINTS = [
 const GEO_TIERS = [
   {
     scope: "Ward",
-    text: "Your feed is attached to the ward where the dog lives — enough to coordinate with other feeders, and nothing more.",
+    text: "Your feed is attached to the ward where the dog lives: enough to coordinate with other feeders, and nothing more.",
   },
   {
     scope: "Cell",
@@ -38,7 +38,7 @@ const GEO_TIERS = [
   },
   {
     scope: "Never exact",
-    text: "No one — not even Hetja staff — can look up where you stood when you logged a feed.",
+    text: "No one, not even Hetja staff, can look up where you stood when you logged a feed.",
   },
 ];
 
@@ -47,13 +47,13 @@ const ACCESS_TIERS = [
     name: "Everyone (public)",
     scope: "Read · dog profile",
     pill: styles.tierScopeMint,
-    text: "The dog's name, ward, status, verified medical records, and micro-story are public. That's the point — the network works because anyone can look.",
+    text: "The dog's name, ward, status, verified medical records, and micro-story are public. That's the point: the network works because anyone can look.",
   },
   {
     name: "Feeders",
     scope: "Read · their own log",
     pill: styles.tierScopeCoral,
-    text: "You can always see your own feed history, streaks, and trust score. Other feeders are shown only by first name and ward — never an email address.",
+    text: "You can always see your own feed history, streaks, and trust score. Other feeders are shown only by first name and ward, never an email address.",
   },
   {
     name: "Vets",
@@ -72,7 +72,7 @@ const ACCESS_TIERS = [
 const RIGHTS = [
   {
     title: "Access",
-    text: "Ask us and we'll show you exactly what we hold about you — it's usually just your hashed email address and your act log.",
+    text: "Ask us and we'll show you exactly what we hold about you. It's usually just your hashed email address and your act log.",
   },
   {
     title: "Correction",
@@ -80,7 +80,7 @@ const RIGHTS = [
   },
   {
     title: "Erasure",
-    text: "Request deletion and we remove your personal data — your hashed email address, your act log, your feed history — within 30 days.",
+    text: "Request deletion and we remove your personal data (your hashed email address, your act log, your feed history) within 30 days.",
   },
   {
     title: "Consent",
@@ -136,7 +136,7 @@ export default function PrivacyPage(): React.JSX.Element {
           <span className="h-pill h-pill-amber">Who sees what</span>
           <h2 className={styles.title2}>Access is a ladder, not a free-for-all.</h2>
           <p className={styles.sub}>
-            More responsibility means more access — and more of your identity on the line.
+            More responsibility means more access, and more of your identity on the line.
           </p>
         </div>
         <div className={styles.grid2}>

@@ -14,7 +14,7 @@ Type=simple
 WorkingDirectory=/srv/hetja/current/web/apps/web
 Environment=NODE_ENV=production
 Environment=PORT=3100
-# Bind to loopback only — Caddy terminates TLS and reverse-proxies to it.
+# Bind to loopback only; Caddy terminates TLS and reverse-proxies to it.
 # Exposing :3100 directly would serve the PWA over plain HTTP, which breaks
 # service-worker registration and geolocation (both need a secure context).
 Environment=HOSTNAME=127.0.0.1

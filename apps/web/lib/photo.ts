@@ -4,8 +4,8 @@
  * When a feeder picks a photo, three things happen before a single byte
  * leaves the browser:
  *
- *   1. READ — exifr extracts orientation + GPS from the original file.
- *   2. COARSEN — photo GPS is a *silent* data channel: the capture may have
+ *   1. READ: exifr extracts orientation + GPS from the original file.
+ *   2. COARSEN: photo GPS is a *silent* data channel: the capture may have
  *      been taken somewhere other than where the feeder is standing, so it
  *      is truncated to ward (≤2 decimals) via @hetja/contracts'
  *      `coarsenToWard`. The feeder's own device location is a separate,
@@ -15,7 +15,7 @@
  *      and only falls back to this value when there is not, because what the
  *      scan route stores becomes the centre of the SOS responder fan-out.
  *      See the precedence comment in components/FeedButton.tsx.
- *   3. COMPRESS + STRIP — compressorjs re-encodes through a fresh <canvas>.
+ *   3. COMPRESS + STRIP: compressorjs re-encodes through a fresh <canvas>.
  *      `retainExif: false` means the output carries no EXIF/GPS at all.
  *      Verified against the library source: the ONLY code path that
  *      re-inserts EXIF (src/index.js) is guarded by `options.retainExif`,
@@ -42,7 +42,7 @@ const MAX_DIMENSION = 1600;
 
 let webpSupport: boolean | null = null;
 
-/** Cached feature probe — `canvas.toBlob` falls back to PNG for unsupported
+/** Cached feature probe: `canvas.toBlob` falls back to PNG for unsupported
  *  mime types, which would silently blow the size target, so we only ask for
  *  WebP when the browser can actually encode it. */
 export function supportsWebp(): boolean {
@@ -69,14 +69,14 @@ export async function extractExifGeo(file: File): Promise<{ lat: number; lng: nu
       return coarsenToWard(gps.latitude, gps.longitude);
     }
   } catch {
-    /* not an image we can read, or no GPS block — nothing to coarsen */
+    /* not an image we can read, or no GPS block; nothing to coarsen */
   }
   return undefined;
 }
 
 /** Re-encode the image through a fresh canvas: auto-oriented, EXIF-stripped
  *  (`retainExif: false`), WebP when supported else JPEG, quality 0.8, capped
- *  at 1600px. `strict: false` is deliberate — the "return the original"
+ *  at 1600px. `strict: false` is deliberate: the "return the original"
  *  escape hatch would hand back a file that still carries EXIF. */
 export function compressPhoto(file: File): Promise<Blob> {
   const mimeType = supportsWebp() ? WEBP_MIME : JPEG_MIME;
@@ -97,7 +97,7 @@ export function compressPhoto(file: File): Promise<Blob> {
         });
       })
       // Without this the executor could finish having called NEITHER resolve nor
-      // reject, and a promise that never settles never rejects — it just hangs.
+      // reject, and a promise that never settles never rejects; it just hangs.
       // `compressorjs` is a dynamic import, so on a flaky connection where the
       // chunk is not already cached this fails with a ChunkLoadError, which is
       // exactly the network the feeder is on. `prepareFeedPhoto`'s Promise.all
@@ -126,7 +126,7 @@ export async function assertExifFree(blob: Blob): Promise<void> {
     if (err instanceof Error && err.message === "compressed photo still carries EXIF metadata") {
       throw err;
     }
-    /* unreadable output (e.g. an opaque format) — the compressorjs strip is
+    /* unreadable output (e.g. an opaque format); the compressorjs strip is
      * the primary defense and already ran; do not fail the upload on it. */
   }
 }

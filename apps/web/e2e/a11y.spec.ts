@@ -49,7 +49,7 @@ function formatResults(route: string, results: AxeResult[]): string {
   if (results.length === 0) return `none on ${route}`;
   const lines: string[] = [`${results.length} finding(s) on ${route} at 390x844:`, ""];
   for (const v of results) {
-    lines.push(`  [${v.impact ?? "no impact"}] ${v.id} — ${v.help}`);
+    lines.push(`  [${v.impact ?? "no impact"}] ${v.id}: ${v.help}`);
     lines.push(`    ${v.helpUrl}`);
     for (const node of v.nodes) {
       lines.push(`    at: ${node.target.map((t) => String(t)).join(" >> ")}`);
@@ -65,7 +65,7 @@ function formatResults(route: string, results: AxeResult[]): string {
 }
 
 for (const route of STATIC_ROUTES) {
-  test(`no serious or critical WCAG-AA violations — ${route}`, async ({ page }, testInfo) => {
+  test(`no serious or critical WCAG-AA violations: ${route}`, async ({ page }, testInfo) => {
     await page.goto(route, { waitUntil: "load" });
     /* Fonts matter here as well as in the layout spec: axe's colour-contrast
      * rule samples rendered pixels, and a font swap part-way through analysis
@@ -100,14 +100,14 @@ for (const route of STATIC_ROUTES) {
      *   - `.Content_check` / `.Content_offlineCheck`
      *     (`<span aria-hidden="true">✓</span>`, /about and /how-it-works).
      *     Reason `nonBmp`. Already aria-hidden, and the real pair is #0f6b3f on
-     *     #ffffff (~5.9:1) — nothing to fix.
+     *     #ffffff (~5.9:1), so nothing to fix.
      *
      * Making the bucket blocking would fail the build on two decorative glyphs
      * while telling us nothing true, and would fail unpredictably in future on
      * any element whose background axe cannot resolve. So every incomplete
      * result is attached to the report instead: visible on every run, and a NEW
      * one cannot slip past unnoticed, but it does not turn the build red by
-     * itself. If one turns out to be a genuine failure, fix the page — do not
+     * itself. If one turns out to be a genuine failure, fix the page; do not
      * promote the whole bucket. */
     const advisory = [...lowerImpact, ...results.incomplete];
     if (advisory.length > 0) {
@@ -122,12 +122,12 @@ for (const route of STATIC_ROUTES) {
 
     /* Sanity check that axe actually ran. An AxeBuilder that fails to inject,
      * or a tag list with a typo in it, produces zero violations and zero
-     * passes — indistinguishable from a clean page in the reporter output.
+     * passes, indistinguishable from a clean page in the reporter output.
      * Without this, the whole gate can silently become a no-op. */
     expect(
       results.passes.length,
       `axe reported no passing rules on ${route}, which means it did not really ` +
-        `run — check the tag list in WCAG_AA_TAGS and that the page rendered.`,
+        `run. Check the tag list in WCAG_AA_TAGS and that the page rendered.`,
     ).toBeGreaterThan(0);
 
     expect(blocking, formatResults(route, blocking)).toEqual([]);

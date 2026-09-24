@@ -15,7 +15,7 @@ const SEVERITIES: { value: SosSeverity; label: string; hint: string }[] = [
   {
     value: "minor",
     label: "Minor",
-    hint: "Something's off — a limp, a rash, a new cough.",
+    hint: "Something's off: a limp, a rash, a new cough.",
   },
   {
     value: "serious",
@@ -25,7 +25,7 @@ const SEVERITIES: { value: SosSeverity; label: string; hint: string }[] = [
   {
     value: "critical",
     label: "Critical",
-    hint: "Immediate danger — this fans out to responders now.",
+    hint: "Immediate danger. This fans out to responders now.",
   },
 ];
 
@@ -58,7 +58,7 @@ export default function SosModal({
     }
   }, []);
 
-  // Focus management for the emergency dialog — the one a blind or motor-
+  // Focus management for the emergency dialog, the one a blind or motor-
   // impaired user may open standing over a hurt dog. The scan page's sheet
   // (apps/scan/src/sheet.ts) already does all of this; this modal had none of
   // it: focus stayed on the trigger behind an `aria-modal="true"` dialog, Tab
@@ -150,11 +150,11 @@ export default function SosModal({
         setConfirmed(result);
       } else {
         setStatus(
-          "An open SOS case already exists for this dog — a neighbour is already on it.",
+          "An open SOS case already exists for this dog. A neighbour is already on it.",
         );
       }
     } catch (err) {
-      setStatus(err instanceof ApiError ? err.message : "SOS failed — please call a trusted vet.");
+      setStatus(err instanceof ApiError ? err.message : "SOS failed. Please call a trusted vet.");
     } finally {
       setBusy(false);
     }
@@ -177,8 +177,8 @@ export default function SosModal({
           </div>
           <h2 className={styles.title}>SOS sent</h2>
           <p className={styles.confirmBody}>
-            Case <strong>{confirmed.caseId.slice(0, 8)}</strong> is open. Help is on the way —
-            you can leave your phone aside now.
+            Case <strong>{confirmed.caseId.slice(0, 8)}</strong> is open. Help is on the way.
+            You can leave your phone aside now.
           </p>
           <button type="button" className={styles.send} onClick={close}>
             Done

@@ -3,9 +3,9 @@ import QrScanner from "@/components/QrScanner";
 import styles from "./scan.module.css";
 
 export const metadata: Metadata = {
-  title: "Scan a collar — Hetja",
+  title: "Scan a collar · Hetja",
   description:
-    "Scan a collar's QR — in the app where your browser supports it, or with your phone's own camera app — or type the 9-character code, to meet the dog behind it.",
+    "Scan a collar's QR (in the app where your browser supports it, or with your phone's own camera app) or type the 9-character code to meet the dog behind it.",
 };
 
 function CameraArt(): React.JSX.Element {
@@ -39,7 +39,7 @@ export default function ScanPage(): React.JSX.Element {
         </div>
         <h1 className={styles.title}>Meet the dog behind the collar.</h1>
         <p className={styles.sub}>
-          Scan the QR on a dog&rsquo;s collar to open their profile — or type
+          Scan the QR on a dog&rsquo;s collar to open their profile, or type
           the 9-character code below. It works even with no signal.
         </p>
       </section>

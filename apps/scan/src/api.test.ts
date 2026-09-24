@@ -5,11 +5,11 @@
  * (`d.vaccine` as an object, `d.photoUrl`, `d.sex`, `d.approxAge`,
  * `d.coatPattern`, `d.vibe`) while GET /api/v1/dogs/:slug returns `photoKey`
  * and `vaccineStatus`. Net effect on the live page: no dog photo ever
- * rendered and vaccination always read "Unknown" — on the zero-framework
+ * rendered and vaccination always read "Unknown" on the zero-framework
  * surface strangers actually use, while apps/web (which reads the correct
  * names) looked fine. Nothing failed loudly; the payload simply mapped to
- * empty strings. These tests feed the EXACT payload dogs.ts builds — field
- * names copied from DogPagePayload, not paraphrased — so any drift between
+ * empty strings. These tests feed the EXACT payload dogs.ts builds (field
+ * names copied from DogPagePayload, not paraphrased), so any drift between
  * the two files fails here instead of silently blanking the page again.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -4,25 +4,25 @@ A Hetja collar is a physical object that spends months on a street dog in a
 Mumbai monsoon, being rubbed against railings and walls. This document is the
 recipe for making one that still scans.
 
-## Material — TPU Shore 95A, laser-etched
+## Material: TPU Shore 95A, laser-etched
 
 Use thermoplastic polyurethane (TPU) at Shore hardness 95A. It is the only
-material we have validated for this use. **Never a paper label** — see
+material we have validated for this use. **Never a paper label**; see
 `docs/research/RESEARCH-1.md §2.4`: a paper label waterlogs, peels, and is gone
 within a week of rain. A TPU tag survives pressure washing.
 
 Etch, do not print with ink. Laser etching cuts the code into the material so
 there is no ink to fade or bleed. The QR must remain high-contrast black on
-white after etching — the white is the TPU base (`--h-base`), the black is
+white after etching. The white is the TPU base (`--h-base`), the black is
 `--h-ink`, both defined in `packages/design/tokens.css`.
 
-## The QR — Version 5 (37×37) at ECC M
+## The QR: Version 5 (37×37) at ECC M
 
 The collar URL is `https://hetja.in/d/` (19 chars) + slug (9) + `?s=` (3) +
 unpadded base64url SHA-256 HMAC (43) = **74 characters** of byte-mode data.
 
-- Version 4 at ECC M holds 62 bytes — too small.
-- **Version 5 (37×37) at ECC M holds 106 bytes — use that.**
+- Version 4 at ECC M holds 62 bytes, which is too small.
+- **Version 5 (37×37) at ECC M holds 106 bytes. Use that.**
 - Plus the spec-mandated **4-module quiet zone** each side: 37 + 2×4 = **45
   units across**.
 
@@ -43,7 +43,7 @@ pipeline) are both valid.
 failing on low-end devices.
 
 Implementation: `apps/web/lib/qr.ts` (`buildCollarQrSvg`) encodes at version 5
-ECC M via `qrcode-generator`. `apps/scan` must never import it — INVARIANT 13’s
+ECC M via `qrcode-generator`. `apps/scan` must never import it, because of INVARIANT 13’s
 40 KB budget.
 
 ## The printable sheet
@@ -55,7 +55,7 @@ survives reload.
 - Cut lines (hairline) at the sheet border.
 - The QR (40 × 40 mm).
 - The 9-character slug as the **typeable fallback** in `.h-plate` with
-  `--h-num-tabular` — a stranger must be able to type it when the QR is dirty.
+  `--h-num-tabular`; a stranger must be able to type it when the QR is dirty.
 - Design tokens only (`packages/design/tokens.css`): `--h-ink` modules on
   `--h-base`, and `--h-accent` on the Print button and nowhere else (one accent
   per screen).
@@ -69,7 +69,7 @@ sheet is a wasted sheet of TPU).
 
 ## Fitting
 
-- Two-finger fit between collar and neck — snug enough not to snag, loose enough
+- Two-finger fit between collar and neck: snug enough not to snag, loose enough
   not to choke.
 - Breakaway or elastic section so the dog can free itself if the collar catches.
 
@@ -80,7 +80,7 @@ implant (see `docs/research/RESEARCH-1.md §2.4`).
 
 A replacement **keeps the slug**. `GET /api/v1/registrations/:slug` returns the
 same `collarUrl` forever, so every tag already in the field keeps working. Do
-not generate a new slug for a reprint — reprint the same QR.
+not generate a new slug for a reprint; reprint the same QR.
 
 ## Physical verification
 
@@ -88,6 +88,6 @@ After etching, scan the tag with a cheap Android phone’s native camera (not
 only a developer iPhone). If it does not decode to
 `https://hetja.in/d/<slug>?s=<sig>` byte for byte, re-etch. Playwright test
 `apps/web/e2e/collar-print.spec.ts` builds the SVG for a known slug+signature
-and asserts `BarcodeDetector` returns the exact URL — no server, no database,
+and asserts `BarcodeDetector` returns the exact URL, with no server, no database,
 no auth. It is the only thing standing between us and a thousand etched tags
 that do not scan.

@@ -55,7 +55,7 @@ function countVisit(): void {
     localStorage.setItem(LAST_VISIT_KEY, String(now));
     localStorage.setItem(VISIT_KEY, String(readVisitCount() + 1));
   } catch {
-    /* storage unavailable — skip counting, never block the UI */
+    /* storage unavailable; skip counting, never block the UI */
   }
 }
 
@@ -94,7 +94,7 @@ export function useInstallPrompt(): InstallPrompt {
       await prompt.prompt();
       await prompt.userChoice;
     } catch {
-      /* the prompt was already shown or rejected — nothing to recover */
+      /* the prompt was already shown or rejected; nothing to recover */
     }
   }, []);
 

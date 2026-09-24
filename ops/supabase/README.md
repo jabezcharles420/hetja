@@ -1,7 +1,7 @@
-# Supabase — Hetja's schema mirror
+# Supabase: Hetja's schema mirror
 
 > **Status (2026-09):** the AUTHORITATIVE database is the local PostgreSQL 16
-> cluster on the box (`PGHOST=127.0.0.1`, `PGDATABASE=hetja` — AGENTS.md §b).
+> cluster on the box (`PGHOST=127.0.0.1`, `PGDATABASE=hetja`; AGENTS.md §b).
 > The Supabase project holds a mirror of the schema, receives every migration
 > from the deploy pipeline's Migrate job, and **serves no reads today**. The
 > plan is to repoint after the VPS itself moves to India. The rest of this file
@@ -10,7 +10,7 @@
 > local Postgres to install") was the stale claim AGENTS.md §b calls out.
 >
 > `01_schema.sql` was generated from the pilot database at migration 0009 and
-> is not regenerated per migration — the Migrate job applies
+> is not regenerated per migration; the Migrate job applies
 > `packages/db/migrations/*.sql` to the project directly, so a live project is
 > current; a project bootstrapped from `01_schema.sql` alone is not. Regenerate
 > it (`pg_dump --schema-only --no-owner --no-privileges` from a fully migrated
@@ -60,7 +60,7 @@ Steps, in order:
 ### Two things that will silently ruin the migration
 
 **`HETJA_QR_SECRET` must be carried over, never regenerated.** It is the key
-that signs collar QR signatures. A fresh value does not error — it just makes
+that signs collar QR signatures. A fresh value does not error; it just makes
 every printed tag fail verification, discovered only when a stranger scans a real
 collar. `cutover.sh` reads it from `apps/api/.env.production` and refuses to
 proceed if it is missing.
@@ -79,7 +79,7 @@ append-only by design, so test medical rows are permanent). Of 88 dogs, 78 were
 test-generated. None of that is migrated.
 
 If you find an `02_data.sql` lying around, it is a snapshot of that residue from
-the first Singapore migration. Do not apply it — it sorts between `01` and `03`
+the first Singapore migration. Do not apply it: it sorts between `01` and `03`
 and will quietly reintroduce 78 test dogs. It is gitignored and should be deleted.
 
 ## Connecting
@@ -113,11 +113,11 @@ of them. Re-check these if you regenerate `01_schema.sql`:
    breaks both spatial indexes.
 3. **`CREATE SCHEMA public`** already exists.
 4. **Encoding.** The pilot cluster is `SQL_ASCII`; Supabase is `UTF8`. The dump
-   was verified pure ASCII — re-check after real Devanagari names are entered.
+   was verified pure ASCII; re-check after real Devanagari names are entered.
 5. **Privileges.** `0001_init.sql` enforced INVARIANT 9 with
    `REVOKE UPDATE, DELETE ON medical_records FROM app_user`. `pg_dump
    --no-privileges` drops it and `app_user` does not exist on Supabase, so it is
-   a `BEFORE UPDATE OR DELETE` trigger in `03_hardening.sql` instead — which
+   a `BEFORE UPDATE OR DELETE` trigger in `03_hardening.sql` instead, which
    binds every role, including `postgres`.
 
 ## The security model
@@ -128,7 +128,7 @@ Every table therefore has RLS with **no anon policy** (deny-all) plus an explici
 what the API enforced in code:
 
 - verify the collar HMAC (the SQL twin of `verifySlugSig`), so random 9-character
-  slugs cannot be enumerated — an invalid signature returns no rows rather than a
+  slugs cannot be enumerated: an invalid signature returns no rows rather than a
   404, so it does not even confirm a slug exists
 - coarsen coordinates to 2 decimal places (~1.1 km), matching `coarsenToWard`
 - return only verified medical records and moderated stories

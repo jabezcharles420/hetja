@@ -13,7 +13,7 @@ export interface FeedButtonProps {
 type FeedStatus = { kind: "busy" | "success" | "queued" | "error"; text: string } | null;
 
 /**
- * "Log a feed" — deliberately a plain text link, not a button. Feeders are
+ * "Log a feed" is deliberately a plain text link, not a button. Feeders are
  * repeat users who already know to look for it; a stranger scanning a
  * collar for the first time must not have to choose between this and the
  * one primary action (§3.3).
@@ -58,7 +58,7 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
         // radius"). Preferring a ≤2-decimal (~1.1 km) photo point over an
         // available precise fix therefore stored a location up to ~1 km wrong,
         // centred the SOS circle up to ~1.5 km from the dog, dropped the nearest
-        // responders and paged people a kilometre the wrong way — and under LWW
+        // responders and paged people a kilometre the wrong way, and under LWW
         // (INVARIANT 4) that coarse point also overwrote an earlier precise one.
         //
         // This is not a change to what gets PUBLISHED. INVARIANT 2 is enforced
@@ -83,7 +83,7 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
         // Mint the device token HERE, at capture time, not during a later
         // flush. POST /api/v1/scans needs a Bearer OR this token, and the
         // replay path cannot know whether the feeder will still be signed in
-        // when connectivity returns — an anonymous queued feed without one
+        // when connectivity returns. An anonymous queued feed without one
         // was 401'd on every flush forever, re-uploading its photo bytes each
         // time. bestEffortDeviceToken never throws and resolves undefined on
         // failure (offline capture with nothing cached): such a record still
@@ -100,13 +100,13 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
         if (wentOffline) {
           setStatus({
             kind: "queued",
-            text: "Feed saved offline — it will upload when you're back online.",
+            text: "Feed saved offline. It will upload when you're back online.",
           });
         } else {
           setStatus({ kind: "success", text: "Feed logged ♥" });
         }
       } catch {
-        setStatus({ kind: "error", text: "Could not log feed — try again." });
+        setStatus({ kind: "error", text: "Could not log feed. Try again." });
       } finally {
         setBusy(false);
       }
@@ -128,7 +128,7 @@ export default function FeedButton({ dogSlug }: FeedButtonProps): React.JSX.Elem
       >
         {busy ? "Logging…" : "Log a feed"}
         {offline && (
-          <span className={styles.offlineBadge} aria-label="Offline — feeds will queue locally">
+          <span className={styles.offlineBadge} aria-label="Offline: feeds will queue locally">
             (offline)
           </span>
         )}

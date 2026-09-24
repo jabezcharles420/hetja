@@ -108,7 +108,7 @@
   align-items: center;
 }
 
-/* A quiet, bordered blockquote — no dark fill panel. */
+/* A quiet, bordered blockquote, no dark fill panel. */
 .forestQuote {
   background: var(--h-base);
   color: var(--h-ink);

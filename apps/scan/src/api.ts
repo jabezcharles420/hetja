@@ -1,6 +1,6 @@
 export interface VaccineStatus {
   /**
-   * True when GET /api/v1/dogs/:slug returned a `vaccineStatus` at all — which
+   * True when GET /api/v1/dogs/:slug returned a `vaccineStatus` at all, which
    * the route only builds from a VERIFIED medical_records row. It means "a
    * verified vaccination is on file", not "the course is still current"; the
    * date in `label` is what a reader judges currency from.
@@ -46,8 +46,8 @@ const API_BASE = (() => {
 })();
 
 /**
- * Origin dog photos hang off, derived from the same base the JSON client uses
- * — the same arithmetic as apps/web/lib/api.ts's dogPhotoUrl(), which builds
+ * Origin dog photos hang off, derived from the same base the JSON client uses:
+ * the same arithmetic as apps/web/lib/api.ts's dogPhotoUrl(), which builds
  * `${API_ORIGIN}/${photoKey}`. Storage keys are `photos/<uuid>.<ext>` served
  * from the site root (Caddy file_server), so with the default same-origin
  * base this is "" and a photo URL is simply "/photos/…". normalizeProfile used
@@ -79,8 +79,8 @@ function extractData(body: unknown): Record<string, unknown> {
  * the collar page renders. The payload is: slug, name, status, wardId,
  * photoKey, abcStatus, vaccineStatus, microStory, lastSeenAt, geo.
  *
- * This used to read fields the API has never sent — `d.vaccine` (object),
- * `d.photoUrl`, `d.sex`, `d.approxAge`, `d.coatPattern`, `d.vibe` — so the
+ * This used to read fields the API has never sent (`d.vaccine` as an object,
+ * `d.photoUrl`, `d.sex`, `d.approxAge`, `d.coatPattern`, `d.vibe`), so the
  * photo never rendered and vaccination always read "Unknown" on exactly the
  * surface strangers actually use. Field names here must mirror dogs.ts; a
  * test pins the mapping against a real payload.
@@ -110,7 +110,7 @@ function photoUrlFromKey(photoKey?: string): string | undefined {
 }
 
 /**
- * `vaccineStatus` is a display string ("Anti-Rabies · 2026-01-15") or null —
+ * `vaccineStatus` is a display string ("Anti-Rabies · 2026-01-15") or null,
  * never the object this file once expected under `d.vaccine`. Presence of the
  * string already means a verified record exists (see VaccineStatus.upToDate);
  * what is left here is splitting off the date so speech and the parsed hints

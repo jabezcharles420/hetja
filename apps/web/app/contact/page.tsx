@@ -4,15 +4,15 @@ import PawIllustration from "@/components/PawIllustration";
 import styles from "@/components/Content.module.css";
 
 export const metadata: Metadata = {
-  title: "Contact — Hetja",
+  title: "Contact · Hetja",
   description:
-    "Reach the Hetja team at hello@hetja.in. NGOs, vets, and BMC — let's talk about rolling the collar programme out to your territory.",
+    "Reach the Hetja team at hello@hetja.in. NGOs, vets, and BMC: let's talk about rolling the collar programme out to your territory.",
 };
 
 const PARTNER_POINTS = [
-  "NGOs & shelters — collar deployment and ABC drive data for your territory.",
-  "Vets — clinic onboarding, ledger access, and verification flows.",
-  "BMC & authorities — honest, ward-level coverage data for planning.",
+  "NGOs & shelters: collar deployment and ABC drive data for your territory.",
+  "Vets: clinic onboarding, ledger access, and verification flows.",
+  "BMC & authorities: honest, ward-level coverage data for planning.",
 ];
 
 export default function ContactPage(): React.JSX.Element {
@@ -21,7 +21,7 @@ export default function ContactPage(): React.JSX.Element {
       <PageHeader
         kicker="Contact"
         title="Talk to a human."
-        intro="No ticket system, no chatbots. If you have a question, a correction, a data request, or an idea — write to us and a person who actually works on Hetja will reply."
+        intro="No ticket system, no chatbots. If you have a question, a correction, a data request, or an idea, write to us and a person who actually works on Hetja will reply."
       />
 
       <section className={`${styles.section} h-container`}>
@@ -67,7 +67,7 @@ export default function ContactPage(): React.JSX.Element {
           <h3 className={styles.partnerCardTitle}>Looking for the vet or feeder line?</h3>
           <p className={styles.cardText}>
             The fastest way to reach a real vet near a specific dog is the SOS button
-            on that dog&rsquo;s profile — it alerts the ward&rsquo;s responders directly.
+            on that dog&rsquo;s profile. It alerts the ward&rsquo;s responders directly.
             For clinic partnerships, onboarding, or coverage dashboards, use the address
             above with &ldquo;partnerships&rdquo; in the subject.
           </p>

@@ -1,5 +1,5 @@
 /*
- * The scanned dog profile — §3.3. One primary action in the bottom third,
+ * The scanned dog profile (§3.3). One primary action in the bottom third,
  * everything else quiet. See docs/design/HETJA-DESIGN.md for the rationale.
  */
 
@@ -42,7 +42,7 @@
   gap: var(--h-s4);
 }
 
-/* Sizing/shape only — the shimmer animation itself is the shared
+/* Sizing/shape only; the shimmer animation itself is the shared
  * `.h-skeleton` utility (transform-only, applied alongside these classes). */
 .skeletonPhoto {
   aspect-ratio: 4 / 3;
@@ -255,7 +255,7 @@
 
 /* ---- fixed bottom-third action area ----
  * One primary action, accent-filled, icon + explicit verb. "Log a feed" is
- * a plain text link underneath it — feeders will find it; strangers must
+ * a plain text link underneath it. Feeders will find it; strangers must
  * not have to choose between two buttons.
  */
 

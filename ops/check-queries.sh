@@ -1,5 +1,5 @@
 #!/bin/bash
-# check-queries.sh — CI gate (INVARIANT 12): every documented query in
+# check-queries.sh: CI gate (INVARIANT 12): every documented query in
 # docs/queries/ must EXPLAIN against the committed schema.
 # Parametrized queries get per-query sample args (valid literals for the
 # parameter types), prepared then EXPLAIN EXECUTE'd. Exit 1 on any failure.

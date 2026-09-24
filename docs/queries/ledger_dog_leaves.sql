@@ -7,13 +7,13 @@
 -- (which serves `GET /api/v1/ledger/proof`). An inclusion proof is only
 -- checkable against a root computed over the same leaves in the same order, so a
 -- divergence between the two would surface to an auditor as "tampered" on
--- untampered data — the worst possible failure mode for a tamper-evidence
+-- untampered data, the worst possible failure mode for a tamper-evidence
 -- feature, because it destroys trust in the mechanism rather than in the data.
 --
 -- It is documented here so INVARIANT 12's gate (ops/check-queries.sh) EXPLAINs
 -- it against the committed schema on every CI run. The index it needs is
 -- `medical_records_dog_chain_ix (dog_id, created_at, id)`, added by migration
--- 0014 — without it this is a filter + sort over the whole table on every
+-- 0014; without it this is a filter + sort over the whole table on every
 -- medical-record append, while holding a global advisory lock.
 --
 -- Only id and hash_curr are selected on purpose: a leaf is
@@ -24,7 +24,7 @@
 -- caveat recorded in medical.ts: created_at is the TRANSACTION timestamp, so two
 -- overlapping appends can be lock-ordered one way and created_at-ordered the
 -- other. The chain's own recomputeHead already depends on this ordering, so the
--- Merkle tree is no more exposed than the chain is — which is exactly why the
+-- Merkle tree is no more exposed than the chain is, which is exactly why the
 -- ordering is spelled out identically here, in medical.ts, in ledger.ts and in
 -- the worker rather than left to each query's convenience.
 SELECT id, hash_curr AS hash

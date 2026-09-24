@@ -5,7 +5,7 @@
  *
  * There was none anywhere in this app. Every page is a client component, so any
  * unhandled throw during render unmounted the entire tree and left the user on
- * Next.js's production fallback — a white page reading "Application error: a
+ * Next.js's production fallback: a white page reading "Application error: a
  * client-side exception has occurred", with no message, no retry, and no way
  * back.
  *
@@ -16,7 +16,7 @@
  * rather than the session.
  *
  * Deliberately plain: no accent colour, no illustration, and the same fixed
- * vocabulary as the rest of the app. An error screen is a wayfinding problem —
+ * vocabulary as the rest of the app. An error screen is a wayfinding problem:
  * say what happened, give exactly one way forward, and do not decorate it.
  */
 export default function Error({

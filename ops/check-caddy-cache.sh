@@ -1,7 +1,7 @@
 #!/bin/bash
 # Config-as-code gate: ops/caddy/Caddyfile must keep the Phase 0 cache policy
 # (enhancement stack §M.4). A misconfigured cache rule on /d/* is a life-safety
-# bug — the collar page shows SOS state that changes underneath it — not a
+# bug (the collar page shows SOS state that changes underneath it), not a
 # perf regression. This gate runs in CI so the policy cannot silently rot.
 #
 # The first version of this gate read one block with
@@ -9,8 +9,8 @@
 # through exactly the bug it exists to catch:
 #
 #   1. Only the FIRST match was inspected. The Caddyfile already declares the
-#      API policy twice (hetja.in and api.hetja.in), so a third vhost — or a
-#      second /d/* handler added below the first — was never looked at.
+#      API policy twice (hetja.in and api.hetja.in), so a third vhost (or a
+#      second /d/* handler added below the first) was never looked at.
 #   2. A missing block passed vacuously. `grep` on an absent pattern returns
 #      nothing, and "this block contains no max-age" is trivially true of no
 #      block at all. Deleting the /d/* handler outright would have satisfied
@@ -18,12 +18,12 @@
 #
 # So this version parses the file: it finds EVERY `handle <pattern> {` block,
 # tracks brace depth to get the whole body (including the nested
-# reverse_proxy { … }), and asserts the policy on each one — plus a presence
+# reverse_proxy { … }), and asserts the policy on each one, plus a presence
 # check, so a renamed or deleted handler fails instead of passing quietly.
 set -u
 cd "$(dirname "$0")/.."
 # Overridable so the gate can be negative-tested against a deliberately broken
-# copy — a gate nobody has ever seen fail is not known to work.
+# copy: a gate nobody has ever seen fail is not known to work.
 CADDY=${CADDY:-ops/caddy/Caddyfile}
 
 [ -f "$CADDY" ] || { echo "FAIL: $CADDY not found"; exit 1; }
@@ -67,7 +67,7 @@ parse_blocks() {
       # Flags may only come from a real `header ... Cache-Control ...` DIRECTIVE.
       #
       # These three tests used to run against the raw line, so any line merely
-      # CONTAINING the word set the flag — including a comment. That made the
+      # CONTAINING the word set the flag, including a comment. That made the
       # gate fail open in the one direction that matters: delete
       # `header Cache-Control "no-store"` from the /d/* block, leave behind a
       # comment such as `# no-store is handled at the Cloudflare edge now`, and
@@ -75,7 +75,7 @@ parse_blocks() {
       # The collar page a stranger loads over an injured dog would be cacheable,
       # with stale SOS state, and CI would call the policy intact. A `max-age`
       # regression was still caught (the `mustnot` clause), so the hole was
-      # specifically "the directive is gone entirely" — the exact edit a
+      # specifically "the directive is gone entirely", the exact edit a
       # well-meaning refactor makes.
       code = line
       sub(/^[[:space:]]*#.*$/, "", code)   # whole-line comment
@@ -104,18 +104,18 @@ require_all() {
   rows=$(printf '%s\n' "$BLOCKS" | awk -F'\t' -v p="$pat" '$1 == p')
   count=$(printf '%s' "$rows" | grep -c . || true)
   if [ "$count" -eq 0 ]; then
-    bad "$desc — no \`handle $pat\` block found at all (renamed or deleted?)"
+    bad "$desc: no \`handle $pat\` block found at all (renamed or deleted?)"
     return
   fi
   local n flags ok=1
   while IFS=$'\t' read -r _ n flags; do
     [ -n "${n:-}" ] || continue
     if [ "$must" != "-" ] && ! printf '%s' "$flags" | grep -q "$must"; then
-      bad "$desc — occurrence #$n is missing $must"
+      bad "$desc: occurrence #$n is missing $must"
       ok=0
     fi
     if [ "$mustnot" != "-" ] && printf '%s' "$flags" | grep -qE "$mustnot"; then
-      bad "$desc — occurrence #$n must not set $mustnot (got: ${flags%,})"
+      bad "$desc: occurrence #$n must not set $mustnot (got: ${flags%,})"
       ok=0
     fi
   done <<< "$rows"
@@ -128,7 +128,7 @@ require_all '/d/*'              '/d/* is no-store and never cached' 'no-store' '
 
 # The API catch-all is no-store. INVARIANT-adjacent: /api/v1/dogs/* and
 # /api/v1/sos/* both fall under it, and apps/api/src/server.ts independently
-# strips ETag and forces no-store on those two prefixes — belt and braces.
+# strips ETag and forces no-store on those two prefixes. Belt and braces.
 require_all '/api/v1/*'         'API catch-all is no-store'         'no-store' 'max-age|immutable'
 
 # The public care-provider directory is the one cacheable API surface: it is
@@ -147,7 +147,7 @@ require_all '/_next/static/*'   '_next/static is immutable'         'immutable' 
 require_all '/photos/*'         'photos are immutable'              'immutable' '-'
 
 # If anyone ever adds an explicit handler for the dog API or the SOS API, it
-# must be no-store too — these carry live case state. Absent is fine (the
+# must be no-store too: these carry live case state. Absent is fine (the
 # catch-all covers them), which is why this is a conditional check rather than
 # require_all.
 for pat in '/api/v1/dogs*' '/api/v1/dogs/*' '/api/v1/sos*' '/api/v1/sos/*'; do

@@ -1,5 +1,5 @@
 /**
- * The emergency bottom sheet — replaces the old `/sos/<slug>` navigation.
+ * The emergency bottom sheet. Replaces the old `/sos/<slug>` navigation.
  * Opens in place at roughly half viewport height (Material's 0.5 detent /
  * iOS `.medium()`); a navigation step under stress is a step lost.
  *
@@ -38,19 +38,19 @@ const SEVERITIES: Array<{ key: Severity; label: string }> = [
  *
  * and render them as a card headed "ALWAYS AVAILABLE" with a working Call
  * button. `+91 9000000000` is a placeholder. It was shown on all three degraded
- * paths — offline, location denied, and care-lookup failed — which are exactly
+ * paths (offline, location denied, and care-lookup failed), which are exactly
  * the paths a stranger standing over an injured dog is most likely to hit.
  *
  * So the one moment the page had nothing real to offer was the moment it made
  * the strongest promise: an always-available emergency line that dials nothing.
- * That is the precise failure this project's charter names — "The system is
+ * That is the precise failure this project's charter names: "The system is
  * allowed to know less than it wants. It is not allowed to CLAIM more than it
- * knows" — and on this surface the cost of the claim is measured in an animal's
+ * knows." On this surface the cost of the claim is measured in an animal's
  * life, not a support ticket.
  *
  * Replaced with honest guidance and no dead Call button. If a real, verified,
  * genuinely 24/7 number is ever secured, it belongs in `care_providers` with a
- * non-null `phone_verified_at` like every other number the page shows — not as
+ * non-null `phone_verified_at` like every other number the page shows, not as
  * a constant in the client that no gate can check.
  */
 
@@ -182,9 +182,9 @@ async function onSeverityChosen(sev: Severity): Promise<void> {
     if (r.ok) {
       el.textContent = "Report filed. Responders nearby have been notified.";
     } else if (online) {
-      el.textContent = "Couldn't confirm the report automatically — please also call below.";
+      el.textContent = "Couldn't confirm the report automatically. Please also call below.";
     } else {
-      el.textContent = "No signal — opening a text message to send instead.";
+      el.textContent = "No signal. Opening a text message to send instead.";
       sendSmsFallback(sev);
     }
   });
@@ -218,7 +218,7 @@ function careRowHtml(p: CareProvider): string {
   const phoneLine = p.phone
     ? p.phoneVerified
       ? escapeHtml(p.phone)
-      : `${escapeHtml(p.phone)} — unconfirmed number`
+      : `${escapeHtml(p.phone)} (unconfirmed number)`
     : "No phone listed";
   const dist = p.distanceKm != null ? `<span class="care-dist">${escapeHtml(fmtDistance(p.distanceKm))}</span>` : "";
   return `
@@ -236,7 +236,7 @@ function careRowHtml(p: CareProvider): string {
 /**
  * What to show when we have no nearby providers to show.
  *
- * Deliberately carries NO phone number and NO Call button — see the note at the
+ * Deliberately carries NO phone number and NO Call button; see the note at the
  * top of this file. A button that dials a fabricated number is worse than no
  * button, because it consumes the seconds in which the person could have called
  * someone real, and it does so while displaying the word "AVAILABLE".
@@ -261,7 +261,7 @@ function sendSmsFallback(sev: Severity): void {
   if (ctx?.slug) parts.push(`dog ${ctx.slug}`);
   if (p?.name) parts.push(p.name);
   if (p?.wardId) parts.push(`ward ${p.wardId}`);
-  const smsBody = encodeURIComponent(parts.join(" — "));
+  const smsBody = encodeURIComponent(parts.join(" · "));
   location.assign(`sms:?body=${smsBody}`);
 }
 

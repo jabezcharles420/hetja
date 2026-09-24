@@ -12,7 +12,7 @@
  * rejects a slug-shaped path segment that passes the INVARIANT 1 check
  * character, and a beacon sent with `navigator.sendBeacon` cannot observe or
  * report the resulting 400. A client that strips differently from the server's
- * expectation does not error — it silently stops producing telemetry, for the
+ * expectation does not error; it silently stops producing telemetry, for the
  * one page whose performance the whole 40 KB budget is about.
  */
 import { describe, it, expect } from "vitest";

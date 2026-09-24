@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy.sh — build + install + restart Hetja services on the VPS.
+# deploy.sh: build + install + restart Hetja services on the VPS.
 # Safe to re-run. Installs the four systemd units from ops/systemd/ (see
 # AGENTS.md and ops/bootstrap.sh for a from-scratch setup on a new box).
 #
@@ -31,7 +31,7 @@ pnpm --filter @hetja/worker build
 # databases from the pipeline: Supabase (from the runner) and the local
 # production cluster (from ops/deploy-remote.sh).
 #
-# An earlier version of this comment said "the database is managed Supabase" —
+# An earlier version of this comment said "the database is managed Supabase",
 # the same stale claim AGENTS.md §b calls out by name. The authoritative
 # database is the LOCAL PostgreSQL on the box; Supabase holds a mirror that
 # currently serves no reads.
@@ -43,13 +43,13 @@ for unit in hetja-api.service hetja-web.service hetja-worker.service hetja-scan.
 done
 systemctl daemon-reload
 # `enable --now` on a unit that is ALREADY enabled and running succeeds and does
-# nothing — it does not restart. So this used to be:
+# nothing; it does not restart. So this used to be:
 #
 #   systemctl enable --now hetja-api hetja-worker 2>/dev/null || systemctl restart ...
 #
 # where the `||` branch fired only if `enable` itself errored, i.e. essentially
 # never. Every re-deploy after the first built a new dist/, printed "deploy
-# complete", and left both services executing the old code — the same
+# complete", and left both services executing the old code, the same
 # green-deploy-with-a-stale-API failure that ops/deploy-remote.sh exists to
 # prevent. Enable (idempotent) and restart (unconditional) are two steps.
 systemctl enable hetja-api hetja-worker

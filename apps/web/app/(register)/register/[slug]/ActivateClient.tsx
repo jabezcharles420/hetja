@@ -1,20 +1,20 @@
 "use client";
 
 /**
- * Route protection is a UX boundary, not a security boundary — see
+ * Route protection is a UX boundary, not a security boundary. See
  * RequireCapability header. The API is the boundary.
  *
  * Activation reuses three existing helpers rather than reinventing them:
- * 1. extractCollarFromScan(rawValue) from components/QrScanner.tsx — if the
+ * 1. extractCollarFromScan(rawValue) from components/QrScanner.tsx: if the
  *    decoded slug ≠ the expected slug, say so and refuse to activate. This is
  *    the best use of that export in the repo: it verifies the physical object
  *    before trusting it.
- * 2. captureGeo(8000) from lib/offline-queue.ts — on the user's tap, never on
+ * 2. captureGeo(8000) from lib/offline-queue.ts, on the user's tap, never on
  *    mount. An unprompted permission dialog teaches people to hit Deny.
  * 3. POST /api/v1/scans with type:"retag", the geo, a fresh clientUuid.
  *
  * If geolocation is unavailable, do NOT post an ungeotagged scan and report
- * success — it will not activate and the user would be told it did. Say
+ * success: it will not activate and the user would be told it did. Say
  * "Hetja needs your location to confirm the collar is in the field" and offer
  * retry (HOW-IT-WORKS.md §10).
  */
@@ -140,7 +140,7 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
       <PageHeader
         kicker="Register"
         title={detail.slug}
-        intro={isPending ? "Print the sheet, attach the collar, then confirm it’s on the dog." : `Status: ${detail.status} — Ward ${detail.wardId}`}
+        intro={isPending ? "Print the sheet, attach the collar, then confirm it’s on the dog." : `Status: ${detail.status}, Ward ${detail.wardId}`}
       />
 
       <section className={`${contentStyles.section} h-container`}>
@@ -169,15 +169,15 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
           <div className={contentStyles.card}>
             <h2 style={{ fontSize: "var(--h-t-lg)", margin: "0 0 var(--h-s3)" }}>What to do next</h2>
             <ol style={{ margin: 0, paddingLeft: "var(--h-s5)", display: "grid", gap: "var(--h-s3)", lineHeight: 1.6 }}>
-              <li>Open the print sheet and laser-etch the QR onto TPU (Shore 95A). Never a paper label — it waterlogs.</li>
+              <li>Open the print sheet and laser-etch the QR onto TPU (Shore 95A). Never a paper label: it waterlogs.</li>
               <li>Fit with two-finger clearance and a breakaway. Budget ~1 replacement/year; the slug stays the same, so reprinting keeps every tag in the field working.</li>
-              <li>Attach, then tap “I’ve attached it” below — Hetja will ask for your location to confirm the collar is in the field.</li>
+              <li>Attach, then tap “I’ve attached it” below. Hetja will ask for your location to confirm the collar is in the field.</li>
             </ol>
           </div>
 
           {activated && (
             <p role="status" style={{ background: "var(--h-base)", border: "1px solid var(--h-rule)", padding: "var(--h-s3)", color: "var(--h-safe)", fontWeight: 600 }}>
-              Activated — the collar is live. It may take a moment to appear as active.
+              Activated. The collar is live. It may take a moment to appear as active.
             </p>
           )}
 
@@ -247,7 +247,7 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
                 </p>
               )}
               <p style={{ color: "var(--h-ink-muted)", fontSize: "var(--h-t-sm)", marginTop: "var(--h-s3)" }}>
-                Location is captured on tap, never on page load — an unprompted permission dialog teaches people to hit Deny.
+                Location is captured on tap, never on page load, because an unprompted permission dialog teaches people to hit Deny.
               </p>
             </div>
           )}

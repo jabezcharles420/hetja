@@ -15,7 +15,7 @@ export function InstallBanner(): React.JSX.Element | null {
   return (
     <aside className={styles.banner} role="region" aria-label="Install Hetja">
       <p className={styles.text}>
-        Add Hetja to your home screen — feed dogs even offline.
+        Add Hetja to your home screen and feed dogs even offline.
       </p>
       <button
         type="button"

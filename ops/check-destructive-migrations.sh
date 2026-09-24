@@ -10,8 +10,8 @@
 #
 # EXTRACTED FROM .github/workflows/deploy.yml, where this logic lived inline as
 # a 40-line `run:` block. That placement had two costs. It could not be run
-# before pushing — the only way to learn a migration would be rejected was to
-# push and watch the Migrate job go red — and it could not be tested, so the
+# before pushing (the only way to learn a migration would be rejected was to
+# push and watch the Migrate job go red), and it could not be tested, so the
 # comment-stripping bug below survived unnoticed in the one gate AGENTS.md
 # describes as having "no override except an explicit human marker".
 #
@@ -24,7 +24,7 @@
 #
 # stripped to `INSERT INTO notes(t) VALUES ('a `, so the gate saw no DROP and
 # passed. An unattended `DROP TABLE medical_records` then reached the Apply
-# step — against an append-only table whose loss is not recoverable.
+# step, against an append-only table whose loss is not recoverable.
 #
 # The stripper below is a character-level state machine that only treats `--` as
 # a comment when it is OUTSIDE a single-quoted string and outside a

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Route protection is a UX boundary, not a security boundary — see
+ * Route protection is a UX boundary, not a security boundary. See
  * RequireCapability header. The API is the boundary.
  *
  * Shape mirrors ScanEntry exactly: label + input + submit + role=alert error +
@@ -34,7 +34,7 @@ function NewFormInner(): React.JSX.Element {
   const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Warm the device token on mount — same shape as login/page.tsx::warmDeviceToken.
+  // Warm the device token on mount (same shape as login/page.tsx::warmDeviceToken).
   useEffect(() => {
     if (readCachedDeviceToken()) return;
     void getDeviceToken();
@@ -78,7 +78,7 @@ function NewFormInner(): React.JSX.Element {
           setBusy(false);
           return;
         }
-        // Otherwise ignore — request will 401 and we surface that message.
+        // Otherwise ignore: the request will 401 and we surface that message.
       }
 
       const input: Record<string, unknown> = { wardId };
@@ -94,7 +94,7 @@ function NewFormInner(): React.JSX.Element {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "REGISTRATION_BUDGET_EXCEEDED" || err.code === "DEVICE_REGISTRATION_BUDGET_EXCEEDED") {
-          setError("Registration budget full — 2 pending at a time. Attach a collar to free a slot.");
+          setError("Registration budget full: 2 pending at a time. Attach a collar to free a slot.");
         } else if (err.code === "REGISTRATION_DISABLED") {
           setError("Registration is disabled for this account.");
         } else if (err.code === "UNAUTHENTICATED_DEVICE") {
@@ -119,14 +119,14 @@ function NewFormInner(): React.JSX.Element {
       <PageHeader
         kicker="Register"
         title="Register a street dog"
-        intro="File a dog you look after. You’ll get a signed QR to laser-etch — the registration stays inert until you scan it on the dog."
+        intro="File a dog you look after. You’ll get a signed QR to laser-etch, and the registration stays inert until you scan it on the dog."
       />
 
       <section className={`${contentStyles.section} h-container`}>
         <form className={formStyles.form} onSubmit={(e) => void submit(e)} noValidate>
           {offline && (
             <p className={formStyles.offline} role="status">
-              No signal — this form needs a connection to mint the collar. It will retry when you’re back.
+              No signal. This form needs a connection to mint the collar. It will retry when you’re back.
             </p>
           )}
 
@@ -219,7 +219,7 @@ function NewFormInner(): React.JSX.Element {
           )}
 
           <p className={formStyles.hint}>
-            Two pending registrations at a time. Attaching a tag frees a slot. The QR is signed under the server’s secret — reprinting keeps the
+            Two pending registrations at a time. Attaching a tag frees a slot. The QR is signed under the server’s secret, so reprinting keeps the
             same slug.
           </p>
         </form>

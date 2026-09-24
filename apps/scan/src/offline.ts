@@ -39,19 +39,19 @@ async function registerSync(): Promise<boolean> {
  * capture-time attestation contract; logFeed is the UI-facing caller. */
 export async function enqueueFeed(dogSlug: string, photoBlob: Blob, geo?: { lat: number; lng: number }): Promise<{ queued: QueuedScan; syncing: boolean }> {
   // Mint the device token NOW, at capture time, and persist it with the
-  // queued record — not at flush time. This mirrors sheet.ts's SOS path (lazy
+  // queued record, not at flush time. This mirrors sheet.ts's SOS path (lazy
   // getDeviceToken() at the moment of the action) and fixes the shape apps/web's
   // api.ts flagged as "the wrong shape" for years: minting per queued record
   // during a flush re-solves a proof-of-work on every replay and still sends
   // nothing for records that predate it. getDeviceToken() caches in
   // localStorage after its first success, so this costs one challenge/PoW
   // round-trip ever, and it resolves undefined rather than throwing when it
-  // cannot mint (offline capture with no cached token) — such a record is
+  // cannot mint (offline capture with no cached token); such a record is
   // queued anyway and flush.ts reports it through the dropped-feeds path
   // instead of retrying it forever.
   const deviceToken = await getDeviceToken();
   // A FRESH clientUuid PER FEED. INVARIANT 5 makes scans.client_uuid UNIQUE so
-  // an offline replay of the same feed is idempotent — and this used to pass
+  // an offline replay of the same feed is idempotent, and this used to pass
   // one uuid per BROWSER, persisted in localStorage and reused for every feed
   // this device ever logged. The server answered the second feed (and every
   // one after it) with `created: false` on a 200, flush read the 200 as
@@ -89,9 +89,9 @@ export async function logFeed(dogSlug: string): Promise<LogFeedOutcome> {
   const { queued, syncing } = await enqueueFeed(dogSlug, blob, geo);
   const evictionSoon = await evictionSoonCount() > 0;
   const message = offline
-    ? "Feed saved offline — it will upload when you're back online."
+    ? "Feed saved offline. It will upload when you're back online."
     : syncing
-      ? "Feed logged — syncing now."
+      ? "Feed logged. Syncing now."
       : "Feed logged.";
   return { ok: true, offline, syncing, message, queued, evictionSoon };
 }
@@ -104,7 +104,7 @@ export async function flushOnOpen(): Promise<void> {
     // page open rather than the queue quietly shrinking.
     await flushQueue(recordDroppedFeed);
   } catch {
-    /* offline / db error — retry next open */
+    /* offline / db error: retry next open */
   }
 }
 

@@ -1,10 +1,10 @@
--- heatmap.sql — public hunger heatmap. This is the query apps/api/src/routes/
+-- heatmap.sql: public hunger heatmap. This is the query apps/api/src/routes/
 -- heatmap.ts ships (CELL_SQL); keep the two identical, because this file is
 -- what ops/check-queries.sh EXPLAINs against the committed schema. It used to
 -- be a different query (degree-based 200 m snap, ST_X/ST_Y swapped as lat/lng,
 -- a fed_ratio that counted rows) so the gate was proving a query nobody ran.
 --   $1 = ward_id (text), $2 = window in days (int)
--- INVARIANT 2: NEVER returns point geometry — 500 m cell centroids only,
+-- INVARIANT 2: NEVER returns point geometry; 500 m cell centroids only,
 -- snapped in EPSG:3857 (metres, not degrees), rounded to 2 decimals.
 -- fed_ratio = feed scans / (distinct dogs fed × days), clamped to [0, 1]:
 -- the share of dog-days in the window that saw a feed.

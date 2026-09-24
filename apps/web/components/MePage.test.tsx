@@ -4,7 +4,7 @@
  *
  * The gap these exist for: `feeders.sos_opt_in` defaults to false, the SOS
  * fan-out (routes/sos.ts) pages only feeders who have it set, and
- * `PATCH /api/v1/feeders/me` is its only writer — but no web surface ever
+ * `PATCH /api/v1/feeders/me` is its only writer, but no web surface ever
  * called that route. Every feeder was permanently opted out, so "help is on
  * the way" in the SOS dialog had nobody behind it.
  */
@@ -54,7 +54,7 @@ function feederMe(overrides: Partial<{ sosOptIn: boolean; trustScore: number }> 
   };
 }
 
-describe("MePage — SOS paging consent", () => {
+describe("MePage: SOS paging consent", () => {
   beforeEach(() => {
     apiMock.getStreak.mockResolvedValue(STREAK);
   });
@@ -109,7 +109,7 @@ describe("MePage — SOS paging consent", () => {
     apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false, trustScore: 30 }));
     render(<MePage />);
     await screen.findByLabelText("Page me when a dog near where I feed needs help");
-    expect(screen.getByText(/trust score of 40 or more/).textContent).toMatch(/yours is 30/);
+    expect(screen.getByText(/trust score of 40 or more/).textContent).toMatch(/Yours is 30/);
   });
 
   it("asks a signed-out visitor to sign in and shows no consent control", async () => {

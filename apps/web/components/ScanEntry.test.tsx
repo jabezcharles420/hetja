@@ -30,7 +30,7 @@ describe("ScanEntry", () => {
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
     expect(push).not.toHaveBeenCalled();
     expect(
-      screen.getByText("That code looks incomplete — it should be 9 characters"),
+      screen.getByText("That code looks incomplete. It should be 9 characters"),
     ).toBeTruthy();
   });
 

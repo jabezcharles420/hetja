@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Route protection is a UX boundary, not a security boundary — see
+ * Route protection is a UX boundary, not a security boundary. See
  * RequireCapability header. The API is the boundary.
  *
  * Reads slug+signature from GET /api/v1/registrations/:slug, so the signature

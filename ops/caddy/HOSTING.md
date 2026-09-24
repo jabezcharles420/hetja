@@ -11,7 +11,7 @@ $ curl api.ipify.org   # 152.228.227.51  (the host's address, shared)
 
 The only forwarded port is SSH (external `20095` → internal `22`). Ports 80, 443
 and 8080 on `152.228.227.51` are answered by a **different Caddy on the Proxmox
-host** — verified by stopping this container's Caddy and watching
+host**, verified by stopping this container's Caddy and watching
 `Server: Caddy` keep replying. Binding a marker server to ports 20090–20100, 80,
 443 and 8082 and probing each from outside produced no hits.
 
@@ -49,7 +49,7 @@ Everything is one origin on purpose:
 
 Because Caddy sits behind the tunnel and never sees the internet, `auto_https`
 is **off** and the site addresses are written `http://`. ACME could not work here
-regardless — nothing reaches port 80 from outside.
+regardless: nothing reaches port 80 from outside.
 
 ### Real client IPs (the tunnel makes everything look like loopback)
 
@@ -62,17 +62,17 @@ the stranger's actual address.
 > `@fastify/rate-limit` "sees the stranger's actual address", and that without
 > it "the API would rate-limit the whole city as one IP". Neither is true.
 > `@fastify/rate-limit` is not a dependency of `apps/api` and is registered
-> nowhere, so there was no per-IP limiter to fix — and there should not be a
+> nowhere, so there was no per-IP limiter to fix, and there should not be a
 > general one, because INVARIANT 6 rate-limits per account or per attested
 > device token *precisely because* Indian carrier CGNAT makes an IP a poor
 > identity. What the rewrite genuinely buys is correct request logging, and the
-> ability to put a flood cap on device-token **minting** later — bounding how
+> ability to put a flood cap on device-token **minting** later: bounding how
 > many tokens one address can obtain, which is a different question from capping
 > what a user may do.
 >
 > One operational catch: `TRUST_PROXY` must be set in `apps/api/.env.production`
 > (usually `1`). It defaults to `0`, and at `0` Fastify ignores `X-Forwarded-For`
-> altogether and `request.ip` stays loopback — so the Caddy half of this fix is
+> altogether and `request.ip` stays loopback, so the Caddy half of this fix is
 > inert on its own.
 
 Caddy is rebuilt with the
@@ -101,7 +101,7 @@ path too. Verified live 2026-08-14 (API logs show the real remote address, not
    Caddy does the path routing, so every hostname points at port 80.
 5. Copy the tunnel token from the **Install** step.
 
-No A/AAAA records are needed — Cloudflare creates proxied CNAMEs for the tunnel.
+No A/AAAA records are needed; Cloudflare creates proxied CNAMEs for the tunnel.
 
 ### 2. On the VPS
 
@@ -119,7 +119,7 @@ curl -s  "https://hetja.in/api/v1/heatmap?ward=A"
 curl -sI "https://hetja.in/d/c3di5esh8"      # must be 200 text/html
 ```
 
-Then check the proxy hop count — see the note printed by `setup-tunnel.sh`.
+Then check the proxy hop count; see the note printed by `setup-tunnel.sh`.
 `TRUST_PROXY` is `1`; with both cloudflared and Caddy in front it may need to be
 `2`. Only log accuracy is affected, since rate limits key on account/device
 token rather than IP (INVARIANT 6).
@@ -142,7 +142,7 @@ pnpm --filter @hetja/web build && systemctl restart hetja-web
 | `hetja-api` | 8080 | 127.0.0.1 |
 | `hetja-scan` | 8081 | 127.0.0.1 |
 | `caddy` | 80 | all interfaces (unreachable from outside) |
-| `cloudflared` | — | outbound only |
+| `cloudflared` | none | outbound only |
 
 All three app ports are loopback-only, so even if a port-forward appeared they
 could not be reached without going through Caddy.

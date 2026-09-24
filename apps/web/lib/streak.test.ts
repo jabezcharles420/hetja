@@ -20,10 +20,10 @@ describe("lib/streak display mapping", () => {
   });
 
   it("produces human labels for streak days", () => {
-    expect(streakLabelFor(0)).toBe("Start a streak — log a feed today");
-    expect(streakLabelFor(1)).toBe("1 day streak — keep it alive");
-    expect(streakLabelFor(7)).toBe("7-day streak — a full week!");
-    expect(streakLabelFor(30)).toBe("30-day streak — champion feeder");
+    expect(streakLabelFor(0)).toBe("Start a streak: log a feed today");
+    expect(streakLabelFor(1)).toBe("1 day streak. Keep it alive");
+    expect(streakLabelFor(7)).toBe("7-day streak: a full week!");
+    expect(streakLabelFor(30)).toBe("30-day streak: champion feeder");
   });
 
   it("computes the next milestone", () => {
@@ -73,7 +73,7 @@ describe("lib/streak display mapping", () => {
  *
  * `StreakData` declares `badges` and `trustScore` as required, and the API did
  * not send either. `mapStreak` called `data.badges.map(...)`, which threw on
- * every render of /me — the page a feeder is redirected to the instant they
+ * every render of /me, the page a feeder is redirected to the instant they
  * sign in. With no error boundary in the app at the time, React unmounted the
  * whole tree and the user got Next.js's bare "Application error: a client-side
  * exception has occurred". A login that had just succeeded, ending on a blank

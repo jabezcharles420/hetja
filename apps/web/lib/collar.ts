@@ -12,7 +12,7 @@
  * in packages/db/src/slugs.ts.
  *
  * (Trivia worth knowing: that string is 33 characters, but toBase32 masks with
- * `& 31` and the check digit is `% 32`, so index 32 — `9` — is unreachable.
+ * `& 31` and the check digit is `% 32`, so index 32 (`9`) is unreachable.
  * Empirically the generator emits exactly `2345678abcdefghijkmnopqrstuvwxyz`.
  * `9` is accepted here anyway, so fixing that off-by-one later needs no change
  * on this side.)
@@ -20,7 +20,7 @@
  * This regex previously read `/^[a-z2-7]{9}$/`, which disagreed with the
  * generator in both directions: it accepted `l` (never generated) and rejected
  * `8` (emitted about 1 character in 32, so roughly a quarter of all 9-character
- * slugs contain one). Real collar codes were refused at the keypad — including
+ * slugs contain one). Real collar codes were refused at the keypad, including
  * the Phase-0 seed dog Rosie, whose collar reads `c3di5esh8`.
  *
  * Input is trimmed and lowercased before validation, so a scan or paste like
@@ -47,7 +47,7 @@ export function parseCollarCode(input: string): CollarCodeResult {
   if (code.length !== 9) {
     return {
       ok: false,
-      error: "That code looks incomplete — it should be 9 characters",
+      error: "That code looks incomplete. It should be 9 characters",
     };
   }
 

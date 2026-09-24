@@ -11,14 +11,14 @@ import path from "node:path";
  * it to a canvas, and decode it. Assert rawValue equals the collar URL byte for
  * byte.
  *
- * No server, no database, no auth, no network — and it is the only thing
+ * No server, no database, no auth, no network, and it is the only thing
  * standing between us and a thousand etched tags that do not scan.
  *
  * The decoder is the SAME `barcode-detector` (zxing-wasm) ponyfill the PWA
  * ships to phones without a native BarcodeDetector (components/QrScanner.tsx),
  * not the browser's built-in one. This spec used to require
  * `window.BarcodeDetector`, which Playwright's headless Chromium does not
- * expose — so the a11y workflow that runs it had failed on every push since the
+ * expose, so the a11y workflow that runs it had failed on every push since the
  * spec landed, and the one assertion about the collar had never once run in
  * CI. Loading the ponyfill also makes the test say something truer: "the QR we
  * print decodes with the decoder our own scanner uses".

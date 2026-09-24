@@ -2,7 +2,7 @@
  * Tests for the anonymous device-attestation flow on the scan page.
  *
  * Why this file exists at all: `apps/scan` had no `test` script until
- * 2026-08-14, so `pnpm -r test` silently skipped the entire package — and this
+ * 2026-08-14, so `pnpm -r test` silently skipped the entire package, and this
  * module sits on the life-safety path, since a stranger scanning a collar cannot
  * file an SOS report without a device token. Two defects shipped into that gap:
  * an effective PoW difficulty of 20 bits where 18 was configured, and a solver
@@ -11,7 +11,7 @@
  *
  * The derivation itself now lives in `@hetja/pow` (apps/web's login needs the
  * same routine, and one copy cannot drift from the other), and the from-spec
- * reference tests that pin it against ALTCHA's specification live there —
+ * reference tests that pin it against ALTCHA's specification live there:
  * `packages/pow/src/index.test.ts`. What stays here is what is genuinely about
  * *this* app: that the solver it actually imports is spec-conformant at the
  * difficulty production configures, and that its own 20 s budget is arithmetically
@@ -71,11 +71,11 @@ describe("apps/scan device attestation", () => {
       expect(solution!.derivedKey).toBe(await expectedDerivedKey(p, solution!.counter));
       expect(solution!.derivedKey.startsWith(p.keyPrefix)).toBe(true);
     },
-    // Explicit vitest timeout for THIS test only — it is not a loosening of the
+    // Explicit vitest timeout for THIS test only. It is not a loosening of the
     // budget above, which the two assertions still enforce at exactly
     // SOLVE_TIMEOUT_MS (20 s). Vitest's default testTimeout is 5 s, and this
-    // test measures a 20 s budget, so on a loaded runner — the gate executes
-    // every workspace suite in parallel on 2 vCPUs — a CPU-bound solve that
+    // test measures a 20 s budget, so on a loaded runner (the gate executes
+    // every workspace suite in parallel on 2 vCPUs) a CPU-bound solve that
     // merely runs slow gets killed by the harness before its own assertions
     // can judge it, turning a healthy solve into a red gate for the wrong
     // reason. The margin covers scheduler starvation around the async batch

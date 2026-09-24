@@ -10,7 +10,7 @@ import SosModal from "@/components/SosModal";
 import PawIllustration from "@/components/PawIllustration";
 import styles from "./dog.module.css";
 
-/** Inline SOS glyph — paired with the verb "needs help" so the primary
+/** Inline SOS glyph, paired with the verb "needs help" so the primary
  * action still reads as primary from icon + label + position alone if the
  * accent hue is removed (WCAG 2.2 SC 1.4.1: urgency is never colour alone). */
 function SosGlyph(): React.JSX.Element {
@@ -134,7 +134,7 @@ export default function DogPage(): React.JSX.Element {
                     <blockquote key={s.id} className={styles.story}>
                       <p className={styles.storyText}>{s.paragraph}</p>
                       <footer className={styles.storyFooter}>
-                        — a feeder, v{s.version} · {new Date(s.createdAt).toLocaleDateString()}
+                        From a feeder, v{s.version} · {new Date(s.createdAt).toLocaleDateString()}
                       </footer>
                     </blockquote>
                   ))}

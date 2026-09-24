@@ -1,4 +1,4 @@
-# Hetja — what it is, and how it actually works
+# Hetja: what it is, and how it actually works
 
 This document is the one to read first. The [README](../README.md) says *why*
 Hetja exists; [AGENTS.md](../AGENTS.md) says how to get it running on a fresh
@@ -14,8 +14,8 @@ document that describes an aspiration as if it were running.
 
 ## 1. The one-sentence version
 
-A street dog wears a collar with a QR code. Anyone who finds the dog — no app,
-no account, no login — scans it with their phone's camera and gets a page that
+A street dog wears a collar with a QR code. Anyone who finds the dog (no app,
+no account, no login) scans it with their phone's camera and gets a page that
 tells them who this dog is, whether it is vaccinated, who feeds it, and a single
 large button for "this dog is hurt". Pressing that button puts the nearest
 vets, NGOs and ambulances on their screen with tappable phone numbers, and
@@ -28,7 +28,7 @@ Everything else in the repository exists to make those two screens true.
 ## 2. The people involved
 
 Hetja has four kinds of user, and they do not share an interface. That
-separation is deliberate — see §4.
+separation is deliberate; see §4.
 
 **The stranger.** Someone who happens to find a dog. They are the only user who
 matters at the moment of an emergency, they will never install anything, they
@@ -37,7 +37,7 @@ get one page, no account, and are never asked to sign in. Ninety percent of all
 traffic is this person.
 
 **The feeder.** Someone who feeds and watches over specific dogs in their area.
-They sign in (emailed code — no passwords, no SMS), log feeds, upload photos,
+They sign in (emailed code, no passwords, no SMS), log feeds, upload photos,
 and can be woken by an SOS near them. They accumulate a *trust score* over
 time, which is what earns them the right to do higher-stakes things.
 
@@ -63,14 +63,14 @@ https://hetja.in/d/<slug>?s=<signature>
 ```
 
 `slug` is nine characters from a deliberately reduced alphabet
-(`[a-km-z2-9]` — no `l`, no `0`, no `1`) so a human can read one off a collar
+(`[a-km-z2-9]`: no `l`, no `0`, no `1`) so a human can read one off a collar
 and type it in without ambiguity. It is **random**, not sequential: you cannot
 enumerate the city's dogs by counting upward (INVARIANT 1).
 
 `s` is `base64url(HMAC-SHA256(qr_secret, slug))`. The server recomputes it and
 refuses to resolve a slug whose signature doesn't match, which means a printed
 collar cannot be forged and a scraper cannot fabricate valid URLs. The secret
-lives only in the server's environment and in one row of the database — never
+lives only in the server's environment and in one row of the database, never
 in any client bundle.
 
 Two paths reach that URL, and both work:
@@ -80,7 +80,7 @@ Two paths reach that URL, and both work:
   open the link.
 - **In-page, from hetja.in itself.** `apps/web/components/QrScanner.tsx` uses
   the browser's built-in `BarcodeDetector` behind an explicit "Use camera"
-  button. It never requests the camera on page load — an unprompted permission
+  button. It never requests the camera on page load, because an unprompted permission
   dialog is how you teach people to hit "Deny". Where the browser has no
   `BarcodeDetector`, or permission is denied, or there is no camera, it falls
   through to manual slug entry and says which of those happened rather than
@@ -99,8 +99,8 @@ On the scan page there is one primary action: the dog is hurt. Pressing it does
 two independent things, and neither waits for the other.
 
 **It shows the caller who to phone, immediately.** `GET /api/v1/care` returns
-up to eight nearby providers — free NGOs, government facilities, charity
-hospitals, and paid clinics — each with a tappable number, whether they have an
+up to eight nearby providers (free NGOs, government facilities, charity
+hospitals, and paid clinics), each with a tappable number, whether they have an
 ambulance, whether they are open 24×7, and what they cost. This is a read-only
 public directory: it works with no login, no device token and no network round
 trips beyond the one request, because in an emergency the fastest useful thing
@@ -116,7 +116,7 @@ a place name is shown instead.
 That is not fussiness. Twenty-five of the seeded Mumbai organisations collapse
 onto eighteen distinct coordinates, because they were estimated from ward
 centroids rather than geocoded from addresses. Sorting by that distance
-produced a confident-looking "BHL Bird Helpline — 0 m away". Someone reading
+produced a confident-looking "BHL Bird Helpline: 0 m away". Someone reading
 that skips a hospital that is actually closer. `distanceM` is now `null`
 unless the coordinate is real, and the API states which contract applies via
 `geoPrecision`. **A measurement we don't have is not reported as zero.**
@@ -129,7 +129,7 @@ a phone and call them; there is no way to shortcut that.
 
 **It opens an SOS case.** In parallel, `POST /api/v1/reports` creates a
 case and the worker fans out push notifications to responders whose geofence
-contains the dog — rate-capped, because an unauthenticated endpoint that can
+contains the dog. This is rate-capped, because an unauthenticated endpoint that can
 notify unbounded numbers of people is a harassment vector (INVARIANT 7). If no
 eligible responder exists, it escalates to tier 2 immediately rather than
 waiting out a timer. Otherwise an unacknowledged case escalates after eight
@@ -138,7 +138,7 @@ minutes.
 `POST /api/v1/sos/cases/:id/ack` claims a case. It is a conditional update
 (`WHERE acked_by IS NULL`), so the first writer wins atomically and everyone
 else gets a 409 and a stand-down. This is what makes the programme's headline
-metric — median acknowledgement under five minutes — measurable at all.
+metric (median acknowledgement under five minutes) measurable at all.
 
 ---
 
@@ -150,12 +150,12 @@ apps/
   web      Next.js 14 App Router                 -> hetja.in
   api      Fastify 5 + zod                       -> hetja.in/api/v1
   worker   background jobs (SOS fan-out, escalation, push)
-  shell    native wrapper — EMPTY, not built
+  shell    native wrapper: EMPTY, not built
   ai       vision/embedding helpers
 packages/
-  contracts  zod schemas shared by API and clients — the single source of truth
+  contracts  zod schemas shared by API and clients; the single source of truth
   db         pool, migrations, slug generation and signing
-  design     tokens.css — the v3 Apple/Sidehoe design system (SF-first, pills, glass)
+  design     tokens.css: the v3 Apple/Sidehoe design system (SF-first, pills, glass)
   ledger     hash-chained append-only medical ledger
 ```
 
@@ -167,7 +167,7 @@ exceeded, because the person using it is on a phone on a street and every
 kilobyte is a second. It must not share a deployment with anything else, so a
 bad release of an admin feature cannot take down the page a stranger needs.
 
-`apps/web` is everything a logged-in feeder does — richer, heavier, and allowed
+`apps/web` is everything a logged-in feeder does: richer, heavier, and allowed
 to be. `/hetja` is the memorial page. `/privacy` is a DPDP notice and is
 treated as a factual document: when the login moved from phone to email, that
 page had to change in the same commit, because a privacy notice that describes
@@ -180,7 +180,7 @@ separate app. The **registrator surface that ships in `apps/web` plus
 look after → print the collar (`docs/MAKING-A-COLLAR.md`) → attach it → scan it
 to activate. `POST /api/v1/dogs` (admin enrolment, `apps/api/src/routes/enrolment.ts`)
 exists and is the operator counterpart. What remains unbuilt from the original
-`apps/field` scope is the **re-tag route** — a replacement collar keeps the same
+`apps/field` scope is the **re-tag route**: a replacement collar keeps the same
 slug (`GET /api/v1/registrations/:slug` returns the same `collarUrl` forever), but
 there is no dedicated retag endpoint yet. Trust ≥ 50 would have locked out pilot
 staff who need to retag on day one, which is why access gates on role, not score.
@@ -195,7 +195,7 @@ for geography and pgvector for image embeddings. Fifteen of them come from
 `push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
 `spent_challenges` (0021) and `collar_reissues` (0023) arrived later. Earlier
 versions of this paragraph said "eighteen", then "nineteen" (which omitted the
-0017 and 0021 tables), while `WORK-REPORT.md` said "15" — none matched the
+0017 and 0021 tables), while `WORK-REPORT.md` said "15". None matched the
 database, which `\dt` counts even higher because PostGIS ships its own
 `spatial_ref_sys`. The count is checkable:
 `SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN
@@ -209,7 +209,7 @@ database, which `\dt` counts even higher because PostGIS ships its own
 | `medical_records` | append-only, hash-chained treatment ledger |
 | `sos_cases`, `sos_notifications` | the case machine and its delivery receipts |
 | `care_providers` | the public vets/NGO directory behind the danger flow |
-| `vets` | *contracted* partner clinics — signing keys, MOUs, retainers |
+| `vets` | *contracted* partner clinics: signing keys, MOUs, retainers |
 | `geofences`, `feeder_territories` | who gets woken for what |
 | `trust_events` | the audit trail behind every trust score |
 | `otp_codes`, `push_subscriptions` | login codes and push endpoints |
@@ -236,7 +236,7 @@ trust us.
 ## 6. Auth, and why there is no SMS
 
 Login is a six-digit code emailed to the feeder. No passwords, no phone
-numbers, no SMS — SMS costs money per message, and this has to run on nothing.
+numbers, no SMS. SMS costs money per message, and this has to run on nothing.
 Email goes out via Brevo's permanent free tier (300/day) from
 `no-reply@hetja.in`, with SPF, DKIM and DMARC on the domain so it lands in
 inboxes rather than spam.
@@ -245,12 +245,12 @@ Codes live in Postgres, hashed (`SHA-256(pepper:code)`), with a five-minute TTL
 and three attempts. They used to live in an in-memory `Map`, which lost every
 pending code on restart and could not work with more than one process. In
 production the API now **refuses to boot** without SMTP credentials rather than
-starting up and silently sending nothing — which was the original bug, and the
+starting up and silently sending nothing, which was the original bug, and the
 kind that surfaces only when a real person cannot log in.
 
 Contact information is never stored raw. `identity_hmac` is
 HMAC-SHA256 of the address under a server-held pepper (INVARIANT 3). Not a bare
-hash — an email address has little enough entropy that a plain SHA-256 of it is
+hash: an email address has little enough entropy that a plain SHA-256 of it is
 reversible with a wordlist.
 
 Anonymous clients that need to write (a stranger reporting an injury) get a
@@ -283,27 +283,27 @@ cloudflared terminates the tunnel on the box itself, so connections reach Caddy
 from loopback. Caddy rewrites `CF-Connecting-IP` into `X-Forwarded-For` (the
 `real_ip` snippet, with `trusted_proxies cloudflare` via the
 `caddy-cloudflare-ip` module) so the API's per-IP rate limits see the stranger's
-real address instead of capping the whole city as one IP — verified live
+real address instead of capping the whole city as one IP (verified live
 2026-08-14, guarded by `ops/check-caddy-cache.sh` in CI. See
 `ops/caddy/HOSTING.md` for the tunnel setup.
 
 The authoritative database is PostgreSQL on that same box. A Supabase project
-in Mumbai (`mipvvlrzovevmjzlyxfr`) holds a hardened mirror — RLS on, exact
+in Mumbai (`mipvvlrzovevmjzlyxfr`) holds a hardened mirror: RLS on, exact
 coordinates unreachable from the anon key, writes only through
 `SECURITY DEFINER` RPCs that check the slug signature. It is not currently
 serving reads; the plan is to repoint after the VPS itself moves to India, so
 the app and its database are not on opposite sides of the planet.
 `ops/supabase/01_schema.sql` is a hand-maintained mirror and is currently
 several migrations behind `packages/db/migrations` (last synchronized through
-`0009_care_geo_precision.sql`; does not include `0010` through `0020` and later)
-— the authoritative schema is the migrations applied to the local cluster.
+`0009_care_geo_precision.sql`; does not include `0010` through `0020` and later);
+the authoritative schema is the migrations applied to the local cluster.
 The drift is tolerated because the mirror serves no reads (see also
 `docs/FEATURE-GUIDE.md` §1), but it must be regenerated (`pg_dump
 --no-privileges`, requalified per `ops/supabase/README.md`) before repointing.
 
 Four systemd units (`hetja-api`, `hetja-web`, `hetja-worker`, `hetja-scan`)
 keep things alive. They exist because the web app was previously running inside
-a background worker's cgroup and got SIGKILLed along with it — an outage with
+a background worker's cgroup and got SIGKILLed along with it, an outage with
 no error message anywhere.
 
 ---
@@ -326,7 +326,7 @@ git push ──> GitHub Actions
 Builds are split by cost. `next build` needs about a gigabyte, and running it
 next to the live services is what OOM-killed them before, so **web and scan are
 built on the runner** and the box receives finished bundles. **`api` and
-`worker` are plain `tsc`** — seconds, negligible memory — and they run from the
+`worker` are plain `tsc`** (seconds, negligible memory), and they run from the
 git checkout rather than a release directory, so `deploy-remote.sh` resets that
 checkout to the exact deployed SHA and builds them there.
 
@@ -336,7 +336,7 @@ reported success, while `hetja-api` kept executing whatever stale `dist/`
 happened to be in the checkout. Everything was green. An API-only commit simply
 never arrived. There is now an explicit post-deploy assertion that the
 checkout's `HEAD` equals the deployed SHA, because a health check proves the API
-*answers* — not that it is answering from this commit.
+*answers*, not that it is answering from this commit.
 
 Three gates are worth naming because they say no to real things:
 
@@ -344,7 +344,7 @@ Three gates are worth naming because they say no to real things:
   `DROP TABLE`, `TRUNCATE`, `DELETE FROM` and so on without an explicit
   `-- MIGRATION-APPROVED: <reason>` marker. It matches destructive *statements*,
   not the mere appearance of the words, so `ON DELETE CASCADE`, `DROP DEFAULT`
-  and `GRANT … DELETE` don't trip it — a gate that cries wolf teaches people to
+  and `GRANT … DELETE` don't trip it. A gate that cries wolf teaches people to
   paste the approval marker reflexively, and then it protects nothing.
 - **`ops/security-gate.sh`** refuses code that returns raw coordinates to
   anonymous callers or adds a bare `phone`/`email` column.
@@ -353,7 +353,7 @@ Three gates are worth naming because they say no to real things:
 Migrations go to **two** databases: the pipeline applies them to Supabase, and
 `deploy-remote.sh` applies them to the live PostgreSQL on the box before
 restarting anything. The second half was missing at first, which was the more
-dangerous of the two deploy gaps — the API reads the local database, so a new
+dangerous of the two deploy gaps: the API reads the local database, so a new
 migration reached the Supabase copy that currently serves nothing and never
 reached the one being queried. Migrations run as `postgres`, never as
 `app_user`, because the creating role owns what it creates and an owner's rights
@@ -361,7 +361,7 @@ cannot be revoked; see [the runbook](../ops/RUNBOOK.md) for the mechanism.
 
 Rollback is automatic for code and **not** for schema. If the health ladder
 fails, `current` flips back to the previous release *and* the checkout resets to
-the previous SHA and rebuilds — both halves or neither, because rolling back
+the previous SHA and rebuilds. It is both halves or neither, because rolling back
 only the front end while leaving a broken API running produces a failed re-check
 for a reason that has nothing to do with the rollback. An applied migration
 stays applied. That is safe only because the destructive gate keeps unattended
@@ -394,7 +394,7 @@ failure is a CI failure you didn't wait ten minutes to discover.
 **The test suite needs a database, and that is the one thing that isn't
 one-command on a laptop.** `pnpm -r test` inserts real rows, so
 `apps/api/vitest.setup.ts` refuses to run against any database whose name
-doesn't end in `_test` — `medical_records` is append-only, so rows written
+doesn't end in `_test`, because `medical_records` is append-only, so rows written
 there by a test can never be deleted again. It needs PostgreSQL with **PostGIS,
 pgvector and pgcrypto**, and a stock Homebrew PostgreSQL has only the last of
 those.
@@ -430,7 +430,7 @@ applied as a superuser, so `postgres` owns the tables**, exactly as in
 production. If `app_user` owns them instead, `0001_init.sql`'s
 `REVOKE UPDATE, DELETE ON medical_records FROM app_user` strips the owner's own
 rights, and the referential-integrity trigger behind `DELETE FROM dogs` then
-fails as that owner — 48 test failures with nothing obviously wrong. This cost a
+fails as that owner: 48 test failures with nothing obviously wrong. This cost a
 day in CI.
 
 `ops/bootstrap.sh` does all of the above on a **Linux** host, and
@@ -444,9 +444,9 @@ for macOS.
 
 - The dedicated **re-tag route** (replacement collar keeps the same slug; no
   separate re-tag endpoint yet). `apps/field` as a standalone app is not
-  planned — its scope is delivered as the registrator surface in `apps/web`
+  planned; its scope is delivered as the registrator surface in `apps/web`
   (`POST /api/v1/registrations` + `POST /api/v1/dogs` for the operator path).
-- `apps/shell` — the native wrapper. iOS requires add-to-home-screen before Web
+- `apps/shell`: the native wrapper. iOS requires add-to-home-screen before Web
   Push works at all, so until this exists, iOS responders are not reliably
   reachable. The UI says so rather than implying a safety net that isn't there.
 - The first-aid instruction card is behind `FIRST_AID_ENABLED=false` until a
@@ -459,7 +459,7 @@ for macOS.
   rather than pretended.
 - `ledger_anchors.published_url` is **`''`**, so INVARIANT 10 is not satisfied.
   The daily anchor is computed, Merkle-rooted and signed when a key is
-  configured, but only ever held by us — and the invariant's whole point is a
+  configured, but only ever held by us, and the invariant's whole point is a
   head published somewhere the operator does not solely control. `anchorMessage()`
   in `@hetja/ledger` exists to give a deterministic payload for that still-missing
   third-party publication.
@@ -468,12 +468,12 @@ for macOS.
   selected. The `local` path is the only one that actually deletes.
 - 93 `care_providers` are listed (25 curated + 68 imported from the maintainer's
   2026-08 verified Mumbai CSV); 43 carry phone numbers, none claimed verified
-  (`phone_verified_at` stays NULL — the honesty rule in migration 0008).
+  (`phone_verified_at` stays NULL, per the honesty rule in migration 0008).
 - Most `care_providers` coordinates are locality estimates, not geocoded
   points (12 exact as of the 2026-08-14 import, 81 `locality`). Every
-  `phone_verified_at` is `NULL` — nobody has called these numbers — and
+  `phone_verified_at` is `NULL` (nobody has called these numbers), and
   every `locality` row's `distanceM` is `null` by contract rather than a
-  confident 0 m. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md) — this is the gap
+  confident 0 m. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md); this is the gap
   the incoming government vet database is meant to close.
 - All four databases are **`SQL_ASCII` / `C` collation**. The Supabase
   mirror's `glibc` collation on the live box is `C`; moving to Devanagari
@@ -481,9 +481,9 @@ for macOS.
   rather than fixed: changing collation is a dump-and-restore.
 - `DEVICE_POW_DIFFICULTY` is **16**, capped at 20. It went 14 → 18 on 2026-08-13 (enhancement stack Phase 0 #6) and 18 → 16 on 2026-08-14, which needs explaining because it reads like a retreat.
 
-  ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits — so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead — the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.
+  ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits, so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead: the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.
 
-  Two measurements are worth recording because they change how much the number matters. First, hashing was never the bottleneck: the old solver yielded with `setTimeout(0)` after every 48-hash batch, and the browser's 4 ms clamp on nested timers made the *yields* ~90% of the wall clock (0.009 ms/hash of real work versus 0.32 ms/hash with the timer tax). That is fixed independently by yielding on a 16 ms wall-clock budget via `MessageChannel`, which is ~900× cheaper per yield. Second, the PoW is not what bounds abuse at either setting — a native `createHash` loop on this box does ~696k hashes/s, i.e. 1.5 s per token at 20 bits and 0.09 s at 16. What bounds abuse is INVARIANT 7's 2/day + 5/week cap per attested device, and that cap was **not being enforced at all** until 2026-08-14: Node's base64 decoder ignores non-alphabet characters, so `tok`, `tok=`, `tok==` and `tok!` all verified as the same device while counting as three different rate-limit subjects. One solve bought unlimited SOS budget at any difficulty. Treat the PoW as a throttle; the cap is the gate.
+  Two measurements are worth recording because they change how much the number matters. First, hashing was never the bottleneck: the old solver yielded with `setTimeout(0)` after every 48-hash batch, and the browser's 4 ms clamp on nested timers made the *yields* ~90% of the wall clock (0.009 ms/hash of real work versus 0.32 ms/hash with the timer tax). That is fixed independently by yielding on a 16 ms wall-clock budget via `MessageChannel`, which is ~900× cheaper per yield. Second, the PoW is not what bounds abuse at either setting. A native `createHash` loop on this box does ~696k hashes/s, i.e. 1.5 s per token at 20 bits and 0.09 s at 16. What bounds abuse is INVARIANT 7's 2/day + 5/week cap per attested device, and that cap was **not being enforced at all** until 2026-08-14: Node's base64 decoder ignores non-alphabet characters, so `tok`, `tok=`, `tok==` and `tok!` all verified as the same device while counting as three different rate-limit subjects. One solve bought unlimited SOS budget at any difficulty. Treat the PoW as a throttle; the cap is the gate.
 
   Device challenges are ALTCHA v2 (HMAC-signed parameters, single-use per process lifetime) since 2026-08-14.
 - The git history still contains the old working title in commit messages.

@@ -131,7 +131,7 @@ describe("QrScanner", () => {
 
     // An explicit, generous budget. The default is 1000ms, and this is the one
     // assertion in the suite that waits on the scanner's real timer while CI
-    // runs every package's tests in parallel — it failed intermittently on the
+    // runs every package's tests in parallel. It failed intermittently on the
     // loaded runner while passing locally and in other jobs on the same commit,
     // which blocked the Deploy workflow at its Gate. The component now attempts
     // a decode immediately rather than only on the interval, so this should
@@ -163,11 +163,11 @@ describe("QrScanner", () => {
  * the fake with the real polyfill. The real polyfill dutifully tried to decode
  * pixels out of a jsdom <video> that has none, so no barcode was ever found,
  * `router.push` was never called, and the phase sat on "scanning" until the
- * test timed out — while the DOM looked entirely healthy.
+ * test timed out, while the DOM looked entirely healthy.
  *
  * The fix is the `!cancelled` guard on that assignment. The package's own
  * side-effect write is a `??=`, which cannot overwrite a detector that is
- * already there — unlike the bare assignment, which is why only that one
+ * already there, unlike the bare assignment, which is why only that one
  * needed guarding.
  */
 describe("polyfill global hygiene", () => {

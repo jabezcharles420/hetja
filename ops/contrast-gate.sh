@@ -1,5 +1,5 @@
 #!/bin/bash
-# Contrast gate — every text/background pair in packages/design/tokens.css
+# Contrast gate: every text/background pair in packages/design/tokens.css
 # must meet WCAG-AA 4.5:1 (enhancement stack §M.10/§M.11, Phase 0 #5).
 # Zero-dependency WCAG relative-luminance formula; no chroma.js needed.
 set -u

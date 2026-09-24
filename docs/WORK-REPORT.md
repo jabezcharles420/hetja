@@ -1,14 +1,14 @@
-# Hetja — Complete Build Work Report
+# Hetja: Complete Build Work Report
 
-*Status: live document — final sections updated after the production build + deploy.*
+*Status: live document; final sections updated after the production build + deploy.*
 *Author: Hermes (admin agent) · Period: 2026-08-04 → 2026-08-12*
 
 ---
 
 ## 0. TL;DR
 
-**Hetja** — a production-grade civic-tech network for
-Mumbai's stray dogs — was designed, built, tested and **deployed on this VPS**.
+**Hetja**, a production-grade civic-tech network for
+Mumbai's stray dogs, was designed, built, tested and **deployed on this VPS**.
 **172 automated tests green**, 5 parallel-agent build waves, 2 deep research
 rounds, security hardening applied from the findings, and a full mobile-first
 frontend (Next.js 14 PWA) with a bespoke design system. Built with the opencode CLI
@@ -19,15 +19,15 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 ## 1. Infrastructure work (pre-app, same period)
 
 ### 1.1 Fleet consolidation (8 → 4 agents)
-- Deleted agents: **vonlenska, photonics** (08-04), **phd, prof_outreach** (08-06) —
+- Deleted agents: **vonlenska, photonics** (08-04), **phd, prof_outreach** (08-06):
   units removed, homes purged (~250 MB freed), sibling masks regenerated,
   watchdog/backup scripts updated. Fleet now: default (admin) + whatsapp + studies + aigithub.
 - **phd** was factory-reset (state wiped, scripts + SOUL kept).
 
 ### 1.2 OOM-proofing the 3 GB box (user mandate: "never again")
 - All gateways run `gateway run --replace` + `MemoryHigh/Max 500M/700M` (default
-  unit hardened via drop-in — hermes regenerates its unit on supervised start).
-- **memguard.sh** in every home — heavy cron scripts refuse/defer when free RAM < 350 MB.
+  unit hardened via drop-in, since hermes regenerates its unit on supervised start).
+- **memguard.sh** in every home: heavy cron scripts refuse/defer when free RAM < 350 MB.
 - **Cross-agent sentinel** (host timer, every 10 min) watches the admin gateway + RAM.
 - 512 MB zram swap confirmed; swapfile blocked by LXC seccomp.
 - Result: 4 agents ≈ 600 MB resident, ~2.3 GB free. The Aug-05 outage class
@@ -60,17 +60,17 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
 
 ### 2.3 Database (migrations 0001–0005)
 - **19 domain tables** (plus `schema_migrations`): dogs, collars, feeders, scans
-  (client_uuid UNIQUE — idempotent offline replays), sos_cases/sos_notifications,
-  medical_records (**append-only**, REVOKE UPDATE/DELETE — tests prove it),
+  (client_uuid UNIQUE, idempotent offline replays), sos_cases/sos_notifications,
+  medical_records (**append-only**, REVOKE UPDATE/DELETE; tests prove it),
   ledger_anchors, trust_events, geofences, feeder_territories (single-primary
-  partial index), dog_stories, jobs (autovacuum tuned), vets (linked to feeders)
-  — fifteen of them from `0001_init.sql`, joined by `care_providers` (0008),
+  partial index), dog_stories, jobs (autovacuum tuned), vets (linked to feeders);
+  fifteen of them from `0001_init.sql`, joined by `care_providers` (0008),
   `otp_codes` (0010), `push_subscriptions` (0011) and `web_vitals` (0013). This
   section previously said "15 tables", which was true only within its stated
   scope (migrations 0001–0005) and stale as a description of the schema since.
 - Seed: Phase-0 dogs + collars + feeder with random non-sequential slugs (INVARIANT 1).
 - **3 documented spec corrections** (in `docs/INVARIANTS.md`): scans partitioning
-  (unique-on-partitioned impossible in PG — hash-partition strategy for Phase 2),
+  (unique-on-partitioned impossible in PG; hash-partition strategy for Phase 2),
   ledger payload columns (store exactly what you hash), vets.feeder_id link.
 
 ### 2.4 API surface (all verified by route tests)
@@ -115,7 +115,7 @@ as parallel sub-agents per the user's mandate; no OOMs (waves + memory monitorin
   loops (BMC ABC handshake, feeder mentorship, adoption, lost-dog alerts, org SOS
   routing, anon→care funnel), WhatsApp Business API substrate, iNaturalist-style
   geo-custody tiers, k-anonymity heatmap (implemented), retention science.
-- **RESEARCH-2** (technical): CGNAT-safe rate limiting (device-token keys — implemented
+- **RESEARCH-2** (technical): CGNAT-safe rate limiting (device-token keys: implemented
   philosophy), hash-partition-by-client_uuid for Phase 2, HNSW > IVFFlat, CPU YOLO
   cost, WhatsApp read-receipt → ack mapping, push layering (implemented guidance:
   helmet, redaction, trustProxy pin).
@@ -168,9 +168,9 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
       `hetja-worker` (active), `hetja-scan` (:8081, 200) as systemd services;
       DB has 63 dogs (seed + test data). Production builds green for all apps
       (Next.js build: 10 pages, 87.4 kB shared JS; scan: 7.3 kB gzipped).
-- [ ] **First push to GitHub** — waiting on the `hetja` repo (deploy key ready;
+- [ ] **First push to GitHub**: waiting on the `hetja` repo (deploy key ready;
       add it to the repo's Deploy Keys with write access).
-- [x] Frontend visual pass — tokens + SSR verified; headless-Chrome screenshots
+- [x] Frontend visual pass: tokens + SSR verified; headless-Chrome screenshots
       blocked in this container (design gate = 79 tests + token/SSR checks).
 
 ## 7. Final test totals (2026-08-12)
@@ -186,20 +186,20 @@ cd apps/web && pnpm dev --port 3100    # Hetja frontend
 All suites green, 0 typecheck errors across api/worker/packages, security gate
 7/7, EXPLAIN gate 3/3, production builds passing.
 
-## Wave 11 — backend integrity leftovers (2026-08-27)
+## Wave 11: backend integrity leftovers (2026-08-27)
 
-- **collars.bound_once** — `BOOLEAN DEFAULT TRUE` added in `0001_init.sql:41`
+- **collars.bound_once**: `BOOLEAN DEFAULT TRUE` added in `0001_init.sql:41`
   is DEAD: zero reads/writes (`grep -rn bound_once apps/` empty beyond schema).
   Left in place, documented with `COMMENT ON COLUMN collars.bound_once` in
-  `0021_spent_challenges.sql` — dropping would need `MIGRATION-APPROVED` for no
+  `0021_spent_challenges.sql`. Dropping would need `MIGRATION-APPROVED` for no
   benefit and would break old backups. The binding is enforced by
   `collars.qr_code` uniqueness + `status`, not this flag.
-- **feeders.display_name** — was hardcoded to `'Hetja Feeder'` on every
+- **feeders.display_name**: was hardcoded to `'Hetja Feeder'` on every
   `INSERT` in `routes/auth.ts:50`. Now derived from the email local-part via
   `displayNameFromEmail()` on signup (plus-address stripped, dot/underscore
   split, title-cased, 64-char cap) and updatable via
   `PATCH /api/v1/feeders/me { displayName }`. Existing rows keep their current
   value on `ON CONFLICT`.
 
-*— End of report. Full commit history in the local repo (24 commits) and the
+*End of report. Full commit history in the local repo (24 commits) and the
 private backup (Hermes_aic).*

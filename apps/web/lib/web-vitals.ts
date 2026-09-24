@@ -4,7 +4,7 @@
  * Reports LCP/CLS/INP/TTFB to POST /api/v1/metrics/web-vitals via
  * navigator.sendBeacon. The one privacy rule that matters here: the path is
  * slug-stripped before it leaves the page ("/dog/:slug", never "/dog/xyz123abc"),
- * so per-dog page identity is never collected — the server enforces the same
+ * so per-dog page identity is never collected; the server enforces the same
  * contract (it rejects any path carrying a 9-char collar slug or ?s=).
  */
 import { API_ORIGIN } from "@/lib/api";
@@ -14,7 +14,7 @@ import type { MetricType } from "web-vitals";
  * A collar slug, anchored to the route prefixes where dog pages actually live
  * (`/d/<slug>` on apps/scan, `/dog/<slug>` on apps/web).
  *
- * The previous pattern was `/\/[a-km-z2-9]{9}\/?$/` — any trailing nine-character
+ * The previous pattern was `/\/[a-km-z2-9]{9}\/?$/`: any trailing nine-character
  * segment in the reduced alphabet, with no prefix. That is not a slug test, it is
  * a length test, and ordinary route names collide with it: `/dashboard` is nine
  * in-alphabet characters, so its telemetry was reported as `/:slug` and silently

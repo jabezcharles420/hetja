@@ -6,7 +6,7 @@ infra (object storage, KMS, HA Postgres).
 
 **Authoritative database: managed Supabase.** `ops/supabase/*` is the source
 of truth for schema and hardening; there is no competing local-systemd
-Postgres backend to reconcile with it. See `AGENTS.md` section (b) — a fresh
+Postgres backend to reconcile with it. See `AGENTS.md` section (b): a fresh
 box needs no Postgres, PostGIS, or pgvector install at all.
 
 ## Services (local dev / pilot)
@@ -15,7 +15,7 @@ box needs no Postgres, PostGIS, or pgvector install at all.
 |---|---|---|
 | PostgreSQL 16.14 + PostGIS + pgvector | managed Supabase (see `ops/supabase/`) | 5432 (pooler) |
 | Hetja API (Fastify) | `pnpm --filter @hetja/api dev` (dev) / systemd unit (prod) | 8080 |
-| Worker (fanout/escalation/retention) | `pnpm --filter @hetja/worker` | — |
+| Worker (fanout/escalation/retention) | `pnpm --filter @hetja/worker` | none |
 | Scan landing (static) | static server / CDN | 80/443 |
 
 ## SLOs (from the blueprint)
@@ -30,7 +30,7 @@ backlog age, push delivery-receipt rate.
 
 ## Daily ledger anchor
 
-The ledger head must be published daily (INVARIANT 10). **No cron is needed** —
+The ledger head must be published daily (INVARIANT 10). **No cron is needed**:
 the worker enqueues `anchor_ledger` itself, idempotently, keying off the last
 published anchor rather than any scheduler state, guarded by
 `pg_try_advisory_xact_lock` so a second worker instance cannot double-enqueue.
@@ -44,8 +44,8 @@ threw and retried to `MAX_ATTEMPTS`. Nothing enqueued it in the first place.
 Both fixed 2026-08-14; see `docs/INVARIANTS.md` for the write-up.
 
 **What is still not done, and it is the important half.**
-`ledger_anchors.published_url` is `''`. The head is computed, stored, and — with
-`HETJA_LEDGER_SIGNING_JWK` set — signed. It is not published anywhere outside
+`ledger_anchors.published_url` is `''`. The head is computed, stored, and (with
+`HETJA_LEDGER_SIGNING_JWK` set) signed. It is not published anywhere outside
 this operator's control, and INVARIANT 10's entire reasoning is that "a hash
 chain that is computed and stored by the same party that could tamper with it
 proves nothing about tampering by that party". Until a head lands somewhere we
@@ -75,7 +75,7 @@ expects it at `https://hetja.in/.well-known/jwks.json` or the path named in the
 `sub` DID. Until it is served, `signed: true` only tells you we signed something.
 
 Rotation: generate a new pair, publish a JWKS containing **both** keys, then swap
-the env vars. Do not drop the retired public key — every anchor it ever signed
+the env vars. Do not drop the retired public key: every anchor it ever signed
 becomes unverifiable, and that history is precisely what an auditor may want.
 
 ### After any deploy that ran migration 0015
@@ -91,11 +91,11 @@ psql -d hetja -c "SELECT conname, convalidated FROM pg_constraint
 ```
 
 `convalidated = false` means at least one stored number is not E.164 and the
-migration printed the offending rows (with `id` and `name`, never the value — the
+migration printed the offending rows (with `id` and `name`, never the value, since the
 deploy log is collaborator-readable). Fix those rows, then run the `VALIDATE
 CONSTRAINT` statement the migration's output gives you. Note the deliberate
 forcing function: while the constraint is `NOT VALID`, updating *any* column on a
-violating row fails the check — which puts the error in front of exactly the
+violating row fails the check, which puts the error in front of exactly the
 person editing that provider.
 
 ## PITR restore drill (monthly)
@@ -116,7 +116,7 @@ inside `/root/.backup-env` points. The unit files are committed under
 box.
 
 **Verified live on this box, 2026-08-22:** backups ARE running. Nine restic
-snapshots sit on the Google Drive remote (`rclone:gdrive:hetja-backups`) —
+snapshots sit on the Google Drive remote (`rclone:gdrive:hetja-backups`),
 one per night at ~02:15 IST from 2026-08-14 23:20 through 2026-08-21, checked
 at 00:35 IST before that morning's firing (`restic snapshots`, with
 `/root/.backup-env` sourced, is the ground truth). But the mechanism actually
@@ -126,28 +126,28 @@ out rather than papering over:
 1. **The running timer is a hand-installed systemd *user* unit** under
    `/root/.config/systemd/user/` (enabled in its `timers.target.wants`,
    2026-08-14; root's user manager lingers, so it fires without a login). It
-   predates the committed templates and differs from them — it carries none of
+   predates the committed templates and differs from them: it carries none of
    their memory caps against this 2 GB box (`MemoryMax=350M`) or
    `NoNewPrivileges` hardening. What runs and what git reviews have drifted
    apart. Closing that means reinstalling from the committed templates; until
    then, read the installed files, not just these, when reasoning about backup
    behaviour under memory pressure.
 2. **`ops/check-systemd.sh` cannot catch any of this.** It proves the repo
-   agrees with itself — every committed unit is referenced by `bootstrap.sh`
-   and vice versa — because CI can see the repo but not this box. Whether a
+   agrees with itself (every committed unit is referenced by `bootstrap.sh`
+   and vice versa) because CI can see the repo but not this box. Whether a
    given machine has the units installed, enabled and firing is checkable only
    on the machine: `systemctl --user list-timers` and `restic snapshots`.
 
 The history, kept because it is instructive: until 2026-08-14 this section,
 and `docs/CREDITS.md`, described a `hetja-restic.timer` running daily at
-02:15 IST that existed in no committed file — so a box provisioned from this
+02:15 IST that existed in no committed file, so a box provisioned from this
 repository had **no backups at all** while two documents said it had daily
 ones, which is the worst version of that mistake: you discover it when you
 reach for a restore. That afternoon the units were committed; that evening the
 Drive remote was configured in `/root/.backup-env`, and the first real
 snapshot landed at 23:20. An earlier draft of this very correction asserted the timer was
 "still not installed"; by the time it was written down that was already false
-again — which is the second lesson. Backup claims are cheap to write and
+again, which is the second lesson. Backup claims are cheap to write and
 expensive to verify, so verify: one `restic snapshots` invocation beats any
 paragraph in this file, including everything above.
 
@@ -155,7 +155,7 @@ One thing is **still** not true, and was previously documented as though it
 were:
 
 - **WAL archiving with wal-g is staged but dormant** (`archive_mode = off`,
-  verified live 2026-08-22), so there is no point-in-time recovery — only the
+  verified live 2026-08-22), so there is no point-in-time recovery, only the
   nightly dump, i.e. up to 24 h of loss. It stays dormant on this destination:
   backups go to Google Drive via rclone, and wal-g has no Drive backend.
   `ops/backup/BACKUPS.md` §5 documents the middle option and is honest that it
@@ -163,7 +163,7 @@ were:
 
 Google Drive rather than Cloudflare R2 because R2 requires a payment method on
 file even for its free tier, and this project runs on nothing. restic encrypts
-client-side either way, so Google only ever holds ciphertext — which is also why
+client-side either way, so Google only ever holds ciphertext, which is also why
 a lost `RESTIC_PASSWORD_FILE` is an unrecoverable backup with no reset path.
 Store that password off this box and outside that Drive account.
 
@@ -217,7 +217,7 @@ rotation) and how it relates to the `medical_records` hash chain.
 
 **Status: documented, not applied to the box.** It needs
 `shared_preload_libraries` and therefore a full PostgreSQL restart, which drops
-every connection including any in-flight SOS write — a maintenance-window
+every connection including any in-flight SOS write: a maintenance-window
 operation, not a deploy step. Nothing in this repository applies it, and that is
 deliberate: it is not a migration (see the doc for why a
 `CREATE EXTENSION pgaudit` migration would fail CI or silently no-op).
@@ -225,13 +225,13 @@ deliberate: it is not a migration (see the doc for why a
 ## DPDP erasure (INVARIANT 11)
 
 Erasure = DELETE the PII row (e.g. feeders.identity_hmac) while the ledger chain
-stays valid. The chain hashes pseudonymous actor IDs only — no personal data
+stays valid. The chain hashes pseudonymous actor IDs only; no personal data
 inside hashed payloads.
 
 What INVARIANT 11 does **not** yet have, and why it is still marked `🔶 design`
 in `docs/INVARIANTS.md`: there is no `audit_log` table and no redaction job. The
-designed shape (enhancement stack §G.9, §T.11) is an append-but-redactable table
-— a `redacted_fields` JSONB column, a `redact_at` timestamp, and a scheduled job
+designed shape (enhancement stack §G.9, §T.11) is an append-but-redactable table:
+a `redacted_fields` JSONB column, a `redact_at` timestamp, and a scheduled job
 that nulls fields past retention. It is deliberately **not** hash-chained,
 because satisfying an erasure request means altering an old row, which a chain
 would forbid. Also note `feeders.phone_hmac` was renamed `identity_hmac` in
@@ -241,19 +241,19 @@ migration `0010_identity_email.sql`; this section said the old name until
 ## Incident notes
 
 - **Offline replay duplicates**: check `scans_client_uuid_uix` violations
-  (should never happen — idempotency is by design).
+  (should never happen; idempotency is by design).
 - **SOS silence**: an unacked case fires the 8-min escalation job; if the
   escalation job itself is missing, check the `jobs` table for
   `escalate_sos` kind rows.
 - **CGNAT lockouts**: rate limits are per account/device token, never per IP
-  (INVARIANT 6) — if a whole carrier pool is blocked, that's a bug.
+  (INVARIANT 6). If a whole carrier pool is blocked, that's a bug.
 
 ## Production migrations (applied automatically by the pipeline)
 
 `ops/deploy-remote.sh` applies pending migrations to the **live** database on the
 box before restarting the services. This closes a gap where the pipeline's
 `migrate` job targeted Supabase only, while the API reads the local PostgreSQL
-(`PGHOST=127.0.0.1` in `apps/api/.env.production`) — so a new migration reached
+(`PGHOST=127.0.0.1` in `apps/api/.env.production`), so a new migration reached
 Supabase, which currently serves nothing, and never reached the database the
 application actually queries.
 
@@ -261,14 +261,14 @@ application actually queries.
 creating role owns what it creates, and an owner holds full rights on its table
 regardless of GRANTs. When `app_user` owns a table it can `DROP` it, and
 `0001_init.sql`'s `REVOKE UPDATE, DELETE ON medical_records` strips the owner's
-own rights — which breaks the referential-integrity trigger behind
+own rights, which breaks the referential-integrity trigger behind
 `DELETE FROM dogs`, because such a trigger runs as the *referencing* table's
 owner. That is the bug behind 48 CI failures, and migrations 0008–0011 had
 already drifted `care_providers` and `schema_migrations` into `app_user`
 ownership before this step existed. Migration 0012 reassigns them.
 
 The connection goes over the **unix socket as root**, mapped to the `postgres`
-role. Peer auth as the `postgres` OS user cannot work — `/root` is mode `700`, so
+role. Peer auth as the `postgres` OS user cannot work: `/root` is mode `700`, so
 that user cannot read the migration files. A password on the `postgres` role
 would be a new superuser credential in a file, and root can already
 `su - postgres`, so the map grants nothing that did not already exist.
@@ -279,11 +279,11 @@ Required once per box (`/etc/postgresql/16/main/`):
 # pg_ident.conf
 rootasdba  root  postgres
 
-# pg_hba.conf — change the existing rule
+# pg_hba.conf: change the existing rule
 local   all   postgres   peer map=rootasdba
 ```
 
-Then `SELECT pg_reload_conf();` — a reload, not a restart: an invalid file leaves
+Then `SELECT pg_reload_conf();`. It is a reload, not a restart: an invalid file leaves
 the previous rules active. Verify with
 `PGHOST=/var/run/postgresql PGUSER=postgres psql -tAc 'select current_user'`
 as root. `deploy-remote.sh` fails with these instructions if it cannot connect.
@@ -292,6 +292,6 @@ as root. `deploy-remote.sh` fails with these instructions if it cannot connect.
 when the health ladder fails and the release reverts. That is survivable only
 because the destructive-change gate blocks `DROP`/`TRUNCATE`/`DELETE` without an
 explicit `-- MIGRATION-APPROVED:` marker, so what flows through unattended is
-additive — and additive changes are backward compatible with the code being
+additive, and additive changes are backward compatible with the code being
 rolled back to. Anything destructive needs its own plan and a backup checked
 first.

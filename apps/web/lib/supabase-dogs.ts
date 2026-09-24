@@ -5,7 +5,7 @@
  * ops/supabase/03_hardening.sql rather than selecting from tables: every table
  * in `public` has RLS enabled with no anon policy, so a direct
  * `.from("dogs").select()` with the publishable key returns nothing. The RPCs
- * re-implement what the Fastify API enforced in code — HMAC signature check,
+ * re-implement what the Fastify API enforced in code: HMAC signature check,
  * ward-level coordinate coarsening, verified/moderated filtering.
  *
  * Shapes match the DogProfile / MedicalRecord / Story types in lib/api.ts so
@@ -57,7 +57,7 @@ function toNum(v: number | string | null): number | null {
 
 /**
  * Public dog profile. Returns null when the slug does not exist OR the
- * signature is invalid — the RPC deliberately does not distinguish the two, so
+ * signature is invalid; the RPC deliberately does not distinguish the two, so
  * random slugs cannot be enumerated (INVARIANT 1).
  */
 export async function getDogProfile(

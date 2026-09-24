@@ -64,7 +64,7 @@ describe("landing page", () => {
   it("shows the stats strip with honest placeholders when the API is unreachable", async () => {
     stubFetchFailure();
     render(await LandingPage());
-    expect(screen.getAllByText("—").length).toBe(3);
+    expect(screen.getAllByText("-").length).toBe(3);
     expect(screen.getByText("dogs tracked")).toBeTruthy();
     expect(screen.getByText("feeds logged")).toBeTruthy();
     expect(screen.getByText("lives touched")).toBeTruthy();
@@ -100,7 +100,7 @@ describe("landing page", () => {
       } as unknown as Response),
     );
     render(await LandingPage());
-    expect(screen.getAllByText("—").length).toBe(3);
+    expect(screen.getAllByText("-").length).toBe(3);
     vi.unstubAllGlobals();
   });
 

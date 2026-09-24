@@ -9,7 +9,7 @@ Type=simple
 WorkingDirectory=/srv/hetja/current/scan
 ExecStart=__NODE_BIN__ scripts/serve.mjs
 Environment=PORT=8081
-# Loopback only — Caddy terminates TLS and proxies /d/* here.
+# Loopback only; Caddy terminates TLS and proxies /d/* here.
 Environment=HOST=127.0.0.1
 Restart=always
 RestartSec=3

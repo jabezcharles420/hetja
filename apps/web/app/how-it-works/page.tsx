@@ -5,9 +5,9 @@ import PawIllustration from "@/components/PawIllustration";
 import styles from "@/components/Content.module.css";
 
 export const metadata: Metadata = {
-  title: "How it works — Hetja",
+  title: "How it works · Hetja",
   description:
-    "Scan the collar, see the dog's profile, and act — feed, raise an SOS, or send a vet note. It works even with no signal.",
+    "Scan the collar, see the dog's profile, and act: feed, raise an SOS, or send a vet note. It works even with no signal.",
 };
 
 const STEPS = [
@@ -16,7 +16,7 @@ const STEPS = [
     title: "Scan the collar",
     text: "Point your camera at the QR code on a dog's collar, or type the 9-character code printed beneath it. That code is the dog's ID and the key to their whole file.",
     points: [
-      "No app needed — any phone camera reads a QR.",
+      "No app needed. Any phone camera reads a QR.",
       "Works with zero signal: the profile you've seen before stays on your phone.",
       "Code never changes, so the dog keeps their file for life.",
     ],
@@ -27,7 +27,7 @@ const STEPS = [
     text: "Meet the dog properly: their name, ward, ABC and vaccination status, verified medical records from the tamper-evident ledger, and a micro-story written by the people who feed them.",
     points: [
       "Medical records appear only when a verified vet has signed them.",
-      "Location is shown at ward or cell level — never the dog's exact spot.",
+      "Location is shown at ward or cell level, never the dog's exact spot.",
       "Every record links back to the chain, so you know it hasn't been edited.",
     ],
   },
@@ -55,7 +55,7 @@ export default function HowItWorksPage(): React.JSX.Element {
       <PageHeader
         kicker="How it works"
         title="Scan. See. Act."
-        intro="Three moves, and a dog on your street is a little safer. No account needed to look, no training needed to help — just the collar, the code, and a phone."
+        intro="Three moves, and a dog on your street is a little safer. No account needed to look, no training needed to help. Just the collar, the code, and a phone."
       />
 
       <section className={`${styles.section} h-container`}>
@@ -100,7 +100,7 @@ export default function HowItWorksPage(): React.JSX.Element {
             <span className="h-pill h-pill-amber">The offline story</span>
             <h2 className={styles.offlineTitle}>No signal? No problem.</h2>
             <p className={styles.offlineText}>
-              Mumbai&rsquo;s lanes don&rsquo;t always have a bar of data — and a dog
+              Mumbai&rsquo;s lanes don&rsquo;t always have a bar of data, and a dog
               that needs you doesn&rsquo;t care. Hetja was built for the patchy
               networks where street dogs actually live.
             </p>

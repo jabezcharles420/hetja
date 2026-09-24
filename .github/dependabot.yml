@@ -19,7 +19,7 @@ updates:
   # ---------------------------------------------------------------------------
   # npm / pnpm. One entry per workspace package: Dependabot does not follow
   # pnpm-workspace.yaml, so a single root entry would silently ignore every
-  # dependency in apps/* and packages/* — which is all of them.
+  # dependency in apps/* and packages/*, which is all of them.
   # ---------------------------------------------------------------------------
   - package-ecosystem: npm
     directories:
@@ -49,7 +49,7 @@ updates:
         update-types: ["minor", "patch"]
       # NOTE: there is deliberately no `major` group. An earlier version of this
       # file had one, with a comment claiming "majors get their own PR each,
-      # because a major is a reading task" — which is the opposite of what
+      # because a major is a reading task", which is the opposite of what
       # grouping does. It produced PR #5: "bump the major group across 3
       # directories with 8 updates". Eight breaking changes in one diff is not
       # reviewable, so it would have sat open forever or been merged unread.
@@ -66,7 +66,7 @@ updates:
       # apps/web was the last package on typescript@5 while everything else was
       # already on 7, and the bump to 7 surfaced TS2882 (new in TS 7 for
       # side-effect imports of non-code files). apps/web/css.d.ts now supplies
-      # that declaration — but the version stays on 5, because Next 14's
+      # that declaration, but the version stays on 5, because Next 14's
       # `next lint` does not accept typescript@7 at all: it decides TypeScript is
       # not installed and tries to auto-install it, so the Lint step breaks even
       # once typecheck passes.
@@ -110,7 +110,7 @@ updates:
 
   # ---------------------------------------------------------------------------
   # GitHub Actions. Pinning drift here is a supply-chain question, not a
-  # feature question — a compromised third-party action in ci.yml or deploy.yml
+  # feature question: a compromised third-party action in ci.yml or deploy.yml
   # runs with this repository's deploy secrets (DEPLOY_SSH_KEY, the Supabase
   # password). Worth keeping current.
   # ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ updates:
     # job "failed on them" and reasoning at length about ci.yml's load-bearing
     # step order (pnpm/action-setup before setup-node, no `version:` passed
     # because v4 reads `packageManager` from package.json). That reasoning was
-    # plausible and the premise was simply false — `gh run list` shows all three
+    # plausible and the premise was simply false: `gh run list` shows all three
     # action-major PRs GREEN on both CI and the a11y workflow:
     #
     #   success  CI  (dependabot/github_actions/pnpm/action-setup-6)
@@ -144,4 +144,4 @@ updates:
     # fabricated failure would have been the same mistake this repository has
     # been cleaning up all week: a confident comment that the code does not
     # support. If an action major ever does break the workflow, the PR goes red
-    # and that is the signal — no pre-emptive block needed.
+    # and that is the signal. No pre-emptive block needed.

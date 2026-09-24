@@ -1,6 +1,6 @@
-# Hetja Invariant Checklist — implementation status
+# Hetja Invariant Checklist: implementation status
 
-Each of these encodes a defect found in an earlier design, not a preference —
+Each of these encodes a defect found in an earlier design, not a preference:
 see "Why this exists" below for the specific failure each one closes off.
 Encoded as migrations, lint rules or tests so none of them can regress. This
 file is now the source of truth for the reasoning; it used to point at an
@@ -14,10 +14,10 @@ external build guide that lived outside the repo.
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
 | 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
-| 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check — per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
+| 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check, per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
-| 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`** — the head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
+| 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`**. The head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
 | 11 | DPDP erasure = PII delete, chain stays valid | 🔶 design | pseudonymous actor IDs in chain; runbook documents erasure |
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
 | 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
@@ -33,14 +33,14 @@ Worth recording, because it is the most instructive failure found in the
 `anchor_ledger` job. Two things were true at once:
 
 1. The job's query was
-   `SELECT hash_curr AS hash, count(*)::int AS n FROM medical_records ORDER BY created_at DESC LIMIT 1`
-   — an aggregate beside a bare column with no `GROUP BY`. PostgreSQL rejects
+   `SELECT hash_curr AS hash, count(*)::int AS n FROM medical_records ORDER BY created_at DESC LIMIT 1`,
+   which is an aggregate beside a bare column with no `GROUP BY`. PostgreSQL rejects
    that outright, so every invocation threw and retried to `MAX_ATTEMPTS`.
 2. Nothing ever enqueued it. No cron, no systemd timer, no `INSERT … kind='anchor_ledger'`
    anywhere in the repository.
 
 So the invariant most concerned with *being checkable by someone else* was
-itself unchecked, for the whole life of the row. Both are fixed — the query, and
+itself unchecked, for the whole life of the row. Both are fixed: the query, and
 a worker-side idempotent scheduler that needs no scheduler state because the
 published anchor is itself the record of the last run. The status is now 🔄
 rather than ✅ because publishing to somewhere we do not control is still
@@ -66,7 +66,7 @@ common one:
 `apps/api/src/routes/medical.ts` and `medical.test.ts` use the canonical
 numbering (8 = append-only, 9 = length-prefixed); almost everything older uses
 9 for append-only. Those historical comments have deliberately **not** been
-renumbered — `0001_init.sql` is the first migration in the repo and rewriting
+renumbered: `0001_init.sql` is the first migration in the repo and rewriting
 the reasoning in an applied migration's header to fix a citation number would
 make the file disagree with what was actually run, for no safety benefit.
 
@@ -76,7 +76,7 @@ rules hold and both are tested; only the citation is ambiguous. New code should
 use the canonical numbers above.
 
 The count in `AGENTS.md` was also wrong for a while (it said "fourteen rules"
-against a fifteen-row table) — invariant 15 was added during implementation
+against a fifteen-row table); invariant 15 was added during implementation
 rather than coming from the original spec.
 
 ## Why this exists
@@ -91,21 +91,21 @@ spec PDFs directly. Migrated here so it survives independently of them.
    character exists purely to catch a mistyped collar entry before it becomes
    a query for the wrong dog.
 2. **Public reads never return exact coordinates.** Any unauthenticated
-   response — including the heatmap and any future open-data export — snaps
+   response (including the heatmap and any future open-data export) snaps
    geo to ward or a ≥500 m grid cell, with no exceptions. A precise last-seen
    point for a dog a feeder cares for is also, functionally, a precise
    location for that feeder; there is no reading of "anonymous" that survives
    exact coordinates being public.
 3. **Contact info is HMAC'd, never hashed bare.** This was written when the
    identity channel was a 10-digit Indian mobile number: a plain SHA-256 of
-   one is a ~4×10⁹-entry keyspace — small enough to brute-force in seconds on
+   one is a ~4×10⁹-entry keyspace, small enough to brute-force in seconds on
    commodity hardware, which makes a bare hash equivalent to storing the
    number in the clear. HMAC with a pepper held outside the database
    (KMS/secret manager, never a committed env file) is what actually makes
    it one-way. The reasoning carries over unchanged now that the identity
    channel is email (`feeders.phone_hmac` was renamed to `identity_hmac` in
    migration `0010_identity_email.sql` rather than adding a parallel
-   column) — an email address is just as recoverable from a bare hash as a
+   column): an email address is just as recoverable from a bare hash as a
    phone number was; the fix is the same HMAC, over a different string.
 4. **Offline conflict resolution uses `captured_at`, never `received_at`.**
    A feeder's phone can be offline for hours; if the server resolved
@@ -119,7 +119,7 @@ spec PDFs directly. Migrated here so it survives independently of them.
    The clock-skew clamp is **asymmetric**: at most 15 minutes into the future,
    up to 30 days into the past. This rule previously read "±15 minutes" and was
    implemented as `Math.abs(now - capturedAt) <= 15min`, which contradicted the
-   first sentence of this very invariant — a phone offline for hours produced a
+   first sentence of this very invariant: a phone offline for hours produced a
    `capturedAt` hours old, so every feed queued offline for more than a quarter
    of an hour was rejected with a permanent 400 on sync. INVARIANT 5's
    idempotent replay had nothing left to replay, and the client, correctly
@@ -128,7 +128,7 @@ spec PDFs directly. Migrated here so it survives independently of them.
    Only the future direction needs a tight bound. `applyLww` keeps the greatest
    `captured_at`, so a fast or lying clock wins last-writer-wins indefinitely
    and pins `last_seen_geo`. A timestamp in the past merely loses that
-   comparison, which is the correct outcome for an old observation — it cannot
+   comparison, which is the correct outcome for an old observation. It cannot
    walk the location backwards, because losing is exactly what "backwards"
    means here.
 5. **`scans.client_uuid` has a UNIQUE index.** It is the only mechanism that
@@ -137,7 +137,7 @@ spec PDFs directly. Migrated here so it survives independently of them.
    per retry. Without the unique index, a flaky connection turns into
    duplicate feed credit and duplicate SOS reports.
 6. **Rate limits are per account or per attested device token, never per
-   IP.** Indian mobile carriers do large-scale CGNAT — hundreds of real
+   IP.** Indian mobile carriers do large-scale CGNAT; hundreds of real
    subscribers can share one public IP. An IP-based limit either fails to
    stop one abuser (who churns IPs) or collectively locks out an entire
    carrier's user base for that abuser's behavior. A device token is the
@@ -146,13 +146,13 @@ spec PDFs directly. Migrated here so it survives independently of them.
 7. **No unauthenticated unbounded fan-out.** Anonymous SOS reports require an
    attested device token (Play Integrity / App Attest, or a proof-of-work
    fallback on desktop web) and are capped at 2/day and 5/week per token.
-   Without this, the SOS fan-out — which pages real people's phones — becomes
+   Without this, the SOS fan-out (which pages real people's phones) becomes
    a free mechanism for paging strangers at will.
 
     The caps are **rolling** windows as of wave 7 (2026-08-24): `sos.ts` counts
     rows with `received_at >= now() - interval '1 day' / '7 days'`. They were
-    **calendar** windows for most of the system's life —
-    `received_at >= date_trunc('day'|'week', now())` — which let a token file
+    **calendar** windows for most of the system's life
+    (`received_at >= date_trunc('day'|'week', now())`), which let a token file
     two reports at 23:58 IST and two more at 00:01; the route's comment claimed
     "rolling" the whole time, so the comment was wrong about its own code until
     the code was made to match it. Wave 7 also added what INVARIANT 6 always
@@ -160,14 +160,14 @@ spec PDFs directly. Migrated here so it survives independently of them.
     callers (previously exempt from every cap), and a global token-bucket on
     `/devices/token` mints (`lib/rate-limit.ts`), because token minting was
     itself uncapped and a native solver clears the PoW in ~0.09 s.
-8. **`medical_records` accepts INSERT and nothing else — no UPDATE, no
+8. **`medical_records` accepts INSERT and nothing else: no UPDATE, no
    DELETE, no TRUNCATE.** A dog's treatment history is evidence: it is what a
    cruelty prosecution or a municipal audit rests on, and a record that can be
    quietly amended afterwards proves nothing about what was known when. A
    correction is a new row that supersedes an old one, never an edit to the old
    one. TRUNCATE needed naming separately from UPDATE/DELETE because revoking
    those two does not imply it, and because a table's owner holds TRUNCATE
-   regardless of GRANTs — that gap was real, and `0012` closes it with both a
+   regardless of GRANTs. That gap was real, and `0012` closes it with both a
    REVOKE and a statement-level `BEFORE TRUNCATE` trigger.
 9. **The chain is on from the first migration, and its hash inputs are
    length-prefixed.** Retrofitting a hash chain over already-unchained history
@@ -176,14 +176,14 @@ spec PDFs directly. Migrated here so it survives independently of them.
    chain for exactly the older records an auditor would care about most. As for
    the hash itself, inputs are length-prefixed:
    `SHA256(len‖hash_prev ‖ len‖payload ‖ len‖vet_id ‖ len‖ts)`. Bare
-   concatenation of variable-length fields is ambiguous — e.g. `"ab"+"c"` and
+   concatenation of variable-length fields is ambiguous: e.g. `"ab"+"c"` and
    `"a"+"bc"` concatenate to the same string, so two different medical
    records could produce the same hash by construction rather than by
    genuine collision. Length-prefixing each field removes that ambiguity
    entirely, independent of hash strength.
 10. **Publish the ledger head daily.** A hash chain that is computed and
     stored by the same party that could tamper with it proves nothing about
-    tampering by that party — the chain only becomes tamper-*evident* once
+    tampering by that party. The chain only becomes tamper-*evident* once
     its head is published somewhere the operator does not solely control, so
     a later rewrite of history is detectable by comparing against a
     previously-published anchor.
@@ -193,17 +193,17 @@ spec PDFs directly. Migrated here so it survives independently of them.
     directly, satisfying an erasure request would mean either breaking the
     chain (deleting a row a later hash depends on) or leaving the PII in
     place forever. Chaining over pseudonymous actor IDs instead means the PII
-    row can be deleted from `feeders` while the chain — which never held the
-    PII itself — stays valid.
+    row can be deleted from `feeders` while the chain (which never held the
+    PII itself) stays valid.
 12. **Every documented query must run against the committed schema.** An
     earlier design published a flagship SOS query in its docs that referenced
-    three columns that did not exist in the actual schema — a query nobody
+    three columns that did not exist in the actual schema, a query nobody
     had run against real data. Requiring every query in `docs/queries/` to
     pass `EXPLAIN` in CI turns "the docs and the schema silently diverged"
     into a failing build instead of a surprise in production.
 13. **Scan landing stays under 40 KB gzipped.** This is the page a stranger
     lands on from scanning a collar with their phone's own camera app, on
-    whatever network they happen to have — the entire reason it is a static
+    whatever network they happen to have. That is the entire reason it is a static
     HTML + vanilla TS bundle with zero framework, rather than reusing the
     feeder app's stack. A framework runtime alone would blow the budget
     before a single line of the app's own code ran, on exactly the
@@ -211,7 +211,7 @@ spec PDFs directly. Migrated here so it survives independently of them.
 14. **A failed AI validation flags for review; it never silently rejects.**
     The detector is a Phase-0 stub today and will misclassify real photos.
     Auto-rejecting on a false negative turns a model limitation into a
-    feeder being told their real, valid feed didn't count, with no recourse —
+    feeder being told their real, valid feed didn't count, with no recourse;
     flagging for human review preserves a path to "actually fine" that a
     silent rejection destroys. This is also why the moderation queue's
     throughput has to be a measured, owned metric before flagging is turned
@@ -222,21 +222,21 @@ spec PDFs directly. Migrated here so it survives independently of them.
     provisional (unverified) feeder whose last three scans were all
     rejected or flagged is paused rather than left free to keep submitting.
     `role` is left unchanged and the pause is reversible (a human review can
-    clear it) — the point is to stop repeat bad-faith or malfunctioning
+    clear it). The point is to stop repeat bad-faith or malfunctioning
     submissions from accumulating before a human looks, not to punish a
     feeder for one bad photo.
 
     **Defect found and fixed (recorded 2026-09-07).** For the whole life of
     this row the pause was a flag nothing read. `applyVerificationGate` wrote
-    an `auto_paused` trust event — from inside `GET /feeders/:id/trust`, a read
-    that inserted rows (docs/BUGS.md P3) — and no write path ever consulted it:
+    an `auto_paused` trust event from inside `GET /feeders/:id/trust`, a read
+    that inserted rows (docs/BUGS.md P3), and no write path ever consulted it:
     a paused feeder's next `POST /api/v1/scans` was accepted like any other, so
     "paused rather than left free to keep submitting" described nothing the
     code did. Now `routes/scans.ts` evaluates the gate before accepting a
     feeder-authed scan and refuses a paused account with 403 `FEEDER_PAUSED`
     (the offline queue treats that as final and tells the feeder); the flag is
     written there and by the explicit `POST /feeders/:id/trust/evaluate`, and
-    the GET is a pure read again. SOS reporting is deliberately NOT gated — an
+    the GET is a pure read again. SOS reporting is deliberately NOT gated: an
     emergency report from a paused account is still an emergency. "A human
     review can clear it" remains true in the same shape as before: the gate
     re-derives from the last three scans' `review_status`, so passing one of
@@ -254,7 +254,7 @@ in the table above:
   rewards.
 - **The re-tag trust gate is 50, not 75.** At the trust engine's `+1` per
   verified scan, a gate of 75 works out to roughly 45 scans of tenure before
-  a feeder can re-tag a dog — meaning nobody could re-tag during a pilot's
+  a feeder can re-tag a dog, meaning nobody could re-tag during a pilot's
   first weeks, which is exactly when freshly-printed collars fail and need
   replacing. 50 keeps re-tagging reachable during the pilot while still
   being well above the casual-scan noise floor; a Phase-0 escape hatch (a
@@ -263,11 +263,11 @@ in the table above:
   **Defect found and fixed (recorded 2026-08-22).** Both the argument and the
   gate it defends assume trust accrues roughly a point per action. The shipped
   catalog was nothing like that: `TRUST_BASELINE = 30` and
-  `TRUST_EVENTS.feed = 60` (`apps/api/src/lib/trust.ts` — `verified_scan` was
+  `TRUST_EVENTS.feed = 60` (`apps/api/src/lib/trust.ts`: `verified_scan` was
   +10, not +1, and `feed` dwarfed everything else), so **one** logged feed took
   a brand-new feeder from 30 to 90. That cleared every trust threshold in the
-  system in one step — the 40/60 SOS fan-out floors (`sos.ts`) and this 50
-  re-tag gate alike — which made the "45 scans of tenure" arithmetic above a
+  system in one step (the 40/60 SOS fan-out floors in `sos.ts` and this 50
+  re-tag gate alike), which made the "45 scans of tenure" arithmetic above a
   description of a catalog that did not exist.
 
   **Recalibrated the same day.** `feed` is now **+1**, making it the smallest
@@ -289,7 +289,7 @@ in the table above:
   `photo_rejected -5`, `story_rejected -5`, `serial_rejects -15`,
   `auto_paused 0`, `reversal 0` (`TRUST_MIN=0`, `TRUST_MAX=100`,
   `SERIAL_REJECT_PAUSE_THRESHOLD=3`). Because scores are derived
-  — `recomputeScore()` replays `trust_events` from `TRUST_BASELINE` — the
+  (`recomputeScore()` replays `trust_events` from `TRUST_BASELINE`), the
   correction needed no migration; and zero feeder rows existed in production,
   so nothing rescaled mid-flight.
 
@@ -298,7 +298,7 @@ in the table above:
 
   - **`POST /api/v1/trust/events` is gone.** It let any feeder mint any
     catalog delta for themselves, for their own feeder id, with no admin check
-    and no relation to a real scan — one request reached trust 90, two hit the
+    and no relation to a real scan: one request reached trust 90, two hit the
     clamp of 100. Every legitimate producer logs server-side
     (`scans.ts`, `moderation.ts`, the dispute path), so an HTTP write path had
     only illegitimate callers.
@@ -307,7 +307,7 @@ in the table above:
     `resolveDispute()`, which requires an admin. Previously the feeder a
     penalty constrained could negate that penalty with one more call.
     Resolution *restores* exactly the disputed delta and awards nothing on
-    top — an extra credit would reward collecting penalties to dispute them.
+    top; an extra credit would reward collecting penalties to dispute them.
 
 ## Spec corrections (documented deviations)
 
@@ -317,7 +317,7 @@ in the table above:
    Phase-2 migration will hash-partition by client_uuid or use a dedup guard
    table (see RESEARCH-2 for the analysis).
 2. **medical_records payload columns (0004)**: the chain hashes a canonical
-   payload — the DB must store exactly what was hashed (`payload`,
+   payload, so the DB must store exactly what was hashed (`payload`,
    `hash_vet_id`, `hash_ts`) so verification is possible.
 3. **vets.feeder_id (0003)**: the vet registry must link to a feeder account
    so API callers resolve to their clinic + signing key.
@@ -338,7 +338,7 @@ in the table above:
    `ST_DWithin(f.last_known_geo, $1::geography, 2000)`. You cannot run a
    spatial predicate against a ciphertext, and you cannot index one. The only
    alternative is to decrypt every candidate row in the application and compute
-   distance there — turning one indexed radius lookup into a full scan plus N
+   distance there, turning one indexed radius lookup into a full scan plus N
    decryptions, on the life-safety path, on a 2 GB box. There are 22 such
    references across `routes/care.ts`, `routes/sos.ts` and the worker's
    escalation job. A change that makes the geofence slower or wrong in order to
@@ -349,7 +349,7 @@ in the table above:
    `restic` encrypts client-side, so Cloudflare R2 only ever holds ciphertext
    (`ops/backup/restic-backup.sh`). Against an attacker who has the database,
    a symmetric key sitting in `.env.production` on the same box adds very
-   little — and INVARIANT 3's actual subject, contact information, is already
+   little, and INVARIANT 3's actual subject, contact information, is already
    HMAC'd with a pepper held outside the database.
 
    Not done for `care_providers.phone_e164` either, on separate grounds: that

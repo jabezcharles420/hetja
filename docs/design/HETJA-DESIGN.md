@@ -1,4 +1,4 @@
-# Hetja — Design System v3 (Apple / Sidehoe direction)
+# Hetja: Design System v3 (Apple / Sidehoe direction)
 
 This replaces v2 ("Swiss wayfinding": square corners, hairlines, no shadows,
 one red accent, six fixed Inter sizes). v2 in turn replaced v1 (cream/forest/
@@ -230,7 +230,7 @@ radius, a grey background, white grouped rows with chevrons, and care
 providers as white cards with tinted Call and Directions pills. Banners are
 rounded glass pills that stick to the top, and the toast is a dark glass card.
 
-## Dogmoji — the character system
+## Dogmoji: the character system
 
 Apple's Memoji and Animoji art is Apple IP and can't ship on the web. Hetja uses
 **Microsoft Fluent Emoji 3D** instead, which has the same glossy, soft-lit 3D
@@ -322,7 +322,7 @@ place, so the look can be signed off before pages change. It is `noindex`,
 left out of every nav, and returns 404 in production builds unless
 `HETJA_STYLEGUIDE=1` is set.
 
-## `/hetja` — the calm departure
+## `/hetja`: the calm departure
 
 `/hetja` is a memorial for the dog the product is named for, linked from the
 footer and from `/about`, and never in the bottom nav. It reuses the black
@@ -353,7 +353,7 @@ reach it. Check a print preview after any token change.
 are white (`--h-base`). `apps/scan` uses `--h-gray` so the status bar blends
 into its grey top band. User-visible strings read "Hetja".
 
-## Accessibility — non-negotiable
+## Accessibility: non-negotiable
 
 - **Every interactive target is at least 48px** (`--h-target`), and
   `--h-target-min` (44px, HIG) only where 48 genuinely won't fit. WCAG 2.2

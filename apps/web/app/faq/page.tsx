@@ -4,7 +4,7 @@ import FaqList from "@/components/FaqList";
 import styles from "@/components/Content.module.css";
 
 export const metadata: Metadata = {
-  title: "FAQ — Hetja",
+  title: "FAQ · Hetja",
   description:
     "Answers for feeders, vets, NGOs, and citizens: feeding a dog that isn't yours, damaged collars, verifying records, ABC integration, and reporting SOS.",
 };
@@ -15,7 +15,7 @@ const GROUPS = [
     items: [
       {
         q: "Can I feed a dog that isn't mine?",
-        a: "Yes — please do. Any collar-wearing dog can be fed by anyone who's there. Log the feed so the dog's regular feeders see it and know they're covered. Nobody owns a street dog; we just share the care.",
+        a: "Yes, please do. Any collar-wearing dog can be fed by anyone who's there. Log the feed so the dog's regular feeders see it and know they're covered. Nobody owns a street dog; we just share the care.",
       },
       {
         q: "What if the collar is damaged or missing?",
@@ -23,11 +23,11 @@ const GROUPS = [
       },
       {
         q: "Do I need an account to log a feed?",
-        a: "No. You can act as a guest, and the feed still counts toward the dog's log. With an account you keep your streaks and build a trust score — which is what lets vets and BMC take your reports seriously.",
+        a: "No. You can act as a guest, and the feed still counts toward the dog's log. With an account you keep your streaks and build a trust score, which is what lets vets and BMC take your reports seriously.",
       },
       {
         q: "How do I know the dog has been fed already?",
-        a: "The profile shows recent feeds and last-seen time. It's not a live camera — it's a shared log. If the log is stale, the dog probably needs you more than ever.",
+        a: "The profile shows recent feeds and last-seen time. It's not a live camera; it's a shared log. If the log is stale, the dog probably needs you more than ever.",
       },
     ],
   },
@@ -40,11 +40,11 @@ const GROUPS = [
       },
       {
         q: "Can I edit or delete a record?",
-        a: "No — that's the point. A tamper-evident ledger can't be quietly changed. If a record needs correcting, add a new signed record that says so. The old one stays, visibly, with the correction linked to it.",
+        a: "No, that's the point. A tamper-evident ledger can't be quietly changed. If a record needs correcting, add a new signed record that says so. The old one stays, visibly, with the correction linked to it.",
       },
       {
         q: "How do I get vet access?",
-        a: "Write to hello@hetja.in with your clinic's name and registration. We verify your identity once, then your records are publicly attributed to you — that attribution is what makes the ledger trustworthy.",
+        a: "Write to hello@hetja.in with your clinic's name and registration. We verify your identity once, then your records are publicly attributed to you. That attribution is what makes the ledger trustworthy.",
       },
     ],
   },
@@ -57,7 +57,7 @@ const GROUPS = [
       },
       {
         q: "Can we use the coverage data for planning?",
-        a: "Yes. Coverage data is aggregated to anonymous cells with k-anonymity — enough to plan a drive, never enough to track an individual. Ward and zone summaries are available to registered NGOs and BMC on request.",
+        a: "Yes. Coverage data is aggregated to anonymous cells with k-anonymity: enough to plan a drive, never enough to track an individual. Ward and zone summaries are available to registered NGOs and BMC on request.",
       },
       {
         q: "How do we partner with Hetja?",
@@ -74,11 +74,11 @@ const GROUPS = [
       },
       {
         q: "I think a dog needs help. How do I report it?",
-        a: "Open the dog's profile and hit the SOS button. Choose how serious it is and what you saw — the report fans out to nearby feeders and responders in that ward. Don't wait for an account; an SOS works as a guest.",
+        a: "Open the dog's profile and hit the SOS button. Choose how serious it is and what you saw, and the report fans out to nearby feeders and responders in that ward. Don't wait for an account; an SOS works as a guest.",
       },
       {
         q: "Is the information on a profile reliable?",
-        a: "Medical records are only shown when a verified vet signed them, and the tamper-evident chain means they can't be quietly edited. Feeds and stories are honest, human logs — you can see who posted them, and stale data is easy to spot.",
+        a: "Medical records are only shown when a verified vet signed them, and the tamper-evident chain means they can't be quietly edited. Feeds and stories are honest, human logs: you can see who posted them, and stale data is easy to spot.",
       },
       {
         q: "Is my personal data used for anything else?",
@@ -94,7 +94,7 @@ export default function FaqPage(): React.JSX.Element {
       <PageHeader
         kicker="FAQ"
         title="Questions from the street."
-        intro="Everything feeders, vets, NGOs, and citizens ask us most. If your question isn't here, write to hello@hetja.in — a person will answer."
+        intro="Everything feeders, vets, NGOs, and citizens ask us most. If your question isn't here, write to hello@hetja.in and a person will answer."
       />
       <section className={`${styles.section} h-container`}>
         <FaqList groups={GROUPS} />

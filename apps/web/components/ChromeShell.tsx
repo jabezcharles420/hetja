@@ -13,20 +13,20 @@ import { InstallBanner } from "./InstallBanner";
  * competing for the same screen. This is the one surface that suppresses
  * the global chrome.
  *
- * Footer is deliberately excluded from the suppression — it sits below all
+ * Footer is deliberately excluded from the suppression: it sits below all
  * page content and never competes with the primary action in the bottom
  * third of the viewport.
  *
  * That reasoning holds for page content and NOT for the fixed bottom nav,
  * which is what caused a real bug: being last in the document, the footer is
- * precisely what the nav overlays, so it is the footer — not `main` — that has
+ * precisely what the nav overlays, so it is the footer (not `main`) that has
  * to reserve the nav's height. Hence clearBottomNav below.
  */
 function isBareRoute(pathname: string): boolean {
   if (pathname.startsWith("/dog/")) return true;
-  // Print sheet is a physical artefact — a fixed bottom nav printed across a
+  // Print sheet is a physical artefact: a fixed bottom nav printed across a
   // collar sheet is a wasted sheet of TPU. Hide chrome on the print route
-  // (and in print CSS — InstallBanner is a client component that can still
+  // (and in print CSS, since InstallBanner is a client component that can still
   // mount after hydration).
   if (pathname.startsWith("/register/") && pathname.endsWith("/print")) return true;
   return false;
@@ -46,12 +46,12 @@ export function ChromeShell({
       {/* No className: `.h-main` was deleted along with the padding-bottom that
        * moved to .h-footer-clear-nav, leaving a class name that matched no rule
        * in any stylesheet. Left bare rather than re-added, because horizontal
-       * gutters belong to `.h-container` and the per-route page wrappers —
+       * gutters belong to `.h-container` and the per-route page wrappers;
        * padding here would double up on every one of them. */}
       <main>{children}</main>
       {!bare && <InstallBanner />}
       {!bare && <BottomNav />}
-      {/* The footer clears the bottom nav only where the nav actually renders —
+      {/* The footer clears the bottom nav only where the nav actually renders:
        * it is the last element in the document, so it is what the fixed nav
        * covers. See the .h-footer-clear-nav rule in globals.css. */}
       <Footer clearBottomNav={!bare} />

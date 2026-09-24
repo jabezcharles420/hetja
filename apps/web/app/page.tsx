@@ -56,13 +56,13 @@ function Step({
  * Live Impact stats for the landing strip.
  *
  * Fetched server-side with ISR (revalidate 60s) so a DB hiccup never
- * breaks the landing — the catch returns null and the caller renders
- * honest placeholders "—" instead (docs/HOW-IT-WORKS.md §10: "the
+ * breaks the landing: the catch returns null and the caller renders
+ * honest placeholders "-" instead (docs/HOW-IT-WORKS.md §10: "the
  * system is allowed to know less than it wants to, but not allowed to
  * claim more than it knows"). The API itself is also cached 60s
  * (apps/api/src/routes/stats.ts) so the two layers age out together.
  *
- * No auth, no geo — the endpoint returns three integers only
+ * No auth, no geo: the endpoint returns three integers only
  * (INVARIANT 2 coarsening), so this fetch carries no PII and needs no
  * header.
  */
@@ -107,11 +107,11 @@ async function getImpactStats(): Promise<ImpactStats | null> {
 export default async function LandingPage(): Promise<React.JSX.Element> {
   const stats = await getImpactStats();
 
-  // Fallback to "—" on any fetch failure so a DB hiccup does not break
+  // Fallback to "-" on any fetch failure so a DB hiccup does not break
   // the landing. Matches the previous hardcoded placeholders exactly.
-  const dogsTracked = stats ? String(stats.dogsTracked) : "—";
-  const feedsLogged = stats ? String(stats.feedsLogged) : "—";
-  const livesTouched = stats ? String(stats.livesTouched) : "—";
+  const dogsTracked = stats ? String(stats.dogsTracked) : "-";
+  const feedsLogged = stats ? String(stats.feedsLogged) : "-";
+  const livesTouched = stats ? String(stats.livesTouched) : "-";
 
   return (
     <>
@@ -174,7 +174,7 @@ export default async function LandingPage(): Promise<React.JSX.Element> {
             <Step
               num="1"
               title="Scan"
-              text="Point at the QR on a dog's collar — or type the 9-character code. It's their ID and their whole file."
+              text="Point at the QR on a dog's collar, or type the 9-character code. It's their ID and their whole file."
             />
             <Step
               num="2"

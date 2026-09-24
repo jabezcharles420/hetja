@@ -206,8 +206,8 @@ describe("lib/api", () => {
 
 /**
  * `fetch` has no built-in timeout. A refused connection rejects fast, but a
- * socket that opens and then stalls — the ordinary congested-cell-network
- * failure — hung until the browser's own multi-minute limit. On the SOS modal
+ * socket that opens and then stalls (the ordinary congested-cell-network
+ * failure) hung until the browser's own multi-minute limit. On the SOS modal
  * that left the button disabled reading "Sending SOS…" indefinitely, on the one
  * screen where the user needs to know it failed so they can call a vet instead.
  */

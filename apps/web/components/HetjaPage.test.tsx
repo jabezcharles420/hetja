@@ -20,7 +20,7 @@ describe("Hetja memorial page", () => {
     expect(screen.getByText(/Every dog in Hetja gets a tag/)).toBeTruthy();
   });
 
-  it("renders the collar plate literally empty — no dash, no placeholder", () => {
+  it("renders the collar plate literally empty, with no dash and no placeholder", () => {
     render(createElement(HetjaMemorialPage));
     const plate = screen.getByTestId("hetja-plate");
     expect(plate.textContent).toBe("");

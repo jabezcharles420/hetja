@@ -1,5 +1,5 @@
 /**
- * Client for GET /api/v1/care?lat=&lng=&max_km= — the nearby-care directory.
+ * Client for GET /api/v1/care?lat=&lng=&max_km=: the nearby-care directory.
  *
  * This endpoint is being built by another agent in parallel and may not
  * exist yet (404) or may error. Every function here degrades gracefully:
@@ -112,7 +112,7 @@ function num(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
-/** Text-label eyebrow — never a colour swatch (WCAG 2.2 SC 1.4.1). */
+/** Text-label eyebrow, never a colour swatch (WCAG 2.2 SC 1.4.1). */
 export function eyebrow(p: CareProvider): string {
   const parts: string[] = [p.costTier ? p.costTier.toUpperCase() : "COST UNKNOWN"];
   if (p.hasAmbulance) parts.push("AMBULANCE");

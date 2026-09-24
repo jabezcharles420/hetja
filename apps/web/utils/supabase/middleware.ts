@@ -5,7 +5,7 @@
  *
  * 1. Hetja does not use Supabase Auth. Feeder login is phone OTP exchanged for
  *    the API's own JWTs, held in localStorage (apps/web/lib/api.ts). Until that
- *    moves to Supabase Auth, this helper refreshes nothing — it is scaffolding
+ *    moves to Supabase Auth, this helper refreshes nothing; it is scaffolding
  *    for when/if it does. Adding a middleware.ts that calls it costs a hop on
  *    every request for no benefit today.
  *

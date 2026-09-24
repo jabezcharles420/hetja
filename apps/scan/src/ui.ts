@@ -21,7 +21,7 @@ function speakDog(p: DogProfile): void {
     p.sex ? `${p.sex}.` : "",
     p.approxAge !== undefined ? `Around ${p.approxAge} years old.` : "",
     // `p.vaccine` is a VaccineStatus OBJECT, not a string. Interpolating it
-    // directly made the page read "Vaccination: object Object." aloud — and a
+    // directly made the page read "Vaccination: object Object." aloud, and a
     // template literal accepts any type, so TypeScript never objected. This is
     // the accessibility affordance for a non-literate bystander on a
     // life-safety page, so it is the one place where the spoken text is the
@@ -69,7 +69,7 @@ export function renderProfile(p: DogProfile, stale: boolean): void {
     app.querySelector<HTMLButtonElement>(".listen")?.addEventListener("click", () => speakDog(p));
   }
   if (stale) {
-    setNote("You're offline — showing a saved profile. Vaccination and ABC status may be outdated.");
+    setNote("You're offline. Showing a saved profile. Vaccination and ABC status may be outdated.");
   }
 }
 
@@ -111,7 +111,7 @@ function buildCard(p: DogProfile, stale: boolean): string {
     : "";
   const story = p.microStory
     ? escapeHtml(p.microStory)
-    : `No story yet — help us learn about ${escapeHtml(p.name)}.`;
+    : `No story yet. Help us learn about ${escapeHtml(p.name)}.`;
 
   return `
     <div class="photo">${photoMarkup(p)}</div>
@@ -167,7 +167,7 @@ function fmtAbc(v?: string): { text: string; ok: boolean } {
 
 function fmtVaccine(v?: VaccineStatus): { text: string; ok: boolean } {
   if (!v) return { text: "Unknown", ok: false };
-  // The route's own rendering, verbatim — it carries the vaccine name and the
+  // The route's own rendering, verbatim: it carries the vaccine name and the
   // date, which the parsed rabies/DHPP hints below can lose when the record's
   // name is neither. The ✓ stays gated on upToDate ("a verified record
   // exists"), not on the label being presentable.

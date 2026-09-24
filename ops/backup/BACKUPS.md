@@ -12,14 +12,14 @@ Two mechanisms, one config file, and one thing that only you can decide.
 **The single most important thing in any of these backups is
 `HETJA_QR_SECRET`.** It is the HMAC key baked into every QR code already
 printed and glued to a physical collar. It exists in exactly one gitignored file
-on one disk. Lose it and every collar already on a dog stops verifying — not
-degraded, stops — and no amount of code in git or schema in Supabase brings it
+on one disk. Lose it and every collar already on a dog stops verifying (not
+degraded, stops) and no amount of code in git or schema in Supabase brings it
 back. See `AGENTS.md` §d.
 
 And **Supabase is not a database backup.** It holds a mirror of the *schema*;
 the deploy pipeline applies migrations to it and nothing copies rows. Its tables
 are correctly shaped and empty. Losing this box's disk loses `dogs`, `scans`,
-`medical_records`, `feeders`, `sos_cases` and fourteen other tables — including
+`medical_records`, `feeders`, `sos_cases` and fourteen other tables, including
 the append-only hash-chained ledger that exists specifically to be evidence.
 
 ## Destination: Google Drive via rclone (the no-payment-card path)
@@ -32,7 +32,7 @@ Google only ever holds ciphertext.
 Two honest consequences of that choice, stated up front:
 
 1. **wal-g cannot target Google Drive.** Its storage backends are
-   S3-compatible, GCS, Azure, Swift, file and SSH — Drive is not among them, and
+   S3-compatible, GCS, Azure, Swift, file and SSH. Drive is not among them, and
    Drive's semantics (no multipart, rate-limited metadata) are a poor fit for WAL
    archiving anyway. So **there is no 5-minute PITR on this path.** What you get
    is nightly logical dumps, i.e. a recovery point of up to 24 hours old. §5
@@ -41,10 +41,10 @@ Two honest consequences of that choice, stated up front:
    `pg_dump` plus configs at pilot scale; revisit if the dump grows past a few GB.
 
 If you later get a card-free S3-compatible option (Backblaze B2's 10 GB free
-tier does not require a card at time of writing — verify before relying on it),
+tier does not require a card at time of writing; verify before relying on it),
 switching is two lines in `/root/.backup-env` and turns on real PITR.
 
-## Step 1 — install and authorise rclone
+## Step 1: install and authorise rclone
 
 `rclone` needs a browser once, to complete Google's OAuth. The box has no
 browser, so do the authorisation **on your own machine** and paste the token
@@ -74,7 +74,7 @@ rclone config
 # n) New remote
 # name> gdrive
 # Storage> drive
-# client_id>        (blank — press Enter)
+# client_id>        (blank, press Enter)
 # client_secret>    (blank)
 # scope> 1          (full access; "drive.file" also works and is narrower)
 # root_folder_id>   (blank)
@@ -90,28 +90,28 @@ rclone config
 Verify, and create the folder:
 
 ```bash
-rclone about gdrive:                       # shows your quota — proves auth works
+rclone about gdrive:                       # shows your quota, proves auth works
 rclone mkdir gdrive:hetja-backups
 rclone lsd gdrive:                         # hetja-backups should be listed
 ```
 
 If `rclone about gdrive:` fails, nothing below will work. Fix it here.
 
-## Step 2 — the credentials file
+## Step 2: the credentials file
 
 One file, `/root/.backup-env`, feeds both restic and wal-g. Mode `600`.
 
 ```bash
 install -m 600 /dev/null /root/.backup-env
 cat > /root/.backup-env <<'CONF'
-# Google Drive via rclone. No keys here — rclone holds the OAuth token in
+# Google Drive via rclone. No keys here; rclone holds the OAuth token in
 # /root/.config/rclone/rclone.conf, which is itself worth protecting.
 RESTIC_REPOSITORY=rclone:gdrive:hetja-backups
 RESTIC_PASSWORD_FILE=/root/.backup-env.restic-pw
 CONF
 ```
 
-Then the repository password — **the one secret with no recovery path**:
+Then the repository password, **the one secret with no recovery path**:
 
 ```bash
 openssl rand -base64 48 > /root/.backup-env.restic-pw
@@ -128,7 +128,7 @@ While you are in a password manager: **put `HETJA_QR_SECRET` in it too.** That
 one line is the difference between "the box died" and "every collar in the field
 died", and it takes ten seconds.
 
-## Step 3 — run it and confirm
+## Step 3: run it and confirm
 
 ```bash
 systemctl start hetja-restic.service
@@ -151,7 +151,7 @@ The timer (`hetja-restic.timer`, daily 02:15 IST) is already enabled by
 systemctl list-timers hetja-restic.timer
 ```
 
-## Step 4 — prove you can restore (do this once, now)
+## Step 4: prove you can restore (do this once, now)
 
 A backup you have never restored is a hypothesis.
 
@@ -161,7 +161,7 @@ set -a; . /root/.backup-env; set +a
 restic restore latest --target .
 find . -name '*.dump' -o -name '.env.production' | head
 
-# and that the dump is actually loadable — into a scratch database, never hetja
+# and that the dump is actually loadable, into a scratch database, never hetja
 createdb drill_restore
 pg_restore -d drill_restore --no-owner "$(find . -name 'hetja.dump' | head -1)"
 psql -d drill_restore -c "SELECT count(*) FROM medical_records;"
@@ -169,14 +169,14 @@ dropdb drill_restore
 ```
 
 If the count matches production, you have a working backup. Write down how long
-it took — that number is your RTO, and `ops/RUNBOOK.md` asks for it.
+it took: that number is your RTO, and `ops/RUNBOOK.md` asks for it.
 
-## Step 5 — PITR, if 24 hours of loss is too much
+## Step 5: PITR, if 24 hours of loss is too much
 
 Skip this unless you need it. wal-g cannot reach Drive, but it *can* archive WAL
 to a local directory, which restic then ships nightly. That gives you replay to
 any point since the last base backup, at the cost of losing whatever WAL has not
-yet been shipped when the disk dies — so it narrows the window without closing
+yet been shipped when the disk dies, so it narrows the window without closing
 it.
 
 Add to `/root/.backup-env`:
@@ -203,10 +203,10 @@ point at an S3-compatible store. wal-g v3.0.8 is installed at
 `/usr/local/bin/wal-g` (PostgreSQL build) and is **dormant**: continuous
 archiving needs credentials and one PostgreSQL restart.
 
-## S3 path, step 1 — credentials (root only)
+## S3 path, step 1: credentials (root only)
 
 One file, `/root/.backup-env`, feeds **both** restic and wal-g. Create it with
-mode `600` before anything else — `ops/backup/restic-backup.sh` refuses to run
+mode `600` before anything else: `ops/backup/restic-backup.sh` refuses to run
 without it, and `hetja-walg.service` loads it as its `EnvironmentFile`.
 
 ```bash
@@ -230,7 +230,7 @@ CONF
 
 Then the restic repository password. This is **the** thing to not lose: restic
 encrypts client-side, which is the property that makes it safe to hand ciphertext
-to Cloudflare — and it also means a lost password is a lost backup, with no
+to Cloudflare, and it also means a lost password is a lost backup, with no
 recovery path whatsoever.
 
 ```bash
@@ -245,7 +245,7 @@ cat /root/.backup-env.restic-pw
 there. The free tier is 10 GB, which is ample for a `pg_dump` plus configs plus
 WAL at pilot scale. Do **not** put `HETJA_HMAC_PEPPER`,
 `HETJA_LEDGER_SIGNING_JWK` or any other KMS-held secret into the restic
-fileset — the point of the pepper living outside the database is defeated if it
+fileset. The point of the pepper living outside the database is defeated if it
 travels with the backup of that database.
 
 Verify restic first, since it needs no PostgreSQL restart:
@@ -260,7 +260,7 @@ restic snapshots                         # should list the snapshot just taken
 A non-zero exit marks the unit failed on purpose: a backup that has been quietly
 failing for a month is worse than none, because you believe you have one.
 
-## S3 path, step 2 — enable archiving (one PG restart)
+## S3 path, step 2: enable archiving (one PG restart)
 
 As root (ident `rootasdba`):
 
@@ -272,7 +272,7 @@ ALTER SYSTEM SET archive_command =
 ALTER SYSTEM SET archive_timeout = 60;
 ```
 
-then `systemctl restart postgresql` (brief API outage — the deploy runbook
+then `systemctl restart postgresql` (brief API outage; the deploy runbook
 already treats restarts as routine). Verify:
 
 ```sql
@@ -281,7 +281,7 @@ SELECT * FROM pg_stat_archiver;
 
 `archived_count` climbing = WAL is landing in R2.
 
-## S3 path, step 3 — base backups
+## S3 path, step 3: base backups
 
 WAL alone restores nothing; it is replayed *on top of* a base backup. Take one by
 hand first, then enable the timer.
@@ -303,11 +303,11 @@ backups with no WAL to replay. Enabling it is this step.
 Note the unit is a system unit, not `systemctl --user`: it runs as root against
 the cluster's data directory, not in a login session. An earlier version of this
 document said `systemctl --user enable --now hetja-walg.timer` and the unit did
-not exist in the repository at all — both fixed 2026-08-14, and
+not exist in the repository at all. Both fixed 2026-08-14, and
 `ops/check-systemd.sh` now fails CI if a committed unit is left un-installed by
 bootstrap.
 
-## Restore drill (quarterly, per HOW-IT-WORKS) — applies to either path
+## Restore drill (quarterly, per HOW-IT-WORKS), applies to either path
 
 Follow the restore-drill runbook: fresh box → `wal-g backup-fetch` →
 `wal-g wal-fetch` to the desired point → verify the `medical_records` hash

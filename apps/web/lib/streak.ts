@@ -1,5 +1,5 @@
 /**
- * Streak + badge display mapping — kept pure so it is unit-testable without a
+ * Streak + badge display mapping, kept pure so it is unit-testable without a
  * DOM and shared between the `/me` page and the StreakBadge component.
  */
 
@@ -27,7 +27,7 @@ export interface StreakDisplay {
 }
 
 /**
- * Labels for the badge names the API actually awards — the catalog in
+ * Labels for the badge names the API actually awards: the catalog in
  * apps/api/src/lib/gamification.ts (`BADGES`). The first version of this map
  * named badges (`streak_3`, `streak_7`, `sos_hero`, `night_feeder`…) that no
  * server code has ever emitted, so every real badge fell through to the
@@ -38,7 +38,7 @@ export const BADGE_LABELS: Record<string, string> = {
   first_feed: "First Feed",
   week_streak: "Week Streak",
   month_streak: "Month Streak",
-  guardian_100: "Guardian — 100 Feeds",
+  guardian_100: "Guardian: 100 Feeds",
   night_owl: "Night Owl",
   monsoon_hero: "Monsoon Hero",
   // Legacy names kept for anything that ever stored them client-side.
@@ -69,12 +69,12 @@ export function streakLevelFor(days: number): StreakLevel {
 }
 
 export function streakLabelFor(days: number): string {
-  if (days <= 0) return "Start a streak — log a feed today";
-  if (days === 1) return "1 day streak — keep it alive";
-  if (days < 7) return `${days}-day streak — almost a week`;
-  if (days < 14) return `${days}-day streak — a full week!`;
-  if (days < 30) return `${days}-day streak — fortnight strong`;
-  return `${days}-day streak — champion feeder`;
+  if (days <= 0) return "Start a streak: log a feed today";
+  if (days === 1) return "1 day streak. Keep it alive";
+  if (days < 7) return `${days}-day streak: almost a week`;
+  if (days < 14) return `${days}-day streak: a full week!`;
+  if (days < 30) return `${days}-day streak: fortnight strong`;
+  return `${days}-day streak: champion feeder`;
 }
 
 export function trustLabelFor(score: number): string {
@@ -97,13 +97,13 @@ export function nextMilestoneFor(days: number): string | null {
  *
  * `StreakData` says `badges` and `trustScore` are required, and for a while the
  * API did not send either. `data.badges.map(...)` then threw on every render of
- * /me — the page a feeder is redirected to the instant they sign in — and with
+ * /me (the page a feeder is redirected to the instant they sign in), and with
  * no error boundary in the app the whole tree unmounted to Next.js's bare
  * "Application error: a client-side exception has occurred". A successful login
  * followed by a blank error page, for every user.
  *
  * The API now sends both. This coercion exists so that the NEXT time a payload
- * drifts, a feeder loses a number on a page instead of losing the page — a
+ * drifts, a feeder loses a number on a page instead of losing the page: a
  * missing badge list is a display gap, not a reason to destroy the session's
  * only screen. It is deliberately not a schema validation: the goal is to
  * degrade, not to be strict.

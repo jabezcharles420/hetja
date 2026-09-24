@@ -3,7 +3,7 @@
 /**
  * Last-resort boundary, for a throw in the root layout itself.
  *
- * `app/error.tsx` cannot catch that case — it renders *inside* the layout, so
+ * `app/error.tsx` cannot catch that case: it renders *inside* the layout, so
  * if the layout is what failed there is nothing left to render into. A
  * global-error boundary replaces the whole document, which is why it must
  * supply its own <html> and <body>.
@@ -35,7 +35,7 @@ export default function GlobalError({
           </h1>
           <p style={{ margin: "0 0 1.25rem", lineHeight: 1.55 }}>
             Something failed before the page could be built. If you are trying to help
-            an animal right now, the collar page still works — scan the QR on the collar
+            an animal right now, the collar page still works. Scan the QR on the collar
             again, or call a vet directly.
           </p>
           <button

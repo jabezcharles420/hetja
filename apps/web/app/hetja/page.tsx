@@ -98,7 +98,7 @@ function SongBlock({ song }: { song: Song }): React.JSX.Element {
 
 export default function HetjaMemorialPage(): React.JSX.Element {
   return (
-    <div className={`${styles.page} ${styles.fade}`}>
+    <div className={styles.page}>
       <header className={styles.masthead}>
         <p className={styles.word} data-testid="hetja-word">
           Hetja
@@ -109,9 +109,9 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
       </header>
 
-      {/* The signature element, inverted: every dog gets this plate. Hetja
-          never had a tag, so it renders literally empty. Same hairlines,
-          same height, same tracking, no characters between them. */}
+      {/* The signature element, inverted: every dog's collar code sits in a
+          grey pill like this one. Hetja never had a tag, so the pill renders
+          literally empty. */}
       <div className={`h-plate ${styles.plate}`} data-testid="hetja-plate" aria-hidden="true" />
       <p className={styles.plateCaption}>no tag &middot; no name &middot; 3 km of road</p>
 
@@ -135,12 +135,17 @@ export default function HetjaMemorialPage(): React.JSX.Element {
           There was a stray I had sometimes fed a biscuit or two. Stray dogs usually do
           not leave their perimeter. This one did. It sensed me, somehow, through the
           rain and the dark, and it followed. I told it to go away. I shouted at it to
-          go away. It would not. It walked behind me for the entire three kilometers.
-          When we encountered wild dogs on the road, it barked them down, one after
-          another, and stood between me and them until I was safe. By the time I
-          reached my aunt&rsquo;s house, it was still there, barking, still defending
-          me from the dogs at the gate. I went inside. I never said goodbye. I never
-          hugged it. I never thanked it. I never gave it a name.
+          go away. It would not.
+        </p>
+        <p>
+          It walked behind me for the entire three kilometers. When we encountered
+          wild dogs on the road, it barked them down, one after another, and stood
+          between me and them until I was safe.
+        </p>
+        <p>
+          By the time I reached my aunt&rsquo;s house, it was still there, barking,
+          still defending me from the dogs at the gate. I went inside. I never said
+          goodbye. I never hugged it. I never thanked it. I never gave it a name.
         </p>
 
         <div className={styles.break} aria-hidden="true">
@@ -169,13 +174,14 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
         <p>That is why the system is built the way it is.</p>
 
-        {FACETS.map((facet) => (
-          <div className={styles.facet} key={facet.lead}>
-            <p>
-              <strong>{facet.lead}</strong> {facet.body}
-            </p>
-          </div>
-        ))}
+        <ul className={styles.facets}>
+          {FACETS.map((facet) => (
+            <li className={styles.facet} key={facet.lead}>
+              <h3 className={styles.facetLead}>{facet.lead}</h3>
+              <p>{facet.body}</p>
+            </li>
+          ))}
+        </ul>
 
         <h2 className={styles.heading}>Why it is open source</h2>
 
@@ -204,7 +210,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         </p>
         <p>Fork it. Run it in your city. Tell us what we got wrong.</p>
 
-        <div className={styles.facet}>
+        <div className={styles.letter}>
           <p>
             I do not believe that building Hetja brings Hetja back. I do not believe
             it pays any debt. You cannot repay a love that pure; everything afterward
@@ -224,7 +230,7 @@ export default function HetjaMemorialPage(): React.JSX.Element {
             architecture of a system that exists because of it, and that will outlast
             me.
           </p>
-          <p>
+          <p className={styles.letterClose}>
             I could not save you. I am sorry. I will spend the rest of my life making
             sure the next one makes it home.
           </p>
@@ -318,8 +324,10 @@ export default function HetjaMemorialPage(): React.JSX.Element {
         <p>
           I&rsquo;ll find you first. You&rsquo;ll have a name by then, a real one, one
           I can finally shout down a street, and you&rsquo;ll come running, and
-          you&rsquo;ll finally hear it. And I&rsquo;ll play this song for you while you
-          sleep in my lap. This exact one. I&rsquo;ve been saving it. You&rsquo;ll sleep
+          you&rsquo;ll finally hear it.
+        </p>
+        <p>
+          And I&rsquo;ll play this song for you while you sleep in my lap. This exact one. I&rsquo;ve been saving it. You&rsquo;ll sleep
           the way you never got to sleep here: warm, indoors, deep, unafraid. Every so
           often your tail will move in your sleep, and I&rsquo;ll decide that means you
           like it.

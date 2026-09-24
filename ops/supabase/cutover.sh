@@ -1,11 +1,11 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------
-# cutover.sh — stand up a Hetja database on a fresh Supabase project.
+# cutover.sh: stand up a Hetja database on a fresh Supabase project.
 #
 # Why this exists: a Supabase project's region is fixed at creation, so moving
 # regions means creating a new project and migrating into it. The pilot project
 # was in ap-southeast-1 (Singapore) while the app server is in Europe and the
-# users are in Mumbai — a measured 154 ms per warm query against a 150 ms p95
+# users are in Mumbai: a measured 154 ms per warm query against a 150 ms p95
 # gateway SLO, which the dog-profile path multiplies by four.
 #
 # Usage:
@@ -63,7 +63,7 @@ q "select version()" | cut -c1-60 | sed 's/^/    /'
 
 EXISTING=$(q "select count(*) from information_schema.tables where table_schema='public'")
 if [ "${EXISTING:-0}" -gt 1 ]; then
-  echo "    NOTE: public schema already has $EXISTING tables — steps are idempotent,"
+  echo "    NOTE: public schema already has $EXISTING tables; steps are idempotent,"
   echo "          but check this is the project you meant."
 fi
 
@@ -125,7 +125,7 @@ say "INVARIANT 9: append-only trigger must reject a mutation"
 q "do \$\$ begin
      begin
        update medical_records set diagnosis='probe' where true;
-       raise notice 'NOT ENFORCED — trigger missing';
+       raise notice 'NOT ENFORCED: trigger missing';
      exception when others then raise notice 'enforced: %', SQLERRM;
      end;
    end \$\$;" | sed 's/^/    /'
@@ -138,7 +138,7 @@ for slug in $(q "select slug from dogs order by slug"); do
   printf '    %-11s valid=%-5s tampered=%s\n' "$slug" "$ok" "$bad"
 done
 
-say "latency — the reason for this migration"
+say "latency: the reason for this migration"
 TOTAL=0
 for i in 1 2 3 4 5; do
   ms=$(q "select round(1000*extract(epoch from clock_timestamp()-statement_timestamp()))::int" >/dev/null 2>&1; \
@@ -147,7 +147,7 @@ for i in 1 2 3 4 5; do
 done
 AVG=$((TOTAL/5))
 echo "    round-trip incl. connect: ${AVG} ms   (Singapore baseline was ~1144 ms)"
-echo "    steady-state warm query is the number that matters — measure after repointing."
+echo "    steady-state warm query is the number that matters; measure after repointing."
 
 # --- optional repoint ----------------------------------------------------
 if [ "$REPOINT" = "--repoint" ]; then

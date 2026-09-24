@@ -44,8 +44,8 @@ export const createClient = (cookieStore: CookieStore) => {
           });
         } catch {
           // Server Components cannot write cookies. Safe to swallow only
-          // because middleware refreshes the session — see
-          // utils/supabase/middleware.ts.
+          // because middleware refreshes the session (see
+          // utils/supabase/middleware.ts).
         }
       },
     },

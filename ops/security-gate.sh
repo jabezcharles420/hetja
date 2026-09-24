@@ -1,5 +1,5 @@
 #!/bin/bash
-# security-gate.sh — CI security checklist (from the blueprint's cross-cutting
+# security-gate.sh: CI security checklist (from the blueprint's cross-cutting
 # gates). Each check is a hard failure if violated.
 set -u
 cd "$(dirname "$0")/.."
@@ -9,7 +9,7 @@ check() {  # check <desc> <cmd...>
   if "$@" >/dev/null 2>&1; then echo "PASS: $desc"; else echo "FAIL: $desc"; fail=1; fi
 }
 
-# No bare contact-info column anywhere (only identity_hmac) — INVARIANT 3.
+# No bare contact-info column anywhere (only identity_hmac). INVARIANT 3.
 # This used to check only "phone", which gave zero protection against a bare
 # `email TEXT` column landing in a migration once login moved from phone OTP
 # to email OTP -- the invariant's actual intent has always been "never store

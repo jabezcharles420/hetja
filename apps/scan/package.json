@@ -2,7 +2,7 @@
   "name": "@hetja/scan",
   "version": "1.1.0",
   "private": true,
-  "description": "Public scan landing — zero-install, static HTML + vanilla TS, <40KB gzipped",
+  "description": "Public scan landing: zero-install, static HTML + vanilla TS, <40KB gzipped",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",

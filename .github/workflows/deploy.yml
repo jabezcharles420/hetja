@@ -1,4 +1,4 @@
-# .github/workflows/deploy.yml — push to main, everything follows.
+# .github/workflows/deploy.yml: push to main, everything follows.
 #
 # Gate -> Migrate -> Deploy. Nothing in Migrate or Deploy runs unless Gate is
 # fully green, and Deploy never runs unless Migrate (including its destructive-
@@ -100,7 +100,7 @@ env:
   # Supabase schema mirror. "true" applies each push's migrations to the
   # Supabase project through its session pooler; "false" skips that step and
   # only the destructive-change gate runs. Set to "false" on 2026-09-05 because
-  # the Supabase database is paused — with it on, a green Gate was followed by
+  # the Supabase database is paused. With it on, a green Gate was followed by
   # a Migrate job failing to connect, which blocked every deploy to the box even
   # though production reads the LOCAL PostgreSQL (AGENTS.md §b). Flip back to
   # "true" when the project is resumed, then re-run the workflow once: the
@@ -110,8 +110,8 @@ env:
 # Least privilege for GITHUB_TOKEN. With no `permissions:` block the token
 # inherits the repository default, which on repos created before GitHub changed
 # it is read/write across every scope. Nothing in these workflows writes to the
-# repo through the API — they read code, run gates, and (in deploy.yml) reach
-# the box over SSH — so read-only on contents is the whole requirement.
+# repo through the API. They read code, run gates, and (in deploy.yml) reach
+# the box over SSH, so read-only on contents is the whole requirement.
 permissions:
   contents: read
 

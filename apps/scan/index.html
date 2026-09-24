@@ -9,9 +9,9 @@
 <meta name="description" content="Scan a collar to see this dog and get it help." />
 <link rel="icon" href="data:," />
 <style>
-/* Hetja scan panel — v3 (Apple / Sidehoe direction) on the tokens in
+/* Hetja scan panel: v3 (Apple / Sidehoe direction) on the tokens in
    packages/design/tokens.css. Values below are copied by hand (not
-   @imported) because this stylesheet is inlined into the hot-path HTML —
+   @imported) because this stylesheet is inlined into the hot-path HTML, so
    the panel cannot afford a second stylesheet request. This copy omits
    tokens the panel does not use, but every name it carries must keep the
    exact value it has in tokens.css; change both together.
@@ -20,7 +20,7 @@
    file is 48KB on its own, more than this surface's entire 40KB budget, and
    the target is p95 TTI < 800ms on 4G. --h-font is the same token name
    apps/web uses; its value is the tokens.css stack MINUS "Inter" (SF on
-   Apple devices, then the system fallbacks) — zero font bytes.
+   Apple devices, then the system fallbacks), so zero font bytes.
 
    No aurora, no WebGL, no webfonts, nothing that loops: this is a working
    screen for a stranger standing over a dog. Depth comes from soft shadow

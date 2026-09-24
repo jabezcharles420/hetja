@@ -39,8 +39,8 @@ export interface ScannedCollar {
 
 /**
  * Extracts a collar slug (and an optional `?s=` signature) from decoded QR
- * text. A real collar QR encodes a full URL —
- * `https://hetja.in/d/<slug>?s=<sig>` — but this also accepts a bare
+ * text. A real collar QR encodes a full URL
+ * (`https://hetja.in/d/<slug>?s=<sig>`), but this also accepts a bare
  * `/d/<slug>` path or a bare 9-character code, so a differently-shaped QR
  * (or a pasted value) still resolves. Returns null for anything that isn't
  * a valid collar code, so callers can tell "not a Hetja collar" apart from
@@ -96,13 +96,13 @@ export interface QrScannerProps {
 
 /**
  * In-page QR scanner for the /scan flow, using the native `BarcodeDetector`
- * API — zero dependencies. Camera access is never requested on mount: it
+ * API, with zero dependencies. Camera access is never requested on mount: it
  * only starts behind the explicit "Use camera" button below, because an
  * unprompted permission dialog is the one people reflexively deny.
  *
  * Falls through to the existing `ScanEntry` manual entry whenever the API
  * is unsupported, permission is denied, no camera exists, or the camera is
- * busy — each gets its own copy, and the manual path is always present so
+ * busy. Each gets its own copy, and the manual path is always present so
  * scanning failure is never a dead end.
  */
 export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element {
@@ -134,7 +134,7 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
         // type declarations for `BarcodeDetector`, `DetectedBarcode` and
         // `BarcodeDetectorOptions` that this file's `declare global` block
         // builds on. Its own `import "./polyfill.js"` publishes the global with
-        // a `??=`, which cannot overwrite a detector that is already there —
+        // a `??=`, which cannot overwrite a detector that is already there,
         // unlike the bare assignment below, which is why only that one needed
         // guarding.
         try {
@@ -144,7 +144,7 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
           // pulls ~13 KB of WASM, so on a slow or busy machine it can still be
           // in flight long after unmount. Without this guard an unmounted
           // component would install the polyfill over whatever the page had put
-          // there since — publishing to `window` on behalf of a component that
+          // there since, publishing to `window` on behalf of a component that
           // no longer exists.
           //
           // That is not hypothetical. It made the scanner suite fail on CI while
@@ -195,7 +195,7 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
     detectingRef.current = false;
   }, []);
 
-  // Stop the camera the moment the tab is hidden — a live MediaStream left
+  // Stop the camera the moment the tab is hidden: a live MediaStream left
   // running drains battery and keeps the camera light on. Also stop on
   // unmount.
   useEffect(() => {
@@ -271,7 +271,7 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
       // Try to decode straight away, then every 350ms.
       //
       // This used to be `setInterval` alone, so the FIRST decode attempt could
-      // not happen until a full interval after the camera was ready — a flat
+      // not happen until a full interval after the camera was ready: a flat
       // 350ms of live preview pointed at a collar with nothing being read. Most
       // scans are of a QR already centred in frame by the time the camera
       // opens, so that delay was pure latency on the common path.
@@ -279,7 +279,7 @@ export default function QrScanner({ entry }: QrScannerProps): React.JSX.Element 
       // It also made the test for this the only timing-sensitive one in the
       // suite: it had to outwait a 350ms timer inside Testing Library's default
       // 1000ms waitFor budget, on a runner executing every package's suite in
-      // parallel. That went red intermittently — the same commit passed one CI
+      // parallel. That went red intermittently: the same commit passed one CI
       // job and failed two others, which is what blocked the deploy pipeline at
       // its Gate.
       //

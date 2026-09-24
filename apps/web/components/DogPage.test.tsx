@@ -107,7 +107,7 @@ describe("DogPage", () => {
     expect(screen.getByText(/She waited for me every evening/)).toBeTruthy();
 
     // One primary action (accent-filled, icon + explicit verb) and "Log a
-    // feed" demoted to a plain text link — never two buttons of equal weight.
+    // feed" demoted to a plain text link, never two buttons of equal weight.
     expect(screen.getByRole("button", { name: /This dog needs help/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Log a feed" })).toBeTruthy();
   });

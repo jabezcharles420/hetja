@@ -1,11 +1,11 @@
-# Operator maintenance — run tasks on the production box WITHOUT needing SSH.
+# Operator maintenance: run tasks on the production box WITHOUT needing SSH.
 #
 # WHY THIS EXISTS. Several real defects were reachable only by someone with a
 # shell on the VPS: the live Caddy config had drifted from the repo (dog photos
 # 404'd on both hostnames), the database password committed to this public
 # repository was the live one and needed rotating, and the worker's daily ledger
 # anchor had stopped without anyone noticing. The deploy pipeline already holds
-# SSH credentials for that box, so the access exists — what was missing was a
+# SSH credentials for that box, so the access exists. What was missing was a
 # safe, auditable way to use it that did not require the operator to be
 # comfortable at a terminal.
 #
@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           SRC=/root/hetja/ops/caddy/Caddyfile
           DST=/etc/caddy/Caddyfile
-          [ -f "$SRC" ] || { echo "FATAL: $SRC missing — is the checkout up to date?"; exit 1; }
+          [ -f "$SRC" ] || { echo "FATAL: $SRC missing. Is the checkout up to date?"; exit 1; }
 
           echo "==> validating the committed config"
           caddy validate --config "$SRC" --adapter caddyfile
@@ -183,7 +183,7 @@ jobs:
           SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
           SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
-        # The new password is generated ON THE BOX and never leaves it — it is
+        # The new password is generated ON THE BOX and never leaves it. It is
         # not printed, not returned, and not stored in GitHub. The app reads it
         # from apps/api/.env.production, which is gitignored and stays on the
         # box, so there is nowhere else it needs to go.
@@ -203,13 +203,13 @@ jobs:
           echo "==> verifying the new credential actually connects"
           PGPASSWORD="$NEW" psql "host=127.0.0.1 port=5432 dbname=hetja user=app_user sslmode=disable connect_timeout=8" \
             -tAc 'select 1' >/dev/null \
-            || { echo "FATAL: new password does not connect — NOT touching .env.production"; exit 1; }
+            || { echo "FATAL: new password does not connect; NOT touching .env.production"; exit 1; }
 
           echo "==> updating .env.production (backup kept)"
           cp -a "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
           if grep -q '^PGPASSWORD=' "$ENV_FILE"; then
             # Written via a temp file so a failure cannot leave a truncated env
-            # file — which would stop the API from booting at all.
+            # file, which would stop the API from booting at all.
             awk -v p="$NEW" '/^PGPASSWORD=/{print "PGPASSWORD=" p; next} {print}' "$ENV_FILE" > "${ENV_FILE}.tmp"
             mv "${ENV_FILE}.tmp" "$ENV_FILE"
           else

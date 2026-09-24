@@ -42,7 +42,7 @@ scope.addEventListener("fetch", (ev: FetchEvent) => {
 // is covered by API_PREFIX above and therefore always network-first. A
 // cached vaccination status is only ever served when the network request
 // itself fails, and even then it is tagged X-Hetja-Stale so the UI can
-// say so — it must never be presented as current.
+// say so: it must never be presented as current.
 async function networkFirst(req: Request): Promise<Response> {
   const cache = await caches.open(CACHE);
   try {

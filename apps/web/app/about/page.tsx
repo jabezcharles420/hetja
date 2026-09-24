@@ -5,7 +5,7 @@ import PawIllustration from "@/components/PawIllustration";
 import styles from "@/components/Content.module.css";
 
 export const metadata: Metadata = {
-  title: "About — Hetja",
+  title: "About · Hetja",
   description:
     "Hetja is a coordination layer for the feeders, vets, NGOs, and BMC who already care for Mumbai's street dogs. Scan a collar, meet the dog, and act.",
 };
@@ -15,7 +15,7 @@ const PHASES = [
     tag: "Phase 0",
     title: "The pilot",
     dogs: "~50 dogs, one ward",
-    text: "A handful of dogs, trusted feeders, and one partner vet clinic. We prove the whole loop — collar, scan, feed, record — before anything scales.",
+    text: "A handful of dogs, trusted feeders, and one partner vet clinic. We prove the whole loop (collar, scan, feed, record) before anything scales.",
   },
   {
     tag: "Phase 1",
@@ -63,7 +63,7 @@ const COLLAR_STEPS = [
   },
   {
     title: "Scan",
-    text: "Any phone reads it — no app needed for a single scan, no account required to look. It works with no signal at all.",
+    text: "Any phone reads it. No app needed for a single scan, no account required to look. It works with no signal at all.",
   },
   {
     title: "Act",
@@ -72,9 +72,9 @@ const COLLAR_STEPS = [
 ];
 
 const LEDGER_POINTS = [
-  "Every medical record is hashed and chained to the one before it — edit one, and the whole chain is visibly broken.",
+  "Every medical record is hashed and chained to the one before it. Edit one, and the whole chain is visibly broken.",
   "Only identity-verified vets can add medical records, and each one is signed.",
-  "A correction never deletes the past — it adds a new, clearly labelled record.",
+  "A correction never deletes the past. It adds a new, clearly labelled record.",
   "You don't have to take our word for it. The chain is verifiable, and the 'verified' badge only appears on records that pass.",
 ];
 
@@ -84,7 +84,7 @@ export default function AboutPage(): React.JSX.Element {
       <PageHeader
         kicker="Our mission"
         title="A coordination layer for people who already care."
-        intro="Hetja is not another app asking you to care about stray dogs. The people who care — the feeders, vets, NGOs, and municipal staff — are already out there. We just give their care a memory, a ledger, and a voice."
+        intro="Hetja is not another app asking you to care about stray dogs. The people who care (the feeders, vets, NGOs, and municipal staff) are already out there. We just give their care a memory, a ledger, and a voice."
       />
 
       <section className={`${styles.section} h-container`}>
@@ -99,7 +99,7 @@ export default function AboutPage(): React.JSX.Element {
               they start from zero. When BMC plans an ABC drive, it works on guesses.
             </p>
             <p>
-              Hetja gives every collar-wearing dog a public profile — a name, a ward,
+              Hetja gives every collar-wearing dog a public profile: a name, a ward,
               verified medical records, and a running log of who shows up for it.
               Suddenly a whole street&rsquo;s care becomes one shared, honest picture.
             </p>
@@ -124,7 +124,7 @@ export default function AboutPage(): React.JSX.Element {
           <span className="h-pill h-pill-amber">How the collar works</span>
           <h2 className={styles.title2}>A QR collar is a dog&rsquo;s whole file.</h2>
           <p className={styles.sub}>
-            One scan and the animal&rsquo;s story — medical, social, and practical —
+            One scan and the animal&rsquo;s story (medical, social, and practical)
             is in your hands.
           </p>
         </div>
@@ -147,7 +147,7 @@ export default function AboutPage(): React.JSX.Element {
           <h2 className={styles.title2}>A medical record that can&rsquo;t be quietly edited.</h2>
           <p className={styles.sub}>
             Trust is the whole product. So the ledger is built to be tamper-evident
-            by design — not by promise.
+            by design, not by promise.
           </p>
         </div>
         <article className={styles.card}>
@@ -221,7 +221,7 @@ export default function AboutPage(): React.JSX.Element {
         <div className="h-container h-band-inner">
           <h2 className="h-band-title">Meet the dog on your street.</h2>
           <p className="h-band-sub">
-            See exactly how scanning, feeding, and acting fit together — it takes
+            See exactly how scanning, feeding, and acting fit together. It takes
             about a minute.
           </p>
           <Link className="h-btn h-btn-primary" href="/how-it-works">

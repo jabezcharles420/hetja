@@ -4,14 +4,14 @@
  *
  * The regression these exist for: this page sent a bare `uuid()` as its device
  * token, `POST /api/v1/auth/verify` gates on `verifyDeviceToken`, and a UUID has
- * no `.` separator — so the API answered 401 BAD_DEVICE_TOKEN and no feeder had
+ * no `.` separator, so the API answered 401 BAD_DEVICE_TOKEN and no feeder had
  * ever been able to log in on the web app. Nothing asserted anything about what
  * this form actually put on the wire.
  *
  * `@/lib/device` is mocked at the outcome boundary only: the real
  * `deviceTokenFailureMessage` copy is kept (so the assertions below are about the
  * words a feeder actually reads), while `getDeviceToken` is made deterministic.
- * Mocking it is what makes the failure-path test possible at all — jsdom has no
+ * Mocking it is what makes the failure-path test possible at all: jsdom has no
  * `crypto.subtle`, so an unmocked page would only ever be able to take the
  * "cannot attest" branch here.
  */

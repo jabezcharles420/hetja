@@ -15,7 +15,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const createClient = () => {
   if (!supabaseUrl || !supabaseKey) {
     // NEXT_PUBLIC_* are inlined at build time, so a missing value here means
-    // the build ran without .env.production — fail loudly rather than issuing
+    // the build ran without .env.production. Fail loudly rather than issuing
     // requests to "undefined".
     throw new Error(
       "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set at build time",

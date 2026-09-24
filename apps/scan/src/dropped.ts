@@ -1,11 +1,11 @@
 /**
- * Dropped-feed record for the scan page — the analogue of
+ * Dropped-feed record for the scan page: the analogue of
  * apps/web/lib/offline-queue.ts's droppedFeeds store, kept separate from
  * offline.ts/device.ts because service-worker.ts needs it too, and a service
  * worker must not import the PoW-minting stack just to report a drop (it has
  * no DOM and no localStorage anyway; see below).
  *
- * A queued feed that can never be accepted is REMOVED rather than retried —
+ * A queued feed that can never be accepted is REMOVED rather than retried;
  * retrying meant re-uploading a photo's bytes on every page open, forever,
  * over mobile data, to be refused again. But INVARIANT 14's principle applies:
  * "a flag nobody looks at is a silent rejection with extra steps." So every
@@ -19,7 +19,7 @@ export const DROPPED_FEEDS_KEY = "hetja.scan.droppedFeeds";
 /**
  * Guarded storage accessor. This module is imported by service-worker.ts,
  * which compiles against WebWorker lib and RUNS where localStorage genuinely
- * does not exist — so `localStorage` is never touched as a bare global.
+ * does not exist, so `localStorage` is never touched as a bare global.
  * Returns undefined there, which is exactly how the drop record degrades to a
  * console warning (see recordDroppedFeed).
  */
@@ -62,19 +62,19 @@ export function listDroppedFeeds(): DroppedFeed[] {
   }
 }
 
-/** Clear the list — call once the visitor has actually been shown it. */
+/** Clear the list. Call once the visitor has actually been shown it. */
 export function clearDroppedFeeds(): void {
   try {
     storage()?.removeItem(DROPPED_FEEDS_KEY);
   } catch {
-    /* private mode / storage disabled — nothing to clear */
+    /* private mode / storage disabled: nothing to clear */
   }
 }
 
 /**
  * Record + report one permanently-undeliverable feed.
  *
- * Deliberately metadata only — dogSlug, capturedAt, reason — never the photo
+ * Deliberately metadata only (dogSlug, capturedAt, reason), never the photo
  * bytes: localStorage is a small synchronous store shared with the device
  * token, and the photo already lives in IndexedDB until this point.
  *
@@ -83,7 +83,7 @@ export function clearDroppedFeeds(): void {
  *
  * Service-worker caveat, stated rather than hidden: background-sync flushes
  * run with no storage() at all, so there the warning lands in the SW console
- * only and no page banner is possible. That still beats the alternative —
+ * only and no page banner is possible. That still beats the alternative of
  * leaving the record queued to re-upload forever.
  */
 export function recordDroppedFeed(item: QueuedScan, reason: string): void {
@@ -105,6 +105,6 @@ export function recordDroppedFeed(item: QueuedScan, reason: string): void {
       JSON.stringify([entry, ...listDroppedFeeds()].slice(0, DROPPED_FEEDS_MAX)),
     );
   } catch {
-    /* storage full or blocked — the console warning above is the fallback */
+    /* storage full or blocked; the console warning above is the fallback */
   }
 }

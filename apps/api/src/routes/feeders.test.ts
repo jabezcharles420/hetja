@@ -139,3 +139,61 @@ describe("GET /api/v1/wards", () => {
     for (const w of wards) expect(w.name.length).toBeGreaterThan(0);
   });
 });
+
+describe("PATCH /api/v1/feeders/me homeWard (map: Get alerts for a ward)", () => {
+  it("sets a canonical ward with SOS opt-in in one call, and GET /me reads it back", async () => {
+    const me = await insertFeeder();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/feeders/me",
+      headers: { authorization: me.auth },
+      payload: { homeWard: "K-West", sosOptIn: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data).toEqual({ homeWard: "K-West", sosOptIn: true });
+
+    const row = await query<{ home_ward: string | null; sos_opt_in: boolean }>(
+      `SELECT home_ward, sos_opt_in FROM feeders WHERE id = $1`,
+      [me.id],
+    );
+    expect(row.rows[0]).toEqual({ home_ward: "K-West", sos_opt_in: true });
+
+    const got = await app.inject({ method: "GET", url: "/api/v1/feeders/me", headers: { authorization: me.auth } });
+    expect(got.json().data.homeWard).toBe("K-West");
+  });
+
+  it("clears it with null", async () => {
+    const me = await insertFeeder();
+    await query(`UPDATE feeders SET home_ward = 'A' WHERE id = $1`, [me.id]);
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/feeders/me",
+      headers: { authorization: me.auth },
+      payload: { homeWard: null },
+    });
+    expect(res.statusCode).toBe(200);
+    const row = await query<{ home_ward: string | null }>(`SELECT home_ward FROM feeders WHERE id = $1`, [me.id]);
+    expect(row.rows[0].home_ward).toBeNull();
+  });
+
+  it("rejects the display form, free text and non-strings with a 400, writing nothing", async () => {
+    const me = await insertFeeder();
+    for (const homeWard of ["K/W", "Andheri West", "kwest", "", 7]) {
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/v1/feeders/me",
+        headers: { authorization: me.auth },
+        payload: { homeWard },
+      });
+      expect(res.statusCode).toBe(400);
+    }
+    const row = await query<{ home_ward: string | null }>(`SELECT home_ward FROM feeders WHERE id = $1`, [me.id]);
+    expect(row.rows[0].home_ward).toBeNull();
+    expect(BMC_WARD_CODES).toContain("K-West");
+  });
+
+  it("still needs a signed-in feeder", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/v1/feeders/me", payload: { homeWard: "A" } });
+    expect(res.statusCode).toBe(401);
+  });
+});

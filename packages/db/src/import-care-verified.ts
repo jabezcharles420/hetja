@@ -43,10 +43,14 @@
  *     with confidence; everything else 'locality' (honest under-claim).
  *
  * Usage:
- *   pnpm --filter @hetja/db geocode:care   # one-time: build the cache
- *   pnpm --filter @hetja/db import:care    # idempotent (ON CONFLICT DO
- *                                          # NOTHING on the (name,
- *                                          # COALESCE(phone_e164,'')) index)
+ *   pnpm --filter @hetja/db geocode:care            # one-time: build the cache
+ *   pnpm --filter @hetja/db import:care-verified    # idempotent (ON CONFLICT DO
+ *                                                   # NOTHING on the (name,
+ *                                                   # COALESCE(phone_e164,'')) index)
+ *
+ * This is the one-off import of the 2026-08 research sweep. The MONTHLY
+ * provider-confirmed refresh is src/import-care.ts (`import:care`), which
+ * reuses the phone, geocode and locality helpers exported from here.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -56,7 +60,7 @@ import { pool } from "./pool.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = path.join(__dirname, "..", "data", "dogs_mumbai.csv");
-const GEOCODE_CACHE = path.join(__dirname, "..", "data", "geocode-cache.json");
+export const GEOCODE_CACHE = path.join(__dirname, "..", "data", "geocode-cache.json");
 const REJECTED_PATH = path.join(__dirname, "..", "data", "import-rejected.json");
 const GEOCODE = process.env.GEOCODE === "1";
 
@@ -172,7 +176,7 @@ const KIND_MAP: Record<string, "ngo" | "govt" | "charity_hospital" | "private_cl
 /** Locality centroids: the honest 'locality' fallback for every row.
  *  Values are locality/ward centroids, NOT geocoded addresses. Rows whose
  *  address geocodes with confidence get geo_precision='exact' instead. */
-const LOCALITY_CENTROIDS: Record<string, { lat: number; lng: number }> = {
+export const LOCALITY_CENTROIDS: Record<string, { lat: number; lng: number }> = {
   Mumbai: { lat: 19.076, lng: 72.8777 },
   Fort: { lat: 18.935, lng: 72.832 },
   Sion: { lat: 19.043, lng: 72.862 },
@@ -261,13 +265,13 @@ function parseCsv(): CsvRow[] {
   });
 }
 
-function normalizeIndianPhone(input: string): string | null {
+export function normalizeIndianPhone(input: string): string | null {
   const parsed = parsePhoneNumberFromString(input.trim(), "IN");
   if (!parsed || !parsed.isValid() || parsed.country !== "IN") return null;
   return parsed.number;
 }
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   // Photon (komoot): free, no key, solid India street coverage. Nominatim
   // soft-throttles datacenter IPs (returns [] for queries that resolve
   // fine elsewhere), which is why this does not use it.
@@ -287,7 +291,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 }
 
 /** Great-circle distance in km, a sanity bound for geocoder hits. */
-function kmBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function kmBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

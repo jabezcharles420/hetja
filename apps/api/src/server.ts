@@ -33,6 +33,7 @@ import gamificationRoutes from "./routes/gamification.js";
 import metricsRoutes from "./routes/metrics.js";
 import statsRoutes from "./routes/stats.js";
 import wardRoutes from "./routes/wards.js";
+import mapRoutes from "./routes/map.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -181,6 +182,7 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(metricsRoutes);
   void app.register(statsRoutes);
   void app.register(wardRoutes);
+  void app.register(mapRoutes);
 
   return app;
 }

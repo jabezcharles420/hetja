@@ -454,6 +454,7 @@ jobs:
         env:
           # Inlined into the browser bundle at build time.
           NEXT_PUBLIC_API_URL: https://api.hetja.in
+          NEXT_PUBLIC_ESRI_API_KEY: ${{ secrets.ESRI_API_KEY }}
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
           set -euo pipefail

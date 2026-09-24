@@ -1,6 +1,6 @@
 /**
  * GET /api/v1/feeders/me: the caller's own account, as the server sees it.
- * PATCH /api/v1/feeders/me { sosOptIn }: the SOS responder consent surface.
+ * PATCH /api/v1/feeders/me { sosOptIn?, displayName?, homeWard? }: SOS consent + profile.
  *
  * WHY THIS EXISTS. The client learns its role exactly once today (in the
  * /auth/verify response) and throws it away, so after a refresh or a page
@@ -35,7 +35,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { wardName } from "@hetja/contracts";
+import { BMC_WARD_CODES, wardName } from "@hetja/contracts";
 import { query } from "@hetja/db";
 import { requireFeeder } from "../lib/require-role.js";
 import { capabilitiesFor } from "../lib/require-role.js";
@@ -182,7 +182,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
    * no-op, which is what a checkbox PUT/PATCH should be.
    */
   /**
-   * PATCH /api/v1/feeders/me { sosOptIn?, displayName? }: SOS consent + profile.
+   * PATCH /api/v1/feeders/me { sosOptIn?, displayName?, homeWard? }: SOS consent + profile.
    *
    * Initially this route accepted only `{ sosOptIn: boolean }` (strict), so
    * every account's display_name stayed the literal 'Hetja Feeder' seeded at
@@ -192,6 +192,14 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
    * displayNameFromEmail() in routes/auth.ts, and this PATCH lets the feeder
    * correct it without an admin.
    */
+  /*
+   * homeWard (map screen 19, "Get alerts for K/W ward"): one of the 24
+   * canonical BMC_WARD_CODES ("K-West", never the "K/W" display form), or
+   * null to clear it. It is a ward, not a position, so it stays inside
+   * INVARIANT 2 and does not reintroduce the location-shaped consent this
+   * route was built to avoid. Note it does not (yet) drive paging: the
+   * fan-out still selects responders by recent scans near the dog.
+   */
   app.patch("/api/v1/feeders/me", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireFeeder(req, reply);
     if (!auth) return reply;
@@ -200,16 +208,19 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
       .strictObject({
         sosOptIn: z.boolean().optional(),
         displayName: z.string().trim().min(1).max(64).optional(),
+        homeWard: z.enum(BMC_WARD_CODES).nullable().optional(),
       })
-      .refine((v) => v.sosOptIn !== undefined || v.displayName !== undefined, {
-        message: "body must contain at least one of { sosOptIn, displayName }",
-      })
+      .refine(
+        (v) => v.sosOptIn !== undefined || v.displayName !== undefined || v.homeWard !== undefined,
+        { message: "body must contain at least one of { sosOptIn, displayName, homeWard }" },
+      )
       .safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({
         ok: false,
         error: {
-          message: "body must contain { sosOptIn?: boolean, displayName?: string (1..64) } and no unknown fields",
+          message:
+            "body must contain { sosOptIn?: boolean, displayName?: string (1..64), homeWard?: BMC ward code | null } and no unknown fields",
           code: "INVALID_SOS_OPT_IN",
         },
       });
@@ -226,10 +237,15 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
       sets.push(`display_name = $${idx++}`);
       vals.push(parsed.data.displayName);
     }
+    if (parsed.data.homeWard !== undefined) {
+      sets.push(`home_ward = $${idx++}`);
+      vals.push(parsed.data.homeWard);
+    }
     await query(`UPDATE feeders SET ${sets.join(", ")} WHERE id = $1`, vals);
     const out: Record<string, unknown> = {};
     if (parsed.data.sosOptIn !== undefined) out.sosOptIn = parsed.data.sosOptIn;
     if (parsed.data.displayName !== undefined) out.displayName = parsed.data.displayName;
+    if (parsed.data.homeWard !== undefined) out.homeWard = parsed.data.homeWard;
     return { ok: true, data: out };
   });
 

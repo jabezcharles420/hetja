@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BMC_WARD_CODES, FeedOutcome, ScanInput, SosReport } from "./schemas.js";
-import { BMC_WARD_NAMES, isBmcWardCode, wardDisplay, wardName } from "./wards.js";
+import {
+  BMC_WARD_CENTROIDS,
+  BMC_WARD_NAMES,
+  MUMBAI_BOUNDS,
+  isBmcWardCode,
+  wardCentroid,
+  wardDisplay,
+  wardName,
+} from "./wards.js";
 
 describe("BMC_WARD_NAMES", () => {
   it("names every one of the 24 codes, and nothing else", () => {
@@ -62,5 +70,54 @@ describe("ScanInput.outcome", () => {
     expect(ScanInput.safeParse({ ...base, outcome: "ate_all" }).success).toBe(true);
     expect(ScanInput.safeParse(base).success).toBe(true);
     expect(ScanInput.safeParse({ ...base, outcome: "sos" }).success).toBe(false);
+  });
+});
+
+describe("BMC_WARD_CENTROIDS", () => {
+  it("places every one of the 24 codes, and nothing else", () => {
+    expect(Object.keys(BMC_WARD_CENTROIDS).sort()).toEqual([...BMC_WARD_CODES].sort());
+  });
+
+  it("keeps every centre inside Greater Mumbai, and no two on top of each other", () => {
+    const pts = Object.values(BMC_WARD_CENTROIDS);
+    for (const p of pts) {
+      expect(p.lat).toBeGreaterThan(18.89);
+      expect(p.lat).toBeLessThan(19.28);
+      expect(p.lng).toBeGreaterThan(72.79);
+      expect(p.lng).toBeLessThan(72.99);
+    }
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const km = Math.hypot((pts[i].lat - pts[j].lat) * 111, (pts[i].lng - pts[j].lng) * 105);
+        expect(km).toBeGreaterThan(1);
+      }
+    }
+  });
+
+  it("runs south to north the way the city does", () => {
+    expect(BMC_WARD_CENTROIDS.A.lat).toBeLessThan(BMC_WARD_CENTROIDS.E.lat);
+    expect(BMC_WARD_CENTROIDS.E.lat).toBeLessThan(BMC_WARD_CENTROIDS["K-West"].lat);
+    expect(BMC_WARD_CENTROIDS["K-West"].lat).toBeLessThan(BMC_WARD_CENTROIDS["R-North"].lat);
+  });
+
+  it("wardCentroid answers null for a non-canonical id", () => {
+    expect(wardCentroid("K-West")).toEqual({ lat: 19.132, lng: 72.828 });
+    expect(wardCentroid("K/W")).toBeNull();
+    expect(wardCentroid(null)).toBeNull();
+  });
+});
+
+describe("MUMBAI_BOUNDS", () => {
+  it("holds every ward centre with a margin of at least 3 km", () => {
+    for (const c of Object.values(BMC_WARD_CENTROIDS)) {
+      expect(c.lat - MUMBAI_BOUNDS.south).toBeGreaterThan(0.027);
+      expect(MUMBAI_BOUNDS.north - c.lat).toBeGreaterThan(0.027);
+      expect(c.lng - MUMBAI_BOUNDS.west).toBeGreaterThan(0.028);
+      expect(MUMBAI_BOUNDS.east - c.lng).toBeGreaterThan(0.028);
+    }
+  });
+  it("is Mumbai and not the region: under 50 km tall and 30 km wide", () => {
+    expect((MUMBAI_BOUNDS.north - MUMBAI_BOUNDS.south) * 111).toBeLessThan(50);
+    expect((MUMBAI_BOUNDS.east - MUMBAI_BOUNDS.west) * 105).toBeLessThan(30);
   });
 });

@@ -155,7 +155,7 @@ about which facilities actually exist is not.
    dataset can only be `locality`, the geocoding call in §4 gets made with real
    numbers in hand rather than as a guess.
 3. **Geocode** the addresses (§4).
-4. **Import** via a script in `packages/db/`, following the existing
+4. **Import** via a script in `packages/db/` (for the monthly refresh, `import:care`, §7), or for a one-off following the existing
    `seed-care.ts` pattern: `ON CONFLICT DO NOTHING` against the
    `(name, COALESCE(phone_e164,''))` unique index, so re-running is safe and
    never duplicates. Idempotence is why `source_ref` matters.
@@ -172,7 +172,70 @@ approval marker.
 
 ---
 
-## 7. Related
+## 7. Monthly update
+
+The directory is Hetja's own list, refreshed once a month. The maintainer sends
+one CSV per list (clinics, NGOs, ...) with details **confirmed with the provider
+itself**, and the import makes the database match that file.
+
+**Finding and confirming.** Google Maps is fine for *finding* candidates. It is
+not a source of record: the Google Maps Platform terms do not allow storing
+Places content, so never paste Google's name, address, hours, phone or
+coordinates into the file as the record. Use Google to find, then verify from
+the source: call the clinic or NGO, or read its own website or signage, and
+write down what *they* told you. Only list a clinic that confirms it treats
+street dogs (the map says "Treats street dogs" for every listed vet).
+
+**The file.** Start from
+[`packages/db/data/care/TEMPLATE.csv`](../packages/db/data/care/TEMPLATE.csv)
+and commit the month's file next to it (e.g. `2026-10-clinics.csv`):
+
+| Column | Rule |
+|---|---|
+| `source_id` | **Required and stable.** Your own id for the provider (`clinic-0042`). Keep it the same every month: it is how next month's row updates this one instead of duplicating it. |
+| `name`, `kind`, `cost_tier` | Required. `kind` is `ngo`, `govt`, `charity_hospital` or `private_clinic`; `cost_tier` is `free`, `subsidised` or `paid`, as the provider told you (never guessed). |
+| `lat`, `lng` | Optional. When present (inside Mumbai) the provider gets a map pin. Take them from the provider's own address, not from a Google listing. |
+| `address`, `locality` | Without lat/lng the address is looked up in the geocode cache (or geocoded with `--geocode`); failing that the locality centre is used and the row gets no pin. |
+| `ward` | Optional BMC ward, as `K/W` or `K-West`. |
+| `phone`, `alt_phone` | As published by the provider; normalised to `+91...` on import. |
+| `ambulance`, `is_24x7`, `handles_wildlife` | `yes` / `no`. |
+| `hours` | Free text shown on the map as is ("Open till 9 pm", "Weekdays 10 to 6"). |
+| `confirmed_on` | `YYYY-MM-DD` you confirmed the details with the provider. It marks the phone number as confirmed. |
+
+**Running it.** Dry run first, always:
+
+```
+pnpm --filter @hetja/db import:care -- --file packages/db/data/care/2026-10-clinics.csv --source monthly-clinics
+pnpm --filter @hetja/db import:care -- --file packages/db/data/care/2026-10-clinics.csv --source monthly-clinics --apply
+```
+
+Or, without a terminal: **Actions -> Care directory import -> Run workflow**,
+with the committed file path, the source name and `dry-run`; then run it again
+with `apply` and `yes-i-mean-it` in the confirm box. It runs against the
+production database with the existing Supabase secrets.
+
+The dry run prints, per row, `add`, `update` (with each changed column),
+`relist`, `retire` and `conflict`, then a summary. It changes nothing. What
+apply does, in one transaction:
+
+- a `source_id` seen before is **updated** in place (only changed columns);
+- a new one is **added**;
+- a listed row of this source whose `source_id` is missing from the file is
+  **retired** (`listed = false`, never deleted); if it reappears in a later
+  file it is relisted;
+- a new row whose name and phone another source already lists is a
+  **conflict** and is skipped, unless you pass `--claim` to move that row under
+  this source.
+
+It refuses to write anything when a row has an error (a missing id, a guessed
+cost tier, a point outside Mumbai, a repeated id), when it would retire more
+than a quarter of the source (`--allow-mass-retire` if that is really
+intended), or when the source is one of the one-off imports (`curated`,
+`verified-csv-*`). Use the same source name every month for the same list.
+
+---
+
+## 8. Related
 
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) §3.2: the danger flow this data feeds
 - [`packages/db/migrations/0008_care_providers.sql`](../packages/db/migrations/0008_care_providers.sql): the table

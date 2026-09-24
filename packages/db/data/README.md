@@ -42,6 +42,8 @@ sources, verified_at, notes`
 ## Import
 
 `pnpm --filter @hetja/db geocode:care` (one-time, builds the address cache)
-then `pnpm --filter @hetja/db import:care`. It is idempotent: `ON CONFLICT DO
+then `pnpm --filter @hetja/db import:care-verified`. It is idempotent: `ON CONFLICT DO
 NOTHING` against the `(name, COALESCE(phone_e164,''))` unique index. See
 `src/import-care-verified.ts` for the full field mapping and assumptions.
+Monthly provider-confirmed refreshes use `import:care` instead (see
+`data/care/TEMPLATE.csv` and docs/VET-DATA-INTAKE.md, "Monthly update").

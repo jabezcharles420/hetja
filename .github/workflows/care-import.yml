@@ -1,0 +1,134 @@
+# Monthly vet / NGO directory refresh (docs/VET-DATA-INTAKE.md, "Monthly update").
+#
+# Runs packages/db/src/import-care.ts against the production database
+# (Supabase, through the session pooler, the same connection the deploy
+# workflow's migrate job uses). The CSV must already be committed under
+# packages/db/data/care/, so every import is reviewable in git and this log.
+#
+# SAFETY. The default mode is dry-run: it prints every add, update, retire and
+# conflict and writes nothing. Apply needs the confirm phrase, like
+# ops-maintenance.yml. Rows missing from the file are RETIRED (listed = false),
+# never deleted, and the importer refuses to retire more than a quarter of a
+# source in one go unless "allow mass retire" is ticked.
+#
+# Inputs reach the shell only through env variables (never interpolated into
+# the script), so a crafted file name or source cannot run commands.
+name: Care directory import
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "CSV in the repo, e.g. packages/db/data/care/2026-10-clinics.csv"
+        required: true
+        type: string
+      source:
+        description: "Source name, e.g. monthly-clinics (same name every month for the same list)"
+        required: true
+        type: string
+      mode:
+        description: "dry-run prints the plan; apply writes it"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+      confirm:
+        description: "Type EXACTLY: yes-i-mean-it   (required for apply)"
+        required: false
+        default: ""
+      claim:
+        description: "Take over rows another source already lists under the same name and phone"
+        required: false
+        default: false
+        type: boolean
+      allow_mass_retire:
+        description: "Allow retiring more than a quarter of this source's rows"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: care-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      IN_FILE: ${{ inputs.file }}
+      IN_SOURCE: ${{ inputs.source }}
+      IN_MODE: ${{ inputs.mode }}
+      IN_CONFIRM: ${{ inputs.confirm }}
+      IN_CLAIM: ${{ inputs.claim }}
+      IN_MASS: ${{ inputs.allow_mass_retire }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check the inputs
+        run: |
+          set -euo pipefail
+          case "$IN_FILE" in
+            packages/db/data/care/*.csv) ;;
+            *) echo "::error::file must be a .csv under packages/db/data/care/"; exit 1 ;;
+          esac
+          case "$IN_FILE" in *..*) echo "::error::file must not contain '..'"; exit 1 ;; esac
+          if [ ! -f "$IN_FILE" ]; then echo "::error::$IN_FILE is not committed on this branch"; exit 1; fi
+          if ! printf '%s' "$IN_SOURCE" | grep -qE '^[a-z0-9][a-z0-9-]{2,63}$'; then
+            echo "::error::source must be 3-64 chars of a-z, 0-9 and '-'"; exit 1
+          fi
+          if [ "$IN_MODE" = "apply" ] && [ "$IN_CONFIRM" != "yes-i-mean-it" ]; then
+            echo "::error::apply changes the production directory."
+            echo "::error::Run the dry-run first, then re-run with apply and type  yes-i-mean-it  in the confirm box."
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+      # No `version:`: pnpm/action-setup@v4 reads packageManager from package.json.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace libraries
+        run: |
+          set -euo pipefail
+          pnpm --filter @hetja/ledger build
+          pnpm --filter @hetja/contracts build
+          pnpm --filter @hetja/db build
+
+      - name: Import (${{ inputs.mode }})
+        env:
+          PGHOST: ${{ secrets.SUPABASE_POOLER_HOST }}
+          PGPORT: ${{ secrets.SUPABASE_POOLER_PORT }}
+          PGDATABASE: postgres
+          PGUSER: postgres.${{ secrets.SUPABASE_PROJECT_REF }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
+        run: |
+          set -euo pipefail
+          args=(--file "$GITHUB_WORKSPACE/$IN_FILE" --source "$IN_SOURCE")
+          if [ "$IN_MODE" = "apply" ]; then args+=(--apply); fi
+          if [ "$IN_CLAIM" = "true" ]; then args+=(--claim); fi
+          if [ "$IN_MASS" = "true" ]; then args+=(--allow-mass-retire); fi
+          pnpm --filter @hetja/db import:care -- "${args[@]}" | tee "$RUNNER_TEMP/care-import.log"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Care import: $IN_MODE of \`$IN_FILE\` as \`$IN_SOURCE\`"
+            echo '```'
+            grep -E '^(summary|applied|dry run|REFUSED|[0-9]+ error)' "$RUNNER_TEMP/care-import.log" 2>/dev/null || echo "(no output; see the log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

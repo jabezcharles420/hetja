@@ -241,13 +241,13 @@ flags, never opens an SOS); `GET /feeders/me/dogs` and a richer streak;
 self-reported vaccinated/sterilised on registration (migration 0025, never
 public). Fixed: pending and expired dogs were publicly readable by slug.
 
-**Map (screen 19)**, in progress on the branch at the time of writing:
+**Map (screen 19)**, commit `146cae6`:
 `GET /api/v1/map/wards`, `/map/wards/:wardId` and `/map/places`
 (ward-level counts at fixed ward centres, case ids only for eligible
 responders), `/map` in the web app on Leaflet with Esri basemap tiles and a
 CARTO fallback, `homeWard` on `PATCH /feeders/me`, and a monthly vet/NGO CSV
 import (`packages/db/src/import-care.ts`, `care-import.yml`).
-<!-- verify: map work was uncommitted when this section was written; update with its commit ids and final test counts once it lands. -->
+Map-only lock to `MUMBAI_BOUNDS`. Tests after `146cae6`: api 364, contracts 32, db 52, web 307.
 
 **Tests** as reported in the commits: web 283 unit and 36 Playwright; api 349
 after `d0510a3` (WSL PostgreSQL 16 with PostGIS and pgvector); contracts 26,

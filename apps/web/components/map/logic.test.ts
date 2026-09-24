@@ -72,7 +72,7 @@ describe("headline", () => {
       placeLead(place(), "K/W"), placeLead(place({ confirmed: false, partner: false, kind: "ngo" }), null),
       severityLabel("critical"), severityLabel("serious"), severityLabel("minor"),
     ];
-    for (const s of all) expect(s).not.toContain("—");
+    for (const s of all) expect(s).not.toContain(String.fromCharCode(0x2014)); // no em dashes in copy
   });
 });
 

@@ -146,6 +146,8 @@ export function MapScreen(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
+    // Captured once: the cleanup must clear the same Map this effect filled.
+    const markerSet = markers.current;
     let map: Leaflet.Map | null = null;
     void import("leaflet").then((mod) => {
       const L = (mod as unknown as { default?: typeof Leaflet }).default ?? (mod as unknown as typeof Leaflet);
@@ -192,7 +194,7 @@ export function MapScreen(): React.JSX.Element {
       cancelled = true;
       map?.remove();
       mapRef.current = null;
-      markers.current.clear();
+      markerSet.clear();
     };
   }, []);
 

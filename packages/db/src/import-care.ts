@@ -196,7 +196,7 @@ export function readRecords(rows: string[][]): {
 
     const name = col(r, "name").replace(/\s+/g, " ");
     if (!name) return err("name is empty");
-    if (/—/.test(name)) warn("name contains an em dash");
+    if (name.includes(String.fromCharCode(0x2014))) warn("name contains an em dash");
 
     const kind = col(r, "kind").toLowerCase() as CareKind;
     if (!CARE_KINDS.includes(kind)) return err(`kind "${col(r, "kind")}" is not one of ${CARE_KINDS.join(", ")}`);

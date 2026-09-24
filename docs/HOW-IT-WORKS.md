@@ -251,7 +251,11 @@ content is never stored, per Google's terms. See
 Base tiles are Esri's Light Gray static basemap (ArcGIS Location Platform, a
 referrer-restricted key in `NEXT_PUBLIC_ESRI_API_KEY`), falling back to CARTO's
 keyless light tiles when there is no key or Esri refuses it.
-<!-- verify: the map screen was still being finished when this was written; re-check the three routes, the responder rules and the fallback after it lands. -->
+**Mumbai only.** `MUMBAI_BOUNDS` in `packages/contracts/src/wards.ts`
+(18.88 to 19.30 N, 72.76 to 73.00 E) is the whole world as far as the map is
+concerned: the tile layer is bounded to it (no tile outside Mumbai is ever
+requested), the view cannot be panned past it, and `/api/v1/map/places`
+clamps any box to it and answers 400 for a box entirely outside it.
 
 ### 3.5 Registration's self-reported medical status
 

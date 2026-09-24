@@ -51,6 +51,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # RETIRED 2026-09-25. Every task below assumes the old single-tenant box
+      # (/root/hetja checkout, system Caddy, local PostgreSQL). The box is now
+      # shared with an agent that has priority, and Hetja lives in the capped
+      # room described in ops/room/README.md: operate it there, never through
+      # this workflow. Kept (not deleted) as a record of the old procedures.
+      - name: Refuse to run against the shared box
+        run: |
+          echo "::error::ops-maintenance is retired: the box is shared and Hetja runs in ops/room. See ops/room/README.md."
+          exit 1
+
       - uses: actions/checkout@v4
         with:
           persist-credentials: false

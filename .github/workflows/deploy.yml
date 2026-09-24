@@ -405,6 +405,8 @@ jobs:
           \echo == recorded migrations
           select coalesce(string_agg(filename, ' ' order by filename), '<none>') from schema_migrations;
           \echo == repo migrations not recorded (computed below)
+          \echo == medical_records append-only guard (triggers; the API runs as postgres, so REVOKEs do not bind it)
+          select coalesce(string_agg(tgname || ': ' || pg_get_triggerdef(oid), chr(10)), '<NO TRIGGERS: append-only is NOT enforced>') from pg_trigger where tgrelid = 'public.medical_records'::regclass and not tgisinternal;
           \echo == row counts
           select 'dogs', count(*) from dogs union all select 'identities', count(*) from identities
             union all select 'care_providers', count(*) from care_providers union all select 'feed_events', count(*) from feed_events;

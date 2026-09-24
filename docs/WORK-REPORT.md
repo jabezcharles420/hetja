@@ -201,5 +201,62 @@ All suites green, 0 typecheck errors across api/worker/packages, security gate
   `PATCH /api/v1/feeders/me { displayName }`. Existing rows keep their current
   value on `ON CONFLICT`.
 
+## Design v4, the shared-box room, and the map (2026-09-24 to 2026-09-25)
+
+Branch `design-v4`. Factual summary; the commit messages carry the detail.
+
+**Hosting: the room** (`cab588a`, `180c61d`, `8c84034`, `fabcac5`). The VPS was
+reset and now hosts an autonomous agent with priority. Hetja moved into a
+resource-capped room on it: `hetja.slice` (CPUWeight 20, CPUQuota 60%,
+MemoryHigh 300M, MemoryMax 360M, OOMScoreAdjust 1000 on every unit), a memory
+guard that stops the site below 400 MB available and restarts it above 900 MB,
+an unprivileged `hetja` user with pinned, checksum-verified Node, Caddy and
+cloudflared under `/srv/hetja`, Caddy on loopback only behind the Cloudflare
+Tunnel, and Supabase as the production database (no PostgreSQL on the box).
+`deploy.yml` was rewritten: everything is built on the runner, one tarball is
+shipped, `hetja-deploy` flips `releases/current`, a root path unit restarts the
+services from a stamp file, and a failed health check rolls back. Migrations go
+to Supabase on push to `main`. A silent symlink failure found in the first
+room deploy was fixed in `fabcac5` (docs/BUGS.md). Contract and commands:
+`ops/room/README.md`.
+
+**Design v4** (`5a45d02`, `4472091`, `f230dee`, `ec2bcc5`, `56e806b`,
+`d0510a3`, `91aad98`). The Claude Design handoff was committed under
+`docs/design/v4-handoff/` and its tokens copied verbatim into
+`packages/design/tokens.css`; the v3 kit (`components/ui`, `/styleguide`,
+Dogmoji) was removed. New component layer in `apps/web/components/ds` and a
+dev-only `/design` page laid out like the Design System mock. Rebuilt to the
+mocks: the collar page and SOS flow in `apps/scan` (screens 03 to 05; bundle
+33 KB of the 40 KB budget, with a 13.6 KB Inter subset for Android), Scan,
+Log a feed, Sign in, Me, New dog and Collar ready (02, 06 to 11), and the
+marketing and reading pages, `/hetja` and the chrome (01, 12 to 18). The
+contrast gate now covers the 21 pairs v4 uses; all pass AA.
+
+**API additions** (`7d42a54`, `d0510a3`), all additive. `GET /dogs/:slug`
+gained ward name, tri-state vaccinated/sterilised (never "no" without
+evidence), last fed and feeder/story counts; new `GET /wards`; optional SOS
+photo on `POST /reports`; `GET /reports/:caseId/status` for the reporter's
+device only; optional feed outcome on `POST /scans` (migration 0024; "unwell"
+flags, never opens an SOS); `GET /feeders/me/dogs` and a richer streak;
+self-reported vaccinated/sterilised on registration (migration 0025, never
+public). Fixed: pending and expired dogs were publicly readable by slug.
+
+**Map (screen 19)**, in progress on the branch at the time of writing:
+`GET /api/v1/map/wards`, `/map/wards/:wardId` and `/map/places`
+(ward-level counts at fixed ward centres, case ids only for eligible
+responders), `/map` in the web app on Leaflet with Esri basemap tiles and a
+CARTO fallback, `homeWard` on `PATCH /feeders/me`, and a monthly vet/NGO CSV
+import (`packages/db/src/import-care.ts`, `care-import.yml`).
+<!-- verify: map work was uncommitted when this section was written; update with its commit ids and final test counts once it lands. -->
+
+**Tests** as reported in the commits: web 283 unit and 36 Playwright; api 349
+after `d0510a3` (WSL PostgreSQL 16 with PostGIS and pgvector); contracts 26,
+db 20, worker 19 after `7d42a54`.
+
+**Docs.** README, AGENTS.md, HOW-IT-WORKS, FEATURE-GUIDE, the design system
+document, INVARIANTS (row 13 and the new public surfaces), CREDITS, BUGS, the
+runbook and the hosting notes were brought up to date with all of the above;
+the old single-tenant instructions are marked historical.
+
 *End of report. Full commit history in the local repo (24 commits) and the
 private backup (Hermes_aic).*

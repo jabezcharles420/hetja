@@ -1,19 +1,19 @@
 # AGENTS.md
 
-Instructions for a coding agent (or a human) working on Hetja, or bringing the
-stack up on a fresh box. Every step that can be verified has a command and an
-expected result next to it. If a check fails, stop and fix it before moving on.
+Instructions for a coding agent (or a human) working on Hetja. Every step that
+can be verified has a command and an expected result next to it. If a check
+fails, stop and fix it before moving on.
 
 **Read [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) first.** It explains what
 the system does and why it is shaped this way. This file is the operational
 half. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) lists the fifteen rules the
-code is not allowed to break, several of which CI enforces.
+code is not allowed to break, several of which CI enforces. Hosting lives in
+[`ops/room/README.md`](ops/room/README.md).
 
 ## a. If you are just developing, you do not need a server
 
 Most work needs only a clone, `pnpm install`, and the gates. Deployment happens
-by pushing to `main` (see §g). Skip to §f and §g unless you are provisioning a
-new box.
+by pushing to `main` (§g).
 
 ```bash
 pnpm install --frozen-lockfile
@@ -21,240 +21,272 @@ pnpm --filter @hetja/ledger build     # libraries first: consumers resolve them
 pnpm --filter @hetja/contracts build  # through dist/, which is gitignored
 pnpm --filter @hetja/db build
 pnpm -r typecheck
-./ops/security-gate.sh
-./ops/check-queries.sh
-pnpm --filter @hetja/scan size:gate
+bash ops/security-gate.sh
+bash ops/contrast-gate.sh
+pnpm --filter @hetja/scan build && pnpm --filter @hetja/scan size:gate
+pnpm --filter @hetja/web test         # web and scan unit tests need no database
 ```
 
-The test suite additionally needs a database (see §f).
+`ops/check-queries.sh` and the api, worker and db suites need a database (§f).
 
 ## b. What this is
 
-Four services, all bound to loopback:
+Four services, all bound to loopback, plus Caddy and the tunnel:
 
 | Service | App | Port | Notes |
 |---|---|---|---|
-| Web | `apps/web` (Next.js) | 3100 | Feeder PWA. Fronted by Caddy. |
-| API | `apps/api` (Fastify) | 8080 | `/api/v1/*`. Fronted by Caddy. |
-| Scan | `apps/scan` (static) | 8081 | QR-collar landing, served at `/d/*`. |
-| Worker | `apps/worker` | - | Job queue (fan-out, escalation, retention). |
+| Web | `apps/web` (Next.js 14) | 3100 | Everything except the collar page. |
+| API | `apps/api` (Fastify 5) | 8080 | `/api/v1/*`, also served at `api.hetja.in`. |
+| Scan | `apps/scan` (static, no framework) | 8081 | The collar page and SOS, at `/d/*`. |
+| Worker | `apps/worker` | none | Job queue: fan-out, escalation, retention, registration expiry. |
+| Caddy | stock Caddy | 127.0.0.1:80 | Path routing; the tunnel's only origin. |
+| cloudflared | Cloudflare Tunnel | none | Dials out. The box has no inbound web port. |
 
-Caddy (`ops/caddy/Caddyfile`) is the only thing reachable from outside; see
-`ops/caddy/HOSTING.md` for the Cloudflare Tunnel case, which is how production
-runs (the box has no inbound ports open).
+**The production database is Supabase** (PostgreSQL with PostGIS, pgvector and
+pgcrypto, in Mumbai, reached through its session pooler with `PGSSLMODE=require`).
+There is no PostgreSQL on the production box. This reverses what an earlier
+version of this file said (a local PostgreSQL on the box was authoritative and
+Supabase a mirror that served no reads); that was true of the old single-tenant
+box, which was reset on 2026-09-24. If you find a document that still says the
+local database is authoritative, it predates the room: fix it or mark it
+historical.
 
-**The authoritative database is a LOCAL PostgreSQL on the box.** The live API
-connects to `PGHOST=127.0.0.1`, `PGDATABASE=hetja`. There is also a hardened
-Supabase project holding a mirror of the schema, but **it currently serves no
-reads**. The plan is to repoint after the VPS itself moves to India. Migrations
-are applied to both (§g).
+## c. Rules for working in this repo
 
-> An earlier version of this file said the database was managed Supabase and
-> that PostgreSQL "explicitly is not required; do not `apt install
-> postgresql*`". That was wrong and is exactly the kind of confident-but-stale
-> instruction that causes a "which database did that actually write to?" bug. If
-> you are provisioning a box that runs the API, you need PostgreSQL locally.
+- **No em dashes.** Not in code comments, copy, docs or commit messages. They
+  were removed from the whole repository. Use a colon, a comma, parentheses or
+  a new sentence. Check with `grep -rn "$(printf '\342\200\224')" <files>`
+  (the UTF-8 bytes of U+2014, the em dash); it should print nothing.
+- **UI work is verified against the handoff mocks, side by side.** Open the
+  mock or its rendered board from `docs/design/v4-handoff/` next to the running
+  screen at 390 x 844 (and 1440 where there is a desktop mock), and compare
+  sizes, spacing, colours and button position. Ship **all** of the mock's copy
+  verbatim. The workflow is in
+  [`docs/design/HETJA-DESIGN.md`](docs/design/HETJA-DESIGN.md) under
+  "Verifying a screen".
+- **Never kill processes by image name** (`taskkill /IM node.exe`,
+  `pkill node`, `killall node`). Several agents and dev servers share one
+  workstation; killing by name takes down everyone's. Kill the PID you started.
+- **One shared Next dev server.** If a `next dev` for `apps/web` is already
+  running, use it. Do not start a second one on another port, and do not stop
+  one you did not start.
 
-## c. Prerequisites
+## d. The production box is shared, and the other tenant comes first
 
-- Ubuntu 24.04 (or close).
-- **PostgreSQL 16 with PostGIS, pgvector and pgcrypto.** Required: the schema
-  uses `GEOGRAPHY(Point,4326)`, `VECTOR(768)` and `gen_random_uuid()`.
-- Node: CI runs **20**, `.nvmrc` says **22**, and 26 has been used locally
-  without trouble. `engines` requires `>=20`. If you need one number, match CI.
-- pnpm: `corepack enable`, or install the version in `packageManager`.
-- Caddy, for reverse proxy in front of the four loopback services.
+Since 2026-09-24 the box (LXC, 2 vCPU, 3 GB RAM, behind NAT) also runs an
+autonomous agent that **has priority**. Hetja lives in a capped room
+(`hetja.slice`: `CPUWeight=20`, `CPUQuota=60%`, `MemoryHigh=300M`,
+`MemoryMax=360M`, `OOMScoreAdjust=1000` on every unit). The full contract is in
+[`ops/room/README.md`](ops/room/README.md).
 
-## d. Secrets
+- **Never build, compile, `apt install` or do other heavy work on the box.**
+  Everything is built on the GitHub runner. No system Node, no system Caddy;
+  Hetja's pinned binaries live under `/srv/hetja/bin`.
+- **Touch only `/srv/hetja`, `/etc/hetja` and `hetja*` units.** Nothing else on
+  the box is ours.
+- **Check the agent's health before and after anything you do there:**
+  `free -m` (MemAvailable), `uptime` (load), `systemctl --failed`, and
+  `systemd-cgtop -1` to see who is using what. The agent's watchdog
+  (`/usr/local/bin/jobagent-watchdog`) restarts its browser when MemAvailable
+  drops below **250 MB**; anything you do that pushes the box toward that line
+  hurts the tenant that matters more.
+- **The memory guard** (`hetja-guard.timer`, every 60 s) stops the whole of
+  `hetja.target` when MemAvailable falls below 400 MB and starts it again
+  above 900 MB. If the site is down and nothing is broken, check
+  `/var/log/hetja-guard.log` first: the guard doing its job looks exactly like
+  an outage.
 
-Copy `apps/api/.env.example` → `apps/api/.env.production` and the same for
-`apps/web`, then fill every value. **These files are gitignored and are not in
-the repo**, so cloning gets you no secrets.
+## e. Secrets
 
-| Variable | File | Where it comes from |
-|---|---|---|
-| `NODE_ENV` / `PORT` / `HOST` | api | `production` / `8080` / `127.0.0.1`. |
-| `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` | api | The **local** cluster: `127.0.0.1`, `5432`, `hetja`, `app_user`, and the password you set for it. |
-| `PGSSLMODE` | api | Omit for a local socket/loopback cluster. Set `require` only when pointing at Supabase. |
-| `JWT_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
-| `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | api | e.g. `15m` / `30d`. |
-| `HETJA_HMAC_PEPPER` | api | **Generate**: `openssl rand -hex 32`. Peppers `identity_hmac` (INVARIANT 3). |
-| `HETJA_QR_SECRET` | api | **CARRY OVER. See the warning below.** |
-| `HETJA_DEVICE_SECRET` | api | **Generate**: `openssl rand -hex 32`. |
-| `DEVICE_POW_DIFFICULTY` | api | Default `16` (ALTCHA v2 PoW), max `20`. Lowered from 18 on 2026-08-14: ALTCHA encodes difficulty as a hex prefix, so 18 rounded **up** to 20 effective bits, which the scan-app solver could not finish inside its own 20 s budget (measured 4/10 solves; 16 gives 25/25 at ~1 s). What actually bounds abuse is INVARIANT 7's 2/day + 5/week cap, not the PoW: a native solver does 2^20 in ~1.5 s. See `docs/HOW-IT-WORKS.md` §9. |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | api | **Generate once**: `npx web-push generate-vapid-keys`. Subject is a `mailto:`. Rotating these invalidates every existing push subscription. |
-| `BREVO_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` | api | Brevo → SMTP & API. **The API refuses to boot in production without these**. This is deliberate, because the original bug was generating login codes and silently sending them nowhere. |
-| `MAIL_FROM` | api | `no-reply@hetja.in`. Must be on a domain with SPF/DKIM/DMARC or mail lands in spam. |
-| `HETJA_LEDGER_SIGNING_JWK` / `_KID` / `HETJA_LEDGER_SIGNER_ID` | api file, read by **worker** | Optional. Signs the daily ledger anchor (INVARIANT 10). Private Ed25519 JWK as one-line JSON; generate with `generateLedgerKeyPair()` and **publish the public half at a JWKS path**, or a signature verifies against nothing. Unset ⇒ anchors publish unsigned, which is degraded but honest. They live in the api env file because `hetja-worker.service` loads it as its `EnvironmentFile`. Never put this in a restic repo a third party stores. |
-| `TRUST_PROXY` | api | Hop count to the real client through Caddy, **usually `1`**. Defaults to `0`, and at `0` Fastify ignores `X-Forwarded-For` entirely, so `request.ip` stays loopback and the Caddy `CF-Connecting-IP` rewrite is inert. Unlike the five secrets above there is no `requireInProd` guard for it, so a missing value fails silently. |
-| `CORS_ORIGINS` | api | Production origins, comma-separated. |
-| `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` or `S3_*` | api | `local` or `s3`. |
-| `NEXT_PUBLIC_API_URL` | web | Public API origin. |
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | web | Supabase → Project Settings → API. Safe in the browser; every table it can reach is behind RLS. |
+**All production secrets are GitHub Actions secrets.** The deploy workflow
+writes them into `/srv/hetja/shared/api.env` and `/srv/hetja/shared/web.env`
+(mode 0600, owned by `hetja`) on every deploy. Nothing on the box is edited by
+hand, and cloning the repo gets you no secrets. Never paste a secret's value
+into a file, a commit, an issue, a log or a chat.
 
-**`HETJA_QR_SECRET` must be carried over from the previous deployment.** This is
-not a normal rotation. It is the HMAC key baked into every QR code already
-printed and glued to a physical collar. Generating a fresh value will not error,
-will not fail loudly, and will not show up in any test. It will simply make
-every collar printed before that moment fail signature verification the next
-time a stranger scans one, standing over a dog. Copy the exact value from the
-previous box's `.env.production`.
+| Secret | Used for |
+|---|---|
+| `DEPLOY_SSH_KEY`, `DEPLOY_SSH_KNOWN_HOSTS` | The deploy key for the unprivileged `hetja` user (authorised with `restrict`), and the pinned host key (`StrictHostKeyChecking=yes`). |
+| `DEPLOY_SSH_HOST`, `DEPLOY_SSH_PORT`, `DEPLOY_SSH_USER` | Where the deploy logs in. The box is behind NAT on a non-standard SSH port. |
+| `SUPABASE_POOLER_HOST`, `SUPABASE_POOLER_PORT`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` | The production database, for migrations and the API. Use the **session** pooler port (5432), not the transaction pooler: migrations run multi-statement transactions. |
+| `HETJA_JWT_SECRET` | Written as `JWT_SECRET`. Signs access tokens. |
+| `HETJA_HMAC_PEPPER` | Peppers `identity_hmac` (INVARIANT 3). |
+| `HETJA_QR_SECRET` | **Carry over, never regenerate.** See below. |
+| `HETJA_DEVICE_SECRET` | Signs anonymous device tokens. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Web Push. Rotating them invalidates every existing push subscription. |
+| `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_USER`, `BREVO_SMTP_PASSWORD` | Sign-in email. The API refuses to boot in production without SMTP, deliberately: the original bug was generating login codes and sending them nowhere. |
+| `ESRI_API_KEY` | The map's basemap tiles. Inlined into the web bundle at build time as `NEXT_PUBLIC_ESRI_API_KEY`, so it is public by design: it is an ArcGIS Location Platform key restricted to Hetja's referrers and to basemap privileges only. Without it the map falls back to CARTO tiles. |
 
-## e. Bootstrap a new box
+The workflow also writes fixed values that are not secrets: `JWT_ACCESS_TTL=15m`,
+`JWT_REFRESH_TTL=30d`, `TRUST_PROXY=1` (one hop: cloudflared to Caddy to the
+API), `CORS_ORIGINS`, `STORAGE_BACKEND=local` with photos in
+`/srv/hetja/photos`, `PUBLIC_API_ORIGIN=https://api.hetja.in`, `PGPOOL_MAX=4`,
+`MAIL_FROM` and `VAPID_SUBJECT`. `web.env` carries only `NEXT_PUBLIC_API_URL`.
+`DEVICE_POW_DIFFICULTY` is not set, so the default of 16 applies (see
+`docs/HOW-IT-WORKS.md` §9 for why not 18). The ledger signing key
+(`HETJA_LEDGER_SIGNING_JWK`) is not wired into the room yet, so daily anchors
+are unsigned.
 
-Run `ops/bootstrap.sh` from a clean checkout. Safe to re-run. It installs
-dependencies, builds in dependency order (`ledger → contracts → db → api →
-worker → scan → web`), renders the four systemd units from `ops/systemd/*.service`
-with the real repo path and node binary, enables them, and runs the verify
-ladder in §f.
+For local development, copy `apps/api/.env.example` to a `.env` of your own
+and fill it with throwaway values.
 
-Two things bootstrap does **not** do, which a new box needs:
+**`HETJA_QR_SECRET` must be carried over from the previous deployment.** It is
+the HMAC key baked into every QR code already printed and glued to a physical
+collar. Generating a fresh value will not error, will not fail loudly, and will
+not show up in any test. It will simply make every collar printed before that
+moment fail signature verification the next time a stranger scans one,
+standing over a dog. Keep it in a password manager as well as in GitHub.
 
-1. **Create the database and roles.** Tables must be owned by `postgres` and
-   `app_user` granted access, never the reverse. See the ownership note in §h.
-2. **The `rootasdba` ident map**, without which the deploy pipeline cannot apply
-   production migrations. See `ops/RUNBOOK.md`; `ops/deploy-remote.sh` fails with
-   the exact instructions if it is missing.
+## f. Tests
 
-## f. Verify
+The web and scan suites need nothing. The api, worker and db suites insert real
+rows into PostgreSQL with **PostGIS, pgvector and pgcrypto**, and refuse to run
+unless `PGDATABASE` ends in `_test`: `medical_records` is append-only, so test
+rows can never be removed. Run suites one package at a time
+(`pnpm -r --workspace-concurrency=1 test`, which is what `pnpm test` does);
+they share one database and race each other otherwise.
 
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3100/                          # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/                          # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/healthz                   # 200
-curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/api/v1/heatmap?ward=A"   # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/d/<slug>                  # 200, text/html
-systemctl is-active hetja-api hetja-web hetja-worker hetja-scan                          # active x4
-```
-
-`<slug>` is a real 9-character collar slug. `pnpm --filter @hetja/db seed` makes
-five if you have none.
-
-**Running the test suite** needs a disposable database whose name ends `_test`.
-The suite refuses anything else because it inserts real rows, and `medical_records` is
-append-only, so test rows can never be removed. Bootstrap it exactly like CI
-(`.github/workflows/ci.yml`), with every command as the `postgres` superuser
-(root on this box maps to it via the `rootasdba` ident map):
-
-```bash
-# one-time, per cluster: the application login role. Must exist before
-# migrations: 0001_init.sql ends with `REVOKE ... FROM app_user`, which errors
-# if the role does not.
-psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_user') THEN CREATE ROLE app_user LOGIN PASSWORD 'dev-pw'; END IF; END \$\$;"
-psql -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO app_user;"
-
-# per fresh database
-createdb hetja_test
-psql -d hetja_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;"
-
-# migrations MUST run as postgres, never as app_user; see the ownership note in §h
-PGHOST=/var/run/postgresql PGUSER=postgres pnpm --filter @hetja/db migrate
-
-# post-migration grants = production's privilege set, applied after the tables exist.
-# Since 0022_app_user_grants.sql the migrations themselves grant app_user what
-# the API needs on every table, so this blanket GRANT is belt-and-braces for
-# clusters that predate it. It is NOT sufficient on its own: a blanket grant
-# only covers tables that exist when it runs -- production had it applied
-# before 0017 created refresh_tokens, so app_user had no rights on that table
-# and every OTP verify would have failed on its INSERT. Re-running migrations
-# (idempotent) is the right fix for that class of gap, not another GRANT ALL.
-psql -v ON_ERROR_STOP=1 -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;"
-psql -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;"
-# INVARIANT 9: re-applied after the blanket GRANT, which would hand DELETE back
-psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
-# ...and TRUNCATE too. `GRANT ALL` grants it and no REVOKE above takes it away:
-# followed as originally written (without this line), the recipe leaves app_user
-# holding INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE on medical_records (verified
-# live). The statement-level BEFORE TRUNCATE trigger from 0012 still blocks an
-# actual TRUNCATE by any role, so omitting this is weakened defence-in-depth
-# rather than an open hole; but production revokes it (0012), and the point of
-# this recipe is to reproduce production's privilege set exactly.
-psql -v ON_ERROR_STOP=1 -c "REVOKE TRUNCATE ON medical_records FROM app_user;"
-```
-
-Then run the suite as `app_user`, always with `PGDATABASE` set; unset it
-defaults to `hetja` (the live database) and the suite refuses to start:
+**On Windows, use WSL (Ubuntu 24.04).** Copy the repo into the WSL filesystem
+rather than running from `/mnt/c` (native modules and file watching are slow
+and sometimes wrong across that boundary), install there, and point the suite
+at the WSL PostgreSQL:
 
 ```bash
-PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=app_user PGPASSWORD=<pw> \
+# once, inside WSL
+sudo apt-get install -y postgresql-16 postgresql-16-postgis-3 postgresql-16-pgvector
+sudo service postgresql start
+sudo -u postgres psql -c "CREATE ROLE app_user LOGIN PASSWORD 'dev-pw';"
+sudo -u postgres psql -c "ALTER ROLE postgres PASSWORD 'pg-pw';"   # dev box only
+
+# each run
+rsync -a --delete --exclude node_modules --exclude .git --exclude dist --exclude .next \
+  /mnt/c/Users/<you>/Documents/Hetja/ ~/hetja-test/
+cd ~/hetja-test && pnpm install --frozen-lockfile
+pnpm --filter @hetja/ledger build && pnpm --filter @hetja/contracts build && pnpm --filter @hetja/db build
+
+sudo -u postgres createdb hetja_test
+sudo -u postgres psql -d hetja_test -c "CREATE EXTENSION postgis; CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;"
+# migrations as postgres, never as app_user (ownership note in §h)
+PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=postgres PGPASSWORD=pg-pw pnpm --filter @hetja/db migrate
+sudo -u postgres psql -d hetja_test -v ON_ERROR_STOP=1 -c "
+  GRANT USAGE ON SCHEMA public TO app_user;
+  GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+  REVOKE UPDATE, DELETE ON medical_records FROM app_user;
+  REVOKE TRUNCATE ON medical_records FROM app_user;"
+
+PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=app_user PGPASSWORD=dev-pw \
   pnpm --filter @hetja/api test
 ```
 
-The ownership detail is load-bearing, not cosmetic: the referential-integrity
-check behind `DELETE FROM dogs` runs as the *referencing* table's owner, so
+The grants reproduce production's privilege set. The two REVOKEs are
+INVARIANT 8 (numbered 9 in older comments): `GRANT ALL` would hand `app_user`
+UPDATE, DELETE and TRUNCATE on the append-only table. The statement-level
+`BEFORE TRUNCATE` trigger from `0012` still blocks a real TRUNCATE, but the
+point of the recipe is to match production exactly.
+
+CI does the same against a `postgis/postgis:16-3.4` container with pgvector
+installed into it (`.github/workflows/ci.yml` and the Gate job in
+`deploy.yml`). The Docker equivalent for macOS or Linux is in
+[`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) §8.
+
+**The ownership detail is load-bearing.** The referential-integrity check behind
+`DELETE FROM dogs` runs as the *referencing* table's owner, so
 `medical_records` must be owned by `postgres` with `app_user` holding grants.
 If `app_user` owns it, `0001_init.sql`'s REVOKE strips the owner's own rights
 and every dog-delete fails with `permission denied for table medical_records`,
 the bug behind 48 CI failures, documented in migration 0012's header comment.
-A stock Homebrew PostgreSQL has only pgcrypto; the Docker recipe matching CI is
-in [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) §8.
+
+The browser tests are Playwright (`pnpm --filter @hetja/web test:e2e`, after
+`test:e2e:install`), including axe accessibility checks and the 390px layout
+gate.
 
 ## g. How code reaches production
 
-**Push to `main`.** Do not build or deploy by hand; do not `git pull` on the box.
+**Push to `main`.** Do not build or deploy by hand, and never on the box.
 
 ```
-push -> Gate (typecheck, tests, security-gate, check-queries, 40 KB size gate)
-     -> Migrate (destructive-change gate, then apply to Supabase)
-     -> Deploy  (build web+scan on the runner, rsync a release,
-                 build api+worker ON THE BOX from this SHA,
-                 apply migrations to the PRODUCTION database,
-                 flip the `current` symlink, restart, health-check,
-                 assert the checkout HEAD == deployed SHA)
+push -> Gate    typecheck, all tests (ephemeral PostGIS + pgvector), security gate,
+                EXPLAIN gate, 40 KB size gate, contrast gate, Caddy cache gate,
+                systemd wiring gate
+     -> Migrate destructive-change gate, a read-only Supabase state report,
+                then apply new migrations to Supabase (the production DB)
+     -> Deploy  build every package ON THE RUNNER (Node 22), assemble one tarball
+                (ops/room/build-release.sh), write api.env and web.env from secrets,
+                scp to /srv/hetja/incoming/ as `hetja`, run hetja-deploy <id>,
+                then check https://hetja.in through Cloudflare
 ```
+
+`hetja-deploy` (`ops/room/hetja-deploy.sh`, installed as
+`/srv/hetja/bin/hetja-deploy`) unpacks the release into
+`/srv/hetja/releases/<id>/`, checks the expected entry points exist, validates
+the Caddyfile, atomically points `/srv/hetja/releases/current` at the new
+release, and writes `/srv/hetja/shared/deploy-stamp`. A root-owned path unit
+(`hetja-restart.path`) sees the stamp and restarts the `hetja-*` services, so
+the deploy user needs no sudo. It then health-checks the API, web, scan and
+Caddy for up to 180 s; if they do not come up it points `current` back at the
+previous release and stamps again. It keeps the three newest releases.
 
 Things worth knowing before you change any of it:
 
-- **web and scan** are built on the runner and shipped as a release under
-  `/srv/hetja/releases/<ts>-<sha>/`, with `current` symlinked. `next build`
-  needs ~1 GB and previously OOM-killed the live services on this 2 GB box.
-- **api and worker** run from the git checkout at `/root/hetja` and are built
-  there. Both halves must ship, or a deploy goes green with a stale API.
-- **Migrations reach two databases**: Supabase (from the runner) and the local
-  production cluster (from `deploy-remote.sh`). Missing the second means the
-  schema the app actually queries never changes.
-- **Rollback covers code, not schema.** An applied migration stays applied even
-  when a release is reverted. This is only safe because the destructive gate
-  keeps unattended migrations additive.
-- **The destructive-change gate** fails the build on `DROP TABLE`, `TRUNCATE`,
-  `DELETE FROM` and similar unless the file carries
-  `-- MIGRATION-APPROVED: <reason>`. Additive changes flow untouched. Do not add
-  that marker to silence the gate. It exists for changes that need a human and
-  a checked backup.
-
-Secrets the pipeline needs live in GitHub Actions secrets: `DEPLOY_SSH_KEY`,
-`DEPLOY_SSH_HOST`, `DEPLOY_SSH_PORT`, `DEPLOY_SSH_USER`, `SUPABASE_POOLER_HOST`,
-`SUPABASE_POOLER_PORT`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`.
+- **Manual runs** (`gh workflow run deploy.yml --ref <branch>`) deploy any
+  ref, and migrate Supabase only with `-f supabase_migrate=true`. Pushes to
+  `main` always migrate.
+- **Documentation-only pushes do not deploy** (`paths-ignore` on `**/*.md`,
+  `docs/**`, `LICENSE`). Anything under `ops/**` or `.github/**` does.
+- **First deploy to a fresh room:** after the first release exists, run
+  `systemctl start hetja.target` once, as root. From then on the target starts
+  at boot and deploys restart it through the stamp file.
+- **Rollback covers code, not schema.** An applied migration stays applied when
+  a release is reverted. This is only safe because the destructive gate keeps
+  unattended migrations additive.
+- **The destructive-change gate** (`ops/check-destructive-migrations.sh`) fails
+  the build on `DROP TABLE`, `TRUNCATE`, `DELETE FROM` and similar unless the
+  file carries `-- MIGRATION-APPROVED: <reason>`. Additive changes flow
+  untouched. Do not add that marker to silence the gate. It exists for changes
+  that need a human and a checked backup.
+- **`ops-maintenance.yml` predates the room.** Its tasks assume the old
+  `/root/hetja` checkout and system Caddy, which no longer exist on the box.
+  Do not run it against the room.
 
 **Pushing from a new machine** needs its own credential: a deploy key with write
-access on the repo, or an account SSH key. Do not copy the box's key to a laptop:
-that key can deploy to production, and sharing it means revoking either revokes
-both and you cannot tell which machine pushed.
+access on the repo, or an account SSH key. The production deploy key is a
+GitHub secret only; never copy it to a laptop.
 
 ## h. Gotchas
 
-- **`NEXT_PUBLIC_*` is inlined at build time, not read at runtime.** Editing
-  `apps/web/.env.production` and restarting `hetja-web` does nothing. Next.js
-  baked the old values into the bundle. Rebuild, then restart.
+- **`NEXT_PUBLIC_*` is inlined at build time, not read at runtime.** That
+  includes `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_ESRI_API_KEY`. Changing one
+  means a new build, which means a push; editing `web.env` on the box and
+  restarting does nothing.
 - **Apply migrations as a superuser, so `postgres` owns the tables.** In
   PostgreSQL the creating role owns what it creates, and an owner holds full
-  rights on its table regardless of GRANTs. If `app_user` owns
-  `medical_records`, `0001_init.sql`'s `REVOKE UPDATE, DELETE` strips the
-  owner's own rights, and the referential-integrity trigger behind
-  `DELETE FROM dogs` then fails as that owner, because such a trigger runs as
-  the *referencing* table's owner. That produced 48 test failures and cost a
-  day. Migrations 0008–0011 drifted two real tables into `app_user` ownership
-  before this was understood; `0012` reassigns them.
+  rights on its table regardless of GRANTs. Migrations 0008 to 0011 drifted two
+  real tables into `app_user` ownership before this was understood; `0012`
+  reassigns them. On Supabase the migrate job connects as the project's
+  `postgres` user through the pooler.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.** A
   deliberate guard. Do not work around it.
-- **The scan bundle has a hard 40 KB gzipped budget** enforced in CI. It is the
-  page a stranger loads on a street; every kilobyte is a second.
+- **The scan bundle has a hard 40 KB gzipped budget** enforced in CI
+  (33,260 B on 2026-09-24, of which 13,611 B is the Inter subset). It is the
+  page a stranger loads on a street; every kilobyte is a second. Anything
+  added there has to earn its bytes.
+- **`/d/*` is `no-store` at Caddy**, because a dog's status is life-safety state
+  that must never be served stale. The one exception is `/d/inter-scan.woff2`
+  (30 days). `ops/check-caddy-cache.sh` guards both.
+- **The room runs stock Caddy**, without the `caddy-cloudflare-ip` module the
+  old box had, and trusts private ranges instead: behind the tunnel every
+  request arrives from loopback anyway. Routes and cache policy still come
+  from `ops/caddy/Caddyfile`, spliced under `ops/room/Caddyfile.global` at
+  build time.
 - **Do not reintroduce the old working title.** The project is Hetja. The name
   was removed from 967 files; only git history still carries it, pending a
   rewrite that will invalidate every SHA.
-- **No public IP / behind NAT?** `ops/caddy/HOSTING.md` documents Caddy behind a
-  Cloudflare Tunnel so the box needs no inbound 80/443. Caddy runs with
-  `auto_https off` in that configuration; Cloudflare terminates TLS.
 - **Some `ops/*.sh` were committed non-executable** and CI invoked them as
-  `bash ops/…`, which hid it. If `./ops/foo.sh` gives "permission denied",
+  `bash ops/...`, which hid it. If `./ops/foo.sh` gives "permission denied",
   `git update-index --chmod=+x` it rather than working around it.
+- **Historical files.** `ops/bootstrap.sh`, `ops/deploy.sh`,
+  `ops/deploy-remote.sh`, `ops/systemd/*` and `ops/caddy/setup-tunnel.sh`
+  describe the single-tenant box (a git checkout at `/root/hetja`, a local
+  PostgreSQL, system Caddy). They are kept for reference and are not how
+  production runs now; `ops/room/` is.

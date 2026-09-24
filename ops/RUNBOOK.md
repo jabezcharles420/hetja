@@ -1,22 +1,34 @@
 # Hetja Ops Runbook
 
-Phase-0 operating procedures for the Hetja stack on the VPS (and the
-blueprint's production targets). Update as the platform moves to managed
-infra (object storage, KMS, HA Postgres).
+Phase-0 operating procedures for the Hetja stack.
 
-**Authoritative database: managed Supabase.** `ops/supabase/*` is the source
-of truth for schema and hardening; there is no competing local-systemd
-Postgres backend to reconcile with it. See `AGENTS.md` section (b): a fresh
-box needs no Postgres, PostGIS, or pgvector install at all.
+> **Current hosting is the shared-box room: read
+> [`ops/room/README.md`](room/README.md) first.** Since 2026-09-24 the box is
+> shared with an autonomous agent that has priority, Hetja runs in a capped
+> systemd slice as the unprivileged `hetja` user, nothing is built on the box,
+> and the production database is Supabase (no PostgreSQL on the box). Every
+> deploy goes through `.github/workflows/deploy.yml` (`AGENTS.md` §g).
+>
+> Several sections below were written for the old single-tenant box (a git
+> checkout at `/root/hetja`, a local PostgreSQL, system Caddy, restic backups
+> to Google Drive). They are marked **Historical** where they no longer apply
+> and kept because the reasoning in them still explains decisions that stand.
 
-## Services (local dev / pilot)
+**Production database: Supabase**, over its session pooler with TLS required.
+The migrate job in `deploy.yml` applies every new migration to it.
+`ops/supabase/*` holds the hardening and a hand-maintained schema file that is
+behind the migrations; see `ops/supabase/README.md` before using it.
+
+## Services
 
 | Service | How it runs | Port |
 |---|---|---|
-| PostgreSQL 16.14 + PostGIS + pgvector | managed Supabase (see `ops/supabase/`) | 5432 (pooler) |
-| Hetja API (Fastify) | `pnpm --filter @hetja/api dev` (dev) / systemd unit (prod) | 8080 |
-| Worker (fanout/escalation/retention) | `pnpm --filter @hetja/worker` | none |
-| Scan landing (static) | static server / CDN | 80/443 |
+| PostgreSQL + PostGIS + pgvector | Supabase (see `ops/supabase/`) | 5432 (session pooler) |
+| Hetja API (Fastify) | `pnpm --filter @hetja/api dev` (dev) / `hetja-api.service` in the room | 8080 |
+| Worker (fanout/escalation/retention/expiry) | `pnpm --filter @hetja/worker dev` / `hetja-worker.service` | none |
+| Scan landing (static) | `pnpm --filter @hetja/scan start` / `hetja-scan.service` | 8081 |
+| Web (Next.js) | `pnpm --filter @hetja/web dev` / `hetja-web.service` | 3100 in the room |
+| Caddy + Cloudflare Tunnel | `hetja-caddy.service` (127.0.0.1:80), `hetja-tunnel.service` | 80, loopback only |
 
 ## SLOs (from the blueprint)
 
@@ -52,7 +64,11 @@ proves nothing about tampering by that party". Until a head lands somewhere we
 cannot silently rewrite, this invariant is 🔄 and not ✅.
 `anchorMessage()` exists to feed such a channel.
 
-To turn signing on, on the box:
+To turn signing on (**Historical**: these commands assume the old
+`/root/hetja` checkout and a hand-edited `.env.production`. In the room the
+env file is written by `deploy.yml` from GitHub secrets, which do not include
+a signing key yet, so anchors are unsigned; wiring it means adding the key as
+a secret and a line to that workflow step):
 
 ```bash
 cd /root/hetja
@@ -99,6 +115,11 @@ violating row fails the check, which puts the error in front of exactly the
 person editing that provider.
 
 ## PITR restore drill (monthly)
+
+**Historical for the room.** This drill and the backup status below describe
+the old box's local PostgreSQL. Production data now lives in Supabase, and no
+backup job runs in the room; see `docs/BUGS.md` (2026-09-24 section).
+
 
 1. `pg_dump -Fc` nightly + WAL archiving to off-box storage.
 2. Monthly: restore into a scratch database; verify `SELECT count(*)` on
@@ -250,7 +271,13 @@ migration `0010_identity_email.sql`; this section said the old name until
 
 ## Production migrations (applied automatically by the pipeline)
 
-`ops/deploy-remote.sh` applies pending migrations to the **live** database on the
+**Historical.** The room has no local database: migrations go only to Supabase,
+from the Migrate job in `deploy.yml`, and `ops/deploy-remote.sh` is no longer
+called. The ownership reasoning below still holds for any self-hosted
+database (CI, tests); the `rootasdba` ident map applies only to a box that runs
+its own PostgreSQL.
+
+`ops/deploy-remote.sh` applied pending migrations to the **live** database on the
 box before restarting the services. This closes a gap where the pipeline's
 `migrate` job targeted Supabase only, while the API reads the local PostgreSQL
 (`PGHOST=127.0.0.1` in `apps/api/.env.production`), so a new migration reached

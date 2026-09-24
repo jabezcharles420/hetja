@@ -1,5 +1,14 @@
 # Hosting hetja.in
 
+> **Current hosting: [`ops/room/README.md`](../room/README.md).** Since
+> 2026-09-24 the box is shared with an autonomous agent that has priority.
+> Caddy, cloudflared, Node and the four services run in a capped systemd slice
+> as the unprivileged `hetja` user (`hetja-caddy.service`,
+> `hetja-tunnel.service`, ...), installed by `ops/room/bootstrap-room.sh`, not
+> by this file's `setup-tunnel.sh`. The routing, the tunnel's public hostnames
+> and the reasoning below still apply; sections that describe the old
+> single-tenant box are marked **Historical**.
+
 ## The constraint
 
 This VPS has **no public IP**. It is a NAT'd container:
@@ -42,7 +51,11 @@ Everything is one origin on purpose:
 
 * `apps/scan` hardcodes a same-origin `/api/v1` prefix (`src/api.ts`,
   `service-worker.ts`), so the API *must* be reachable at that path.
-* Same-origin means the web app's API calls involve no CORS preflight.
+* Same-origin means the web app's API calls involve no CORS preflight. (The
+  production web build now calls `https://api.hetja.in` instead, set by
+  `NEXT_PUBLIC_API_URL` in `deploy.yml`, so its calls are cross-origin and the
+  API's `CORS_ORIGINS` allows `hetja.in` and `www.hetja.in`. The scan app is
+  still same-origin.)
 * The feeder access token lives in `localStorage` and service-worker scope is
   per-origin, so `www` redirects to the apex rather than serving in parallel.
 * Collar URLs stay short enough to etch: `https://hetja.in/d/c3di5esh8?s=…`.
@@ -75,7 +88,9 @@ the stranger's actual address.
 > altogether and `request.ip` stays loopback, so the Caddy half of this fix is
 > inert on its own.
 
-Caddy is rebuilt with the
+**Historical:** the room runs stock Caddy without this module and trusts
+private ranges instead (`ops/room/Caddyfile.global`), since behind the tunnel
+every request comes from loopback. On the old box, Caddy was rebuilt with the
 `caddy-cloudflare-ip` module (`trusted_proxies cloudflare`), which marks
 Cloudflare edge addresses as trusted so the header survives on the CDN-direct
 path too. Verified live 2026-08-14 (API logs show the real remote address, not
@@ -105,6 +120,12 @@ No A/AAAA records are needed; Cloudflare creates proxied CNAMEs for the tunnel.
 
 ### 2. On the VPS
 
+In the room the tunnel token goes into `/etc/hetja/tunnel.env` (root, 0600) on
+stdin through `ops/room/bootstrap-room.sh`; see
+[`ops/room/README.md`](../room/README.md), "One-time setup".
+
+**Historical** (old box):
+
 ```sh
 sudo /root/hetja/ops/caddy/setup-tunnel.sh <TUNNEL_TOKEN>
 ```
@@ -119,30 +140,36 @@ curl -s  "https://hetja.in/api/v1/heatmap?ward=A"
 curl -sI "https://hetja.in/d/c3di5esh8"      # must be 200 text/html
 ```
 
-Then check the proxy hop count; see the note printed by `setup-tunnel.sh`.
-`TRUST_PROXY` is `1`; with both cloudflared and Caddy in front it may need to be
-`2`. Only log accuracy is affected, since rate limits key on account/device
+Then check the proxy hop count. The room's `api.env` sets `TRUST_PROXY=1`
+(one hop: cloudflared to Caddy to the API). Only log accuracy is affected, since rate limits key on account/device
 token rather than IP (INVARIANT 6).
 
 ## Rebuilding the web app after a domain change
 
-`NEXT_PUBLIC_*` values are inlined at **build** time. Changing
-`NEXT_PUBLIC_API_URL` in `apps/web/.env.production` therefore requires a rebuild;
-restarting the service alone does nothing:
+`NEXT_PUBLIC_*` values are inlined at **build** time, so changing
+`NEXT_PUBLIC_API_URL` (set in `deploy.yml`'s build step, currently
+`https://api.hetja.in`) requires a new build. In the room that means a push:
+nothing is ever built on the shared box, and editing `web.env` there and
+restarting does nothing.
+
+**Historical** (old box):
 
 ```sh
 pnpm --filter @hetja/web build && systemctl restart hetja-web
 ```
 
-## Services
+## Services (the room)
 
 | Unit | Port | Bound to |
 |---|---|---|
 | `hetja-web` | 3100 | 127.0.0.1 |
 | `hetja-api` | 8080 | 127.0.0.1 |
 | `hetja-scan` | 8081 | 127.0.0.1 |
-| `caddy` | 80 | all interfaces (unreachable from outside) |
-| `cloudflared` | none | outbound only |
+| `hetja-caddy` | 80 | 127.0.0.1 only (`default_bind`), admin endpoint off |
+| `hetja-tunnel` | none | outbound only |
+
+On the old box Caddy was the system `caddy` unit on all interfaces and the
+tunnel was `cloudflared`.
 
 All three app ports are loopback-only, so even if a port-forward appeared they
 could not be reached without going through Caddy.

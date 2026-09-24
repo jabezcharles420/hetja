@@ -12,7 +12,7 @@ it is the reason this repository exists.
 
 Hetja is city-scale infrastructure for keeping street dogs alive: a QR collar
 tag, a public scan page that works on any phone with no install, a geofenced SOS
-network, and a tamper-evident medical ledger.
+network, a ward-level map of Mumbai, and a tamper-evident medical ledger.
 
 > No stray sleeps hungry, lives in untreated pain, or dies without emergency care.
 
@@ -34,67 +34,156 @@ someone else in another city, without asking permission.
 
 Fork it. Run it in your city. Tell us what we got wrong.
 
+## What it does today
+
+Every screen below is built to the Claude Design v4 handoff (see Design).
+
+- **Scan** (`/scan`). The camera opens by itself and a found QR opens the dog.
+  No camera, or a muddy QR? Type the nine-character code under it. A wrong code
+  gets "No dog with that code" on the spot instead of a dead page.
+- **The collar page** (`/d/<code>`). What a stranger sees after pointing their
+  phone's own camera at a collar: photo (or the dog's initial), name, ward,
+  vaccinated and sterilised status (only what a vet has recorded; "unknown"
+  otherwise, never a guessed "no"), when it was last fed, the collar code with
+  Copy and "Say it", the story its feeders wrote, and one red button: **This
+  dog needs help**.
+- **SOS**. Three choices ("Hurt, but moving", "Can't get up, or bleeding",
+  "Something else"), an optional note or photo, then **Send SOS**. No account.
+  The sent screen shows the severity, whether anyone has taken the case yet
+  (it checks while the screen is open), and tappable numbers for vets and NGOs
+  nearby. Feeders nearby are paged; nobody's personal number is ever shown.
+- **Log a feed** (`/feed`). For signed-in feeders: optional photo, optional
+  "How did it go?" (Ate it all, Ate a little, Didn't eat, Looks unwell), and a
+  streak. "Looks unwell" suggests an SOS; it never raises one by itself. Works
+  offline and sends when the phone is back online.
+- **Sign in** (`/login`). Email, then a six-digit code. No password, no SMS.
+- **Me** (`/me`). Streak, badges, trust level, your dogs (the ones not fed
+  today first), and the switch that lets Hetja page you for SOS cases near
+  where you feed.
+- **New dog and Collar ready** (`/register`). Register a dog you look after,
+  get its collar code, print the tag, attach it, and scan it once to switch
+  it on.
+- **Map** (`/map`). All of Mumbai by ward: which wards have a dog that needs
+  help, which are waiting for dinner, and the vets and NGOs nearby. Dogs are
+  counted per ward, never placed on a street.
+- **Marketing and reading pages**: Home, About, How it works, FAQ, Privacy,
+  Contact, and `/hetja`, the memorial.
+
+What is designed but not finished is listed plainly in
+[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) §9.
+
 ## What's here
 
 ```
 apps/
-  scan/     the public collar landing: static HTML + vanilla TS, <40 KB gzipped
-  web/      the feeder PWA: Next.js 14 App Router
-  api/      Fastify gateway
-  worker/   job queue: SOS fan-out, escalation, retention
+  scan/     the public collar page + SOS: static HTML + vanilla TS, <40 KB gzipped
+  web/      everything else: Next.js 14 App Router (PWA)
+  api/      Fastify 5 + zod, /api/v1/*
+  worker/   job queue: SOS fan-out, escalation, retention, registration expiry
   ai/       Python: photo validation, re-identification (Phase 2)
 packages/
-  db/       migrations, seed, connection pool
-  contracts/  zod schemas shared client ↔ server
-  ledger/   hash-chain + daily anchor
-  design/   design tokens: one source of truth for both surfaces
+  db/       migrations, seed, care-directory importers, connection pool
+  contracts/  zod schemas and ward data shared client <-> server
+  ledger/   hash chain + daily anchor for medical records
+  design/   tokens.css: the design v4 tokens, one source for both surfaces
+  pow/      ALTCHA proof-of-work solver for anonymous device tokens
 docs/
   queries/  every documented SQL query, EXPLAIN-checked in CI
-ops/        bootstrap, systemd units, Caddy, Supabase migration, runbook
+ops/        the shared-box room (ops/room), Caddy, gates, Supabase, runbook
 ```
 
-The public scan page is deliberately framework-free. A citizen standing over an
+The collar page is deliberately framework-free. A citizen standing over an
 injured dog on 4G gets served static HTML under a hard 40 KB gzipped budget,
-enforced in CI; a framework runtime alone would exceed it.
+enforced in CI; a framework runtime alone would exceed it. It is about 33 KB
+today, 13.6 KB of which is a small Inter subset for Android.
 
-## Running it
+## Architecture, briefly
 
-**[AGENTS.md](AGENTS.md) is the authoritative setup guide**, written so a coding
-agent on a fresh Ubuntu box can bring the whole stack up unattended. The
-authoritative database is a **local PostgreSQL 16 with PostGIS, pgvector and
-pgcrypto** on the box (AGENTS.md §b–§c); the Supabase project is a schema mirror
-that serves no reads today.
+The public site is `hetja.in` and the API also answers at `api.hetja.in`.
+Caddy routes `/d/*` to the scan app, `/api/v1/*` to the API and everything
+else to the web app; the worker has no port. The production database is
+**Supabase** (PostgreSQL with PostGIS, pgvector and pgcrypto). Anonymous reads
+never see a position finer than a ward, contact details are only ever stored
+as an HMAC, and medical records are append-only and hash-chained. The long
+version is [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
+
+## Hosting, briefly
+
+Hetja runs in a resource-capped "room" on a small shared box whose other
+tenant, an autonomous agent, has priority: a systemd slice with hard CPU and
+memory caps, an unprivileged `hetja` user, Caddy on loopback only, a Cloudflare
+Tunnel as the only way in, and a memory guard that takes the whole site down
+before it can crowd the agent. Pushing to `main` builds everything on a GitHub
+runner, ships one tarball, flips a symlink, health-checks and rolls back on
+failure. The contract and the commands are in
+[ops/room/README.md](ops/room/README.md).
+
+## Developing
+
+You do not need a server. [AGENTS.md](AGENTS.md) is the full operating guide;
+the short version:
 
 ```sh
-git clone <this repo> && cd hetja
-./ops/bootstrap.sh
+pnpm install --frozen-lockfile
+pnpm --filter @hetja/ledger build      # libraries first: consumers resolve
+pnpm --filter @hetja/contracts build   # them through dist/, which is gitignored
+pnpm --filter @hetja/db build
+
+pnpm --filter @hetja/web dev           # the web app; talks to NEXT_PUBLIC_API_URL
+                                       # (default http://localhost:8080)
+pnpm --filter @hetja/api dev           # the API (needs a database, below)
+pnpm --filter @hetja/scan start        # build and serve the collar page on :8081
+
+pnpm -r typecheck
+pnpm --filter @hetja/web test          # no database needed
+bash ops/security-gate.sh
+pnpm --filter @hetja/scan size:gate    # the 40 KB budget
 ```
+
+The API, worker and db tests need a real **PostgreSQL 16 with PostGIS and
+pgvector**, in a database whose name ends in `_test`. On Windows the simplest
+route is WSL (Ubuntu 24.04); the recipe is in [AGENTS.md](AGENTS.md) §f.
 
 ## Design
 
-An Apple product page for Mumbai's street dogs (v3, after sidehoe.chat's
-visual language): SF-first type with an Inter fallback, pill buttons, rounded
-tiles, and depth from glass and soft shadow rather than hairlines. The
-signage-era rule survives unchanged: one decision per surface, so each working
-screen has exactly one loud primary action (blue, or red for SOS), always an
-icon plus a verb, never colour alone.
+Design v4 was made in Claude Design: an Apple product-page look for Mumbai's
+street dogs, with bold tight headlines, a pink and peach aurora on marketing
+pages, blue pill buttons, white rounded cards and a black privacy band. The
+rules underneath are older than the look: one loud button per screen (blue,
+or red for SOS only), colour never alone, 44px targets, and plain white fast
+screens for the collar page and SOS.
 
-Tokens live in `packages/design/tokens.css` and are consumed by both surfaces.
-Rationale in [docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).
+The handoff (spec, mocks, boards, copy deck) is kept in
+[docs/design/v4-handoff/](docs/design/v4-handoff/README.md). Its values live
+in [packages/design/tokens.css](packages/design/tokens.css), the components in
+`apps/web/components/ds`, and the rationale in
+[docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).
 
 ## Specification
 
 Fifteen numbered invariants (fourteen from the original build guide, one
 added during implementation) encode decisions that must not regress:
-random slugs, ward-level coordinates for anonymous reads, HMAC'd phone
-numbers, offline conflict resolution on `captured_at`, ledger chaining from
+random slugs, ward-level coordinates for anonymous reads, HMAC'd contact
+details, offline conflict resolution on `captured_at`, ledger chaining from
 the first migration. Several are enforced by CI gates rather than
 convention. See [docs/INVARIANTS.md](docs/INVARIANTS.md) for the full list
 and the reasoning behind each one.
 
 The product's original working title has been fully renamed out of the
-codebase -- package names, env vars, storage keys, systemd units, the repo
+codebase: package names, env vars, storage keys, systemd units, the repo
 path and the database all read Hetja now.
+
+## More
+
+- [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md): what the system does and why.
+- [docs/FEATURE-GUIDE.md](docs/FEATURE-GUIDE.md): every feature, screen by screen, and where its code lives.
+- [AGENTS.md](AGENTS.md): how to work on it and how code reaches production.
+- [ops/room/README.md](ops/room/README.md): hosting on the shared box.
+- [docs/BUGS.md](docs/BUGS.md): the bug inventory, fixed and open.
+- [docs/CREDITS.md](docs/CREDITS.md): what Hetja is built from, with licences.
+- [docs/VET-DATA-INTAKE.md](docs/VET-DATA-INTAKE.md): how the vet and NGO list is kept.
+- [docs/MAKING-A-COLLAR.md](docs/MAKING-A-COLLAR.md): the physical tag.
+- [docs/design/MEMORIAL-CONTENT.md](docs/design/MEMORIAL-CONTENT.md): the dog Hetja is named for.
 
 ## Licence
 
@@ -115,9 +204,11 @@ modified Hetja you must point that link at *your* source, not ours.
 
 The most useful contributions right now are not code:
 
-- **Verifying phone numbers.** The care directory ships ~25 Mumbai NGO and
-  hospital numbers marked unverified. Volunteer-run numbers change often, and a
-  number nobody has called must never be presented as confirmed.
+- **Confirming phone numbers.** The vet and NGO list is Hetja's own list,
+  refreshed monthly from a CSV of details confirmed with each provider
+  ([docs/VET-DATA-INTAKE.md](docs/VET-DATA-INTAKE.md)). Most numbers are still
+  unconfirmed. Volunteer-run numbers change often, and a number nobody has
+  called must never be presented as confirmed.
 - **First-aid copy review by a practising vet.** The holding-instruction cards
   are built but disabled until a qualified person signs off. Wrong first-aid
   advice in an emergency causes harm.

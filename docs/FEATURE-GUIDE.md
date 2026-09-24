@@ -10,138 +10,175 @@ code rather than from memory.
 
 ## Part 1: Using Hetja
 
-*No file paths, no SQL. This is for someone who has never opened the repository.*
+*No file paths, no SQL. This is for someone who has never opened the
+repository. Screen numbers match the design mocks.*
 
 ### If you find a dog
 
 You do not need an app or an account.
 
 1. **Scan the collar.** Open your phone's own camera, point it at the square
-   tag on the collar, and tap the link it offers. If your browser or phone
-   cannot read QR codes, you can also type the nine-character code printed
-   under the square. The letters were chosen so “0” and “O” cannot be confused.
+   tag on the collar, and tap the link it offers. Or open hetja.in and tap
+   **Scan a collar**: the camera opens by itself, and a torch button appears
+   if your phone has one. If the QR is muddy or you have no camera, type the
+   nine-character code printed under it into the box at the bottom. Capitals
+   and spaces do not matter, and the letters were chosen so "0" and "O" cannot
+   be confused. A wrong code tells you so straight away ("No dog with that
+   code. Check the letters and try again.").
 
-2. **What you see.** A page with the dog's name and photo, whether it has been
-   vaccinated and sterilised, when it was last seen, and the short story the
-   person who looks after it wrote. You will not see an exact location and you
-   will not see anyone's phone number on this screen. Those are withheld
-   deliberately.
+2. **What you see (the dog's page).** A plain white page that loads fast on a
+   cheap phone: the dog's photo (or a coloured circle with its initial), its
+   name, its ward (for example `K/W ward · Andheri West`), and three status
+   pills: vaccinated, sterilised, and when it was last fed. Each pill has an
+   icon and words, so colour is never the only clue. If nobody has recorded a
+   vaccination, it says "Vaccination unknown" rather than leaving a gap or
+   guessing. Below that is the collar code, with **Copy** and a "Say it" line
+   for reading it aloud over the phone, then the short story the dog's feeders
+   wrote and how many of them wrote it. You will not see an exact location and
+   you will not see anyone's phone number. Those are withheld deliberately.
 
-3. **The one big button.** If the dog is hurt, there is a single primary
-   action: *this dog is hurt*. Pressing it does two things at once, and neither
-   waits for the other.
+3. **The one red button: This dog needs help.** Pressing it asks one question,
+   "How bad is it?", with three answers:
+   - **Hurt, but moving** (limping, a wound, not eating)
+   - **Can't get up, or bleeding** (needs a vet now)
+   - **Something else** (missing, scared, or being harmed)
 
-   - You immediately get a list of the nearest places that can help (shelters,
-     government veterinary posts, charity hospitals and private clinics), each
-     with a phone number you can tap to call, whether they have an ambulance,
-     whether they are open through the night, and what they charge. Some of
-     those numbers have never been dialed by us: they are shown as “unconfirmed”
-     rather than hidden (a possibly-stale number beats none, but you are told
-     which it is). When we do not have a precise address for a clinic, we tell
-     you the neighbourhood instead of fabricating “0 m away”.
+   You can add a photo or a note if you like; you do not have to. Then press
+   **Send SOS**. It stays greyed out until you pick an answer. The screen
+   reminds you that only the ward is shared with feeders, never your exact
+   spot.
 
-   - In parallel, the system opens an SOS case and wakes up the volunteers who
-     have said they will help nearby. The first one who says “I’m on my way”
-     owns the case and everyone else is told to stand down, so five people do not
-     drive to the same animal.
+4. **After you send it.** You see "SOS sent.", how serious you said it was,
+   and "Waiting for reply". While you keep that screen open it checks every
+   few seconds, and the pill changes when someone has taken the case. Under
+   that is a **Call now** list of vets and NGOs near the dog, each with a
+   **Call** button. Some of those numbers have never been confirmed with the
+   provider; they are listed anyway (a possibly-stale number beats none), and
+   when we do not have a precise address we name the neighbourhood instead of
+   inventing a distance. At the same time, volunteers who look after dogs
+   nearby are woken up. The first one who says they are on the way owns the
+   case and everyone else is told to stand down, so five people do not drive
+   to the same animal. If Hetja cannot confirm the report, it says so plainly
+   and asks you to call someone on the list; with no signal at all, it offers
+   a ready-made text message instead.
 
-4. **If you cannot get a browser to scan.** The button on the scan page for
-   “use my camera” will explain, in plain language, whether your browser can
-   use a camera, whether permission was denied, or whether you should just type
-   the code.
+### Log a feed (screen 06)
 
-### Registrator: from sign-up to a tag on a dog
+*For feeders who have signed in.*
+
+Scan the dog's collar from Me, or tap "Feeding {Name}? Log a feed" on its
+page. You can add a photo (optional) and say how it went (optional): **Ate it
+all**, **Ate a little**, **Didn't eat** or **Looks unwell**. Then **Log feed**.
+The screen tells you what the feed does to your streak, and says "Logged.
+{Name} is thrilled, in their own way." when it is done.
+
+- **"Looks unwell" does not raise an SOS.** It suggests one, quietly, and
+  leaves the decision to you. It is recorded as a flag for someone to follow up,
+  and it never counts against you.
+- **Offline is fine.** With no signal the feed is saved on your phone ("It
+  sends when you're back online") and replays later, exactly once.
+- **Photos are cleaned.** Location and other hidden data are stripped from the
+  photo before it is stored.
+
+### Sign in (screens 07 and 08)
+
+Type your email and press **Send code**. Hetja emails you a six-digit code: no
+password, no SMS. Type or paste it into the six boxes (your phone may offer to
+fill it in); it checks itself as soon as all six digits are there. If nothing
+arrives, you can ask for a new code after 30 seconds. Codes last five minutes.
+
+### Me (screen 09)
+
+A greeting that knows the time of day, then:
+
+- **Your streak**: how many days in a row you have fed someone, and four
+  badges (First feed, A full week, Monsoon feeder, 28 days), each showing
+  how far you are from it if it is still locked.
+- **Your trust level**: "New feeder" or "Trusted feeder", a level number and a
+  bar showing how far to the next level. Trust grows by one point for each
+  logged feed. The levels are the real thresholds: at 40 you can be paged for
+  SOS cases, at 60 for the most serious ones.
+- **My dogs**: the dogs you feed, with the ones nobody has fed today first.
+- **SOS paging**: a switch. With it on, and enough trust, Hetja wakes you when
+  a dog near where you feed needs help. With it off, it never does.
+- **One button** to scan and log the next unfed dog's feed.
+
+### Register a dog you look after (screens 10 and 11)
 
 *You are the person who feeds or watches over a dog and wants it to carry a
-Hetja collar. The whole flow is built so you can do it yourself, without an
-operator on the other end.*
+Hetja collar. You can do it yourself, without an operator on the other end.*
 
-1. **Sign up and become a registrator.** Create an account with your email
-   (you will be sent a six-digit code, no password) and mark yourself as a
-   registrator in your profile. This is a self-elected role; the operator can
-   switch off registration for one account without touching your profile or your
-   history.
+1. **New dog.** Sign in, then choose to register a dog. Add a clear face photo
+   (strangers use it to check they found the right dog), the dog's name, its
+   ward (picked from Mumbai's 24 wards, shown like `K/W · Andheri West`), and
+   whether it is vaccinated and sterilised as far as you know. Only the ward is
+   ever shown publicly, and your answers about vaccination and sterilisation
+   are never shown at all: the public pills only change when a vet records it.
+   Press **Save & print collar**. You can have at most two dogs waiting for
+   their collars at a time, per account and per phone.
 
-2. **Register the dog you look after.** On the register page, enter the ward
-   the dog lives in and, if you know it, its name, sex, rough age and
-   temperament. You can register at most two dogs at a time that have not yet
-   been attached. The limit is per account *and* per phone, so ten email
-   aliases on one phone do not buy ten more tags. You will get back a signed
-   link for that dog; that link is exactly what goes into the QR.
+2. **Collar ready.** "{Name} has a code." Print the tag (**Print collar** opens
+   the print dialog; choose Save as PDF there if you want a file), laminate it,
+   and loop it on a soft collar. Not too tight: two fingers under. The printed
+   tag carries the QR, the code, and "Scan me if I look lost".
 
-3. **Print the tag.** Open the print page for that dog and print the sheet. It
-   is the collar specification in [`MAKING-A-COLLAR.md`](MAKING-A-COLLAR.md):
-   a TPU tag, laser-etched, 40 × 40 mm, with the QR and the nine-character
-   fallback printed beneath it. The sheet hides everything else on paper so you
-   do not waste a sheet of TPU on a navigation bar. The signature in the link
-   is required: without it the collar cannot be forged and scanners cannot be
-   scraped by enumeration.
+3. **Attach it, then scan it to switch it on.** Standing next to the dog with
+   location turned on, scan the tag once. Until then the dog is invisible
+   everywhere: its page does not open for anyone but you, it is not counted on
+   the map, and it cannot trigger an SOS. You have **30 days**; you get a quiet
+   reminder on day 7 and day 21 if you allowed notifications, and on day 30 the
+   registration expires. Scanning the same tag later brings the same dog back;
+   a code is never given to a different dog.
 
-4. **Attach it, then scan it to activate.** Put the collar on the dog with a
-   two-finger fit and a breakaway section. Then, standing next to the dog, scan
-   that same tag with your phone while location is enabled. That scan is what
-   moves the registration out of its inert state.
+4. **Why paging waits for a second scan.** One activation proves someone stood
+   next to the dog once, and makes it visible. Waking real volunteers' phones
+   needs one more proof: two scans from different people or phones, or one
+   from a verified feeder, NGO worker or municipal officer.
 
-   - While a registration is **pending** it is invisible on every public surface:
-     it does not appear on the heatmap, in ward searches, or in the public
-     directory, and it cannot trigger an SOS fan-out. That is deliberate: the
-     anti-abuse control is physical presence, not a review queue.
-   - You have **30 days from registration** to attach and scan. On day 7 and
-     day 21 you will get a quiet reminder push if you have allowed notifications.
-     On day 30 the registration **expires**: the collar is retired and the link
-     between the request and the dog is cleared. The slug itself is never reused
-     for a different dog; if you scan that same tag on day 32 it reactivates the
-     same row rather than minting a new one. “Never reused” forbids assigning a
-     tag to a *different* animal, not the same dog catching up a month late.
+### The map (screen 19)
 
-5. **Why the SOS fan-out waits for a second scan.** A single activation proves
-   someone stood next to the animal once and is enough to make the dog visible.
-   Paging real volunteers (waking people’s phones) requires one more proof of
-   presence: either two scans from different people or phones, or one scan from a
-   verified feeder, NGO worker or municipal officer. Until that corroboration is
-   reached the dog is visible but the fan-out is held. The same “set once, never
-   cleared” column gates paging so a later retention sweep or review-status change
-   cannot silently turn the safety net off.
+hetja.in/map shows all of Mumbai, and only Mumbai.
 
-### Feeder: what you do after the tag is live
+- **Each ward is one marker**, placed at the middle of the ward, showing how
+  many dogs with collars live there, how many have not been fed today, and
+  whether any need help right now. Dogs are shown by ward, never by street.
+- **Vets and NGOs get pins**, because they are public places. Only providers
+  with a real address get a pin; one we only know the neighbourhood of does
+  not, so no pin is ever drawn in the wrong place.
+- **Filter chips** at the top: Needs help, Not fed today, Vets, NGOs.
+- **Tap a ward** to see its open cases (how serious, and how long ago; nothing
+  that identifies anyone), and up to three vets and NGOs nearby with Call
+  buttons. If a case there has nobody on it, the button is **I can go and
+  help**; it only works for signed-in feeders with SOS paging on and enough
+  trust, and it tells you plainly what you are missing if you are not there
+  yet. Otherwise the button is **Get alerts for {ward} ward**, which makes it
+  your home ward and turns SOS paging on.
+- **Tap a pin** to see the place's hours, whether it has an ambulance on call,
+  its phone number and a **Call** button.
+- The vet and NGO list is Hetja's own, checked with the providers themselves
+  and refreshed every month.
 
-1. **Logging feeds, with photos.** Each time you feed or check on the dog, log a
-   feed with a geotagged photo. The photo is stripped of metadata on the server
-   before it is stored (an un-stripped photo published a feeder’s exact location
-   to every viewer). If the photo cannot be decoded, the feed is rejected
-   honestly rather than accepted with a silently missing image. Feeds earn trust
-   slowly, one point at a time, and that trust is what later allows you to be
-   paged or to re-tag a dog.
+### The pages around it
 
-2. **Offline behaviour.** If you are offline, feeds queue on your phone and
-   replay when you are back. Each queued feed carries an idempotency key so a
-   flaky connection does not turn into duplicate credit or duplicate cases. A
-   feed queued for longer than fifteen minutes into the future is rejected,
-   but a feed queued for hours or days in the past is accepted, because
-   offline time is exactly when the gap happens. A permanent rejection (a bad
-   photo, a malformed payload) is dropped and reported; a transient failure is
-   retried.
+Home (with today's real numbers of dogs with collars and feeds logged), About,
+How it works, FAQ (grouped for Feeders, Vets and Everyone), Privacy, and
+Contact. `/hetja` is a memorial to the dog the project is named for: a quiet
+page with no animation and no bright colour.
 
-3. **Streaks and badges.** Consecutive days of feeding build a streak, which is a
-   small, deliberate incentive to visit. Badges are checked and awarded
-   periodically. Both are presentation over the same feed events that already
-   carry trust. They never mint trust themselves, so farming a badge cannot
-   bypass the trust economics.
+### What a responder is asked to do
 
-4. **Opting in to emergencies.** A feeder can say “wake me for SOS cases near
-   dogs I know”. Paging is geofenced and rate-limited (a real phone number’s
-   notifications are not a toy), and it only pages feeders whose own recent feed
-   history puts them near the dog and who have enough trust for the severity
-   being reported.
+When your phone buzzes, you see the severity, the dog's last-seen summary and
+the same call-an-NGO numbers the stranger saw, plus a single *I'm on my way*
+button. The first tap wins: everyone else is told to stand down, and the case
+is marked taken, which the stranger's screen then shows. If no one takes it
+quickly, the system escalates to the three nearest contracted vets and the
+municipal desk. You can later mark a case resolved or a false alarm with a
+short note; only you (the one who took it) or a moderator can close it; the
+anonymous reporter cannot.
 
-5. **What a responder is asked to do.** When your phone vibrates, you see the
-   severity, the dog’s last-seen summary, and the same call-an-NGO numbers the
-   stranger saw, plus a single *I’m on my way* button. The first tap wins
-   atomically: everyone else is told to stand down, and the case is marked
-   acked. If no one acks quickly, the system escalates to the three nearest
-   contracted vets and the municipal desk. You can later mark a case resolved or
-   false-alarm with a short note; only you (the acker) or a moderator can close
-   a case you own; the anonymous reporter cannot.
+**The honest caveat:** you are only reached if you allowed notifications, and
+on iPhone only if you added Hetja to your home screen first. There is no SMS
+fallback.
 
 ---
 
@@ -153,25 +190,24 @@ exists and where.*
 
 ### 1. The four services
 
-| Service | App | Port (loopback) | Deploys from |
+| Service | App | Port (loopback) | Runs as |
 |---|---|---|---|
-| Web | `apps/web` (Next.js 14 App Router) | 3100 | **Release**: built on the GitHub runner, shipped as `/srv/hetja/releases/<ts>-<sha>/` with `current` symlinked. Built on the box it OOM-kills the live services (see `AGENTS.md` §g). |
-| API | `apps/api` (Fastify 5 + zod) | 8080 | **Checkout**: `tsc` built on the box from `/root/hetja` at the deployed SHA, restarted via `hetja-api.service`. |
-| Scan | `apps/scan` (static vanilla TS, no framework) | 8081 | **Release**: like `web`; served at `/d/*` via Caddy. 40 KB gzipped CI budget. |
-| Worker | `apps/worker` (Node) | - (no port) | **Checkout**: `tsc` on the box, same checkout as `api` (`hetja-worker.service`). Polls Postgres with `FOR UPDATE SKIP LOCKED`. |
+| Web | `apps/web` (Next.js 14 App Router, standalone output) | 3100 | `hetja-web.service`, from `/srv/hetja/releases/current/web` |
+| API | `apps/api` (Fastify 5 + zod) | 8080 | `hetja-api.service`, from `.../current/api` |
+| Scan | `apps/scan` (static vanilla TS, no framework) | 8081 | `hetja-scan.service`; served at `/d/*` via Caddy. 40 KB gzipped CI budget. |
+| Worker | `apps/worker` (Node) | none | `hetja-worker.service`, same env file as the API. Polls Postgres with `FOR UPDATE SKIP LOCKED`. |
 
-Caddy (`ops/caddy/Caddyfile`) is the only thing reachable from outside and is
-fronted by a Cloudflare Tunnel; the box has no inbound ports open. The
-authoritative database is local PostgreSQL (PostGIS, pgvector, pgcrypto);
-Supabase holds a hardened mirror schema whose `ops/supabase/01_schema.sql` is
-hand-maintained and is currently several migrations behind
-`packages/db/migrations`, last synchronized through
-`0009_care_geo_precision.sql`; it does not include `0010_identity_email.sql`
-through `0020_sos_network_indexes.sql` and later (authoritative schema is
-`packages/db/migrations/*.sql`). It serves no reads (see `docs/HOW-IT-WORKS.md`
-§7), so the drift does not break production but must be reconciled before
-repointing (regenerate via `pg_dump --no-privileges` per
-`ops/supabase/README.md` § "Schema differences").
+All four are built on the GitHub runner and shipped as one release tarball into
+the shared box's capped room (`ops/room/README.md`); nothing is built on the
+box. Caddy (`ops/caddy/Caddyfile`, under `ops/room/Caddyfile.global`) listens
+on 127.0.0.1:80 and is fronted by a Cloudflare Tunnel; the box has no inbound
+web port. The production database is **Supabase** (PostgreSQL with PostGIS,
+pgvector, pgcrypto) over its session pooler. `ops/supabase/01_schema.sql` is a
+hand-maintained schema file that is several migrations behind
+`packages/db/migrations` (last synchronised through `0009`); the live project
+gets every migration from the deploy workflow and does not depend on it, but it
+must be regenerated (`pg_dump --no-privileges`, per `ops/supabase/README.md`)
+before anyone bootstraps a fresh project from it.
 
 ### 2. Every API route
 
@@ -179,7 +215,7 @@ repointing (regenerate via `pg_dump --no-privileges` per
 `apps/api/src/server.ts` (`/healthz`, `/`). Auth column: `FEEDER` = Bearer
 access token, `DEVICE` = `X-Device-Token` (ALTCHA v2 PoW / Play Integrity
 attested, canonicalised via `deviceTokenSubject`), `NONE` = public, `BOTH` =
-feeder or device. “What it returns” is the `data` envelope on success unless
+feeder or device. "What it returns" is the `data` envelope on success unless
 noted as `{ok:true}` wrapper.*
 
 | Method & Path | Auth | What it returns / side-effect |
@@ -189,36 +225,44 @@ noted as `{ok:true}` wrapper.*
 | `POST /api/v1/auth/otp` | NONE | Issues emailed OTP (6 digits, 5 min, 3 tries, hashed). 429 if throttled. |
 | `POST /api/v1/auth/verify` | NONE | Verifies OTP → `{accessToken, refreshToken, feeder}`. |
 | `POST /api/v1/auth/refresh` | NONE (refresh token) | New access token. |
-| `POST /api/v1/devices/challenge` | NONE | `{challenge}` (ALTCHA v2, HMAC-signed, single-use). |
+| `POST /api/v1/devices/challenge` | NONE | `{challenge}` (ALTCHA v2, HMAC-signed, single-use via `spent_challenges`). |
 | `POST /api/v1/devices/token` | NONE + PoW solution | `{token}` (device token). Global bucket on mint. |
-| `GET /api/v1/dogs/:slug` | NONE (but `?s=` signature checked) | Dog + coarsened geo, story, collar status. 404 on bad slug/sig. |
+| `GET /api/v1/dogs/:slug` | NONE (but `?s=` signature checked when present) | Dog profile: name, ward id and `wardName`, `vaccinated` (`yes`/`unknown`), `sterilised` (`yes`/`no`/`unknown`, never `no` without evidence), `lastFedAt`, `feederCount`, `storyAuthorCount` (counts only), `photoUrl` (never an SOS photo), story, collar status. **404 for `pending_activation` and `expired` dogs** except to their registrator (Bearer = `dogs.registered_by`). 404 on bad slug/sig. |
 | `POST /api/v1/dogs` | FEEDER + `enrol` capability | `{slug, collarUrl}`: admin enrolment. Inserts dog + collar via `lib/enrol.ts` `INSERT … ON CONFLICT (slug) DO NOTHING` loop. |
-| `POST /api/v1/dogs/:slug/collar` | FEEDER + `enrol` | Re-issues collar for same slug (same `collarUrl` recomputed under current secret). |
-| `POST /api/v1/registrations` | FEEDER (`register` cap) + DEVICE | `201 {slug, status:"pending_activation", wardId, registeredAt, expiresAt, collarUrl, budget}`. Enforces per-account (2) and per-device (2) pending budgets under `pg_advisory_xact_lock(420020)`. |
+| `POST /api/v1/dogs/:slug/collar` | FEEDER + `enrol` | Re-issues collar for same slug (same `collarUrl` recomputed under current secret); writes a `collar_reissues` row. |
+| `GET /api/v1/wards` | NONE | The 24 BMC wards as `{id, code, name}` (`K-West`, `K/W`, `Andheri West`). Static, cacheable for a day. |
+| `POST /api/v1/registrations` | FEEDER (`register` cap) + DEVICE | `201 {slug, status:"pending_activation", wardId, registeredAt, expiresAt, collarUrl, budget}`. Optional `vaccinatedReported` / `sterilisedReported` (migration 0025; never read by a public route). Enforces per-account (2) and per-device (2) pending budgets under `pg_advisory_xact_lock(420020)`. |
 | `GET /api/v1/registrations` | FEEDER | `{registrations:[{slug,status,wardId,registeredAt?,expiresAt?}]}`: ward+status only. |
 | `GET /api/v1/registrations/:slug` | FEEDER (owner or `enrol`) | `{slug,status,wardId,registeredAt,expiresAt,collarUrl}`: signature recomputed now. |
-| `POST /api/v1/scans` | FEEDER **or** DEVICE (one required) | `{created, scanId?}`. Handles EXIF-strip, photo persist, LWW `last_seen_geo` (`captured_at` primary, `received_at` tie-break), `feed` trust + streak, pending activation (`status IN (pending_activation,expired) → active`), and corroboration. `client_uuid` UNIQUE → `created:false` on replay. |
+| `POST /api/v1/scans` | FEEDER **or** DEVICE (one required) | `{created, scanId?}`, plus the feeder's streak on a signed-in feed. Handles EXIF-strip, photo persist, LWW `last_seen_geo` (`captured_at` primary, `received_at` tie-break), `feed` trust + streak, optional `feedOutcome` (`ate_all`/`ate_some`/`didnt_eat`/`unwell`, migration 0024, written only on create; `unwell` flags, never opens an SOS or touches `review_status`), pending activation (`status IN (pending_activation,expired) → active`), and corroboration. `client_uuid` UNIQUE → `created:false` on replay. |
 | `POST /api/v1/medical_records` | FEEDER + `medical` capability (vet) | Appends to hash chain under advisory lock `420001`; `{id, hash_curr}`. |
 | `GET /api/v1/dogs/:slug/medical` | FEEDER | Chronological records for a dog. |
 | `GET /api/v1/care?lat=&lng=&kind=&max_km=` | NONE | `{providers:[{id,name,kind,costTier,phoneE164,altPhoneE164,hasAmbulance,is24x7,hoursNote,handlesWildlife,phoneVerifiedAt,geoPrecision,locality,lat,lng,distanceM}]}`. `distanceM` only when `geo_precision='exact'` else `null`+`locality`. Up to 8, ordering `exact → distance → hasAmbulance → cost_tier → is24x7 → name`. LRU 60 s/500. |
-| `POST /api/v1/reports` | FEEDER or DEVICE | Creates SOS case: `{created,caseId,tier,fanout,nearbyCare}`. Fans out to feeders with geotagged scan ≤2 km last 30d, `sos_opt_in`, `trust_score ≥ floor` (40 minor/serious, 60 critical), max 15. Inserts `sos_notifications(channel='push')` + enqueues `send_sos_push`; enqueues `escalate_sos` (now if no fan-out else +8 min). Requires `sos_eligible_at IS NOT NULL` for fan-out; `nearbyCare` is status-independent. |
+| `POST /api/v1/reports` | FEEDER or DEVICE | Creates SOS case: `{created,caseId,tier,fanout,nearbyCare}`. Optional `note` and `photoBase64` (EXIF-stripped, saved only for a case this request opened, outside the dedupe key). Fans out to feeders with geotagged scan ≤2 km last 30d, `sos_opt_in`, `trust_score ≥ floor` (40 minor/serious, 60 critical), max 15. Inserts `sos_notifications(channel='push')` + enqueues `send_sos_push`; enqueues `escalate_sos` (now if no fan-out else +8 min). Requires `sos_eligible_at IS NOT NULL` for fan-out; `nearbyCare` is status-independent. The collar page sends `serious` or `critical` only. |
+| `GET /api/v1/reports/:caseId/status` | DEVICE (the filing token) or FEEDER (the filing account) | `{state, ackedAt, escalatedAt, resolvedAt}` and nothing else. Uniform 404 for "not yours" and "no such case"; rate-limited per subject; `no-store`. Polled by the SOS sent screen. |
 | `GET /api/v1/sos/cases/:id` | FEEDER (acker, fanned-out, or `moderate`) | Case state `{id,severity,state,tier,openedAt,ackedAt,escalatedAt,resolvedAt,resolution}`. |
-| `POST /api/v1/sos/cases/:id/ack` | FEEDER | Conditional `UPDATE … WHERE acked_by IS NULL`: first writer wins, 409 otherwise; stand-down of losers. |
+| `POST /api/v1/sos/cases/:id/ack` | FEEDER | Conditional `UPDATE … WHERE acked_by IS NULL AND resolved_at IS NULL`: first writer wins, 409 otherwise; stand-down of losers. |
 | `POST /api/v1/sos/cases/:id/resolve` | FEEDER (acker or `moderate`) | `{id,state,resolvedAt,resolution}`; idempotent retry if already resolved. |
-| `GET /api/v1/heatmap?ward=` | NONE | Aggregated counts per coarse cell/ward for heatmap. |
+| `GET /api/v1/heatmap?ward=` | NONE | Aggregated counts per 500 m cell/ward for heatmap. |
+| `GET /api/v1/map/wards` | NONE | Every BMC ward: `{id, code, name, lat, lng, dogs, notFedToday, sosOpen, latestSos}`; `lat`/`lng` is the fixed ward centre from `BMC_WARD_CENTROIDS`, never a dog. 60 s cache. |
+| `GET /api/v1/map/wards/:wardId` | NONE, or FEEDER for case ids | One ward's counts, open cases (`severity, raisedAt, state, feedersTold, mine`; `caseId` only for a signed-in caller who meets the fan-out's responder rules or holds the case) and up to 3 nearby providers. Anonymous answer cached 60 s; per-caller answer `no-store`. |
+| `GET /api/v1/map/places?bbox=&kind=` | NONE | Listed vets/NGOs with an **exact** point in the box (max 2.5° a side, up to 200, `truncated` flag). Locality-precision rows never get a pin. 60 s cache. |
+| `GET /api/v1/stats/impact` | NONE | The home page's real counts (dogs with collars, feeds logged). 60 s cache. |
 | `GET /api/v1/ledger/anchor` | NONE | Latest `ledger_anchors` row `{head_hash, merkle_root, record_count, published_at, signed}`. |
-| `GET /api/v1/ledger/verify?n=` | NONE | Recomputes chain head and Merkle root over first *n* records, compares to stored values. |
+| `GET /api/v1/ledger/verify` | NONE | Recomputes the chain over exactly the latest anchor's `record_count` prefix and compares; reports growth as `newerRecords`. |
 | `GET /api/v1/ledger/proof?hash=` | NONE | Merkle inclusion proof for a record hash. |
 | `POST /api/v1/trust/disputes` | FEEDER | Opens dispute `{dispute_state:'open'}`, no delta reversal yet. |
 | `POST /api/v1/trust/disputes/:id/resolve` | FEEDER + `moderate` | Resolves dispute: reverses exactly the disputed delta (`reversal`), recomputes score. |
-| `GET /api/v1/trust/feeder/:id` | FEEDER | `{score, tier, events}`. |
+| `GET /api/v1/feeders/:id/trust` | FEEDER (own id only, 403 otherwise) | The caller's own trust. A pure read since 2026-09-07: it writes nothing. |
+| `POST /api/v1/feeders/:id/trust/evaluate` | FEEDER | The explicit write path for the INVARIANT 15 verification gate. |
 | `GET /api/v1/territories/:feederId` | FEEDER | Territory for a feeder. |
 | `POST /api/v1/territories` | FEEDER | Create/update territory. |
 | `POST /api/v1/territories/claim` | FEEDER | Claim territory. |
-| `GET /api/v1/feeders/me` | FEEDER | Own profile. |
-| `PATCH /api/v1/feeders/me` | FEEDER | Update own profile. |
+| `GET /api/v1/feeders/me` | FEEDER | Own profile, including `homeWard`, `sosOptIn`, `trustScore`. |
+| `PATCH /api/v1/feeders/me` | FEEDER | `{ sosOptIn?, displayName?, homeWard? }` (strict, at least one). `homeWard` is a canonical BMC ward code or `null`; it does not drive paging yet. |
+| `GET /api/v1/feeders/me/dogs` | FEEDER | The dogs this feeder feeds, with the feeder's own and the dog's overall last feed. |
 | `POST /api/v1/feeders/me/surface` | FEEDER | Self-elect registrator / surfaces. |
-| `GET /api/v1/feeders/me/streak` | FEEDER | `{streakDays, lastFeedDate}`. |
+| `GET /api/v1/feeders/me/streak` | FEEDER | `{streakDays, lastFeedDate, badges, trustScore, streakStart, trustLevel}`. |
 | `POST /api/v1/feeders/me/badges/check` | FEEDER | Badge evaluation. |
 | `POST /api/v1/dogs/:slug/stories` | FEEDER | Add story (unique per feeder+dog). |
 | `GET /api/v1/dogs/:slug/stories` | NONE | Stories for a dog. |
@@ -233,24 +277,30 @@ noted as `{ok:true}` wrapper.*
 
 ### 3. Data model
 
-*Nineteen domain tables plus `schema_migrations`, in the running database.
-`0001_init.sql` creates the core fifteen; `care_providers` (0008),
-`otp_codes` (0010), `push_subscriptions` (0011) and `web_vitals` (0013) arrive
-later. `\dt` counts higher because PostGIS ships `spatial_ref_sys`.*
+*Twenty-two domain tables plus `schema_migrations`. `0001_init.sql` creates
+the core fifteen; `care_providers` (0008), `otp_codes` (0010),
+`push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
+`spent_challenges` (0021) and `collar_reissues` (0023) arrive later; `0024` and
+`0025` add columns only. `\dt` counts higher because PostGIS ships
+`spatial_ref_sys`. The count query is in `docs/HOW-IT-WORKS.md` §5.*
 
 **Grouped by domain:**
 
-- **Register:** `dogs` (slug UNIQUE, 40 random bits + check char), `collars`
+- **Register:** `dogs` (slug UNIQUE, 40 random bits + check char;
+  `vaccinated_reported` / `sterilised_reported` from 0025, the registrator's
+  self-report, never read by a public route), `collars`
   (`qr_code`, `hmac_sig`, `batch_no`, `material`, `bound_once`, `retired_at`,
   `status`).
 - **Observations:** `scans` (`dog_id`, `client_uuid` UNIQUE, `scan_type`,
   `geo GEOGRAPHY(Point,4326)`, `feeder_id`, `device_token`, `captured_at`,
   `received_at`, `review_status`, `ai_validation`, `photo_s3_key`,
-  `last_seen_received_at`).
+  `last_seen_received_at`, and `feed_outcome` from 0024:
+  `ate_all`/`ate_some`/`didnt_eat`/`unwell` or NULL).
 - **Accounts:** `feeders` (`identity_hmac` UNIQUE, HMAC-SHA256 under
   `HETJA_HMAC_PEPPER`, never bare; `display_name`, `role`, `trust_score` 0-100
   derived from `trust_events`, `verification_tier`, `sos_opt_in`,
-  `can_register` kill switch, `streak_days`, `badges`, `last_known_geo`).
+  `can_register` kill switch, `streak_days`, `badges`, `last_known_geo`,
+  `home_ward`, set from the map's "Get alerts" button).
 - **Medical ledger:** `medical_records` (append-only, hash-chained) +
   `ledger_anchors` (`head_hash`, `merkle_root`, `record_count`, `ledger_id`,
   `published_at`, `head_signature`, `published_url`, still `''`).
@@ -295,7 +345,9 @@ active ────────────────────────�
 active ────────────────────────────────────────────────────────────────▶ deceased | adopted | relocated
 (lost / deceased / adopted / relocated are terminal operator states; the happy-path
 is pending → active and staying active. Heatmap and ward index carry
-`WHERE status='active'` so pending and expired rows are invisible to public reads.
+`WHERE status='active'` so pending and expired rows are invisible to public reads,
+and so do the map's counts. `GET /dogs/:slug` answers 404 for them (except to
+their registrator) since 2026-09-24; before that it had no status filter.
 `expired` is not reuse: the slug never moves to a different dog; re-activating
 the same row is the documented recovery.)
 ```
@@ -362,47 +414,48 @@ uses the canonical numbers above. Trust deltas are `TRUST_BASELINE=30`,
 pnpm install --frozen-lockfile
 pnpm --filter @hetja/ledger build; pnpm --filter @hetja/contracts build; pnpm --filter @hetja/db build
 pnpm -r typecheck
-./ops/security-gate.sh          # 7 checks, no DB
-./ops/check-queries.sh          # every docs/queries/*.sql EXPLAINs against hetja_test
-pnpm --filter @hetja/scan size:gate
-# tests (needs a `*_test` database; the suite refuses anything else):
-psql --as postgres: create role app_user, extensions postgis/vector/pgcrypto
-PGHOST=/var/run/postgresql PGUSER=postgres pnpm --filter @hetja/db migrate
-psql: GRANTs + REVOKE UPDATE,DELETE,TRUNCATE ON medical_records FROM app_user
-PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=app_user pnpm -r test
+bash ops/security-gate.sh       # no DB
+bash ops/contrast-gate.sh       # the 21 v4 text/background pairs, AA
+bash ops/check-queries.sh       # every docs/queries/*.sql EXPLAINs against a *_test DB
+pnpm --filter @hetja/scan build && pnpm --filter @hetja/scan size:gate
+# tests (api/worker/db need a `*_test` database; the suite refuses anything else;
+# the WSL recipe is AGENTS.md §f):
+pnpm test                       # = pnpm -r --workspace-concurrency=1 test
 ```
 
-**Deploy pipeline (`push → main`):**
+**Deploy pipeline (`push → main`, `.github/workflows/deploy.yml`):**
 
 ```
-push → Gate (typecheck, tests, security-gate, check-queries, 40 KB, destructive-change gate)
-     → Migrate (destructive-change gate then apply to Supabase)
-     → Deploy (build web+scan ON THE RUNNER, rsync release, build api+worker ON THE BOX
-               from this SHA, apply migrations to the production local DB, flip current,
-               restart, health-check, assert HEAD==deployed SHA)
+push → Gate    (typecheck, tests, security, EXPLAIN, 40 KB, contrast, Caddy cache, systemd)
+     → Migrate (destructive-change gate, read-only Supabase report, apply to Supabase)
+     → Deploy  (build everything ON THE RUNNER, one tarball, scp as `hetja`,
+                hetja-deploy <id>: unpack, validate, flip releases/current, stamp;
+                root path unit restarts hetja-*; health-check up to 180 s,
+                roll back to the previous release if unhealthy; public check via Cloudflare)
 ```
 
-- Web + scan are built on the runner to avoid OOM on the 2/3 GB box; api + worker
-  are `tsc` on the box from the checkout. Both halves must ship or the API
-  goes stale green. Runner assertions check the checkout HEAD.
-- Migrations reach **two** databases (Supabase from the runner, local production
-  from `deploy-remote.sh`); only additive migrations flow unattended, guarded by
-  a `-- MIGRATION-APPROVED:` marker.
-- Rollback covers **code, not schema**: `current` flips and the checkout resets,
-  but an applied migration stays applied. Safe only because unattended migrations
-  are additive.
+- Nothing is built on the box: it is shared with an agent that has priority
+  (`ops/room/README.md`).
+- Migrations reach **one** database, Supabase. Only additive migrations flow
+  unattended; anything destructive needs a `-- MIGRATION-APPROVED:` marker and
+  a human.
+- Rollback covers **code, not schema**: `current` flips back, but an applied
+  migration stays applied. Safe only because unattended migrations are
+  additive.
+- The monthly vet/NGO refresh is a separate manual workflow,
+  `care-import.yml`: dry-run by default, apply only with a typed confirmation,
+  retires missing rows (`listed = false`) instead of deleting them, and refuses
+  to retire more than a quarter of a source at once.
 
-**Verify ladder (on the box, from `AGENTS.md` §f):**
+**Verify (on the box, as root; the same checks `hetja-deploy` runs):**
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3100/                          # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/                          # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/healthz                   # 200
-curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/api/v1/heatmap?ward=A"   # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/d/<slug>                  # 200, text/html
-systemctl is-active hetja-api hetja-web hetja-worker hetja-scan                          # active ×4
-# care directory (wave 9):
-curl -s "http://127.0.0.1:8080/api/v1/care?lat=19.076&lng=72.877" | head -c 300            # {"ok":true,"data":{"providers":[…
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/healthz                                   # 200
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3100/                                          # 200
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/                                          # 200
+curl -s -o /dev/null -w "%{http_code}\n" -H "Host: hetja.in" "http://127.0.0.1:80/api/v1/heatmap?ward=A" # 200
+systemctl status hetja.target 'hetja-*'
+systemd-cgtop -1 | grep hetja
 ```
 
 ### 8. Deliberately not finished
@@ -448,10 +501,21 @@ curl -s "http://127.0.0.1:8080/api/v1/care?lat=19.076&lng=72.877" | head -c 300 
   calling each number are the only honest ways to close those gaps; there is no
   shortcut.
 
-- **All four databases are `SQL_ASCII` / `C` collation.** The Supabase mirror’s
-  `glibc` collation on the live box is `C`; moving to Devanagari dog or feeder
-  names will bite on ordering and case-folding. It is recorded rather than
-  fixed: changing collation is a dump-and-restore.
+- **The old box's four databases were `SQL_ASCII` / `C` collation**, which
+  bites Devanagari dog or feeder names on ordering and case-folding. Supabase,
+  now production, has not been re-checked; changing collation is a
+  dump-and-restore, so it is recorded rather than fixed.
+
+- **Production connects as Supabase's `postgres` user**, so the `app_user`
+  REVOKEs the tests reproduce do not bind the live API; INVARIANT 8 there rests
+  on the trigger in `ops/supabase/03_hardening.sql`. Check it exists.
+
+- **No backups run for the room.** The restic and `pg_dump` timers belonged
+  to the old box; uploaded photos in `/srv/hetja/photos` are not backed up.
+
+- **The SOS sent screen gives no head count**, because the API does not return
+  one, and **a feeder's home ward does not drive paging yet** (the map's "Get
+  alerts" stores it; the fan-out still uses recent feeds within 2 km).
 
 - **The re-tag route is not a separate endpoint yet.** A replacement tag keeps
   the same slug and the print page keeps returning the same `collarUrl`, so a

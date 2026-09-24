@@ -1,389 +1,281 @@
-# Hetja: Design System v3 (Apple / Sidehoe direction)
+# Hetja: Design System v4 (Claude Design handoff)
 
-This replaces v2 ("Swiss wayfinding": square corners, hairlines, no shadows,
-one red accent, six fixed Inter sizes). v2 in turn replaced v1 (cream/forest/
-amber, Fraunces + Nunito Sans). Neither survives in `apps/web` or `apps/scan`.
-v3 keeps the v2 token *names*, so every existing `.module.css` restyled by
-value; the new names are additions.
+This replaces v3 (the Apple / Sidehoe direction built from `components/ui`,
+glass, Dogmoji stickers and a `/styleguide` page). v3 in turn replaced v2
+("Swiss wayfinding") and v1 (cream/forest/amber). None of them survives in
+`apps/web` or `apps/scan`: the v3 kit was deleted in commit `5a45d02`, and
+every screen was rebuilt against the v4 handoff in the commits that followed.
+
+v4 was designed in Claude Design and handed over as HTML mocks, rendered
+boards and a written spec. It keeps the product exactly as it was and
+changes the look: big tight bold headlines, a soft pink and peach aurora on
+marketing pages only, a frosted nav, blue pill buttons, white rounded cards,
+a black privacy band, plain white screens where speed matters, and dry copy.
 
 ## Authority
 
-**`packages/design/tokens.css` is the single source of truth for every value
-in this system.** This document explains the *rationale* for those values and
-how they compose into components and pages. Where it quotes a number, it does
-so only to explain a decision. If a number here and a number in `tokens.css`
-ever disagree, `tokens.css` wins, and the disagreement is a bug in this file.
+Two things are the source of truth, in this order:
 
-Two surfaces consume the same tokens:
+1. **The handoff**, kept in the repo at
+   [`docs/design/v4-handoff/`](v4-handoff/README.md): the spec
+   (`README.md`), the mocks (`*.dc.html`), the rendered boards (`*.jpg`) and
+   the copy deck (`COPY_DECK.txt`). The map (screen 19) came later as its own
+   handoff under [`v4-handoff/map/`](v4-handoff/map/). The handoff is marked
+   *high fidelity*: colours, type sizes, spacing, radii and copy are final.
+2. **[`packages/design/tokens.css`](../../packages/design/tokens.css)**, which
+   holds the handoff's values verbatim under the repo's `--h-` prefix. Every
+   CSS Module reads these tokens. Do not tune them by eye.
 
-- `apps/web/app/globals.css` `@import`s the file directly.
-- `apps/scan/index.html` hand-copies the tokens it uses into its inline
-  `:root`. The hot path can't afford a second stylesheet request under the
-  40 KB budget (INVARIANT 13). The copy may leave out tokens scan doesn't use,
-  but every value it carries must match `tokens.css` exactly. The one
-  intended difference is `--h-font`, which is the same stack **minus
-  `"Inter"`**, because scan ships no font file.
+This document explains how the pieces fit and why the rules exist. If a number
+here disagrees with `tokens.css`, `tokens.css` wins and this file has a bug. If
+`tokens.css` disagrees with the handoff, that is a bug in `tokens.css`, with
+one recorded exception (the tab bar background, below).
 
-If you need a value that isn't in `tokens.css`, report the gap upstream. Never
-invent a colour, size, radius, shadow or duration locally.
+Two surfaces consume the tokens:
 
-## Direction: an Apple product page for Mumbai's street dogs
+- `apps/web/app/globals.css` imports `tokens.css` directly.
+- `apps/scan/index.html` hand-copies the tokens it uses into an inline
+  `:root`, because the collar page cannot afford a second stylesheet request
+  inside its 40 KB budget (INVARIANT 13). Every name and value it carries must
+  match `tokens.css` exactly, font stack included.
 
-The visual reference is [sidehoe.chat](https://www.sidehoe.chat/), which is
-built like an Apple.com product page: a frosted sticky nav, a huge two-line
-claim in tight bold type, a device that *performs* the product, and then proof
-sections (list → bento → dark privacy band → compare → CTA → grey
-footnotes). Hetja keeps that rhythm and changes the subject. The phone shows a
-dog being fed, the orbiting faces are dogs, and the footnotes are Hetja's
-honest caveats ("coarsened to ward level", "medical records are
-append-only"). We copied the *visual language and CSS techniques* only.
-Sidehoe's code, copy, logo and memoji assets were not copied (see
-`docs/CREDITS.md`).
+To open the mocks themselves, put `support.js` and `image-slot.js` from the
+original Claude Design zip next to them; they are Claude Design's viewer
+scripts and are not committed. The `.jpg` boards need nothing.
 
-Why the change from v2: v2 treated every surface as signage, and that was right
-for the scan panel but made the rest of the product feel like a form. Most of
-Hetja's users are repeat feeders and volunteers, not strangers in an emergency,
-and the product has to earn a place on their phone next to apps built in
-Apple's idiom. v3 brings in that idiom and keeps the two v2 rules that actually
-protect people: **one decision per surface** and **never colour alone**.
+## Components: `apps/web/components/ds`
 
-Principles:
+Build screens from these; import them from `@/components/ds`. Each one exposes
+a slot for every piece of text the mocks show, so no screen needs to fork a
+component to match its mock.
 
-1. **Warm, dry, specific copy.** Use specific dog names, times and wards
-   ("Biscuit's rabies shot is due Friday. Biscuit does not know."), never
-   generic marketing language.
-2. **The device is the demo.** Sections show real UI (a list row, an alert, a
-   widget), not illustrations.
-3. **One loud thing per screen.** On a marketing page only the hero is loud.
-   In the app only the primary action is loud: a blue pill, or red for SOS.
-4. **Depth from glass and soft shadow, not borders.** Surfaces stack in a fixed
-   order: aurora → grey section (`--h-gray`) → white tile → glass chip.
-   Hairlines (`--h-rule`) remain only as list separators and input borders.
-5. **Motion that explains.** Things rise in, bubbles pop, the orbit drifts.
-   Nothing loops on a working screen (`/dog`, `/scan`, `apps/scan`), and all
-   of it switches off under reduced motion.
+| Component | What it is |
+|---|---|
+| `Button` | `primary` (56 tall, blue), `sos` (60 tall, red, white "!" circle), `quiet`, `tinted` (the "Call" button), `link`, `navPill`. Pressed state darkens and scales to .98. |
+| `StatusPill` + `StatusIcon` | ok / warn / neutral / danger pills. The icon (check, clock, cross, alert) is required, not optional. |
+| `Label` | 13px uppercase section label. |
+| `CollarCode` | The code in three groups of three (`DDR 017 XK2`), a Copy button and the optional "Say it: D D R · zero one seven · X K two" line. |
+| `CollarCodeInput` | 60 tall mono input that uppercases for display, spaces every three characters and accepts 9 characters, with prompt, helper and error slots. |
+| `Card` | White, radius 28, padding 24. |
+| `ListRow` / `ListGroup` | Rows with avatar, title, sub and a trailing pill or button; dividers between rows, not after the last. |
+| `DogAvatar` | Pastel circle with the dog's initial; the pastel is picked by a stable hash of the dog id, so a dog keeps its colour forever. |
+| `Badge`, `Progress` | The Me screen's streak badges and trust bar. |
+| `Logo`, `TopNav`, `TabBar`, `Footer`, `PrivacyBand` | Global chrome. `TabBar` has four tabs: Home, Map, Scan, Me. |
+| `Aurora` | The per-screen aurora recipes, copied from the mocks. Marketing and reading pages only. |
+| `StickyFooter` | Pins the main button to the bottom of the screen, respecting `env(safe-area-inset-bottom)`. |
+| `SectionFade` | The marketing-only section fade (opacity plus a 12px rise, 400ms), off under `prefers-reduced-motion`. |
+
+Which chrome a route gets is decided in one place,
+`apps/web/components/ChromeShell.tsx`: marketing pages get TopNav, Footer and
+the TabBar (below 1024px); `/hetja` gets only its muted nav; `/me` gets only
+the TabBar; focused flows (`/scan`, `/feed`, `/login`, `/register/**`,
+`/design`) and `/map` get none and draw their own back or cancel; anything
+else (404s) gets TopNav and Footer so nobody is stranded.
+
+`/design` lays the components out exactly like the handoff's Design System
+mock, so the two can be compared side by side. It is development only: it
+answers 404 in production unless `HETJA_STYLEGUIDE=1` and is never indexed.
+
+## The rules
+
+These come from the handoff's "Hard rules" and from the product's older
+signage-era discipline. They are not preferences.
+
+- **One loud button per screen.** Blue `#0071e3` is for normal actions. Red
+  `#d70015` is for SOS and nothing else. A screen that seems to need two loud
+  buttons needs a second screen.
+- **Colour never carries meaning alone.** Every status pill has an icon and
+  words. "Vaccination unknown" is a neutral pill with a clock and those words;
+  it is never a blank. The Sterilised toggle on New dog is green when on, but
+  the label carries the meaning.
+- **Touch targets are at least 44px** (`--h-target`). Main buttons are 56px
+  tall, the SOS button 60px.
+- **Main buttons sit in the bottom third**, pinned with `StickyFooter`, where a
+  thumb reaches them one-handed.
+- **Scan, the dog profile and SOS are plain white and fast.** No aurora, no
+  decorative animation, minimal JS. They are the screens a stranger opens on a
+  budget Android over 4G while standing next to a dog. The profile and SOS
+  steps live in `apps/scan`, which has no framework at all.
+- **`/hetja` is calm.** Off-white `#fbfbfa`, no animation, no blue, no red.
+  It is a memorial; grief is neither an action nor an emergency.
+- **Location is ward-level only on every public screen**, written like
+  `K/W ward · Andheri West`, never a street (INVARIANT 2).
+- **Copy is the mock's copy, verbatim, with no em dashes.** Warm and dry on
+  marketing pages, plain on the dog and SOS screens. Where real data replaces
+  a mock placeholder (412 dogs, "3 of Bruno's feeders"), the real number is
+  fetched, and where the API does not know a number the sentence is rewritten
+  so it claims nothing it cannot back. The SOS sent screen, for example, says
+  a dog's feeders "are being told" instead of inventing a count.
+
+Where the build deliberately departs from a mock, the reason is a rule that
+outranks it:
+
+- The SOS sent screen has **no feeder Call row**, though the mock draws one.
+  Feeders' phone numbers are never stored or shared (INVARIANT 3).
+- The **tab bar background is `rgba(255,255,255,.96)`**, not the handoff's
+  `.92`. Over the black privacy band `.92` blends to `#ebebeb` and the inactive
+  labels fall to 4.25:1; `.96` blends to `#f5f5f5` (4.65:1).
+
+## Type and fonts
+
+```
+--h-font:  -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+           "Inter", "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif
+--h-mono:  ui-monospace, "SF Mono", Menlo, "Roboto Mono", monospace
+--h-serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif   (/hetja essay only)
+```
+
+**SF Pro comes from the system on Apple devices**, and because the system
+fonts match first, an iPhone or Mac never downloads anything. SF Pro itself
+may not be shipped to non-Apple platforms under Apple's licence, so
+**Android gets Inter**, the closest licensable stand-in:
+
+- `apps/web` self-hosts the variable Latin Inter
+  (`public/fonts/Inter-latin-var.woff2`, 48 KB, OFL-1.1).
+- `apps/scan` ships a 13.6 KB subset (`assets/inter-scan.woff2`: weights 400
+  to 700, printable ASCII plus a handful of punctuation), served at
+  `/d/inter-scan.woff2` with a 30-day cache while every other `/d/` path stays
+  `no-store`. The subset recipe is in `apps/scan/scripts/build.mjs`.
+
+The handoff originally said "no web fonts" on Scan and Profile. The subset is
+the compromise: it sits after `-apple-system` in the stack, so Apple devices
+never fetch it, and it fits inside the 40 KB budget.
+
+Sizes, weights and tracking follow the handoff's type table (hero 60/0.98 on
+mobile, 104/0.94 on desktop; screen title 34; dog name 40; body 17/1.47;
+collar code mono 30 on the profile, 24 in the input). Minimum reading size is
+15px, captions 13px.
 
 ## Colour and measured contrast
 
-The palette is Apple's system neutrals plus a small set of intent colours:
-`--h-accent` (action blue), `--h-link` (text-link blue), `--h-danger` /
-`--h-danger-fill` (SOS), `--h-safe` (verified), `--h-warn`, their tinted
-backgrounds, the dark-band pair, and four decorative aurora colours.
+Output of `bash ops/contrast-gate.sh` on 2026-09-24. The gate runs in CI and
+fails any documented pair below 4.5:1. All 21 pairs v4 uses pass WCAG AA.
 
-These figures come from `bash ops/contrast-gate.sh`, which parses `tokens.css`
-and fails CI below 4.5:1. They are measured, not estimated:
+| Text | Background | Ratio |
+|---|---|---|
+| `--h-ink` | `--h-white` | 16.83:1 |
+| `--h-ink` | `--h-mist` | 15.46:1 |
+| `--h-ink` | `--h-aurora-base` | 15.80:1 |
+| `--h-ink` | `--h-memorial-bg` | 16.25:1 |
+| `--h-secondary` | `--h-white` | 5.07:1 |
+| `--h-secondary` | `--h-mist` | 4.66:1 |
+| `--h-secondary` | `--h-aurora-base` | 4.76:1 |
+| `--h-secondary` | `--h-memorial-bg` | 4.90:1 |
+| `--h-text-mid` | `--h-white` | 9.09:1 |
+| `--h-link` | `--h-white` | 5.57:1 |
+| `--h-link` | `--h-mist` | 5.11:1 |
+| `--h-white` | `--h-blue` | 4.70:1 |
+| `--h-white` | `--h-sos` | 5.38:1 |
+| `--h-blue-tint-ink` | `--h-blue-tint` | 5.20:1 |
+| `--h-ok` | `--h-ok-bg` | 4.77:1 |
+| `--h-warn` | `--h-warn-bg` | 5.35:1 |
+| `--h-neutral` | `--h-neutral-bg` | 8.14:1 |
+| `--h-danger` | `--h-danger-bg` | 5.88:1 |
+| `--h-band-ink` | `--h-band` | 19.29:1 |
+| `--h-band-sub` | `--h-band` | 8.16:1 |
+| `--h-band-link` | `--h-band` | 6.96:1 |
 
-| Foreground | Background | Ratio | Meets |
-|---|---|---|---|
-| `--h-ink` | `--h-base` | 16.83:1 | AAA |
-| `--h-ink-muted` | `--h-base` | 5.07:1 | AA |
-| `--h-accent` | `--h-base` | 4.70:1 | AA |
-| `--h-danger` | `--h-base` | 5.38:1 | AA |
-| `--h-safe` | `--h-base` | 5.40:1 | AA |
-| `--h-warn` | `--h-base` | 4.67:1 | AA |
-| `--h-ink` | `--h-gray` | 15.46:1 | AAA |
-| `--h-ink-muted` | `--h-gray` | 4.66:1 | AA |
-| `--h-link` | `--h-base` | 5.57:1 | AA |
-| `--h-link` | `--h-gray` | 5.11:1 | AA |
-| `--h-base` (label) | `--h-accent` (fill) | 4.70:1 | AA |
-| `--h-on-dark` | `--h-dark` | 19.29:1 | AAA |
-| `--h-on-dark-muted` | `--h-dark` | 8.16:1 | AAA |
-
-Pairs the gate deliberately does not list, measured with the same formula:
-
-- **`#0071e3` text on `--h-gray` is 4.31:1, which fails AA.** That is the only
-  reason `--h-link` (`#0066cc`) exists. Sidehoe's blue is kept for *fills*
-  (the pill button with a white label, 4.70:1), and every blue *text* link
-  uses `--h-link`, which passes on both white and grey.
-- **`--h-ink-faint` is 3.62:1 on white and 3.33:1 on grey, so it is non-text
-  only**: chevrons, the "not confirmed" dash in status rows, placeholder
-  strokes. It may also be used for text of 24px or larger, which counts as
-  large text. Never use it for body copy or labels.
-- **White on `--h-danger-fill` (`#ff3b30`) is 3.55:1.** That passes only as
-  large text (at least 18.66px bold), so the SOS label is always
-  `--h-t-lg` (19px) and bold. Small red text uses `--h-danger` (`#d70015`),
-  never the fill colour.
-- `--h-imessage` (`#0a84ff`, 3.65:1 on white) is used for the focus ring and
-  bubble fills. A focus ring is non-text, so it only needs 3:1.
-- The aurora colours are decorative and never sit behind body text without a
-  white or glass tile between them.
-
-**The accent is spent on one element per screen.** It is not a brand colour to
-sprinkle on icons. It marks the one thing on a screen the user should do. Per
-**WCAG 2.2 SC 1.4.1**, urgency is never carried by colour alone: every primary
-action pairs its fill with an icon *and* an explicit verb ("This dog needs
-help"). To check this by hand, desaturate the page in devtools and confirm the
-primary action on `/dog/[slug]` and `apps/scan` still reads as primary from its
-icon, label, size and position.
-
-## Type
-
-**SF first, Inter as the fallback, never a default sans.** The stack in
-`--h-font` resolves to SF Pro on Apple devices (`-apple-system`,
-`BlinkMacSystemFont`, `"SF Pro Display"`, `"SF Pro Text"`), which is what
-Sidehoe uses. Everywhere else it resolves to self-hosted Inter, the closest
-openly licensed match to SF's proportions.
-
-- `apps/web` ships **one file**: `apps/web/public/fonts/Inter-latin-var.woff2`
-  (48 KB). It is the variable font with the full 100–900 weight axis, Latin
-  subset, declared once in `globals.css` with `font-display: swap` and a Latin
-  `unicode-range`. It comes from rsms/inter via `@fontsource-variable/inter`
-  under OFL-1.1, with the licence at `apps/web/public/fonts/Inter-OFL.txt`.
-  There is no Google Fonts request and no CDN round-trip. Apple devices never
-  download it.
-- `apps/scan` ships **no font**. The file alone is larger than scan's whole
-  40 KB budget, so scan uses the same stack minus Inter (0 bytes).
-
-**Display sizes are fluid; UI sizes are fixed.** Marketing headlines use
-`clamp()` tokens (`--h-t-hero`, `--h-t-display`, `--h-t-bignum`,
-`--h-t-tile`, `--h-t-lede`) with tight negative tracking
-(`--h-track-hero` / `--h-track-display`), which is the Apple look. Everything
-a person operates uses the fixed UI scale (`--h-t-plate`, `--h-t-xl`,
-`--h-t-lg`, `--h-t-md`, `--h-t-sm`, `--h-t-xs`) with `--h-track-body`. A
-working screen never uses fluid type, because a button label that grows with
-the viewport is a layout bug waiting to happen. Don't use one-off pixel sizes
-in a `.module.css`.
-
-**Tabular figures** (`--h-num-tabular`) apply to every number a person
-compares, reads aloud or watches count up: the collar plate, dates, distances,
-trust scores, streaks and `NumberTicker` values.
-
-## Space and geometry
-
-- **Space:** a 4px base (`--h-s1` to `--h-s9`), a `--h-gutter` of 22px
-  (Sidehoe's 44px total inset), and fluid section padding (`--h-section-y`).
-- **Radii are a scale, not a single value.** Use `--h-radius-sm` for inner
-  rows and nudges, `--h-radius` for controls and small cards, `--h-radius-card`
-  for profiles and grouped lists, `--h-radius-tile` for bento tiles and the
-  dog photo, and `--h-radius-pill` for buttons, chips and the plate. Bottom
-  sheets use iOS's smaller 10–14px top radius. The v2 name `--h-radius-fill`
-  now also resolves to a pill.
-- **Shadows are soft and few.** `--h-shadow-card` is a long, low-opacity drop
-  plus a 1px hairline ring, for tiles and photos. `--h-shadow-float` is for
-  sheets, toasts and popovers, `--h-shadow-chip` for glass chips,
-  `--h-shadow-cta` for the blue pill, and `--h-shadow-phone` for the device
-  frame. Nothing gets a hard, dark or offset shadow.
-- **Glass** (`--h-glass`, `--h-glass-strong`, `--h-glass-gray`, `--h-blur`,
-  `--h-glass-edge`) is reserved for things that float over content: the
-  sticky nav, the tab bar, chips over the aurora, and banners. A glass surface
-  never carries body copy over the aurora without enough opacity to hold AA.
-- **Targets:** `--h-target` (48px) is the comfortable size and
-  `--h-target-min` (44px, Apple HIG) is the floor.
+`--h-tertiary` (`#86868b`) is for placeholders and chevrons only and is not in
+the table on purpose: it is not a text colour. Text over the aurora is also
+checked in a real browser by axe (`apps/web/e2e/a11y.spec.ts`).
 
 ## Motion
 
-- Animate only `transform`, `opacity` and `filter`. The target user may be on a
-  hot phone on patchy 4G, and layout-thrashing animation is latency they pay
-  for.
-- Use `--h-dur` for UI feedback, `--h-dur-slow` for rise-ins, `--h-ease` as the
-  standard curve, `--h-ease-out` for entrances and sheets, and `--h-ease-pop`
-  for bubbles and badges.
-- `prefers-reduced-motion: reduce` sets both durations to `0ms` at the token
-  layer. Components that run their own loops (the aurora, `OrbitRing`,
-  `Marquee`, `NumberTicker`, `Reveal`, `ScrollStory`) also check the media
-  query and render their final, static state. Content is never hidden waiting
-  for an animation.
-- Nothing loops on a working screen. Ambient motion (aurora, orbit, marquee)
-  belongs to marketing surfaces only. The aurora is WebGL with a static CSS
-  gradient fallback and is never loaded on `apps/scan`.
-- `content-visibility: auto` still defers below-the-fold sections.
+App screens have none beyond the native press state. Marketing pages may fade
+sections in (`SectionFade`), and the home aurora may drift very slowly; both
+are gated on `prefers-reduced-motion: no-preference` in CSS, and
+`--h-dur` drops to 0 under `reduce`. Nothing waits on an animation to become
+visible. Scan, Profile, SOS and `/hetja` never animate.
 
-## The one-primary-action rule (kept from v2)
+## Verifying a screen
 
-This rule survives every restyle. The surface a QR code opens is not a place to
-browse: Hoober's field study (n=1,333) found roughly three-quarters of touch
-interaction is thumb-driven, and a stranger under stress should be offered one
-decision, not four.
+UI work is not done when it typechecks. It is done when it matches its mock.
 
-- **One primary action per screen**: a full-width pill, at least 48px tall, in
-  the bottom third. Use `--h-accent` blue for normal actions and
-  `--h-danger-fill` red with a white, bold, large label for SOS or urgent
-  actions. It always has an icon *and* a verb.
-- **Everything else is quieter.** Secondary actions are `--h-link` text links
-  or tinted grey pills (for example, `Log a feed` under "This dog needs help"),
-  never a second filled button of equal weight.
-- **Detail sits behind a disclosure.** Medical history and stories live behind
-  a native `<details>` "Full record" row, collapsed by default.
-- **Chrome is suppressed on `/dog/*`.** `components/ChromeShell.tsx` renders no
-  `Header`, `BottomNav` or `InstallBanner` there. `Footer` stays because it
-  sits below everything.
+1. Open the mock (or its `.jpg` board) and the running screen side by side, at
+   390 x 844 for phone screens and at 1440 for the desktop landing and the
+   map. Check 744 for two-column cards and 1024 for the desktop hero.
+2. Compare type sizes, spacing, radii, colours and the position of the main
+   button, not just "looks close".
+3. Ship **all** of the mock's copy, verbatim. Older real content that the mock
+   does not cover is kept, restyled, below the mock's sections.
+4. Run the gates: `bash ops/contrast-gate.sh`, the web unit tests, and the
+   Playwright specs (`e2e/a11y.spec.ts`, `e2e/mobile-layout.spec.ts`, which
+   asserts gutters and no horizontal scroll per route at 390px). For anything
+   in `apps/scan`, `pnpm --filter @hetja/scan size:gate`.
+5. `grep` the change for em dashes. There should be none.
 
-### `apps/scan` panel
+## Screens
 
-The zero-install page a collar QR opens applies the same rule inside the 40 KB
-budget. It uses the system font only and has no aurora, no WebGL and nothing
-that loops. From top to bottom:
+Numbers match the mock labels.
 
-- A white page with a subtle `--h-gray` band at the top.
-- The dog photo at `--h-radius-tile` with `--h-shadow-card`. With no photo,
-  the placeholder is the Dogmoji glyph: 🐶 in a pastel gradient circle.
-- The name in large bold type with tight tracking, the collar code as a grey
-  pill chip with tabular figures, and the ward.
-- A grey tile holding an iOS inset grouped list: Vaccinated and Sterilised,
-  each with a ✓ in `--h-safe` plus a text label, or a neutral dash plus
-  "Unknown". A "Full record" disclosure row follows.
-- The red SOS pill ("This dog needs help").
-- The `--h-link` text link "Log a feed".
+| # | Screen | Where |
+|---|---|---|
+| 01, 18 | Home (phone, 744 two-column, desktop landing) | `apps/web/app/page.tsx` |
+| 02 | Scan | `apps/web/app/scan` (`components/QrScanner.tsx`) |
+| 03 | Dog profile | `apps/scan` at `/d/<code>` |
+| 04, 05 | SOS step 1, SOS sent | `apps/scan` (`src/sos.ts`) |
+| 06 | Log a feed | `apps/web/app/feed` |
+| 07, 08 | Sign in, code | `apps/web/app/login` |
+| 09 | Me | `apps/web/app/me` |
+| 10, 11 | New dog, Collar ready | `apps/web/app/(register)/register/new`, `.../[slug]/ready` |
+| 12 to 16 | About, How it works, FAQ, Privacy, Contact | `apps/web/app/{about,how-it-works,faq,privacy,contact}` |
+| 17 | `/hetja` | `apps/web/app/hetja` |
+| 19 | Map | `apps/web/app/map`, `components/map` |
 
-The severity flow opens as an iOS bottom sheet with a grabber, a 14px top
-radius, a grey background, white grouped rows with chevrons, and care
-providers as white cards with tinted Call and Directions pills. Banners are
-rounded glass pills that stick to the top, and the toast is a dark glass card.
+The print sheet (`register/[slug]/print`) is a physical artefact printed on
+office printers, not a screen. It keeps its layout: no aurora, no shadow,
+nothing that depends on colour. The Collar ready screen's **Print collar**
+uses `window.print()` with a print stylesheet that shows only the tag, at
+40 mm.
 
-## Dogmoji: the character system
+## The map (screen 19)
 
-Apple's Memoji and Animoji art is Apple IP and can't ship on the web. Hetja uses
-**Microsoft Fluent Emoji 3D** instead, which has the same glossy, soft-lit 3D
-look under the MIT licence
-([microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji)).
+The map is a later addition to v4, from its own handoff
+(`v4-handoff/map/Hetja Map.html`, with `Hetja Map Mobile.html` framing it at
+390px and four rendered boards). It shows all of Mumbai: one pill per BMC ward,
+and pins for vets and NGOs.
 
-- **Assets:** `apps/web/public/dogmoji/*.webp`, pre-sized at 128px and 256px,
-  with the licence alongside as `LICENSE-fluentui-emoji.txt`. The set covers
-  the dog bases (dog face, dog, poodle, guide dog) and the product props
-  (bone, bowl, syringe, pill, adhesive bandage, stethoscope, ambulance,
-  hospital, house, camera, bell, fire, trophy, sparkles, heart, lock and
-  others).
-- **`Dogmoji`** (`components/ui/Dogmoji.tsx` + `lib/dogmoji.ts`) is the port of
-  Sidehoe's `.avatar[data-who]` pattern: the sticker inside a pastel gradient
-  circle. It resolves in this order: a real photo (a real dog always beats a
-  cartoon of one), then the Fluent WebP, then the 🐶 glyph if the image fails.
-  A small named cast (Bruno, Biscuit, Kaalu, Moti, Sheru, Rani, Tommy, Laddoo,
-  Chikki, Bholu) each has its own gradient pair and an optional accessory
-  (collar ring, ✚ medical dot), so the cast doesn't look identical.
-- **Drop-in override:** a file at `apps/web/public/dogmoji/custom/<slug>.webp`
-  wins over the generic sticker for that dog. That way commissioned or
-  generated custom dog memoji can land later with no code change, which is the
-  same mechanism Sidehoe uses for its memoji.
-- **`apps/scan`** uses the emoji glyph only (0 bytes) in the same gradient
-  circle. The WebPs are never shipped on the hot path.
-- Dogmoji is decorative by default (`aria-hidden`), because the dog's name is
-  always next to it in text.
+- **Wards, not dogs.** Each ward's marker sits at a fixed, hand-placed ward
+  centre (`BMC_WARD_CENTROIDS` in `packages/contracts/src/wards.ts`) and shows
+  counts only: dogs with collars, how many are not fed today, open SOS cases.
+  The privacy line on the sheet says it outright: "Dogs are shown by ward, never
+  by street. Vets and NGOs are public places, so they get a pin."
+- **Chips** filter the map: Needs help (the "!" icon), Not fed today (clock),
+  Vets ("+"), NGOs ("N"). Each chip has an icon and a word.
+- **One sheet**, a bottom sheet on phones and a 420px left panel from 900px,
+  shows the city ("Mumbai right now", the hungriest wards), a ward (its cases
+  by severity and time, and up to three nearby vets and NGOs) or a place (hours,
+  ambulance, phone, and a Call button). The one loud button is "I can go and
+  help" when a ward has an open case with nobody on it, otherwise "Get alerts
+  for {ward} ward".
+- **Mumbai only.** The map cannot be panned outside Greater Mumbai
+  (`MUMBAI_BOUNDS`, the 24 wards' extent plus a 4 to 5 km margin) and has a
+  minimum zoom of 10.
+- **Tiles** are Esri's Light Gray basemap (the mock's), from the ArcGIS
+  Location Platform static basemap tiles service, with the key in
+  `NEXT_PUBLIC_ESRI_API_KEY`. Without a key, or when Esri refuses the tiles,
+  the layer swaps to CARTO's keyless light tiles so the map never goes blank.
+  The attribution Esri and CARTO require is shown on the map.
+- The map follows the same rules as every other screen: one loud button, icon
+  plus words, 44px targets, and no animation under reduced motion.
 
-## Apple element inventory (`apps/web/components/ui`)
+## Accessibility
 
-These are hand-ported to CSS Modules with no component-library dependency.
-Pattern references: Magic UI, Aceternity UI and Konsta UI (see
-`docs/CREDITS.md`). Icons are Phosphor path data inlined by `Icon.tsx`, because
-SF Symbols is licensed for Apple platforms only. This section describes each
-element's *role*. Its props live in the source.
-
-**Core**
-
-| Element | Role |
-|---|---|
-| `Icon` | Inline-SVG Phosphor icons (regular and fill weights, the closest open match to SF Symbols). No icon font, no dependency. |
-| `Dogmoji` | The character avatar described above. |
-| `Ambient` | The fixed aurora background (WebGL blobs with a CSS-gradient fallback). Marketing surfaces only. |
-| `PhoneFrame` | iPhone mockup with a Dynamic Island that can expand into a "Live Activity" ("Feeding Bruno · 02:14"). The device that performs the demo. |
-| `OrbitRing` | Dogmoji faces drifting around the hero phone with glass tags ("Fed 2h ago"); collapses to a facepile on mobile. Decorative (`aria-hidden`). |
-| `Reveal` | Blur-fade rise-in on scroll. Under reduced motion, content is shown immediately. |
-| `NumberTicker` | Counts up impact numbers. It server-renders the final value, so no JS or reduced motion still shows the truth. |
-| `Marquee` | Slow horizontal strip of ward names between landing sections. |
-| `Chat` | iMessage-style bubbles and typing dots: the feed log told as a conversation. |
-| `StatusPill` | Small tinted status chip (ok / warn / late) that always carries a text label. |
-
-**iOS**
-
-| Element | Role |
-|---|---|
-| `GroupedList` | iOS Settings inset grouped list with chevrons and hairline separators, used for roster, FAQ, `/me` and dashboards. |
-| `SegmentedTabs` | iOS segmented control for `/me` tabs and dashboard filters. |
-| `Toggle` | iOS switch for notification and settings toggles and register-form options. A real checkbox underneath. |
-| `Sheet` | Bottom sheet with a grabber, for the log-feed flow and the mobile SOS modal. |
-| `IOSAlert` | iOS alert and action sheet, for SOS confirmation and the collar-mismatch warning. |
-| `NotifStack` | Lock-screen notification stack of glass cards that fan out, for the privacy band and `/me` alerts. |
-| `Widget` | iOS home-screen widgets (small: streak; medium: dogs near you plus a map). |
-| `ActivityRings` | Fitness-style rings for feeds today, ward coverage and streak. |
-| `WalletPass` | Wallet-style collar pass (gradient, Dogmoji, plate, QR), for the dog header and register success. |
-| `WardMap` | Maps-style static SVG ward card with a pin and a count ("Dadar West · 14 dogs"). Ward-level only (INVARIANT 2). |
-| `LargeTitle` | iOS large-title header that collapses into the glass nav on scroll. |
-| `ScrollStory` | Pinned "scrollytelling" phone whose screen changes as the steps scroll past (Scan → See → Act). |
-| `Bento` | 12-column bento grid of 28px-radius tiles. |
-| `CompareTable` | Compare columns ("Hetja / Hetja for NGOs / Doing nothing"). |
-| `HungerSlider` | The interactive toy ("How hungry is Bruno?"): a slider that rewrites a chat bubble. Hetja's analogue of Sidehoe's tone control. |
-
-Global primitives in `globals.css`: `.h-btn` (`-primary` blue pill, `-danger`
-red pill, `-dark`/`-ghost` secondary, `-link` text), `.h-chip` / `.h-pill`,
-`.h-status-*`, `.h-card`, `.h-tile`, `.h-glass`, `.h-bento`,
-`.h-section-{gray,white,dark}`, the display type classes, and `.h-plate`.
-
-## The collar plate
-
-`.h-plate` renders the collar code as a grey pill chip: `--h-gray` fill,
-tabular figures, wide tracking, semibold. It is the one reusable
-"big code" treatment, used on `/dog/[slug]`, `WalletPass` and `apps/scan`.
-Don't introduce a second one. The collar code is the string a caller reads
-aloud to an NGO over the phone, so it keeps the largest fixed UI size.
-
-## `/styleguide` (development only)
-
-`apps/web/app/styleguide` renders every token and every element above in one
-place, so the look can be signed off before pages change. It is `noindex`,
-left out of every nav, and returns 404 in production builds unless
-`HETJA_STYLEGUIDE=1` is set.
-
-## `/hetja`: the calm departure
-
-`/hetja` is a memorial for the dog the product is named for, linked from the
-footer and from `/about`, and never in the bottom nav. It reuses the black
-`.h-section-dark` band (the same band as the privacy section) and deliberately
-drops everything else v3 adds:
-
-- **No accent and no red.** `--h-accent` is the action colour and
-  `--h-danger-fill` the emergency colour. Grief is neither.
-- **No animation.** No aurora, no `Reveal`, no orbit, no ticker. The page is
-  still.
-- **The empty plate.** Hetja never had a collar, so the plate chip renders with
-  nothing in it: the same size as every other dog's plate, with no dash,
-  ellipsis or glyph.
-- **Long-form measure.** One centred column, about 66ch, generous leading.
-
-## The print sheet (unchanged)
-
-`apps/web/app/(register)/register/[slug]/print/print.module.css` is a physical
-collar artefact: it is printed on office printers and laminated. The v3 restyle
-deliberately leaves its layout and rules alone. There is no glass, no shadow,
-no aurora and no fluid type, and nothing depends on colour. Because it reads
-the shared tokens, only token *values* such as ink, accent and the fill radius
-reach it. Check a print preview after any token change.
-
-## PWA
-
-`manifest.webmanifest` `theme_color` and `viewport.themeColor` (`layout.tsx`)
-are white (`--h-base`). `apps/scan` uses `--h-gray` so the status bar blends
-into its grey top band. User-visible strings read "Hetja".
-
-## Accessibility: non-negotiable
-
-- **Every interactive target is at least 48px** (`--h-target`), and
-  `--h-target-min` (44px, HIG) only where 48 genuinely won't fit. WCAG 2.2
-  SC 2.5.8's 24px is a legal floor, not a design size. This includes glass
-  chips, segmented segments, toggles, the sheet close button (visually a 30px
-  circle inside a 44px hit area) and every list row.
-- **Visible keyboard focus on every control.** A global `:focus-visible` ring
-  in `--h-imessage` with an offset covers links, buttons, inputs, `<summary>`
-  and `[tabindex]`. Nothing suppresses the outline, including on glass or on
-  the blue and red pills.
-- **Contrast is gated.** `ops/contrast-gate.sh` runs in CI and fails any
-  documented text pair below 4.5:1 (table above). Text on glass over the
-  aurora is checked by axe in `e2e/a11y.spec.ts`.
-- **Reduced motion.** `prefers-reduced-motion: reduce` zeroes durations at the
-  token layer, every looping component renders its static end state, and no
-  content waits on an animation to become visible.
-- **Colour is never the only signal.** Verified status pairs a ✓ with a label,
-  and unconfirmed status shows a dash plus the word. The primary action pairs
-  its fill with an icon and a verb. Care-provider tiers ("FREE", "24×7") and
-  `StatusPill` states are text.
-- **Decoration is hidden from assistive tech.** Dogmoji, the orbit, the aurora
-  and marquee duplicates are `aria-hidden`. A photo placeholder that stands
-  alone carries a text label.
-- **Mobile layout is gated.** `e2e/mobile-layout.spec.ts` asserts no gutter
-  loss or horizontal scroll at 390px. The orbit and aurora are clipped
-  (`overflow: clip`) so they can't overflow.
+- A global `:focus-visible` ring (`3px solid rgba(0,113,227,.45)`, offset 2px)
+  covers every control. Nothing suppresses it.
+- Contrast is gated in CI (table above) and checked by axe in a real browser.
+- The aurora is a CSS background on the section that carries it, never a
+  content element, so there is nothing for a screen reader to trip over.
+- The collar code is announced as spaced characters ("Collar code d d r 0 1
+  7 ...") and has a written "Say it" line, because it is the string a caller
+  reads aloud to an NGO over the phone.
+- Mobile layout is gated: `e2e/mobile-layout.spec.ts` checks gutters and
+  horizontal overflow at 390px on every static route.
 
 ## What this document is not
 
-It does not duplicate `packages/design/tokens.css`'s values or any component's
-props. It does not specify page copy. It does not cover the care-directory data
-model or the SOS routing logic, which live in `docs/PLAN-v2.md` §2–§3.5 and
-`docs/HOW-IT-WORKS.md`. Visual decisions only, with the reason for each.
+It does not repeat `tokens.css` values or component props, and it does not
+specify page copy; the handoff and the copy deck do. It does not cover the
+care-directory data model or SOS routing, which live in
+[`docs/HOW-IT-WORKS.md`](../HOW-IT-WORKS.md). Visual decisions only, with the
+reason for each.

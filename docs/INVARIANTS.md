@@ -20,7 +20,7 @@ external build guide that lived outside the repo.
 | 10 | Daily published anchor | 🔄 computed, signed, **not yet published externally** | `ledger.ts` anchor + verify endpoints; worker `anchor_ledger` job, now actually schedulable (see below) and signed with EdDSA via `apps/worker/src/sign-anchor.ts` when `HETJA_LEDGER_SIGNING_JWK` is set. **`ledger_anchors.published_url` is still `''`**. The head is computed, stored and signed, but only ever held by us, and INVARIANT 10's whole point is a head published "somewhere the operator does not solely control". Downgraded from ✅ deliberately. |
 | 11 | DPDP erasure = PII delete, chain stays valid | 🔶 design | pseudonymous actor IDs in chain; runbook documents erasure |
 | 12 | Every documented query EXPLAINs | ✅ | `ops/check-queries.sh` CI gate |
-| 13 | Scan landing <40KB gzipped | ✅ | 7.3 KB gzipped; `size:gate` fails build >40KB |
+| 13 | Scan landing <40KB gzipped | ✅ | 33,260 B gzipped on 2026-09-24 (was 7.3 KB before design v4; 13,611 B of it is the Inter subset); `size:gate` fails build >40KB |
 | 14 | AI validation flags, never silently rejects | ✅ | `apps/ai/worker.py` stub → `flagged`; test asserted |
 | 15 | Verification gates: provisional feeders auto-paused after 3 serial rejects | ✅ | `lib/trust.ts` gate, **enforced** by `routes/scans.ts` (a paused feeder's scan answers 403 `FEEDER_PAUSED`); `trust.test.ts` + `scans.test.ts` |
 
@@ -78,6 +78,39 @@ use the canonical numbers above.
 The count in `AGENTS.md` was also wrong for a while (it said "fourteen rules"
 against a fifteen-row table); invariant 15 was added during implementation
 rather than coming from the original spec.
+
+### New public surfaces in design v4 (2026-09-24), checked against 2, 3 and 6
+
+Design v4 and the map added public reads. None changes an invariant; each was
+built to sit inside one, and is recorded here so the next reviewer does not
+have to re-derive it.
+
+- **`GET /api/v1/dogs/:slug`** now returns `wardName`, `lastFedAt`,
+  `feederCount` and `storyAuthorCount`. Counts and ward-level values only:
+  never an identity (3), never a position finer than the ward (2).
+- **`GET /api/v1/wards`** is a static list of the 24 BMC wards (2: a ward is as
+  fine as any public surface names a place).
+- **`GET /api/v1/map/wards`, `/map/wards/:wardId`, `/map/places`** aggregate
+  dogs and SOS cases per ward and place each ward at a fixed, hand-placed
+  centre that is the same for every request (2). Open cases carry severity,
+  time and state only: no note, reporter, photo or position. The only phone
+  numbers are organisations' published numbers (3). Case ids are withheld from
+  anyone who could not already be paged for the case.
+- **`GET /api/v1/reports/:caseId/status`** answers only the device token or
+  account that filed the report, returns state and timestamps and nothing
+  about who responded (3), and is rate-limited per device subject, never per
+  IP (6).
+- **Registration's self-reported vaccinated and sterilised answers**
+  (`dogs.vaccinated_reported`, `dogs.sterilised_reported`, migration 0025) are
+  read by no public route.
+
+One real defect was found and fixed in the same pass: **pending and expired
+dogs were publicly readable by slug.** `routes/registrations.ts` promised that
+a self-serve registration "stays invisible to every public surface" until its
+tag is scanned, but `GET /api/v1/dogs/:slug` had no status filter, so anyone
+holding the slug could read a `pending_activation` or `expired` dog. It now
+answers 404 for both, except to the registrator who filed it
+(`dogs.ts`, `NON_PUBLIC_STATUSES`; `dogs.test.ts`).
 
 ## Why this exists
 

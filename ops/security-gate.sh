@@ -161,6 +161,11 @@ fi
 # directory rather than raising the threshold keeps the rule at the length that
 # actually catches `openssl rand -hex 32` output elsewhere.
 #
+# ops/room/bootstrap-room.sh pins the SHA-256 of each runtime it downloads
+# (NODE_SHA=, CADDY_SHA=, CFD_SHA=). Those are PUBLIC checksums, the opposite
+# of a secret, so only lines of exactly that shape in exactly that file are
+# exempt; any other 48+ hex string in the file still fails the gate.
+#
 # If this fires on something genuinely benign, add it to the exclusion list with
 # a reason rather than lowering the threshold -- the threshold is the rule.
 hex_secret_hits() {
@@ -169,6 +174,7 @@ hex_secret_hits() {
     | grep -viE '(test|spec|fixture|__snapshots__)' \
     | grep -viE 'pnpm-lock|integrity|sha(256|384|512)-' \
     | grep -viE '^packages/ledger/ops/' \
+    | grep -vE '^ops/room/bootstrap-room\.sh:[0-9]+:[A-Z]+_SHA=[0-9a-f]{64}$' \
     || true
 }
 

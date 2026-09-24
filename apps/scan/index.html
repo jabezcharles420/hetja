@@ -52,6 +52,7 @@ a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus
 .lead{font-size:17px;line-height:1.4;color:var(--h-secondary)}
 .label{font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--h-secondary)}
 .cap{font-size:13px;line-height:1.35;color:var(--h-secondary);text-align:center}
+.feedlink{display:block;min-height:44px;line-height:44px;margin-top:4px;text-align:center;font-size:15px;color:var(--h-link);text-decoration:none}
 #note:empty{display:none}
 .banner{background:var(--h-mist);border-radius:var(--h-r-input);font-size:15px;line-height:1.4;padding:12px 16px}
 #state{padding-top:24px;display:flex;flex-direction:column;gap:8px}
@@ -138,6 +139,7 @@ a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus
       <span>This dog needs help</span>
     </button>
     <p id="cta-cap" class="cap">Alerts this dog's feeders and a vet nearby.</p>
+    <a id="feed-link" class="feedlink hidden" href="/feed">Log a feed &#8250;</a>
   </div>
 </main>
 <section id="v-sos" class="view hidden" aria-label="SOS"></section>

@@ -83,6 +83,15 @@ export function renderProfile(p: DogProfile, stale: boolean): void {
   // A dog nobody feeds on Hetja has no feeders to alert; say only what happens.
   $("#cta-cap").textContent =
     p.feederCount === 0 ? "Alerts a vet nearby." : `Alerts ${possessive(p.name, p.sex)} feeders and a vet nearby.`;
+  // Feeders who scan with the phone camera land here, not in the app: give
+  // them a quiet way to log a feed. Signed-in only (same origin as the web
+  // app, so its session key is readable). The SOS stays the one loud action.
+  const feed = $<HTMLAnchorElement>("#feed-link");
+  if (hasFeederSession()) {
+    feed.href = `/feed?dog=${encodeURIComponent(p.slug)}`;
+    feed.textContent = `Feeding ${p.name}? Log a feed ›`;
+    feed.classList.remove("hidden");
+  }
   const copy = app.querySelector<HTMLButtonElement>("#copy");
   copy?.addEventListener("click", () => void copyCode(p.slug, copy));
   if (stale) {
@@ -198,6 +207,16 @@ async function copyCode(slug: string, btn: HTMLButtonElement): Promise<void> {
   } catch {
     // No clipboard (http, old WebView): show the code so it can be read out.
     toast(`Collar code ${text}`);
+  }
+}
+
+/** True when this browser holds a web-app feeder session (apps/web lib/api.ts
+ * ACCESS_TOKEN_KEY). Storage can throw (private mode, blocked site data). */
+export function hasFeederSession(): boolean {
+  try {
+    return !!localStorage.getItem("hetja.accessToken");
+  } catch {
+    return false;
   }
 }
 

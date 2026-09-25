@@ -10,7 +10,7 @@
  * pill carries an icon AND words; an unknown status is a neutral "unknown"
  * pill, never a blank.
  */
-import type { DogProfile } from "./api";
+import type { DogProfile, Health } from "./api";
 import {
   clock,
   collarGroups,
@@ -20,6 +20,7 @@ import {
   lastFedText,
   memorialLine,
   pronouns,
+  recordDate,
   sturdierLine,
   pastelIndex,
   PASTELS,
@@ -260,6 +261,7 @@ export function buildProfile(p: DogProfile, stale = false, now: number = Date.no
     }
     ${p.sturdierCollarSuggested ? `<p class="by">${escapeHtml(sturdierLine(p.name, pr))}</p>` : ""}
     ${p.microStory ? `<p class="story">${escapeHtml(p.microStory)}</p>` : ""}
+    <div id="health"></div>
     ${
       // The big code card stays for feeders; a stranger rarely needs it (V15).
       hasFeederSession()
@@ -272,6 +274,34 @@ export function buildProfile(p: DogProfile, stale = false, now: number = Date.no
     }
     <button type="button" id="tag-open" class="feedlink">Report a tag problem</button>
   `;
+}
+
+/**
+ * V4 "Health": vet-signed rows (date, due again, vet name · council number ·
+ * batch) and feeder-noted rows, then the vaccination certificate link, and
+ * for a verified vet a quiet "Open vet view". Empty when there is nothing.
+ */
+export function healthMarkup(h: Health | undefined, slug: string, feeder = hasFeederSession()): string {
+  if (!h?.records.length) return "";
+  const rows = h.records.map((r) => {
+    const line = [
+      recordDate(r.date),
+      r.dueOn ? `due again ${recordDate(r.dueOn)}` : "",
+      r.note ?? "",
+      !r.signed && r.addedBy ? `added by ${r.addedBy}` : "",
+    ].filter(Boolean);
+    const by = [r.vet, r.batch].filter(Boolean).join(" · ");
+    return `<div class="hr${r.signed && !r.flagged ? "" : " fnote"}"><div class="hr-h"><span class="hr-t">${escapeHtml(r.title)}</span><span class="hb">${
+      r.flagged ? "Being re-checked" : r.signed ? "✓ Vet signed" : "Feeder noted"
+    }</span></div>${line.length ? `<p class="hr-1">${escapeHtml(line.join(" · "))}</p>` : ""}${
+      r.signed && by ? `<p class="hr-2">${escapeHtml(by)}</p>` : ""
+    }${!r.signed && !r.asked && feeder ? `<a class="hr-a" href="/me/dogs/${encodeURIComponent(slug)}">Ask a vet to sign</a>` : ""}</div>`;
+  });
+  const cert = h.records.some((r) => r.signed && !r.flagged)
+    ? `<a class="cert" href="${escapeHtml(h.certificateUrl ?? `/vet/${encodeURIComponent(slug)}/certificate`)}"><span>Vaccination certificate for rescues and adoptions</span><b>PDF</b></a>`
+    : "";
+  const vet = h.viewerIsVet ? `<a class="feedlink" href="/vet/dogs/${encodeURIComponent(slug)}">Open vet view</a>` : "";
+  return `<h2 class="h2">Health</h2>${rows.join("")}${cert}${vet}`;
 }
 
 /** Overlapping first-name initials (V15), at most three. */

@@ -240,6 +240,14 @@ function FlowInner(): React.JSX.Element {
 
   const ward = wards.find((w) => w.id === wardId) ?? null;
 
+  // v7 N5: "?drive=<id>" when registering from an NGO collar drive. Read after
+  // hydration (the server render has no query string); ids are opaque.
+  const [driveId, setDriveId] = useState<string | null>(null);
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("drive");
+    setDriveId(raw && /^[A-Za-z0-9_-]{1,64}$/.test(raw) ? raw : null);
+  }, []);
+
   const submit = async () => {
     setError(null);
     if (!wardId) {
@@ -262,6 +270,7 @@ function FlowInner(): React.JSX.Element {
       const ster = triToBool(sterilised);
       const input: CreateRegistrationInput = {
         wardId,
+        ...(driveId ? { driveId } : {}),
         ...(name.trim() ? { name: name.trim() } : {}),
         ...(sex ? { sex } : {}),
         ...(vacc !== undefined ? { vaccinatedReported: vacc } : {}),
@@ -283,7 +292,8 @@ function FlowInner(): React.JSX.Element {
         savePendingPhoto(res.slug, photo.base64);
       }
       rememberDogSex(res.slug, sex);
-      router.push(`/register/${res.slug}/ready`);
+      // From an NGO drive (N5), back to the drive's checklist.
+      router.push(driveId ? `/ngo/drives/${encodeURIComponent(driveId)}` : `/register/${res.slug}/ready`);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

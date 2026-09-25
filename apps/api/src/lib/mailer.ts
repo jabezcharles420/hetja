@@ -60,3 +60,24 @@ export async function sendOtpEmail(to: string, code: string, cfg: MailerConfig):
     text: `Your Hetja sign-in code is ${code}. It expires in 5 minutes.\n\nIf you did not request this, you can ignore this email.`,
   });
 }
+
+/**
+ * Design v7: an invitation to Hetja's vet, NGO or admin portal. The address
+ * is used for this one send and never stored (the invite holds its identity
+ * HMAC only, INVARIANT 3). Sent only in production with SMTP configured, and
+ * bounded by inviteMailGlobal (lib/rate-limit.ts) because it shares Brevo's
+ * daily quota with sign-in codes. The invite works without the email: it is
+ * claimed when that address signs in.
+ */
+export async function sendInviteEmail(to: string, what: string, cfg: MailerConfig): Promise<void> {
+  const transporter = getTransporter(cfg);
+  await transporter.sendMail({
+    from: cfg.from,
+    to,
+    subject: `You're invited to Hetja`,
+    text:
+      `You have been invited to Hetja ${what}.\n\n` +
+      `Sign in at https://hetja.in with this email address and the invitation is applied.\n\n` +
+      `If you did not expect this, you can ignore this email.`,
+  });
+}

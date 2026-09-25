@@ -10,6 +10,8 @@ import { api, ApiError, getAccessToken, type DogProfileV5, type DogWeek, type Fe
 import { pronouns, sexOf } from "@/lib/care-copy";
 import { dogName } from "@/lib/streak";
 import styles from "./week.module.css";
+// Design v7 (vet builder): the health list with "Ask a vet to sign" and "Note care".
+import FeederHealth from "@/components/vet/FeederHealth";
 
 /**
  * N15 "Your dog, this week" (design v6): the feeder's private view of a dog,
@@ -268,6 +270,9 @@ export default function DogWeekScreen({ slug }: { slug: string }): React.JSX.Ele
             <span className={styles.rowMeta}>{week.vetRecordCount} ›</span>
           </a>
         </div>
+
+        {/* Design v7 V4, the feeder's side of signing (components/vet/FeederHealth). */}
+        <FeederHealth slug={dog.slug} name={dog.name} wardId={dog.wardId || null} />
       </div>
       <StickyFooter background="mist" divider={false}>
         <Button href={`/feed?dog=${dog.slug}`} fullWidth>

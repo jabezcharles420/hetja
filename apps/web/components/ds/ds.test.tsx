@@ -201,6 +201,29 @@ describe("TabBar", () => {
   });
 });
 
+describe("TabBar by role (v7)", () => {
+  afterEach(() => localStorage.clear());
+
+  it.each([
+    ["vet", ["Home", "Map", "Vet", "Me"], "/vet"],
+    ["ngo", ["Home", "Map", "NGO", "Me"], "/ngo"],
+  ])("%s: Scan moves inside the role tab", async (role, labels, href) => {
+    localStorage.setItem("hetja:tab-role", role);
+    const { container } = render(createElement(TabBar, {}));
+    await act(async () => undefined);
+    const links = screen.getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual(labels);
+    expect(links[2]!.getAttribute("href")).toBe(href);
+    expect(container.querySelector(`svg[data-icon="${role}"]`)).not.toBeNull();
+  });
+
+  it("everyone else keeps Home, Map, Scan, Me", async () => {
+    render(createElement(TabBar, {}));
+    await act(async () => undefined);
+    expect(screen.getAllByRole("link").map((l) => l.textContent)).toEqual(["Home", "Map", "Scan", "Me"]);
+  });
+});
+
 describe("AppHeader", () => {
   it("renders the back link as '‹ Me' pointing home", () => {
     render(<AppHeader back={{ href: "/me", label: "Me" }} />);

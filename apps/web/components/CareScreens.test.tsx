@@ -59,7 +59,6 @@ vi.mock("@/lib/care-cache", async () => {
 import MyDogsScreen, { confirmable, sortMyDogs } from "@/app/me/dogs/MyDogsScreen";
 import StatusScreen, { lastLoggedLine, PASSED_FOOTNOTE, statusButtonLabel } from "@/app/me/dogs/[slug]/status/StatusScreen";
 import TagScreen, { reportSub } from "@/app/me/dogs/[slug]/tag/TagScreen";
-import VetCheckupScreen, { aYearFrom, isVet } from "@/app/vet/[slug]/VetCheckupScreen";
 import { api, ApiError, setAccessToken, type DogProfile, type DogProfileV5, type DogTags, type MyDogV5 } from "@/lib/api";
 import { refreshCareNumbers } from "@/lib/care-cache";
 
@@ -419,65 +418,5 @@ describe("F6 tag alert and history", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("N3 vet checkup", () => {
-  const rani = profile({ slug: "rni482pq7", name: "Rani" });
+// N3 vet checkup moved to design v7 V3 (components/vet/vet.test.tsx).
 
-  it("a vet fills the record; the button waits for every answer and the checkbox", async () => {
-    m.getFeederMe!.mockResolvedValue({ role: "vet", capabilities: ["feed", "register"] });
-    m.getDog!.mockResolvedValue(rani);
-    m.createCheckup!.mockResolvedValue({ verified: true, via: "vet" });
-    render(<VetCheckupScreen slug="rni482pq7" />);
-    expect(await screen.findByRole("heading", { name: "Checkup record" })).not.toBeNull();
-    expect(screen.getByText("Vet account")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "‹ Rani" }).getAttribute("href")).toBe("/d/rni482pq7");
-    const save = screen.getByRole("button", { name: "Save and verify Rani" }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
-
-    fireEvent.click(screen.getByRole("radio", { name: "Given today" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Yes, confirmed" }));
-    expect(save.disabled).toBe(true);
-    expect((screen.getByLabelText("Next vaccine due") as HTMLInputElement).value).toBe(aYearFrom());
-    fireEvent.change(screen.getByLabelText("Note for feeders"), {
-      target: { value: "Cut on front left paw, cleaned. Soft food for 3 days." },
-    });
-    fireEvent.click(screen.getByLabelText("I examined this dog and the photo matches."));
-    expect(save.disabled).toBe(false);
-    fireEvent.click(save);
-    expect(await screen.findByRole("heading", { name: "Rani is verified." })).not.toBeNull();
-    expect(m.createCheckup).toHaveBeenCalledWith("rni482pq7", {
-      rabies: "given_today",
-      sterilised: true,
-      examined: true,
-      nextVaccineDue: aYearFrom(),
-      noteForFeeders: "Cut on front left paw, cleaned. Soft food for 3 days.",
-    });
-  });
-
-  it("a feeder who is not a vet gets a clear explanation, and no form", async () => {
-    m.getFeederMe!.mockResolvedValue({ role: "feeder", capabilities: ["feed"] });
-    render(<VetCheckupScreen slug="rni482pq7" />);
-    expect(await screen.findByText(/Checkups are recorded by vet accounts/)).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Contact Hetja" }).getAttribute("href")).toBe("/contact");
-    expect(screen.queryByRole("button", { name: /Save and verify/ })).toBeNull();
-    expect(m.getDog).not.toHaveBeenCalled();
-  });
-
-  it("a 403 on save says only vets can add one", async () => {
-    m.getFeederMe!.mockResolvedValue({ role: "vet", capabilities: [] });
-    m.getDog!.mockResolvedValue(rani);
-    m.createCheckup!.mockRejectedValue(new ApiError("no", { status: 403 }));
-    render(<VetCheckupScreen slug="rni482pq7" />);
-    fireEvent.click(await screen.findByRole("radio", { name: "Up to date" }));
-    fireEvent.click(screen.getByRole("radio", { name: "No" }));
-    fireEvent.click(screen.getByLabelText("I examined this dog and the photo matches."));
-    fireEvent.click(screen.getByRole("button", { name: "Save and verify Rani" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("Only vet accounts can add a checkup.");
-  });
-
-  it("isVet", () => {
-    expect(isVet({ role: "vet", capabilities: [] })).toBe(true);
-    expect(isVet({ role: "feeder", capabilities: ["vet"] })).toBe(true);
-    expect(isVet({ role: "registrator", capabilities: ["feed", "register"] })).toBe(false);
-    expect(aYearFrom(new Date(2026, 8, 25))).toBe("2027-09");
-  });
-});

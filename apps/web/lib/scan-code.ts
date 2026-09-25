@@ -182,14 +182,16 @@ export interface ScannedCollar {
  */
 export function destinationFor(collar: ScannedCollar, intent: string | null): string {
   if (intent === "feed") return `/feed?dog=${encodeURIComponent(collar.slug)}`;
+  // Design v7: "Scan a collar" in the Vet tab opens the vet's view of the dog (V2b).
+  if (intent === "vet") return `/vet/dogs/${encodeURIComponent(collar.slug)}`;
   const qs = collar.sig ? `?s=${encodeURIComponent(collar.sig)}` : "";
   return `/d/${collar.slug}${qs}`;
 }
 
 /** A scan-fallback route that keeps `?intent=feed` when there is one. */
 export function withIntent(path: string, intent: string | null): string {
-  if (intent !== "feed") return path;
-  return `${path}${path.includes("?") ? "&" : "?"}intent=feed`;
+  if (intent !== "feed" && intent !== "vet") return path;
+  return `${path}${path.includes("?") ? "&" : "?"}intent=${intent}`;
 }
 
 /** `?intent=` of the current page, read at call time (no Suspense needed). */

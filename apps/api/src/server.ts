@@ -37,6 +37,11 @@ import mapRoutes from "./routes/map.js";
 import findingRoutes from "./routes/finding.js";
 import tagRoutes from "./routes/tags.js";
 import dogStatusRoutes from "./routes/dog-status.js";
+import v7PublicRoutes from "./routes/v7-public.js";
+import vetRoutes from "./routes/vet.js";
+import ngoRoutes from "./routes/ngo.js";
+import adminRoutes from "./routes/admin.js";
+import adminContentRoutes from "./routes/admin-content.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -225,6 +230,12 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(findingRoutes);
   void app.register(tagRoutes);
   void app.register(dogStatusRoutes);
+  // Design v7 (docs/design/v7-portals/CONTRACT.md): Admin, Vet and NGO portals.
+  void app.register(v7PublicRoutes);
+  void app.register(vetRoutes);
+  void app.register(ngoRoutes);
+  void app.register(adminRoutes);
+  void app.register(adminContentRoutes);
 
   return app;
 }

@@ -19,6 +19,7 @@ import {
   unreadCount,
 } from "@/lib/me-hub";
 import { isPaused, resumeLabel } from "@/lib/sos-pause";
+import { portalStatus, rememberTabRole } from "@/lib/tab-role";
 import {
   badgeSlots,
   dogName,
@@ -154,6 +155,7 @@ export default function MePage(): React.JSX.Element {
       ]);
       const list = Array.isArray(dogs?.dogs) ? dogs.dogs : [];
       saveMeSnapshot({ streak, me, dogs: list });
+      rememberTabRole(me);
       setState({ kind: "ready", streak: safeStreak(streak), me, dogs: list, staleSince: null });
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.code === "UNAUTHENTICATED")) {
@@ -222,6 +224,8 @@ export default function MePage(): React.JSX.Element {
   const sosOn = me.sosOptIn && !paused;
   const unread = alerts ? unreadCount(alerts, seenAt) : 0;
   const first = firstName(me.displayName);
+  const vetStatus = portalStatus(me, "vet");
+  const ngoStatus = portalStatus(me, "ngo");
   const dogNames = sorted.map((d) => dogName(d.name)).filter((n) => n !== "This dog");
 
   const resume = async () => {
@@ -290,6 +294,12 @@ export default function MePage(): React.JSX.Element {
         }
       />
       <SettingsRow label="Register a dog" href="/register" />
+      {vetStatus !== "done" && (
+        <SettingsRow label="Sign records as a vet" value={vetStatus ?? undefined} href="/vet/apply" />
+      )}
+      {ngoStatus !== "done" && (
+        <SettingsRow label="Bring your NGO to Hetja" value={ngoStatus ?? undefined} href="/ngo/register" />
+      )}
       <SettingsRow label="Settings" href="/settings" />
     </SettingsGroup>
   );

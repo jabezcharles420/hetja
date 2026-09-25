@@ -31,7 +31,7 @@ export { Logo, LogoMark } from "./Logo";
 export type { LogoProps } from "./Logo";
 export { TopNav, DEFAULT_NAV_LINKS } from "./TopNav";
 export type { TopNavProps, NavLink } from "./TopNav";
-export { TabBar, DEFAULT_TABS } from "./TabBar";
+export { TabBar, DEFAULT_TABS, VET_TABS, NGO_TABS, tabsForRole } from "./TabBar";
 export type { TabBarProps, TabKey, TabItem } from "./TabBar";
 export { PrivacyBand } from "./PrivacyBand";
 export type { PrivacyBandProps } from "./PrivacyBand";

@@ -1,0 +1,1517 @@
+/* The vet portal (design v7 V1 to V5, V2b and the designed screens).
+ * Values are the board's (Hetja Admin Vet NGO Portals.html), measured in
+ * Edge at 390 x 844. Plain, no motion. The board draws the main button in
+ * ink, not blue: the portals' one loud action. */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-white);
+  color: var(--h-ink);
+}
+
+.mist {
+  background: var(--h-mist);
+}
+
+/* 52px header with the back link ("‹ Profile", "‹ Vet"). */
+.top {
+  flex: none;
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) 22px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.back {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 15px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.lead {
+  margin: 17px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.alert {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-danger);
+}
+
+.status {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+/* ---- V1 form ------------------------------------------------------------ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-secondary);
+}
+
+.input {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--h-neutral-bg);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 17px;
+  color: var(--h-ink);
+}
+
+.input::placeholder {
+  color: var(--h-tertiary);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--h-ring-focus);
+}
+
+/* A picker drawn like the board ("Maharashtra (MSVC) ▾"): the words, with a
+ * transparent native select (or a button that opens a sheet) on top. */
+.selectBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selectBox:focus-within {
+  box-shadow: var(--h-ring-focus);
+}
+
+.textarea {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--h-neutral-bg);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--h-ink);
+  resize: vertical;
+}
+
+.uploads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.upload {
+  position: relative;
+  box-sizing: border-box;
+  height: 98px;
+  border-radius: 14px;
+  border: 1px dashed var(--h-control-off);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--h-text-mid);
+  cursor: pointer;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.uploadDone {
+  border: 0;
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  font-weight: 600;
+}
+
+.uploadMark {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.uploadName {
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.upload:focus-within {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.check {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  min-height: var(--h-target);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
+  cursor: pointer;
+}
+
+.checkInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.checkBox {
+  flex: none;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--h-control-off);
+  color: var(--h-white);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkInput:checked + .checkBox {
+  background: var(--h-blue);
+  border-color: var(--h-blue);
+}
+
+.checkInput:focus-visible + .checkBox {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 12px 22px calc(28px + env(safe-area-inset-bottom, 0px));
+  background: var(--h-white);
+}
+
+.footerMist {
+  background: var(--h-mist);
+}
+
+.footerTab {
+  padding-bottom: calc(16px + var(--tab-clear, 0px));
+}
+
+.dark {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: 52px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-ink);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 80ms ease-out;
+}
+
+.dark:active {
+  transform: scale(0.98);
+}
+
+.dark:disabled,
+.dark[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dark:focus-visible,
+.quiet:focus-visible,
+.redLink:focus-visible,
+.textLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.quiet {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--h-neutral-bg);
+  color: var(--h-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* "I didn't give this": 14px red text, 16px under the button. */
+.redLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  align-self: center;
+  margin-top: 4px;
+  min-height: var(--h-target);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--h-danger);
+  cursor: pointer;
+}
+
+.textLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-link);
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+}
+
+.center {
+  align-self: center;
+}
+
+/* ---- V2 Vet home -------------------------------------------------------- */
+
+.homeBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 18px calc(24px + var(--tab-clear, 0px));
+}
+
+.homeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 37px;
+  padding: 0 4px;
+}
+
+.homeTitle {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* 44px target around a 28px pill. */
+.verified::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
+}
+
+.paused {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+}
+
+.card {
+  background: var(--h-white);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.sosCard {
+  box-shadow: inset 0 0 0 1.5px var(--h-sos);
+}
+
+.sosLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--h-sos);
+}
+
+.sosTitle {
+  margin: 10px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sosSub {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.sosActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.take {
+  appearance: none;
+  border: 0;
+  flex: 1;
+  height: var(--h-target);
+  border-radius: var(--h-r-pill);
+  background: var(--h-sos);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.take:active {
+  background: var(--h-sos-press);
+}
+
+.cant {
+  appearance: none;
+  border: 0;
+  flex: none;
+  height: var(--h-target);
+  padding: 0 16px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-neutral-bg);
+  color: var(--h-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.take:disabled,
+.cant:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.take:focus-visible,
+.cant:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.scanCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--h-white);
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+
+.scanIcon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--h-ink);
+  color: var(--h-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The whole card opens the scanner; the sub-line is its own link on top. */
+.scanLink {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.scanLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+}
+
+.scanLink:focus-visible {
+  outline: none;
+}
+
+.scanLink:focus-visible::after {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.searchLink {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: var(--h-secondary);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.searchLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sectionLabel {
+  margin: 0;
+  padding: 6px 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--h-white);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.list > li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.row:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: -3px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rowSub {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.chev {
+  flex: none;
+  font-size: 16px;
+  color: var(--h-control-off);
+}
+
+.rowMeta {
+  flex: none;
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.dueCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--h-white);
+  border-radius: 18px;
+  padding: 0 16px;
+  min-height: 45px;
+  font-size: 15px;
+}
+
+.dueLink {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.empty {
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 18px;
+  padding: 14px 16px;
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.more {
+  margin-top: 6px;
+}
+
+/* ---- V2b dog page ------------------------------------------------------- */
+
+.hero {
+  position: relative;
+  height: 250px;
+  flex: none;
+  overflow: hidden;
+}
+
+.heroImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.heroInitial {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 88px;
+  font-weight: 700;
+}
+
+.dogBody {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px calc(24px + var(--tab-clear, 0px));
+}
+
+.dogName {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.dogSub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fedBtn {
+  appearance: none;
+  border: 0;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--h-ink);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fedBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.vetBox {
+  margin-top: 14px;
+  background: var(--h-blue-tint);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.vetLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--h-blue-tint-ink);
+}
+
+.vetGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.vetBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--h-white);
+  color: var(--h-ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  padding: 0 6px;
+}
+
+.vetBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.vetBtnOff {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.vetNote {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--h-blue-tint-ink);
+  text-decoration: none;
+}
+
+.vetNote:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.helpBtn {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  box-sizing: border-box;
+  border-radius: var(--h-r-pill);
+  border: 1px solid var(--h-sos);
+  color: var(--h-sos);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.helpBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* ---- V3 sign ------------------------------------------------------------ */
+
+.dogHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dogHeadName {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.dogHeadSub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  position: relative;
+  appearance: none;
+  border: 0;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-neutral-bg);
+  color: var(--h-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* A 44px target around the 34px pill. */
+.tab::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--h-ink);
+  color: var(--h-white);
+}
+
+.tab:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.rows {
+  margin-top: 16px;
+  background: var(--h-neutral-bg);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.kv {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 45px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  font-size: 16px;
+}
+
+.kv + .kv {
+  border-top: 1px solid var(--h-tab-line);
+}
+
+.kvLabel {
+  flex: none;
+  color: var(--h-secondary);
+}
+
+.kvValue {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  color: var(--h-ink);
+  text-align: right;
+}
+
+.kvInput {
+  appearance: none;
+  border: 0;
+  background: none;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  font: inherit;
+  font-size: 16px;
+  color: var(--h-ink);
+  text-align: right;
+}
+
+.kvInput::placeholder {
+  color: var(--h-tertiary);
+}
+
+.kvInput:focus-visible,
+.kvSelect:focus-visible {
+  outline: none;
+}
+
+.kv:focus-within {
+  box-shadow: inset 0 0 0 2px var(--h-blue);
+}
+
+.kv:first-child:focus-within {
+  border-radius: 14px 14px 0 0;
+}
+
+/* An input that sizes to its text (the hidden copy in ::after sets the width),
+ * so "Raksharab · RB2409" reads as one value, as on the board. */
+.autosize {
+  display: inline-grid;
+  flex: none;
+  max-width: 62%;
+  min-width: 0;
+}
+
+.autosize::after {
+  content: attr(data-value);
+  visibility: hidden;
+  white-space: pre;
+  grid-area: 1 / 1;
+  font-size: 16px;
+  padding-right: 1px;
+  overflow: hidden;
+}
+
+.autosize > .kvInput {
+  grid-area: 1 / 1;
+  width: 100%;
+}
+
+.kvSep {
+  flex: none;
+  color: var(--h-ink);
+}
+
+.kvSelect {
+  appearance: none;
+  border: 0;
+  background: none;
+  height: 44px;
+  padding: 0;
+  font: inherit;
+  font-size: 16px;
+  color: var(--h-ink);
+  text-align: right;
+  text-align-last: right;
+  direction: rtl;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.kvSelect option {
+  direction: ltr;
+}
+
+/* Date rows: the formatted date, with the native picker laid over it. */
+.dateValue {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+}
+
+.dateInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.datePlaceholder {
+  color: var(--h-tertiary);
+}
+
+.photoSlot {
+  position: relative;
+  margin-top: 16px;
+  box-sizing: border-box;
+  height: 90px;
+  border-radius: 14px;
+  border: 1px dashed var(--h-control-off);
+  background: var(--h-neutral-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-text-mid);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.photoSlot:focus-within {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.photoThumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoDone {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--h-r-pill);
+  padding: 4px 10px;
+}
+
+.note {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.setup {
+  margin-bottom: 12px;
+  background: var(--h-blue-tint);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.setupTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.setupText {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
+}
+
+.footAlert {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-danger);
+  text-align: center;
+}
+
+.done {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- V4 health ---------------------------------------------------------- */
+
+.health {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hcard {
+  background: var(--h-mist);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.hcardNoted {
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+}
+
+.hhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.htitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-ink);
+  color: var(--h-white);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeNoted {
+  background: var(--h-neutral-bg);
+  color: var(--h-text-mid);
+}
+
+.hline {
+  margin: 9px 0 0;
+  font-size: 14px;
+  color: var(--h-text-mid);
+}
+
+.hsigner {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--h-secondary);
+}
+
+.ask {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-top: 0;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ask:disabled {
+  color: var(--h-secondary);
+  cursor: default;
+}
+
+.ask:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.asked {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.cert {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 67px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--h-mist);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.cert:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.certText {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
+}
+
+.certPdf {
+  flex: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-link);
+}
+
+.healthEmpty {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+/* The feeder's section on /me/dogs/<slug> (N15): a white card on mist. */
+.feederHealth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feederHealth .hcard {
+  background: var(--h-white);
+}
+
+.feederHealthHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px 0;
+}
+
+.feederHealthTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-secondary);
+}
+
+.noteBtn {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: var(--h-target);
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-link);
+  cursor: pointer;
+}
+
+.noteBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* ---- V5 correct --------------------------------------------------------- */
+
+.struck {
+  text-decoration: line-through;
+  color: var(--h-secondary);
+}
+
+.kvChanged {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex: none;
+}
+
+.withdraw {
+  appearance: none;
+  width: 100%;
+  margin-top: 16px;
+  text-align: left;
+  background: var(--h-white);
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+  border-radius: 14px;
+  padding: 14px 15px;
+  font: inherit;
+  color: var(--h-ink);
+  cursor: pointer;
+}
+
+.withdraw:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.withdrawTitle {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.withdrawText {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.sheetText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+/* ---- Designed screens --------------------------------------------------- */
+
+.summary {
+  margin-top: 18px;
+  background: var(--h-neutral-bg);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.reason {
+  margin: 18px 0 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--h-warn-bg);
+  color: var(--h-ink);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.reasonFrom {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--h-warn);
+  margin-bottom: 4px;
+}
+
+.steps {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.stepDot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepDotNow {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+}
+
+.stepDotTodo {
+  background: var(--h-neutral-bg);
+  color: var(--h-text-mid);
+}
+
+.profileHead {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profileName {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.profileMeta {
+  margin: 0;
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.gov {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.groupGap {
+  margin-top: 16px;
+}
+
+.searchRow {
+  margin-top: 16px;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.hours {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hoursTo {
+  flex: none;
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.healthWrap {
+  margin-top: 16px;
+}
+
+.pdfPage {
+  margin-top: 18px;
+}
+
+.listBody {
+  gap: 14px;
+}
+
+.leadTight {
+  margin-top: 0;
+}
+
+.pillStart {
+  align-self: flex-start;
+}
+
+.inputWhite {
+  background: var(--h-white);
+}

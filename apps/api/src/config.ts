@@ -109,6 +109,33 @@ const EnvSchema = z.object({
   // that (a personal Gmail address, for instance) gets silently dropped by
   // receiving providers rather than bouncing.
   MAIL_FROM: z.string().default("no-reply@hetja.in"),
+  // Design v7: the first Owner of the admin portal. Comma-separated email
+  // addresses, optional. At boot each is turned into its identity HMAC with
+  // HETJA_HMAC_PEPPER (lib/admin.ts) and the addresses themselves are
+  // dropped: they are never logged, stored or returned (INVARIANT 3). An
+  // account whose identity_hmac matches holds the Owner role. Set through the
+  // GitHub secret of the same name; nothing is committed.
+  HETJA_OWNER_EMAILS: z.string().default(""),
+  // Design v7: AES-256-GCM key for vet and NGO registration documents
+  // (lib/documents.ts), base64 of exactly 32 bytes (`openssl rand -base64 32`).
+  // Required only when a document is uploaded or read: without it those
+  // routes answer 503 DOCUMENTS_UNAVAILABLE and everything else runs. Losing
+  // it makes stored documents unreadable, which costs a re-upload, nothing
+  // more: they are deleted 30 days after a decision anyway.
+  HETJA_DOCS_KEY: z.string().default(""),
+  // Private directory for the encrypted documents. NEVER the photos
+  // directory: Caddy serves that one publicly. Production:
+  // /srv/hetja/shared/documents (written by the deploy workflow).
+  DOCS_LOCAL_DIR: z.string().default("data/documents"),
+  // WebAuthn (vet passkeys, V3). The relying party id is the registrable
+  // domain the passkey is bound to; the origins are the exact pages allowed
+  // to use it. Dev overrides: WEBAUTHN_RP_ID=localhost and
+  // WEBAUTHN_ORIGINS=http://localhost:3000.
+  WEBAUTHN_RP_ID: z.string().default("hetja.in"),
+  WEBAUTHN_ORIGINS: z.string().default("https://hetja.in,https://www.hetja.in,https://admin.hetja.in"),
+  // The web app's public origin, for links the API hands out (the V4
+  // vaccination certificate page). Dev: http://localhost:3000.
+  PUBLIC_WEB_ORIGIN: z.string().default("https://hetja.in"),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
@@ -165,6 +192,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         "start because every photo would be silently discarded after a " +
         "successful response. Set STORAGE_BACKEND=local with STORAGE_LOCAL_DIR, " +
         "or implement the S3 backend (lib/storage.ts) and remove this guard.",
+    );
+  }
+
+  // A HETJA_DOCS_KEY that is set must be usable: a malformed key would
+  // otherwise surface only at the first upload, as a 500.
+  if (parsed.HETJA_DOCS_KEY !== "" && Buffer.from(parsed.HETJA_DOCS_KEY, "base64").length !== 32) {
+    throw new Error(
+      "HETJA_DOCS_KEY must be base64 of exactly 32 bytes (openssl rand -base64 32). Refusing to start " +
+        "rather than fail the first document upload.",
     );
   }
 

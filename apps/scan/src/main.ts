@@ -1,6 +1,6 @@
 import { parseSlug, isValidSlug, rawCode } from "./slug";
-import { fetchDogProfile, NotFoundError, type DogProfile } from "./api";
-import { deskMarkup, isDesk, renderProfile, renderError, renderUnknown, setNote, clearNote } from "./ui";
+import { fetchDogProfile, fetchHealth, NotFoundError, type DogProfile } from "./api";
+import { deskMarkup, healthMarkup, isDesk, renderProfile, renderError, renderUnknown, setNote, clearNote } from "./ui";
 import { flushTagQueue, openTagSheet, wireTag } from "./tag";
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
@@ -27,6 +27,7 @@ async function view(): Promise<void> {
     document.querySelector("#tag-open")?.addEventListener("click", () => openTagSheet(profile, () => void view()));
     desk(profile);
     resume(profile);
+    void health(profile);
   } catch (err) {
     if (err instanceof NotFoundError) return unknown(SLUG);
     renderError("Can't reach Hetja right now. If you're offline, medical status shown may be outdated.");
@@ -34,6 +35,23 @@ async function view(): Promise<void> {
     resume();
   } finally {
     viewInFlight = false;
+  }
+}
+
+/** V4: the health list fills in after the profile; it never delays the page. */
+async function health(p: DogProfile): Promise<void> {
+  if (p.status === "deceased") return;
+  let token: string | undefined;
+  try {
+    token = localStorage.getItem("hetja.accessToken") ?? undefined;
+  } catch {
+    /* storage blocked: no session */
+  }
+  const html = healthMarkup(await fetchHealth(p.slug, token), p.slug, !!token);
+  const el = document.querySelector("#health");
+  if (el && html) {
+    el.innerHTML = html;
+    el.classList.add("health");
   }
 }
 

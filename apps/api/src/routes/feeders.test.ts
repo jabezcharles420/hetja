@@ -96,6 +96,8 @@ describe("GET /api/v1/feeders/me/dogs", () => {
       myLastFedAt: "2026-09-12T06:00:00.000Z",
       // Design v5 fields.
       photoUrl: null,
+      // Design v7: the published avatar (none here).
+      avatarUrl: null,
       status: "active",
       sex: null,
       verified: false,

@@ -93,6 +93,10 @@ interface CareProviderRow {
   lat: string;
   lng: string;
   distance_m: string;
+  is_government: boolean;
+  is_person: boolean;
+  reg_no: string | null;
+  wards: string[] | null;
 }
 
 export interface NearbyCareProvider {
@@ -115,6 +119,14 @@ export interface NearbyCareProvider {
   // for a "locality" row means "unmeasured", not "zero" or "unknown but
   // close". Never render it as a number. Use `locality` instead.
   distanceM: number | null;
+  // Design v7. A government vet or hospital is always free and labelled so
+  // ("Government vet · free"); `isPerson` marks a vet listed as a person.
+  // `publicPhone` is phoneE164 under the name the v7 copy uses.
+  isGovernment: boolean;
+  isPerson: boolean;
+  regNo: string | null;
+  publicPhone: string | null;
+  wards: string[];
 }
 
 function geoWkt(lat: number, lng: number): string {
@@ -183,6 +195,7 @@ SELECT
   phone_e164, alt_phone_e164, has_ambulance, is_24x7, hours_note,
   handles_wildlife, phone_verified_at,
   geo_precision::text AS geo_precision, locality,
+  (is_government OR kind = 'govt') AS is_government, is_person, reg_no, wards,
   -- SECURITY-GATE: public-coordinates -- these are veterinary clinics and NGO
   -- offices, i.e. published business addresses, not dog or feeder locations.
   -- INVARIANT 2 coarsens the location of a *subject* of the register; a clinic
@@ -230,7 +243,8 @@ export async function getNearbyCare(
     id: row.id,
     name: row.name,
     kind: row.kind,
-    costTier: row.cost_tier,
+    // The label rule: government care is free, whatever the row says.
+    costTier: row.is_government ? "free" : row.cost_tier,
     phoneE164: dialable(row.phone_e164),
     altPhoneE164: dialable(row.alt_phone_e164),
     hasAmbulance: row.has_ambulance,
@@ -244,6 +258,11 @@ export async function getNearbyCare(
     lng: Number(row.lng),
     distanceM:
       row.geo_precision === "exact" ? Math.round(Number(row.distance_m) / 100) * 100 : null,
+    isGovernment: row.is_government === true,
+    isPerson: row.is_person === true,
+    regNo: row.reg_no ?? null,
+    publicPhone: dialable(row.phone_e164),
+    wards: row.wards ?? [],
   }));
 }
 

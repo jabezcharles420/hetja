@@ -5,6 +5,7 @@
  * can be used (tests pass identity names).
  */
 
+import { careLabel } from "@/lib/care-label";
 import type { DogSex, MapCitySosV6, MapCitySummaryV6 } from "@/lib/api";
 
 export type Severity = "minor" | "serious" | "critical";
@@ -31,6 +32,12 @@ export interface MapPlace {
   name: string;
   kind: "vet" | "ngo";
   careKind?: string;
+  /** "free" | "subsidised" | "paid" (the nearby list carries it; pins may not). */
+  costTier?: string | null;
+  /** v7: a government provider ("Government vet · free"). */
+  isGovernment?: boolean | null;
+  /** v7: a government vet listed as a person rather than a hospital. */
+  isPerson?: boolean | null;
   wardId: string | null;
   locality: string | null;
   lat: number;
@@ -202,6 +209,11 @@ export function kindWord(k: "vet" | "ngo"): string {
   return k === "vet" ? "Vet" : "NGO";
 }
 
+/** A place's kind as every list says it (lib/care-label): "Government hospital · free", "NGO · free", "Vet". */
+export function placeKindLabel(p: Pick<MapPlace, "kind" | "careKind" | "costTier" | "isGovernment" | "isPerson">): string {
+  return careLabel(p);
+}
+
 /** "K-West" -> "K/W", "A" -> "A" (the contracts' wardDisplay, repeated to keep this module dependency-free). */
 export function wardCode(id: string): string {
   const [letter, half] = id.split("-");
@@ -217,7 +229,7 @@ export function placeWhere(p: Pick<MapPlace, "wardId" | "locality">): string | n
 
 /** "Vet · K/W ward · Open till 9 pm" (the nearby row sub-line). */
 export function placeSub(p: MapPlace): string {
-  return [kindWord(p.kind), placeWhere(p), hoursPill(p).text].filter(Boolean).join(" · ");
+  return [placeKindLabel(p), placeWhere(p), hoursPill(p).text].filter(Boolean).join(" · ");
 }
 
 /**

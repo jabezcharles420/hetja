@@ -91,6 +91,14 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: false, desktop: "invite" });
   });
 
+  it.each([["/vet"], ["/ngo"]])("%s: a v7 role tab root with the tab bar", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "tab", tabBar: true, footer: false, desktop: "invite" });
+  });
+
+  it.each([["/vet/apply"], ["/vet/ab3de4fgh"], ["/ngo/register"], ["/ngo/team"]])("%s: focused", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "focused", tabBar: false });
+  });
+
   it("/alerts left the tab bar (v6): a focused screen reached from Me", () => {
     expect(chromeFor("/alerts")).toMatchObject({ kind: "focused", tabBar: false });
   });

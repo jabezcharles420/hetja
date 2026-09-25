@@ -1,3 +1,4 @@
-source_id,name,kind,cost_tier,address,locality,ward,lat,lng,phone,alt_phone,ambulance,is_24x7,hours,handles_wildlife,confirmed_on,notes
-clinic-0001,Example Pet Clinic,private_clinic,paid,"Shop 4, Example Road, Andheri West",Andheri,K/W,19.1365,72.8352,+91 22 0000 0001,,no,no,Open till 9 pm,no,2026-09-01,Replace this row. Confirmed by phone with the clinic.
-ngo-0001,Example Animal Rescue,ngo,free,"Example Lane, Andheri East",Andheri,K/E,,,+91 98200 00000,+91 22 0000 0002,yes,no,Ambulance on call,yes,2026-09-01,No coordinates: the address is geocoded or the locality is used.
+source_id,name,kind,cost_tier,address,locality,ward,lat,lng,phone,alt_phone,ambulance,is_24x7,hours,handles_wildlife,confirmed_on,notes,is_person,is_government,reg_no,wards
+clinic-0001,Example Pet Clinic,private_clinic,paid,"Shop 4, Example Road, Andheri West",Andheri,K/W,19.1365,72.8352,+91 22 0000 0001,,no,no,Open till 9 pm,no,2026-09-01,Replace this row. Confirmed by phone with the clinic.,no,no,,
+ngo-0001,Example Animal Rescue,ngo,free,"Example Lane, Andheri East",Andheri,K/E,,,+91 98200 00000,+91 22 0000 0002,yes,no,Ambulance on call,yes,2026-09-01,No coordinates: the address is geocoded or the locality is used.,no,no,,
+govt-vet-0001,Dr. Example Government Vet,govt,free,"Veterinary Dispensary, Example Road, Andheri West",Andheri,K/W,,,+91 98200 00003,,no,no,Mon to Sat 9 am to 1 pm,no,2026-09-01,A government vet listed as a person: always free.,yes,yes,5190,K/W; K/E

@@ -10,6 +10,10 @@
  * backdated or clock-skewed phone cannot buy membership, and a feed a
  * moderator REJECTED (photo was not this dog) buys none either. An anonymised
  * account (feeders.deleted_at) is never a feeder of anything.
+ *
+ * Design v7 (A5 merge): the registrator of a dog MERGED INTO this one is a
+ * feeder of it too ("Imran becomes a feeder of Kalu"); the merged dog's feed
+ * scans were moved onto the kept dog, so its feeders already are.
  */
 import { query } from "@hetja/db";
 
@@ -74,6 +78,11 @@ export async function hasRecentFeed(feederId: string, dogId: string, client: TxC
 
 export async function isFeederOfDog(feederId: string, dog: Pick<DogRef, "id" | "registered_by">, client: TxClient = db): Promise<boolean> {
   if (dog.registered_by && dog.registered_by === feederId) return true;
+  const merged = await client.query<{ ok: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM dogs WHERE merged_into = $1 AND registered_by = $2) AS ok`,
+    [dog.id, feederId],
+  );
+  if (merged.rows[0]?.ok === true) return true;
   return hasRecentFeed(feederId, dog.id, client);
 }
 
@@ -83,7 +92,7 @@ export async function feederIdsOfDog(dogId: string, exclude: string | null, clie
     `SELECT f.id FROM feeders f
       WHERE f.deleted_at IS NULL
         AND ($2::uuid IS NULL OR f.id <> $2::uuid)
-        AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1)
+        AND (f.id IN (SELECT registered_by FROM dogs WHERE id = $1 OR merged_into = $1)
              OR EXISTS (SELECT 1 FROM scans s
                          WHERE s.dog_id = $1 AND s.feeder_id = f.id AND s.scan_type = 'feed'
                            AND s.review_status <> 'rejected'
@@ -95,7 +104,7 @@ export async function feederIdsOfDog(dogId: string, exclude: string | null, clie
 
 export interface FeederPush {
   /** Alert kind, for the log and the service worker's tag. */
-  kind: "tag" | "not_seen" | "status" | "unwell";
+  kind: "tag" | "not_seen" | "status" | "unwell" | "v7";
   title: string;
   body: string;
   /** Web route the notification opens. */

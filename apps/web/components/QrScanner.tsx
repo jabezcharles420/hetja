@@ -159,7 +159,7 @@ export default function QrScanner(): React.JSX.Element {
     // page needs no Suspense boundary and server-renders the whole screen.
     const now = intentNow();
     const dest = destinationFor(collar, now);
-    if (now === "feed") routerRef.current.push(dest);
+    if (now === "feed" || now === "vet") routerRef.current.push(dest);
     else window.location.assign(dest);
   }, []);
 

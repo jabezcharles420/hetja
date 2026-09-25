@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MUMBAI_BOUNDS as CONTRACT_BOUNDS } from "@hetja/contracts";
 import {
+  placeKindLabel,
   ALL_ON,
   MUMBAI_BOUNDS,
   mumbaiMinZoom,
@@ -363,5 +364,14 @@ describe("design v6 words", () => {
     expect(readWardsCache(broken)).toBeNull();
     expect(() => writeWardsCache(broken, [], null, null)).not.toThrow();
     expect(clockIST(Date.parse("2026-09-25T10:10:00Z"))).toBe("3:40 pm");
+  });
+});
+
+describe("placeKindLabel (v7 government care)", () => {
+  const base = { kind: "vet" as const, careKind: "private_clinic" };
+  it("says free where it is free", () => {
+    expect(placeKindLabel({ ...base, careKind: "govt" })).toBe("Government hospital · free");
+    expect(placeKindLabel({ kind: "ngo", careKind: "ngo", costTier: "free" })).toBe("NGO · free");
+    expect(placeKindLabel(base)).toBe("Vet");
   });
 });

@@ -27,7 +27,7 @@ import { BMC_WARD_CODES, isBmcWardCode, wardDisplay } from "@hetja/contracts";
 import { isValidSlug, query } from "@hetja/db";
 import { anonSubject } from "../lib/anon-subject.js";
 import { dogSex } from "../lib/dog-feeders.js";
-import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
+import { AVATAR_SQL, PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
 import {
   GLOBAL_SUBJECT,
   enforceLimits,
@@ -97,10 +97,12 @@ interface CardRow {
   markings: string[] | null;
   last_seen_at: Date | null;
   photo_key: string | null;
+  avatar_key: string | null;
   sex: string | null;
 }
 
-const CARD_COLUMNS = `d.slug, d.name, d.sex, d.ward_id, d.markings, d.last_seen_at, ${PORTRAIT_SQL} AS photo_key`;
+const CARD_COLUMNS = `d.slug, d.name, d.sex, d.ward_id, d.markings, d.last_seen_at, ${PORTRAIT_SQL} AS photo_key,
+  ${AVATAR_SQL} AS avatar_key`;
 const PUBLIC_STATUS = `d.status IN ('active', 'lost')`;
 
 function toCard(req: FastifyRequest, r: CardRow) {
@@ -111,6 +113,7 @@ function toCard(req: FastifyRequest, r: CardRow) {
     wardId: r.ward_id,
     wardCode: wardDisplay(r.ward_id).code,
     photoUrl: photoUrlFor(req, r.photo_key),
+    avatarUrl: photoUrlFor(req, r.avatar_key),
     markings: r.markings ?? [],
     lastSeenAt: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null,
   };

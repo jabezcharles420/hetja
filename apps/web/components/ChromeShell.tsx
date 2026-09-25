@@ -1,6 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { api, getAccessToken } from "@/lib/api";
+import { readTabRole, rememberTabRole, saveTabRole } from "@/lib/tab-role";
 import { Footer, TabBar, TopNav } from "@/components/ds";
 import { AppHeader } from "@/components/ds/AppHeader";
 import { useScrolled } from "@/components/ds/useScrolled";
@@ -12,8 +15,9 @@ import styles from "./ChromeShell.module.css";
  * Global chrome, per route. Decided here and nowhere else (design v5
  * CONTRACT.md, "Routes and who owns them", with the v6 owner decisions).
  *
- *   tab roots  /, /map, /scan, /me: the four-tab TabBar (Home, Map, Scan,
- *              Me). Home also has the 52px TopNav (logo + Sign in). /map
+ *   tab roots  /, /map, /scan, /me, and /vet, /ngo for vets and NGO members
+ *              (v7): the four-tab TabBar (Home, Map, Scan, Me, or Home, Map,
+ *              Vet / NGO, Me by role; ds TabBar picks the set). Home also has the 52px TopNav (logo + Sign in). /map
  *              draws the same TabBar itself, inside its sheet, so the shell
  *              draws nothing there.
  *   reading    /about, /how-it-works, /faq, /privacy, /contact: website
@@ -25,6 +29,7 @@ import styles from "./ChromeShell.module.css";
  *              /sos/**, /feed, /d/**, /dog/**, /design): no chrome at all.
  *              Each draws its own 52px header with a back or Cancel
  *              (components/ds AppHeader).
+ *   admin      /admin/** (design v7): no chrome, never the D1 invitation.
  *   anything else (404s): no chrome; the V1 not-found page draws its own way
  *              home.
  *
@@ -46,7 +51,7 @@ import styles from "./ChromeShell.module.css";
 
 export type NavTone = "light" | "dark" | "memorial";
 
-export type ChromeKind = "tab" | "reading" | "memorial" | "focused" | "fallback";
+export type ChromeKind = "tab" | "reading" | "memorial" | "focused" | "fallback" | "admin";
 
 export interface Chrome {
   kind: ChromeKind;
@@ -64,6 +69,9 @@ export interface Chrome {
 
 /** The four tab roots (v6 owner decision: Home, Map, Scan, Me). */
 export const TAB_ROOTS = ["/", "/map", "/scan", "/me"] as const;
+
+/** v7 role tab roots: the Vet and NGO tabs. Their sub-routes are focused. */
+export const ROLE_TAB_ROOTS = ["/vet", "/ngo"] as const;
 
 /** Website pages: the only routes that get the Footer. */
 export const READING_ROUTES = ["/about", "/how-it-works", "/faq", "/privacy", "/contact"] as const;
@@ -83,6 +91,7 @@ export const FOCUSED_ROUTES = [
   "/feed",
   "/register",
   "/vet",
+  "/ngo",
   "/sos",
   "/d",
   "/dog",
@@ -112,6 +121,13 @@ function isPrintRoute(path: string): boolean {
 export function chromeFor(pathname: string | null | undefined): Chrome {
   const path = (pathname ?? "/").replace(/\/+$/, "") || "/";
 
+  // Design v7: the admin portal (admin.hetja.in, also hetja.in/admin) is the
+  // one laptop surface. No TabBar, TopNav or footer, and no D1 invitation: it
+  // draws its own sidebar, and its own "Admin works on a laptop" page when
+  // the screen is narrow (app/admin/layout.tsx).
+  if (under(path, "/admin")) {
+    return { ...NONE, kind: "admin", desktop: "none" };
+  }
   if (path === "/") {
     return {
       kind: "tab",
@@ -143,7 +159,7 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
   if (under(path, "/map")) {
     return { ...NONE, kind: "tab" };
   }
-  if (path === "/scan" || path === "/me") {
+  if (path === "/scan" || path === "/me" || (ROLE_TAB_ROOTS as readonly string[]).includes(path)) {
     return { ...NONE, kind: "tab", tabBar: true };
   }
   if (under(path, "/design") || isPrintRoute(path)) {
@@ -159,7 +175,26 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
   return { ...NONE, kind: "fallback", desktop: "frame" };
 }
 
+let roleChecked = false;
+
+/**
+ * Keep the phone's tab role (lib/tab-role) in step with the account: read
+ * /feeders/me once per page load when signed in, forget it when signed out.
+ */
+function useRoleRefresh(): void {
+  useEffect(() => {
+    if (!getAccessToken()) {
+      if (readTabRole()) saveTabRole(null);
+      return;
+    }
+    if (roleChecked) return;
+    roleChecked = true;
+    api.getFeederMe().then(rememberTabRole, () => undefined);
+  }, []);
+}
+
 export function ChromeShell({ children }: { children: React.ReactNode }): React.JSX.Element {
+  useRoleRefresh();
   const chrome = chromeFor(usePathname());
   const scrolled = useScrolled();
   const navCls = [

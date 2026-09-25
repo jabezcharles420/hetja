@@ -424,7 +424,21 @@ export function dayWord(iso: string, now: number = Date.now()): string {
   const d = new Date(iso);
   const day = (x: Date): number => Math.floor((x.getTime() - x.getTimezoneOffset() * 60000) / 86400000);
   const diff = day(new Date(now)) - day(d);
-  return diff <= 0 ? "today" : diff === 1 ? "yesterday" : `${d.getDate()} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getMonth()]}`;
+  return diff <= 0 ? "today" : diff === 1 ? "yesterday" : `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+
+/**
+ * V4 dates as the mock writes them: "12 Sep 2026", or "Apr 2025" for a
+ * month-precision record ("2025-04"). Read as a calendar date, never shifted
+ * by the phone's time zone. "" for anything unparseable.
+ */
+export function recordDate(iso?: string): string {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso ?? "");
+  const mon = m ? MONTHS[Number(m[2]) - 1] : undefined;
+  if (!m || !mon) return "";
+  return m[3] ? `${Number(m[3])} ${mon} ${m[1]}` : `${mon} ${m[1]}`;
 }
 
 /**

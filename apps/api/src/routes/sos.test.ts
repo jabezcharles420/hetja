@@ -190,8 +190,9 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     // than implying responders were paged.
     expect(body.data.fanout).toBe("escalated");
 
+    // Design v7 also queues the vets' turn (sos_open_to_vets); this test is about escalation.
     const job = await query<{ kind: string; run_after: Date }>(
-      `SELECT kind, run_after FROM jobs WHERE payload->>'caseId' = $1`,
+      `SELECT kind, run_after FROM jobs WHERE payload->>'caseId' = $1 AND kind <> 'sos_open_to_vets'`,
       [body.data.caseId],
     );
     expect(job.rows[0].kind).toBe("escalate_sos");
@@ -518,8 +519,10 @@ describe("POST /api/v1/reports (anon-attested)", () => {
       [body.data.caseId],
     );
     // escalate_sos (every report) + send_sos_push (this fan-out had an
-    // eligible responder, so the worker has a Web Push to send -- plan §3.4).
-    expect(jobs.rows.map((j) => j.kind)).toEqual(["escalate_sos", "send_sos_push"]);
+    // eligible responder, so the worker has a Web Push to send -- plan §3.4)
+    // + sos_open_to_vets (design v7: every vet nearby after 15 minutes if
+    // nobody has taken it).
+    expect(jobs.rows.map((j) => j.kind)).toEqual(["escalate_sos", "send_sos_push", "sos_open_to_vets"]);
     // Responders WERE paged, so escalation keeps its normal 8-minute grace.
     const escalate = await query<{ run_after: Date }>(
       `SELECT run_after FROM jobs WHERE payload->>'caseId' = $1 AND kind = 'escalate_sos'`,

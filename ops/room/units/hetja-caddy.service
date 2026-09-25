@@ -24,7 +24,6 @@ PrivateDevices=true
 ReadWritePaths=/srv/hetja/shared
 Environment=XDG_DATA_HOME=/srv/hetja/shared/caddy XDG_CONFIG_HOME=/srv/hetja/shared/caddy
 ExecStart=/srv/hetja/bin/caddy run --config /srv/hetja/releases/current/Caddyfile --adapter caddyfile
-ExecReload=/srv/hetja/bin/caddy reload --config /srv/hetja/releases/current/Caddyfile --adapter caddyfile --force
 
 [Install]
 WantedBy=hetja.target

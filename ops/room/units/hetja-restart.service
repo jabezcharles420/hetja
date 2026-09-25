@@ -5,4 +5,6 @@ Description=Restart Hetja services for a new release
 Type=oneshot
 Slice=hetja.slice
 ExecStart=/usr/bin/systemctl restart hetja-api.service hetja-worker.service hetja-web.service hetja-scan.service
-ExecStart=/usr/bin/systemctl reload-or-restart hetja-caddy.service
+# Restart, not reload: the room Caddyfile sets `admin off`, so `caddy reload`
+# has no admin API to talk to and fails, leaving the old config live.
+ExecStart=/usr/bin/systemctl restart hetja-caddy.service

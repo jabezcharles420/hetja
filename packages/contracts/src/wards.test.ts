@@ -5,6 +5,7 @@ import {
   BMC_WARD_NAMES,
   MUMBAI_BOUNDS,
   isBmcWardCode,
+  isInMumbai,
   wardCentroid,
   wardDisplay,
   wardName,
@@ -119,5 +120,25 @@ describe("MUMBAI_BOUNDS", () => {
   it("is Mumbai and not the region: under 50 km tall and 30 km wide", () => {
     expect((MUMBAI_BOUNDS.north - MUMBAI_BOUNDS.south) * 111).toBeLessThan(50);
     expect((MUMBAI_BOUNDS.east - MUMBAI_BOUNDS.west) * 105).toBeLessThan(30);
+  });
+});
+
+describe("isInMumbai", () => {
+  it("accepts every ward centre and a real Mumbai point", () => {
+    for (const c of Object.values(BMC_WARD_CENTROIDS)) expect(isInMumbai(c.lat, c.lng)).toBe(true);
+    expect(isInMumbai(19.07, 72.87)).toBe(true);
+  });
+  it("rejects London, Pune, Thane's far side, the sea and swapped coordinates", () => {
+    expect(isInMumbai(51.5, -0.12)).toBe(false);
+    expect(isInMumbai(18.52, 73.86)).toBe(false);
+    expect(isInMumbai(19.2, 73.1)).toBe(false);
+    expect(isInMumbai(18.9, 72.5)).toBe(false);
+    expect(isInMumbai(72.87, 19.07)).toBe(false);
+  });
+  it("is inclusive on the edges and refuses non-finite input", () => {
+    expect(isInMumbai(MUMBAI_BOUNDS.south, MUMBAI_BOUNDS.west)).toBe(true);
+    expect(isInMumbai(MUMBAI_BOUNDS.north, MUMBAI_BOUNDS.east)).toBe(true);
+    expect(isInMumbai(Number.NaN, 72.87)).toBe(false);
+    expect(isInMumbai(19.07, Number.POSITIVE_INFINITY)).toBe(false);
   });
 });

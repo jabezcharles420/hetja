@@ -9,7 +9,7 @@
  * control. See `decodePhotoUpload` below and the header comment in
  * exif-strip.ts for the failure it closes.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, statfs, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -74,6 +74,55 @@ export function decodePhotoUpload(photoBase64: string): StrippedImage {
   return stripImageMetadata(Buffer.from(body, "base64"));
 }
 
+/**
+ * Thrown by storePhoto when the photo volume is nearly full. Callers treat it
+ * like any other failed background write (the scan stays, the photo does
+ * not), but it is its own class so the log says WHY.
+ */
+export class StorageFullError extends Error {
+  constructor(freeBytes: number) {
+    super(`photo storage has ${freeBytes} bytes free, under the ${MIN_FREE_BYTES}-byte floor`);
+    this.name = "StorageFullError";
+  }
+}
+
+/**
+ * Keep at least this much free on the photo volume (hardening batch 1, T6).
+ * The box is a shared LXC whose disk also holds the other tenant's state and
+ * Hetja's own logs; filling it to the last byte with photos would take down
+ * things that matter more than one more portrait. 1 GiB is ~500 photos at the
+ * 2 MiB ceiling of headroom for an operator to notice.
+ */
+export const MIN_FREE_BYTES = 1024 * 1024 * 1024;
+
+/** statfs is cached this long: one syscall a minute, not one per photo. */
+const FREE_SPACE_TTL_MS = 60_000;
+
+type FreeSpaceProbe = (dir: string) => Promise<number>;
+
+const defaultProbe: FreeSpaceProbe = async (dir) => {
+  const st = await statfs(dir);
+  return Number(st.bavail) * Number(st.bsize);
+};
+
+let probe: FreeSpaceProbe = defaultProbe;
+let freeCache: { dir: string; free: number; at: number } | null = null;
+
+/** Test seam: replace the free-space probe (null restores statfs) and drop the cache. */
+export function setFreeSpaceProbeForTests(next: FreeSpaceProbe | null): void {
+  probe = next ?? defaultProbe;
+  freeCache = null;
+}
+
+/** Throws StorageFullError when `dir`'s volume is under MIN_FREE_BYTES free. */
+export async function assertFreeSpace(dir: string, now: number = Date.now()): Promise<void> {
+  if (!freeCache || freeCache.dir !== dir || now - freeCache.at > FREE_SPACE_TTL_MS) {
+    await mkdir(dir, { recursive: true });
+    freeCache = { dir, free: await probe(dir), at: now };
+  }
+  if (freeCache.free < MIN_FREE_BYTES) throw new StorageFullError(freeCache.free);
+}
+
 async function storeLocal(bytes: Buffer, key: string, dir: string): Promise<void> {
   const filePath = join(dir, key);
   await mkdir(dirname(filePath), { recursive: true });
@@ -89,6 +138,7 @@ export async function storePhoto(image: StrippedImage, config: StorageConfig): P
   const key = newPhotoKey(image.ext);
   switch (config.STORAGE_BACKEND) {
     case "local":
+      await assertFreeSpace(config.STORAGE_LOCAL_DIR);
       await storeLocal(image.bytes, key, config.STORAGE_LOCAL_DIR);
       return key;
     case "s3":

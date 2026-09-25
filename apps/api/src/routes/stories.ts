@@ -14,9 +14,25 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { StoryInput } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { requireFeeder } from "../lib/require-role.js";
+import { logRateLimited, storyPerAccount } from "../lib/rate-limit.js";
 
 interface DogIdRow {
   id: string;
+}
+
+interface DogStatusRow {
+  id: string;
+  status: string;
+}
+
+/** Statuses dogs.ts hides from the public: a story on one would confirm it exists. */
+const HIDDEN_STATUSES = new Set(["pending_activation", "expired"]);
+
+class DogNotActiveError extends Error {
+  constructor(public readonly hidden: boolean) {
+    super("dog is not active");
+    this.name = "DogNotActiveError";
+  }
 }
 
 interface StoryRow {
@@ -51,6 +67,18 @@ export default async function storyRoutes(app: FastifyInstance): Promise<void> {
       const auth = await requireFeeder(req, reply);
       if (!auth) return reply;
 
+      // 5 stories a day per account (hardening batch 1, T3). Every story lands
+      // in the moderation queue, so an unbounded writer is a way to bury the
+      // queue a human has to read.
+      const budget = storyPerAccount.consume(`acct:${auth.feederId}`);
+      if (!budget.allowed) {
+        logRateLimited(req.log, "storyPerAccount", "account");
+        return reply
+          .status(429)
+          .header("retry-after", String(budget.retryAfterSec))
+          .send({ ok: false, error: { message: "story limit reached for today", code: "RATE_LIMITED" } });
+      }
+
       const parsed = StoryInput.safeParse(req.body);
       if (!parsed.success) {
         return reply
@@ -65,12 +93,20 @@ export default async function storyRoutes(app: FastifyInstance): Promise<void> {
       // Versioned write, concurrency-safe: the dog row lock serializes
       // count+1 per dog, and UNIQUE (dog_id, version) rejects any racing
       // duplicate at the DB level.
-      const story = await withTx(async (client) => {
-        const dogRes = await client.query<DogIdRow>(`SELECT id FROM dogs WHERE slug = $1 FOR UPDATE`, [
-          req.params.slug,
-        ]);
+      // Stories only on ACTIVE dogs (hardening batch 1, T3). A pending or
+      // expired registration answers the same 404 as an unknown slug, so the
+      // write path confirms no more than GET /dogs/:slug does; a lost,
+      // adopted, relocated or deceased dog is 409 DOG_NOT_ACTIVE.
+      let story;
+      try {
+        story = await withTx(async (client) => {
+        const dogRes = await client.query<DogStatusRow>(
+          `SELECT id, status::text AS status FROM dogs WHERE slug = $1 FOR UPDATE`,
+          [req.params.slug],
+        );
         const dog = dogRes.rows[0];
         if (!dog) return null;
+        if (dog.status !== "active") throw new DogNotActiveError(HIDDEN_STATUSES.has(dog.status));
 
         const versionRes = await client.query<{ next: number }>(
           `SELECT COALESCE(MAX(version), 0) + 1 AS next FROM dog_stories WHERE dog_id = $1`,
@@ -85,7 +121,19 @@ export default async function storyRoutes(app: FastifyInstance): Promise<void> {
           [dog.id, auth.feederId, paragraph, version],
         );
         return ins.rows[0];
-      });
+        });
+      } catch (err) {
+        if (!(err instanceof DogNotActiveError)) throw err;
+        if (err.hidden) {
+          return reply
+            .status(404)
+            .send({ ok: false, error: { message: "dog not found", code: "DOG_NOT_FOUND" } });
+        }
+        return reply.status(409).send({
+          ok: false,
+          error: { message: "stories can only be added to an active dog", code: "DOG_NOT_ACTIVE" },
+        });
+      }
 
       if (!story) {
         return reply

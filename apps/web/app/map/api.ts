@@ -9,7 +9,7 @@
  * queue in the root layout can refresh on page load too, so this page must
  * share lib/api's single-flight refresh instead of racing it with its own.
  */
-import { refreshSession } from "@/lib/api";
+import { parseRetryAfter, refreshSession } from "@/lib/api";
 import type { MapPlace, MapSos, MapWard, Severity } from "@/components/map/logic";
 
 export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
@@ -22,6 +22,8 @@ export class MapApiError extends Error {
     message: string,
     readonly status: number,
     readonly code?: string,
+    /** Seconds from `retry-after` (429 RATE_LIMITED on the ack), when sent. */
+    readonly retryAfterSec?: number,
   ) {
     super(message);
     this.name = "MapApiError";
@@ -68,7 +70,12 @@ async function call<T>(
     | null;
   if (!payload || payload.ok !== true) {
     const err = payload && payload.ok === false ? payload.error : null;
-    throw new MapApiError(err?.message ?? `HTTP ${res.status}`, res.status, err?.code);
+    throw new MapApiError(
+      err?.message ?? `HTTP ${res.status}`,
+      res.status,
+      err?.code,
+      parseRetryAfter(res.headers?.get?.("retry-after")),
+    );
   }
   return payload.data;
 }
@@ -95,11 +102,21 @@ export const mapApi = {
       `/map/places?bbox=${bbox}${kind ? `&kind=${kind}` : ""}`,
     ),
   me: () => call<Me>("/feeders/me", { auth: true }),
+  /**
+   * Take a case. The server decides: 403 SOS_ACK_FORBIDDEN, 409
+   * SOS_TOO_MANY_OPEN_ACKS / SOS_ALREADY_ACKED / SOS_CASE_CLOSED, 429
+   * RATE_LIMITED. Worded by lib/sos-ack.ts, the same as the case page.
+   */
   ack: (caseId: string) =>
     call<{ id: string; ackedAt: string }>(`/sos/cases/${encodeURIComponent(caseId)}/ack`, {
       method: "POST",
       auth: true,
     }),
+  /**
+   * "Get alerts for {code} ward": sets the home ward AND turns SOS paging on.
+   * Paging still follows where the feeder recently fed, not the home ward
+   * (audit B-03), which the button's caption says in so many words.
+   */
   alerts: (homeWard: string) =>
     call<{ homeWard: string; sosOptIn: boolean }>("/feeders/me", {
       method: "PATCH",

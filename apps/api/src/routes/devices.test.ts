@@ -30,7 +30,7 @@ import {
   solvePoW,
   verifyDeviceToken,
 } from "../lib/device.js";
-import { deviceTokenGlobal, GLOBAL_SUBJECT } from "../lib/rate-limit.js";
+import { deviceMintPerIp, deviceTokenGlobal, GLOBAL_SUBJECT, ipBucketKey } from "../lib/rate-limit.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -62,6 +62,7 @@ async function insertDog(): Promise<void> {
 }
 
 beforeEach(async () => {
+  deviceMintPerIp.reset();
   await insertDog();
 });
 
@@ -365,5 +366,73 @@ describe("device token canonical encoding (INVARIANT 6/7)", () => {
       // tests; leaving it drained would turn their happy paths into 429s.
       deviceTokenGlobal.reset();
     }
+  });
+});
+
+describe("per-IP device-token mint limiter (hardening batch 1, T14)", () => {
+  it("refuses an address over its budget with 429 DEVICE_TOKEN_RATE_LIMITED, without touching the global pool", async () => {
+    deviceTokenGlobal.reset();
+    const app = buildServer(config);
+    try {
+      const ip = "203.0.113.7";
+      for (let i = 0; i < 10; i++) expect(deviceMintPerIp.consume(ipBucketKey(ip)).allowed).toBe(true);
+
+      const { challenge } = await fetchChallenge(app);
+      const solution = await solvePoW(challenge);
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/devices/token",
+        remoteAddress: ip,
+        payload: { challenge, solution },
+      });
+      expect(res.statusCode).toBe(429);
+      expect(res.json().error.code).toBe("DEVICE_TOKEN_RATE_LIMITED");
+      expect(Number(res.headers["retry-after"])).toBeGreaterThan(0);
+
+      // The global bucket was not charged: all 20 of its burst are still there.
+      for (let i = 0; i < 20; i++) expect(deviceTokenGlobal.consume(GLOBAL_SUBJECT).allowed).toBe(true);
+      deviceTokenGlobal.reset();
+
+      // A different address mints normally.
+      const next = await fetchChallenge(app);
+      const ok = await app.inject({
+        method: "POST",
+        url: "/api/v1/devices/token",
+        remoteAddress: "198.51.100.9",
+        payload: { challenge: next.challenge, solution: await solvePoW(next.challenge) },
+      });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json().data.deviceToken).toBeTruthy();
+    } finally {
+      deviceTokenGlobal.reset();
+      await app.close();
+    }
+  });
+
+  it("does not charge the address for a failed proof of work", async () => {
+    const app = buildServer(config);
+    const ip = "203.0.113.8";
+    const { challenge } = await fetchChallenge(app);
+    const bad = await app.inject({
+      method: "POST",
+      url: "/api/v1/devices/token",
+      remoteAddress: ip,
+      payload: { challenge, solution: { counter: 0, derivedKey: "00" } },
+    });
+    expect(bad.statusCode).toBe(401);
+    // Still a full burst of 10.
+    for (let i = 0; i < 10; i++) expect(deviceMintPerIp.consume(ipBucketKey(ip)).allowed).toBe(true);
+    expect(deviceMintPerIp.consume(ipBucketKey(ip)).allowed).toBe(false);
+    await app.close();
+  });
+
+  it("keys IPv4 on the address and IPv6 on its /64", () => {
+    expect(ipBucketKey("203.0.113.7")).toBe("ip4:203.0.113.7");
+    expect(ipBucketKey("::ffff:203.0.113.7")).toBe("ip4:203.0.113.7");
+    expect(ipBucketKey("2001:db8:1:2:aaaa:bbbb:cccc:dddd")).toBe("ip6:2001:db8:1:2");
+    expect(ipBucketKey("2001:db8:1:2::1")).toBe(ipBucketKey("2001:0db8:0001:0002:ffff::9"));
+    expect(ipBucketKey("2001:db8:1:3::1")).not.toBe(ipBucketKey("2001:db8:1:2::1"));
+    expect(ipBucketKey("::1")).toBe("ip6:0:0:0:0");
+    expect(ipBucketKey(undefined)).toBe("ip:unknown");
   });
 });

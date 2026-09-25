@@ -247,6 +247,11 @@ export async function getNearbyCare(
   }));
 }
 
+/** Round a coordinate to 3 decimal places (about 110 m). */
+export function roundTo3(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
 export default async function careRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/care", async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = CareQuery.safeParse(req.query);
@@ -255,9 +260,17 @@ export default async function careRoutes(app: FastifyInstance): Promise<void> {
         .status(400)
         .send({ ok: false, error: { message: "invalid care query", code: "INVALID_CARE_QUERY" } });
     }
-    const { lat, lng, kind, max_km } = parsed.data;
+    const { kind, max_km } = parsed.data;
+    // Rounded to 3 decimals (~110 m) BEFORE the cache key and the query
+    // (hardening batch 1, T8). At full precision every request was its own
+    // cache key, so the 60 s cache absorbed nothing and a caller could fill it
+    // with distinct keys at will; 110 m cannot change which clinic is nearest
+    // in any way a reporter would notice. It also means the server never
+    // queries with the reporter's exact position.
+    const lat = roundTo3(parsed.data.lat);
+    const lng = roundTo3(parsed.data.lng);
 
-    // 60s read-through cache keyed on the full query. Only successful
+    // 60s read-through cache keyed on the (rounded) query. Only successful
     // responses are stored. A 400 path above never reaches this line, so
     // an error can never be served from cache.
     const key = `${lat},${lng},${max_km},${kind ?? ""}`;

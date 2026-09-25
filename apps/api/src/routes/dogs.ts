@@ -340,8 +340,12 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         // Not SOS photos: since POST /api/v1/reports accepts a photo, the
         // newest photo of a dog can be a stranger's picture of it injured.
         // That is evidence for the case, not the dog's public portrait.
+        // Nor a REJECTED photo (hardening batch 1, T7): a moderator saying
+        // "this is not the dog" must take the picture off the dog's page, not
+        // leave it there as the newest one. Pending and passed photos count.
         `SELECT photo_s3_key FROM scans
          WHERE dog_id = $1 AND photo_s3_key IS NOT NULL AND scan_type <> 'sos'
+           AND review_status <> 'rejected'
          ORDER BY received_at DESC LIMIT 1`,
         [dog.id],
       ),

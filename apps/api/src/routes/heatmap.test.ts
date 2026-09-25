@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
+import { heatmapCache } from "./heatmap.js";
 import { loadConfig } from "../config.js";
 import { query, generateSlug } from "@hetja/db";
 
@@ -71,9 +72,12 @@ let fixture: Fixture;
 beforeEach(async () => {
   fixture = {
     app: buildServer(config),
-    wardId: `H${randomUUID().slice(0, 8)}`,
+    // A real BMC ward (the route refuses anything else) that no other suite
+    // writes to, with the cache emptied so each test reads its own rows.
+    wardId: "P-North",
     dogIds: [],
   };
+  heatmapCache.clear();
   await fixture.app.ready();
 });
 
@@ -164,6 +168,33 @@ describe("GET /api/v1/heatmap", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().data.cells).toEqual([]);
+  });
+
+  it("refuses a ward that is not one of the 24 BMC codes, before any query", async () => {
+    for (const ward of ["Hdeadbeef", "K/W", "kwest", "Z"]) {
+      const res = await fixture.app.inject({ method: "GET", url: `/api/v1/heatmap?ward=${encodeURIComponent(ward)}&days=7` });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe("INVALID_HEATMAP_QUERY");
+    }
+  });
+
+  it("serves a repeat request from the 300 s cache", async () => {
+    const first = await fixture.app.inject({ method: "GET", url: `/api/v1/heatmap?ward=${fixture.wardId}&days=7` });
+    expect(first.json().data.cells).toEqual([]);
+    for (const [lat, lng] of [
+      [19.08, 72.87],
+      [19.0802, 72.8702],
+      [19.0798, 72.8698],
+    ] as Array<[number, number]>) {
+      const dog = await insertDog(fixture.wardId);
+      fixture.dogIds.push(dog.id);
+      await insertFeedScan(dog.id, lat, lng);
+    }
+    const cachedRes = await fixture.app.inject({ method: "GET", url: `/api/v1/heatmap?ward=${fixture.wardId}&days=7` });
+    expect(cachedRes.json().data.cells).toEqual([]);
+    heatmapCache.clear();
+    const fresh = await fixture.app.inject({ method: "GET", url: `/api/v1/heatmap?ward=${fixture.wardId}&days=7` });
+    expect(fresh.json().data.cells).toHaveLength(1);
   });
 
   it("rejects an invalid days parameter", async () => {

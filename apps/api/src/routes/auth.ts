@@ -14,7 +14,7 @@ import {
 } from "../lib/email.js";
 import { issueOtp, verifyOtp } from "../lib/otp.js";
 import { sendOtpEmail } from "../lib/mailer.js";
-import { GLOBAL_SUBJECT, otpGlobal, otpPerIdentity } from "../lib/rate-limit.js";
+import { GLOBAL_SUBJECT, logRateLimited, otpGlobal, otpPerIdentity } from "../lib/rate-limit.js";
 
 interface FeederRow {
   id: string;
@@ -136,6 +136,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     // what this comment has always claimed.
     const perIdentity = otpPerIdentity.peek(idHmac);
     if (!perIdentity.allowed) {
+      logRateLimited(req.log, "otpPerIdentity", "identity");
       return reply
         .status(429)
         .header("retry-after", String(perIdentity.retryAfterSec))
@@ -149,6 +150,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const global = otpGlobal.peek(GLOBAL_SUBJECT);
     if (!global.allowed) {
+      logRateLimited(req.log, "otpGlobal", "global");
       // Deliberately vague to the caller and loud in the log: this is either an
       // attack in progress or a genuine surge, and both need an operator to see
       // it. The daily mail quota is a hard vendor ceiling: running it to zero
@@ -227,6 +229,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     const result = await verifyOtp(idHmac, code, app.config.HETJA_HMAC_PEPPER);
     if (result !== "ok") {
       const status = result === "too_many_attempts" ? 429 : 400;
+      if (status === 429) logRateLimited(req.log, "otpVerifyAttempts", "identity");
       return reply.status(status).send({ ok: false, error: { message: result, code: result.toUpperCase() } });
     }
 

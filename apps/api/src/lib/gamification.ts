@@ -238,6 +238,24 @@ export async function updateFeedStreak(
 
 const VERIFIED_REVIEW_STATUSES = ["auto_passed", "human_passed"];
 
+/**
+ * BACKDATING GUARD (hardening batch 1, audit A-26). INVARIANT 4 lets a scan's
+ * capturedAt sit up to 30 days in the past, so an offline queue can sync old
+ * feeds without losing them. That is right for the dog's record, and wrong for
+ * rewards: 28 requests with capturedAt one day apart built a month_streak in a
+ * second, and one backdated capturedAt at 23:00 in July bought night_owl and
+ * monsoon_hero. So a feed counts towards the streak and the time-of-day /
+ * season badges only when it reached the server within this many hours of
+ * being captured. Three days covers a phone that was offline over a weekend;
+ * the feed itself is always recorded either way.
+ */
+export const BACKDATE_LIMIT_HOURS = 72;
+
+/** Did this feed reach the server soon enough after capture to earn streak / badge credit? */
+export function withinBackdateLimit(capturedAt: Date, receivedAt: Date): boolean {
+  return receivedAt.getTime() - capturedAt.getTime() <= BACKDATE_LIMIT_HOURS * 3_600_000;
+}
+
 /** Build the badge context from server-recorded state (scans table). */
 export async function buildBadgeContext(
   feederId: string,
@@ -252,8 +270,10 @@ export async function buildBadgeContext(
     `SELECT
        count(*) FILTER (WHERE review_status = ANY($2::review_status[])) AS verified,
        bool_or(EXTRACT(HOUR FROM captured_at AT TIME ZONE 'Asia/Kolkata') >= 22
-            OR EXTRACT(HOUR FROM captured_at AT TIME ZONE 'Asia/Kolkata') < 5) AS night,
-       bool_or(EXTRACT(MONTH FROM captured_at AT TIME ZONE 'Asia/Kolkata') BETWEEN 6 AND 9) AS monsoon
+            OR EXTRACT(HOUR FROM captured_at AT TIME ZONE 'Asia/Kolkata') < 5)
+         FILTER (WHERE received_at - captured_at <= interval '${BACKDATE_LIMIT_HOURS} hours') AS night,
+       bool_or(EXTRACT(MONTH FROM captured_at AT TIME ZONE 'Asia/Kolkata') BETWEEN 6 AND 9)
+         FILTER (WHERE received_at - captured_at <= interval '${BACKDATE_LIMIT_HOURS} hours') AS monsoon
      FROM scans
      WHERE feeder_id = $1 AND scan_type = 'feed'`,
     [feederId, VERIFIED_REVIEW_STATUSES],

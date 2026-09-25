@@ -9,8 +9,8 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import compress from "@fastify/compress";
 import etag from "@fastify/etag";
-import { MAX_PHOTO_BASE64_CHARS } from "@hetja/contracts";
-import { pool } from "@hetja/db";
+import { pool, query } from "@hetja/db";
+import { GLOBAL_BODY_LIMIT } from "./lib/body-limits.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import authRoutes from "./routes/auth.js";
 import feederRoutes from "./routes/feeders.js";
@@ -72,16 +72,16 @@ export function buildServer(config: AppConfig): FastifyInstance {
     // RESEARCH-2: trustProxy must be pinned to the real proxy, never `true`
     // (true lets any client forge X-Forwarded-For).
     trustProxy: config.TRUST_PROXY || false,
-    // Fastify's default body limit is 1 MiB, but `@hetja/contracts` accepts a
-    // photo up to MAX_PHOTO_BASE64_CHARS (~2.8 MB of base64 for 2 MiB decoded)
-    // and lib/exif-strip.ts enforces the same 2 MiB ceiling. So the contract
-    // promised roughly three times what the transport would accept: a scan
-    // carrying a photo over ~750 KB decoded was rejected by Fastify with
-    // FST_ERR_CTP_BODY_TOO_LARGE before any route saw it. That 413 is a
-    // permanent 4xx, and apps/web's offline queue drops permanent 4xx, so the
-    // feed and its photo were discarded rather than retried. Sized to the
-    // contract plus room for the surrounding JSON envelope.
-    bodyLimit: MAX_PHOTO_BASE64_CHARS + 64 * 1024,
+    // 64 KiB for every route (hardening batch 1, T5, audit A-06). This used to
+    // be MAX_PHOTO_BASE64_CHARS + 64 KiB (~2.9 MB) on EVERY route, because the
+    // scan photo needed it: Fastify buffers the whole body before a handler
+    // runs, so any unauthenticated POST could make the process hold ~3 MB. The
+    // two routes that take a photo (POST /scans, POST /reports) now set their
+    // own larger `bodyLimit` (lib/body-limits.ts), and /scans authenticates
+    // before reading its body. The history of why the photo routes need the
+    // large limit (a 413 is permanent and the offline queue drops the feed)
+    // is recorded there.
+    bodyLimit: GLOBAL_BODY_LIMIT,
   });
 
   void app.register(helmet);
@@ -151,6 +151,37 @@ export function buildServer(config: AppConfig): FastifyInstance {
     service: "hetja-api",
     time: new Date().toISOString(),
   }));
+
+  /**
+   * Readiness, as distinct from liveness (hardening batch 1, T16). /healthz
+   * above answers from the process alone and stays exactly as it is (the
+   * deploy workflow and the memory guard poll it). /readyz also proves the
+   * database answers: `SELECT 1`, given 2 s. 200 when it does, 503 when it
+   * errors or is slower than that, so a probe can tell "API up, database
+   * gone" from "API up".
+   */
+  app.get("/readyz", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const READY_TIMEOUT_MS = 2_000;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        query("SELECT 1"),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("database readiness check timed out")), READY_TIMEOUT_MS);
+        }),
+      ]);
+      return { ok: true, service: "hetja-api", db: "ok", time: new Date().toISOString() };
+    } catch (err) {
+      request.log.warn({ event: "readyz_failed", reason: err instanceof Error ? err.message : "unknown" }, "not ready");
+      return reply.status(503).send({
+        ok: false,
+        error: { message: "database is not answering", code: "NOT_READY" },
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  });
 
   app.get("/", async () => ({
     service: "Hetja API",

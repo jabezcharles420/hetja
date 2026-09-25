@@ -42,14 +42,41 @@ export const REFRESH_TOKEN_KEY = "hetja.refreshToken";
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string | undefined;
+  /** Seconds from the `retry-after` header (429 RATE_LIMITED, 503 PHOTO_BUSY), when the server sent one. */
+  readonly retryAfterSec: number | undefined;
+  /**
+   * The error envelope's `data`, when the server attached one. The one user
+   * today: POST /reports 429 carries `data.nearbyCare`, so a capped reporter
+   * still gets numbers to call.
+   */
+  readonly data: unknown;
 
-  constructor(message: string, opts: { status: number; code?: string; cause?: unknown }) {
+  constructor(
+    message: string,
+    opts: { status: number; code?: string; cause?: unknown; retryAfterSec?: number; data?: unknown },
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = opts.status;
     this.code = opts.code;
+    this.retryAfterSec = opts.retryAfterSec;
+    this.data = opts.data;
     if (opts.cause !== undefined) this.cause = opts.cause;
   }
+}
+
+/**
+ * `retry-after` as whole seconds. Accepts delta-seconds and an HTTP date;
+ * anything else (absent, garbage, negative) is undefined.
+ */
+export function parseRetryAfter(value: string | null | undefined, now = Date.now()): number | undefined {
+  if (value == null) return undefined;
+  const v = value.trim();
+  if (v === "") return undefined;
+  if (/^\d+$/.test(v)) return Number(v);
+  const at = Date.parse(v);
+  if (Number.isNaN(at)) return undefined;
+  return Math.max(0, Math.ceil((at - now) / 1000));
 }
 
 export function getAccessToken(): string | null {
@@ -295,14 +322,24 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     return request<T>(path, { ...opts, afterRefresh: true });
   }
 
+  const retryAfterSec = parseRetryAfter(res.headers?.get?.("retry-after"));
+
   if (isErrorEnvelope(payload)) {
     if (sessionRejected) clearSession();
-    throw new ApiError(payload.error.message, { status: res.status, code: payload.error.code });
+    // `data` sits beside `error` in the envelope; `error.data` is accepted too.
+    const data =
+      (payload as { data?: unknown }).data ?? (payload.error as { data?: unknown }).data ?? undefined;
+    throw new ApiError(payload.error.message, {
+      status: res.status,
+      code: payload.error.code,
+      retryAfterSec,
+      data,
+    });
   }
 
   if (!res.ok) {
     if (sessionRejected) clearSession();
-    throw new ApiError(`Request failed (HTTP ${res.status})`, { status: res.status });
+    throw new ApiError(`Request failed (HTTP ${res.status})`, { status: res.status, retryAfterSec });
   }
 
   if (typeof payload !== "object" || payload === null || (payload as OkEnvelope<T>).ok !== true) {
@@ -428,6 +465,13 @@ export interface ScanResult {
   scanId?: string;
   /** Signed-in feeds only: the streak after this feed. */
   streak?: { streakDays: number; lastFeedDate: string | null };
+  /**
+   * false when the feed was logged but the photo was not kept (the daily
+   * photo allowance ran out). Absent on older servers: treat as kept.
+   */
+  photoAccepted?: boolean;
+  /** false when the sent location was outside Mumbai and ignored. Absent when no geo was sent. */
+  geoAccepted?: boolean;
 }
 
 export type SosSeverity = "minor" | "serious" | "critical";
@@ -441,6 +485,30 @@ export interface SosReportResult {
   fanout?: "responders" | "escalated";
   /** Nearby listed care providers, so the reporter has a number to call now. */
   nearbyCare?: NearbyCareProvider[];
+}
+
+export type SosCaseState = "open" | "acked" | "escalated" | "resolved" | "false_alarm";
+
+/**
+ * GET /api/v1/sos/cases/:id. Readable by the acker, the responders paged for
+ * the case, and moderators; anyone else gets 403 SOS_CASE_FORBIDDEN or 404.
+ * wardId / wardName arrived with the /sos/[caseId] page (hardening T15).
+ * `mine` / `ackedBy` are read when a server sends them; neither is promised.
+ */
+export interface SosCase {
+  id: string;
+  severity: SosSeverity;
+  state: SosCaseState;
+  tier: number;
+  openedAt: string;
+  ackedAt: string | null;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  resolution: string | null;
+  wardId?: string | null;
+  wardName?: string | null;
+  mine?: boolean;
+  ackedBy?: string | null;
 }
 
 export interface NearbyCareProvider {
@@ -666,6 +734,27 @@ export const api = {
       body: deviceToken ? { ...input, deviceToken } : input,
     });
   },
+
+  /** One SOS case, for the responder page /sos/[caseId]. */
+  getSosCase: (id: string) => request<SosCase>(`/sos/cases/${encodeURIComponent(id)}`),
+
+  /**
+   * Take a case ("I can go and help"). The server decides who may: 403
+   * SOS_ACK_FORBIDDEN (not a trusted responder for this severity), 409
+   * SOS_TOO_MANY_OPEN_ACKS (two cases already held), 409 SOS_ALREADY_ACKED /
+   * SOS_CASE_CLOSED, 429 RATE_LIMITED. A retry by the same responder is 200.
+   */
+  ackSosCase: (id: string) =>
+    request<{ id: string; ackedBy?: string; ackedAt: string }>(`/sos/cases/${encodeURIComponent(id)}/ack`, {
+      method: "POST",
+    }),
+
+  /** Close a case the caller holds (or any, for a moderator). */
+  resolveSosCase: (id: string, input: { resolution: string; outcome?: "resolved" | "false_alarm" }) =>
+    request<{ id: string; state: SosCaseState; resolvedAt: string; resolution: string }>(
+      `/sos/cases/${encodeURIComponent(id)}/resolve`,
+      { method: "POST", body: input },
+    ),
 
   /** Feeder self-service: trust score, streak days and badges. */
   getStreak: () => request<StreakData>(`/feeders/me/streak`),

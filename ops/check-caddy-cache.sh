@@ -26,10 +26,46 @@ cd "$(dirname "$0")/.."
 # copy: a gate nobody has ever seen fail is not known to work.
 CADDY=${CADDY:-ops/caddy/Caddyfile}
 
+# --self-test: run this gate against deliberately broken copies of the real
+# Caddyfile and require each to FAIL, then require the real file to PASS.
+# CI runs it next to the gate itself.
+if [ "${1:-}" = "--self-test" ]; then
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  st_fail=0
+  # expect_fail <name> <sed-expression>
+  expect_fail() {
+    sed -e "$2" "$CADDY" > "$tmp/$1"
+    if cmp -s "$CADDY" "$tmp/$1"; then
+      echo "SELF-TEST BROKEN: mutation '$1' did not change the file"; st_fail=1; return
+    fi
+    if CADDY="$tmp/$1" bash "$0" >/dev/null 2>&1; then
+      echo "SELF-TEST FAIL: gate passed a Caddyfile with: $1"; st_fail=1
+    else
+      echo "SELF-TEST ok: gate rejects $1"
+    fi
+  }
+  expect_fail 'ward-list-rule-widened-onto-detail' 's#handle /api/v1/map/wards {#handle /api/v1/map/wards* {#'
+  expect_fail 'ward-detail-handle-cached' '/handle \/api\/v1\/map\/wards\/\* {/,/}/ s#"no-store"#"public, max-age=60"#'
+  expect_fail 'ward-list-no-store' '/handle \/api\/v1\/map\/wards {/,/reverse_proxy/ s#"public, max-age=60, s-maxage=60"#"no-store"#'
+  expect_fail 'heatmap-handle-renamed' 's#handle /api/v1/heatmap\* {#handle /api/v1/heatmapx* {#'
+  expect_fail 'places-without-s-maxage' '/handle \/api\/v1\/map\/places\* {/,/reverse_proxy/ s#, s-maxage=60##'
+  expect_fail 'reports-made-cacheable' 's#handle /api/v1/stats/impact {#handle /api/v1/reports* {#'
+  expect_fail 'd-star-cached' '/handle \/d\/\* {/,/}/ s#"no-store"#"public, max-age=60"#'
+  expect_fail 'cache-header-not-deferred' '/handle \/d\/\* {/,/reverse_proxy/ s#header >Cache-Control#header Cache-Control#'
+  expect_fail 'reverse-proxy-without-real-ip' '0,/import real_ip/ s#import real_ip#import common#'
+  if CADDY="$CADDY" bash "$0" >/dev/null 2>&1; then
+    echo "SELF-TEST ok: gate passes the real $CADDY"
+  else
+    echo "SELF-TEST FAIL: gate rejects the real $CADDY"; st_fail=1
+  fi
+  exit "$st_fail"
+fi
+
 [ -f "$CADDY" ] || { echo "FAIL: $CADDY not found"; exit 1; }
 
 # Emit one TSV row per handle block: pattern <TAB> nth <TAB> flags
-# where flags is a comma-joined set drawn from no-store,max-age,immutable.
+# where flags is a comma-joined set drawn from no-store,max-age,immutable,s-maxage.
 # Brace depth is counted per-character so `reverse_proxy 127.0.0.1:8080 {`
 # nested inside a handle does not end the block early.
 parse_blocks() {
@@ -39,6 +75,7 @@ parse_blocks() {
       if (has_nostore)   f = f "no-store,"
       if (has_maxage)    f = f "max-age,"
       if (has_immutable) f = f "immutable,"
+      if (has_smaxage)   f = f "s-maxage,"
       seen[pat]++
       printf "%s\t%d\t%s\n", pat, seen[pat], f
     }
@@ -55,7 +92,7 @@ parse_blocks() {
         } else {
           next
         }
-        has_nostore = has_maxage = has_immutable = 0
+        has_nostore = has_maxage = has_immutable = has_smaxage = 0
       }
       # count braces on this line
       n = length(line)
@@ -84,6 +121,7 @@ parse_blocks() {
         if (code ~ /no-store/)  has_nostore = 1
         if (code ~ /max-age/)   has_maxage = 1
         if (code ~ /immutable/) has_immutable = 1
+        if (code ~ /s-maxage/)  has_smaxage = 1
       }
       if (depth <= 0) { flush(); depth = 0 }
     }
@@ -146,11 +184,68 @@ require_all '/_next/static/*'   '_next/static is immutable'         'immutable' 
 # apps/web/lib/api.ts actually builds photo URLs against.
 require_all '/photos/*'         'photos are immutable'              'immutable' '-'
 
-# If anyone ever adds an explicit handler for the dog API or the SOS API, it
-# must be no-store too: these carry live case state. Absent is fine (the
-# catch-all covers them), which is why this is a conditional check rather than
-# require_all.
-for pat in '/api/v1/dogs*' '/api/v1/dogs/*' '/api/v1/sos*' '/api/v1/sos/*'; do
+# Public read-only reference data, cached 60 s at the browser AND at
+# Cloudflare (audit T17). Each must exist on both vhosts (hetja.in and
+# api.hetja.in) and must not be no-store (that would silently throw the
+# origin offload away) or immutable (these change).
+for pat in '/api/v1/wards' '/api/v1/map/wards' '/api/v1/map/places*' '/api/v1/stats/impact' '/api/v1/heatmap*'; do
+  require_all "$pat" "$pat is cached for 60s (browser + edge)" 's-maxage' 'no-store|immutable'
+  n=$(printf '%s\n' "$BLOCKS" | awk -F'\t' -v p="$pat" '$1 == p' | grep -c . || true)
+  if [ "$n" -ge 2 ]; then
+    pass "$pat declared on both vhosts ($n handles)"
+  else
+    bad "$pat declared $n time(s); expected one handle on hetja.in and one on api.hetja.in"
+  fi
+done
+
+# Ward DETAIL is live and per-viewer: GET /api/v1/map/wards/<id> returns the
+# signed-in responder's own SOS options (apps/api map.ts answers it with
+# private, no-store). It gets its own explicit no-store handle, so the ward
+# LIST's cache rule can never be widened onto it by accident.
+require_all '/api/v1/map/wards/*' 'ward detail is no-store'       'no-store' 'max-age|immutable'
+
+# The general rule behind the one above: no CACHEABLE handle, on any vhost,
+# may match a path that carries live or per-viewer state. Matching is glob
+# style like Caddy's path matcher (`*` spans slashes; Caddy also matches
+# case-insensitively, hence the lowercasing). This is what catches a
+# `handle /api/v1/map/wards* {` or `handle /api/v1/reports* {` edit that the
+# per-pattern checks above would not notice.
+LIVE_PATHS='/api/v1/map/wards/k-west /api/v1/map/wards/ /api/v1/sos /api/v1/sos/cases/x /api/v1/sos/cases/x/ack /api/v1/reports /api/v1/reports/x/status /api/v1/dogs /api/v1/dogs/abc /api/v1/dogs/abc/medical /d/abc123xyz /d/'
+live_ok=1
+while IFS=$'\t' read -r bpat n flags; do
+  [ -n "${bpat:-}" ] || continue
+  [ "$bpat" = "(catch-all)" ] && continue
+  printf '%s' "$flags" | grep -qE 'max-age|immutable' || continue
+  lpat=$(printf '%s' "$bpat" | tr '[:upper:]' '[:lower:]')
+  for lp in $LIVE_PATHS; do
+    # Unquoted right-hand side on purpose: it is the glob.
+    # shellcheck disable=SC2053
+    if [[ "$lp" == $lpat ]]; then
+      bad "cacheable \`handle $bpat\` #$n would match live path $lp (${flags%,})"
+      live_ok=0
+    fi
+  done
+done <<< "$BLOCKS"
+[ "$live_ok" -eq 1 ] && pass "no cacheable handle matches a live-state path (ward detail, /sos, /reports, /dogs, /d/)"
+
+# Every Cache-Control header must be the DEFERRED form `header >Cache-Control`.
+# The immediate form `header Cache-Control` is applied before reverse_proxy,
+# which then ADDS the upstream's own Cache-Control beside it: measured on caddy
+# 2.11.4 against a stub upstream, /d/abc went out with both `no-store` and the
+# upstream's `public, max-age=86400`. Deferred, Caddy's value replaces it.
+undeferred=$(grep -nE '^[[:space:]]*header[[:space:]]+Cache-Control[[:space:]]' "$CADDY" || true)
+if [ -z "$undeferred" ]; then
+  pass "every Cache-Control header is deferred (replaces the upstream's)"
+else
+  bad "Cache-Control set without '>' (the upstream's value would be sent too):"
+  printf '%s\n' "$undeferred" | sed 's/^/       /'
+fi
+
+# If anyone ever adds an explicit handler for the dog API, the SOS API or the
+# report API, it must be no-store too: these carry live case state. Absent is
+# fine (the catch-all covers them), which is why this is a conditional check
+# rather than require_all.
+for pat in '/api/v1/dogs*' '/api/v1/dogs/*' '/api/v1/sos*' '/api/v1/sos/*' '/api/v1/reports*' '/api/v1/reports/*'; do
   rows=$(printf '%s\n' "$BLOCKS" | awk -F'\t' -v p="$pat" '$1 == p')
   if [ -n "$(printf '%s' "$rows" | grep -c . | grep -v '^0$' || true)" ]; then
     while IFS=$'\t' read -r _ n flags; do
@@ -178,9 +273,10 @@ check_simple 'CF-Connecting-IP forwarded upstream' grep -q 'CF-Connecting-IP' "$
 check_simple 'trusted_proxies pinned to Cloudflare ranges' grep -q 'trusted_proxies cloudflare' "$CADDY"
 
 # Every reverse_proxy must import the real_ip snippet, or that vhost silently
-# reverts to seeing loopback.
-proxies=$(grep -c 'reverse_proxy' "$CADDY" || true)
-realips=$(grep -c 'import real_ip' "$CADDY" || true)
+# reverts to seeing loopback. Directive lines only: a comment that merely
+# mentions reverse_proxy must not skew the count either way.
+proxies=$(grep -cE '^[[:space:]]*reverse_proxy[[:space:]]' "$CADDY" || true)
+realips=$(grep -cE '^[[:space:]]*import[[:space:]]+real_ip[[:space:]]*$' "$CADDY" || true)
 if [ "$proxies" -eq "$realips" ]; then
   pass "all $proxies reverse_proxy blocks import real_ip"
 else

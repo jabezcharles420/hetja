@@ -168,6 +168,19 @@ describe("flushQueue", () => {
     expect(idbMock.store.size).toBe(1);
   });
 
+  it.each([[429], [503]])("stops the pass on %s and keeps every record (no photo re-upload per record)", async (status) => {
+    seedItem({ deviceToken: "tok-a" });
+    seedItem({ deviceToken: "tok-b" });
+    fetchMock = vi.fn(async () => jsonResponse({ ok: false, error: { code: "PHOTO_BUSY" } }, status));
+    vi.stubGlobal("fetch", fetchMock);
+    const onDrop = vi.fn();
+
+    expect(await flushQueue(onDrop)).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(idbMock.store.size).toBe(2);
+    expect(onDrop).not.toHaveBeenCalled();
+  });
+
   it("drops a record the server no longer accepts the token for (401) and forgets the cached token", async () => {
     const storage = new Map<string, string>([["hetja.deviceToken.v1", "tok-old-secret"]]);
     vi.stubGlobal("localStorage", {

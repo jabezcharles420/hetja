@@ -34,6 +34,7 @@
  * feeder on a life-safety adjacent system is worse than admitting one extra
  * request.
  */
+import { isIP } from "node:net";
 import { LRUCache } from "lru-cache";
 
 export interface RateLimitRule {
@@ -184,3 +185,135 @@ export const deviceTokenGlobal = new RateLimiter({ refillPerSec: 200 / 86_400, b
 
 /** Fixed key for a limiter with a single global bucket. */
 export const GLOBAL_SUBJECT = "global";
+
+// ---------------------------------------------------------------------------
+// Hardening batch 1 (2026-09-25): per-account / per-device write limiters.
+//
+// Every limiter below is keyed on an ACCOUNT (`acct:<feederId>`) or an
+// attested DEVICE (`dev:<deviceId>`, the canonical subject from
+// lib/device.ts deviceTokenSubject), never on an IP (INVARIANT 6). The one
+// IP-keyed limiter in this file is `deviceMintPerIp`, and its comment says why
+// it is the exception. Use `subjectKey()` so the prefixing is uniform.
+// ---------------------------------------------------------------------------
+
+/** The rate-limit key for an account or a device. */
+export function subjectKey(feederId: string | null, deviceSubject: string | null): string {
+  return feederId ? `acct:${feederId}` : `dev:${deviceSubject ?? ""}`;
+}
+
+/**
+ * POST /api/v1/scans, per account or device: burst 30, then one a minute.
+ * Checked after auth and BEFORE any photo is decoded. A real feeder doing a
+ * morning round logs a dozen dogs; an offline queue flushing a day of feeds
+ * fits in the burst; a script does not. 429 + retry-after, which apps/web's
+ * offline queue retries rather than dropping.
+ */
+export const scanPerSubject = new RateLimiter({ refillPerSec: 1 / 60, burst: 30 });
+
+/**
+ * Photos accepted on scans, per account or device: 40 a day. Over budget the
+ * scan is still recorded and answered 200 with `photoAccepted: false`: losing
+ * a photo is cheap, losing the feed (the offline queue drops a permanent 4xx)
+ * is not.
+ */
+export const photoPerSubject = new RateLimiter({ refillPerSec: 40 / 86_400, burst: 40 });
+
+/**
+ * POST /api/v1/reports, per account or device: burst 6, then one per ten
+ * minutes. Deliberately above INVARIANT 7's 2/day + 5/week CASE cap, which it
+ * does not replace: that cap counts cases opened, this bounds the request
+ * rate (replays, photo re-uploads, dedupe lookups) before any decode or query.
+ * A 429 here still carries `data.nearbyCare` when the dog has a position.
+ */
+export const reportPerSubject = new RateLimiter({ refillPerSec: 1 / 600, burst: 6 });
+
+/** POST /api/v1/dogs/:slug/stories, per account: 5 a day. */
+export const storyPerAccount = new RateLimiter({ refillPerSec: 5 / 86_400, burst: 5 });
+
+/**
+ * POST /api/v1/sos/cases/:id/ack, per account: burst 5, then 10 a day. A
+ * responder acks a handful of cases in a bad week; probing case ids is not
+ * that.
+ */
+export const sosAckPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+
+/**
+ * Device-token mints, per client IP: burst 10, then 10 an hour.
+ *
+ * THE ONE IP-KEYED LIMIT IN THIS API, and a documented exception to
+ * INVARIANT 6 (docs/INVARIANTS.md #6). There is no account or device to key
+ * on here: minting the device token is the step that creates the device
+ * subject every other limit uses. Without this, the single global bucket
+ * (`deviceTokenGlobal`, 200/day) could be drained by one client in about
+ * twenty seconds of solving, and anonymous SOS would then be unavailable to
+ * every stranger in Mumbai for the rest of the day (audit A-07).
+ *
+ * Why it does not lock out a carrier's CGNAT pool the way INVARIANT 6 fears:
+ * it only gates MINTING, which a real phone does once and then keeps the token;
+ * the budget is generous for a shared address (10 at once, 10 more an hour);
+ * and nothing else (reports, scans, sign-in) is keyed on the address. IPv6
+ * clients are keyed on their /64, because one subscriber is routinely handed
+ * a whole /64 and would otherwise have 2^64 fresh buckets.
+ *
+ * Relies on TRUST_PROXY=1 (the deploy workflow sets it): request.ip is then
+ * the address cloudflared and Caddy forwarded, not the loopback proxy. With
+ * TRUST_PROXY unset every request shares one bucket, which fails closed at
+ * 10 an hour for everyone; that is why the deploy pins it.
+ *
+ * Consumed after the PoW verifies and the challenge is spent, and before the
+ * global bucket, so a flood from one address is refused without touching the
+ * pool everyone shares.
+ */
+export const deviceMintPerIp = new RateLimiter({ refillPerSec: 10 / 3600, burst: 10 });
+
+/**
+ * The key `deviceMintPerIp` uses: the IPv4 address as is, or the first four
+ * hextets (the /64) of an IPv6 one. IPv4-mapped IPv6 (`::ffff:1.2.3.4`) is
+ * treated as the IPv4 address it carries.
+ */
+export function ipBucketKey(ip: string | undefined | null): string {
+  const raw = (ip ?? "").trim();
+  if (!raw) return "ip:unknown";
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(raw);
+  if (mapped) return `ip4:${mapped[1]}`;
+  const kind = isIP(raw);
+  if (kind === 4) return `ip4:${raw}`;
+  if (kind !== 6) return `ip:${raw}`;
+  return `ip6:${expandIpv6(raw).slice(0, 4).join(":")}`;
+}
+
+/** Eight lower-case hextets for a valid IPv6 address (zone id dropped). */
+function expandIpv6(addr: string): string[] {
+  const noZone = addr.split("%")[0].toLowerCase();
+  // A trailing embedded IPv4 counts as two hextets.
+  let text = noZone;
+  const v4 = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(text);
+  if (v4) {
+    const [a, b, c, d] = v4.slice(1).map(Number);
+    text = text.slice(0, v4.index) + `${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [head, tail] = text.split("::");
+  const headParts = head ? head.split(":") : [];
+  const tailParts = tail !== undefined && tail !== "" ? tail.split(":") : [];
+  const fill = tail !== undefined ? 8 - headParts.length - tailParts.length : 0;
+  const parts = [...headParts, ...Array(Math.max(0, fill)).fill("0"), ...tailParts];
+  return parts.map((h) => (h === "" ? "0" : h).replace(/^0+(?=.)/, ""));
+}
+
+/** What a 429 is keyed on, for the log line. Never the subject itself. */
+export type SubjectKind = "account" | "device" | "identity" | "ip" | "global";
+
+interface WarnLogger {
+  warn(obj: object, msg?: string): void;
+}
+
+/**
+ * The one log line every 429 writes: `{ event: "rate_limited", limiter,
+ * subjectKind }`. Deliberately without the subject (an account id, a device
+ * id, an identity HMAC or an address would turn the log into a tracking
+ * record) so an operator can count and alert on refusals per limiter without
+ * the log holding anything about who was refused.
+ */
+export function logRateLimited(log: WarnLogger, limiter: string, subjectKind: SubjectKind): void {
+  log.warn({ event: "rate_limited", limiter, subjectKind }, "rate limited");
+}

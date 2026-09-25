@@ -236,7 +236,10 @@ describe("POST /api/v1/scans", () => {
     const scans = [
       { capturedAt: new Date(base).toISOString(), lat: 19.1, lng: 72.9 },
       { capturedAt: new Date(base - 5 * 60 * 1000).toISOString(), lat: 19.2, lng: 72.8 },
-      { capturedAt: new Date(base + 2 * 60 * 1000).toISOString(), lat: 19.3, lng: 72.7 },
+      // Inside MUMBAI_BOUNDS: a point outside it is now treated as no geo at
+      // all (hardening batch 1, T4). This fixture used to sit at lng 72.7, in
+      // the Arabian Sea west of the box.
+      { capturedAt: new Date(base + 2 * 60 * 1000).toISOString(), lat: 19.25, lng: 72.85 },
     ];
     for (const s of scans) {
       const res = await app.inject({
@@ -260,7 +263,7 @@ describe("POST /api/v1/scans", () => {
       [dogId],
     );
     expect(new Date(row.rows[0].last_seen_at).getTime()).toBe(base + 2 * 60 * 1000);
-    expect(row.rows[0].lat).toBeCloseTo(19.3, 5);
+    expect(row.rows[0].lat).toBeCloseTo(19.25, 5);
 
     await app.close();
   });

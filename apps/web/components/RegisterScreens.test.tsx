@@ -43,9 +43,12 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
-import NewRegistrationForm, { wardLabel } from "@/app/(register)/register/new/NewRegistrationForm";
+import NewRegistrationForm, {
+  REGISTRATION_WEEKLY_CAP_MESSAGE,
+  wardLabel,
+} from "@/app/(register)/register/new/NewRegistrationForm";
 import ReadyClient, { readyTitle, tagLine } from "@/app/(register)/register/[slug]/ready/ReadyClient";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 const apiMock = api as unknown as {
   getFeederMe: ReturnType<typeof vi.fn>;
@@ -117,6 +120,21 @@ describe("New dog", () => {
 
     fireEvent.change(screen.getByLabelText(/Ward/), { target: { value: "A" } });
     expect(screen.getByText("A · Colaba", { selector: "span" })).not.toBeNull();
+  });
+
+  it("explains the weekly cap plainly on 429 REGISTRATION_WEEKLY_CAP", async () => {
+    apiMock.getFeederMe.mockResolvedValue(me());
+    apiMock.createRegistration.mockRejectedValue(
+      new ApiError("weekly cap", { status: 429, code: "REGISTRATION_WEEKLY_CAP" }),
+    );
+    render(<NewRegistrationForm />);
+    await screen.findByText("K/W · Andheri West", { selector: "span" });
+    fireEvent.click(screen.getByRole("button", { name: "Save & print collar" }));
+    expect(await screen.findByText(REGISTRATION_WEEKLY_CAP_MESSAGE)).not.toBeNull();
+    expect(REGISTRATION_WEEKLY_CAP_MESSAGE).toBe(
+      "You've registered 6 dogs this week. The limit keeps fake dogs off the map. Try again in a few days.",
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 });
 

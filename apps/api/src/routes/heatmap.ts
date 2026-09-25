@@ -27,17 +27,38 @@
  * dropped so a single dog's feeding route cannot be re-derived.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { LRUCache } from "lru-cache";
 import { z } from "zod";
+import { isBmcWardCode } from "@hetja/contracts";
 import { query } from "@hetja/db";
 
 // INVARIANT 2 floor. Do not lower without changing the invariant first.
 const CELL_SIZE_M = 500;
 const K_ANON_MIN_ACTIVE_DOGS = 3;
 
+// `ward` must be one of the 24 BMC codes (hardening batch 1, T8). It used to
+// be any 1..16-char string, so every distinct value was a distinct query (and,
+// with the cache below, a distinct cache entry) for a result that can only
+// ever be empty.
 const HeatmapQuery = z.object({
-  ward: z.string().min(1).max(16),
+  ward: z.string().min(1).max(16).refine(isBmcWardCode, "ward must be a BMC ward code"),
   days: z.coerce.number().int().min(1).max(30).default(7),
 });
+
+interface HeatmapCellOut {
+  lat: number;
+  lng: number;
+  fedRatio: number;
+  feedCount: number;
+  dogCount: number;
+}
+
+/**
+ * 300 s read-through cache, keyed on (ward, days): at most 24 x 30 entries,
+ * matching the `public, max-age=300` the response already advertised. The
+ * aggregate is k-anonymous and ward-level, so one answer serves everyone.
+ */
+export const heatmapCache = new LRUCache<string, HeatmapCellOut[]>({ max: 24 * 30, ttl: 300_000 });
 
 interface HeatmapRow {
   lat: string;
@@ -86,20 +107,21 @@ export default async function heatmapRoutes(app: FastifyInstance): Promise<void>
     }
     const { ward, days } = parsed.data;
 
-    const res = await query<HeatmapRow>(CELL_SQL, [ward, days]);
+    const key = `${ward}:${days}`;
+    let cells = heatmapCache.get(key);
+    if (!cells) {
+      const res = await query<HeatmapRow>(CELL_SQL, [ward, days]);
+      cells = res.rows.map((row) => ({
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        fedRatio: Number(row.fed_ratio),
+        feedCount: row.feed_count,
+        dogCount: row.dog_count,
+      }));
+      heatmapCache.set(key, cells);
+    }
     reply.header("Cache-Control", "public, max-age=300");
 
-    return {
-      ok: true,
-      data: {
-        cells: res.rows.map((row) => ({
-          lat: Number(row.lat),
-          lng: Number(row.lng),
-          fedRatio: Number(row.fed_ratio),
-          feedCount: row.feed_count,
-          dogCount: row.dog_count,
-        })),
-      },
-    };
+    return { ok: true, data: { cells } };
   });
 }

@@ -87,7 +87,13 @@ import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { query } from "@hetja/db";
 import { createPoWChallenge, effectivePowDifficulty, issueDeviceToken, verifyPoW } from "../lib/device.js";
-import { deviceTokenGlobal, GLOBAL_SUBJECT } from "../lib/rate-limit.js";
+import {
+  deviceMintPerIp,
+  deviceTokenGlobal,
+  GLOBAL_SUBJECT,
+  ipBucketKey,
+  logRateLimited,
+} from "../lib/rate-limit.js";
 
 // Short-lived on purpose -- long enough for a desktop-web PoW solve at any
 // difficulty this route is actually configured with, short enough to keep the
@@ -243,8 +249,30 @@ export default async function deviceRoutes(app: FastifyInstance): Promise<void> 
     // full bucket is by construction an abnormal condition an operator needs to
     // know about. See lib/rate-limit.ts for why the PoW alone cannot be the
     // bound.
+    // Per client address FIRST (hardening batch 1, T14, audit A-07): the one
+    // IP-keyed limit in this API, documented as the exception to INVARIANT 6
+    // in docs/INVARIANTS.md #6 and in lib/rate-limit.ts. Checked before the
+    // global bucket so one address hammering this route is refused WITHOUT
+    // draining the 200/day pool every stranger's phone shares. IPv6 is keyed on
+    // its /64. Relies on TRUST_PROXY=1 so request.ip is the forwarded client.
+    const perIp = deviceMintPerIp.consume(ipBucketKey(req.ip));
+    if (!perIp.allowed) {
+      logRateLimited(req.log, "deviceMintPerIp", "ip");
+      return reply
+        .status(429)
+        .header("retry-after", String(perIp.retryAfterSec))
+        .send({
+          ok: false,
+          error: {
+            message: "too many device attestations from this network. Try again shortly.",
+            code: "DEVICE_TOKEN_RATE_LIMITED",
+          },
+        });
+    }
+
     const mintBudget = deviceTokenGlobal.consume(GLOBAL_SUBJECT);
     if (!mintBudget.allowed) {
+      logRateLimited(req.log, "deviceTokenGlobal", "global");
       req.log.warn(
         { retryAfterSec: mintBudget.retryAfterSec },
         "device token global mint budget exhausted; refusing further mints",

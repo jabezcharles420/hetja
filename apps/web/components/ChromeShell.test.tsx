@@ -95,6 +95,8 @@ describe("chromeFor (route matrix)", () => {
     ["/d/ddr017xk2"],
     ["/d/ddr017xk2/sos"],
     ["/dog/ddr017xk2"],
+    ["/sos"],
+    ["/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f"],
     ["/map"],
     ["/map/k-w"],
     ["/design"],
@@ -110,6 +112,7 @@ describe("chromeFor (route matrix)", () => {
   it("does not treat look-alike prefixes as focused flows", () => {
     expect(chromeFor("/designs").nav).toBe("light");
     expect(chromeFor("/mapping").footer).toBe(true);
+    expect(chromeFor("/sosa").nav).toBe("light");
   });
 
   it("unknown routes keep a way home: TopNav + Footer", () => {
@@ -147,7 +150,7 @@ describe("ChromeShell", () => {
     expect(screen.getByRole("link", { name: "Me" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it.each([["/scan"], ["/login"], ["/register/new"], ["/d/ddr017xk2"], ["/map"]])(
+  it.each([["/scan"], ["/login"], ["/register/new"], ["/d/ddr017xk2"], ["/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f"], ["/map"]])(
     "%s: renders the page and nothing else",
     (route) => {
       renderAt(route);

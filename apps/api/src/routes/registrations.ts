@@ -39,7 +39,14 @@ import { isValidSlug, query, withTx } from "@hetja/db";
 import { deviceTokenSubject } from "../lib/device.js";
 import { capabilitiesFor, requireCapability, requireFeeder } from "../lib/require-role.js";
 import { signSlug } from "../lib/hmac.js";
-import { PENDING_REGISTRATION_TTL_DAYS, REGISTRATION_BUDGET_MAX, collarUrl, createDogWithCollar } from "../lib/enrol.js";
+import {
+  PENDING_REGISTRATION_TTL_DAYS,
+  REGISTRATION_BUDGET_MAX,
+  REGISTRATION_WEEKLY_CAP,
+  collarUrl,
+  createDogWithCollar,
+} from "../lib/enrol.js";
+import { logRateLimited } from "../lib/rate-limit.js";
 
 /**
  * Advisory-lock namespace, kept beside the rest of the family so the next key
@@ -179,6 +186,24 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
           throw new RegistrationBudgetError("DEVICE_REGISTRATION_BUDGET_EXCEEDED");
         }
 
+        // Weekly cap (hardening batch 1, T9): registrations of ANY status in
+        // the rolling last 7 days, per account and per device. Activation frees
+        // the pending budget above; it does not free this one.
+        const weekly = await client.query<{ by_account: number; by_device: number }>(
+          `SELECT
+             (SELECT count(*)::int FROM dogs
+               WHERE registered_by = $1 AND registered_at >= now() - interval '7 days') AS by_account,
+             (SELECT count(*)::int FROM dogs
+               WHERE registered_device_id = $2 AND registered_at >= now() - interval '7 days') AS by_device`,
+          [auth.feederId, deviceSubject],
+        );
+        if (
+          (weekly.rows[0]?.by_account ?? 0) >= REGISTRATION_WEEKLY_CAP ||
+          (weekly.rows[0]?.by_device ?? 0) >= REGISTRATION_WEEKLY_CAP
+        ) {
+          throw new RegistrationBudgetError("REGISTRATION_WEEKLY_CAP");
+        }
+
         // The operator-side kill switch. Read INSIDE the transaction, after the
         // locks and budgets, so a disable racing a registration wins cleanly.
         const flagRes = await client.query<{ can_register: boolean }>(
@@ -235,12 +260,20 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
       });
     } catch (err) {
       if (err instanceof RegistrationBudgetError) {
+        logRateLimited(
+          req.log,
+          err.errorCode,
+          err.errorCode === "DEVICE_REGISTRATION_BUDGET_EXCEEDED" ? "device" : "account",
+        );
         return reply.status(429).send({
           ok: false,
           error: {
-            message: err.errorCode === "DEVICE_REGISTRATION_BUDGET_EXCEEDED"
-              ? "device registration budget exceeded"
-              : "registration budget exceeded",
+            message:
+              err.errorCode === "DEVICE_REGISTRATION_BUDGET_EXCEEDED"
+                ? "device registration budget exceeded"
+                : err.errorCode === "REGISTRATION_WEEKLY_CAP"
+                  ? `at most ${REGISTRATION_WEEKLY_CAP} registrations a week per account and per phone`
+                  : "registration budget exceeded",
             code: err.errorCode,
           },
         });

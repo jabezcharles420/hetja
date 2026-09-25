@@ -1,0 +1,113 @@
+/* The responder's SOS case page. White, plain, no motion (screens 04 / 05). */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-white);
+  color: var(--h-ink);
+}
+
+.top {
+  flex: none;
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px var(--h-gutter) 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.ward {
+  margin: -4px 0 0;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--h-secondary);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lead {
+  margin: 4px 0 0;
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-text-mid, var(--h-secondary));
+}
+
+.mapLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.retry {
+  margin-top: 4px;
+}
+
+.footMsg {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+  text-align: center;
+}
+
+.footMsg b {
+  color: var(--h-ink);
+  font-weight: 600;
+}
+
+.linkBtn {
+  display: block;
+  width: 100%;
+  min-height: var(--h-target);
+  margin-top: 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 17px;
+  color: var(--h-link);
+  cursor: pointer;
+}
+
+.linkBtn:focus-visible,
+.back:focus-visible,
+.mapLink:focus-visible {
+  outline: 3px solid var(--h-focus, rgba(0, 113, 227, 0.45));
+  outline-offset: 2px;
+  border-radius: 8px;
+}

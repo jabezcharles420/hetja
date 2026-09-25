@@ -212,7 +212,7 @@ async function compressToBase64(file: Blob): Promise<string | undefined> {
 /* Sending                                                                  */
 /* ------------------------------------------------------------------------- */
 
-interface ReportResult {
+export interface ReportResult {
   ok: boolean;
   rateLimited?: boolean;
   caseId?: string;
@@ -253,17 +253,23 @@ async function fileReport(c: Choice, note?: string): Promise<ReportResult> {
         ...(deviceToken ? { deviceToken } : {}),
       }),
     });
-    if (!res.ok) return { ok: false, rateLimited: res.status === 429, care: [] };
-    const body = (await res.json()) as { data?: { caseId?: unknown; nearbyCare?: unknown } };
-    const d = body?.data;
-    return {
-      ok: true,
-      caseId: typeof d?.caseId === "string" ? d.caseId : undefined,
-      care: normalizeList(d?.nearbyCare ?? []),
-    };
+    return readReport(res.status, await res.json().catch(() => null));
   } catch {
     return { ok: false, care: [] };
   }
+}
+
+/**
+ * The report's answer. A 429 (this phone has hit the report limit) still
+ * carries `data.nearbyCare` when the dog's position is known (hardening
+ * T11): a capped reporter is exactly the person who needs a number to call.
+ */
+export function readReport(status: number, body: unknown): ReportResult {
+  const b = (body ?? {}) as { data?: { caseId?: unknown; nearbyCare?: unknown }; error?: { data?: { nearbyCare?: unknown } } };
+  const d = b.data;
+  const care = normalizeList(d?.nearbyCare ?? b.error?.data?.nearbyCare ?? []);
+  if (status < 200 || status >= 300) return { ok: false, rateLimited: status === 429, care: status === 429 ? care : [] };
+  return { ok: true, caseId: typeof d?.caseId === "string" ? d.caseId : undefined, care };
 }
 
 function sendSmsFallback(c: Choice): void {

@@ -58,6 +58,19 @@ export function collarUrl(slug: string, sig: string): string {
 export const REGISTRATION_BUDGET_MAX = 2;
 
 /**
+ * Registrations of ANY status allowed per account and, separately, per device
+ * in a rolling 7 days (hardening batch 1, T9, audit A-05).
+ *
+ * The pending budget above is freed by activation, and activation is one
+ * geotagged scan of the tag by anybody, including the registrator's own second
+ * phone. So "register two, scan both, register two more" printed collars
+ * without bound. Six a week is well above one volunteer's real round (it is
+ * three full pending budgets) and bounds the paper an account or a phone can
+ * produce no matter how fast it activates. Over it: 429 REGISTRATION_WEEKLY_CAP.
+ */
+export const REGISTRATION_WEEKLY_CAP = 6;
+
+/**
  * How long a pending registration may sit unattached before it counts as dead.
  *
  * Chosen so the wave's own worked example holds: a registrator who prints on

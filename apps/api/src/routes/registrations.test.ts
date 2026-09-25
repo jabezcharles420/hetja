@@ -19,6 +19,7 @@ import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { issueDeviceToken } from "../lib/device.js";
+import { heatmapCache } from "./heatmap.js";
 import { pool, query } from "@hetja/db";
 import type { FastifyInstance } from "fastify";
 
@@ -647,6 +648,7 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     const slug = await registerDog("T");
 
     async function cellCount(): Promise<number> {
+      heatmapCache.clear(); // 300 s cache: read the rows as they are now
       const res = await app.inject({ method: "GET", url: "/api/v1/heatmap?ward=T&days=7" });
       expect(res.statusCode).toBe(200);
       return (res.json().data.cells as unknown[]).length;
@@ -675,5 +677,58 @@ describe("activation + corroboration (routes/scans.ts)", () => {
     });
     expect(feed.json().data.created).toBe(true);
     expect(await cellCount()).toBe(0);
+  });
+});
+
+describe("POST /api/v1/registrations: weekly cap (hardening batch 1, T9)", () => {
+  async function registerAndActivate(feederToken: string, deviceToken: string): Promise<void> {
+    const res = await register(feederToken, deviceToken);
+    expect(res.statusCode).toBe(201);
+    const { slug } = res.json().data as { slug: string };
+    slugsToClean.push(slug);
+    // Activation frees the pending budget (the A-05 loop); the weekly cap is
+    // what still binds.
+    await query(`UPDATE dogs SET status = 'active', activated_at = now() WHERE slug = $1`, [slug]);
+  }
+
+  it("429s REGISTRATION_WEEKLY_CAP on the 7th registration in 7 days for one ACCOUNT, and /me reports it", async () => {
+    const registrator = await makeFeeder("registrator");
+    for (let i = 0; i < 6; i++) {
+      await registerAndActivate(registrator.token, issueDeviceToken(config.HETJA_DEVICE_SECRET));
+    }
+    const seventh = await register(registrator.token, issueDeviceToken(config.HETJA_DEVICE_SECRET));
+    expect(seventh.statusCode).toBe(429);
+    expect(seventh.json().error.code).toBe("REGISTRATION_WEEKLY_CAP");
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/v1/feeders/me",
+      headers: { authorization: `Bearer ${registrator.token}` },
+    });
+    expect(me.json().data.registrationBudget).toEqual({ pending: 0, max: 2, weekly: { used: 6, max: 6 } });
+  });
+
+  it("429s REGISTRATION_WEEKLY_CAP on the 7th registration in 7 days from one DEVICE across accounts", async () => {
+    const device = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    for (let a = 0; a < 3; a++) {
+      const account = await makeFeeder("registrator");
+      await registerAndActivate(account.token, device);
+      await registerAndActivate(account.token, device);
+    }
+    const fresh = await makeFeeder("registrator");
+    const res = await register(fresh.token, device);
+    expect(res.statusCode).toBe(429);
+    expect(res.json().error.code).toBe("REGISTRATION_WEEKLY_CAP");
+  });
+
+  it("registrations older than 7 days no longer count", async () => {
+    const registrator = await makeFeeder("registrator");
+    for (let i = 0; i < 6; i++) {
+      await registerAndActivate(registrator.token, issueDeviceToken(config.HETJA_DEVICE_SECRET));
+    }
+    await query(`UPDATE dogs SET registered_at = now() - interval '8 days' WHERE registered_by = $1`, [registrator.id]);
+    const res = await register(registrator.token, issueDeviceToken(config.HETJA_DEVICE_SECRET));
+    expect(res.statusCode).toBe(201);
+    slugsToClean.push(res.json().data.slug);
   });
 });

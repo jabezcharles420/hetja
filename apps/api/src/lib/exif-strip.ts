@@ -412,5 +412,141 @@ export function stripImageMetadata(bytes: Buffer): StrippedImage {
   const stripped =
     format === "jpeg" ? stripJpeg(bytes) : format === "webp" ? stripWebp(bytes) : stripPng(bytes);
 
+  // Only a container that parsed is inspected, so every offset below is inside
+  // a structure the strip walk already bounds-checked.
+  assertImageWithinLimits(inspectImage(format, stripped));
+
   return { format, ext: EXTENSIONS[format], bytes: stripped };
+}
+
+// ---------------------------------------------------------------------------
+// Dimensions and animation (hardening batch 1, T6)
+//
+// The byte ceiling above bounds what THIS process parses, but not what a
+// viewer's browser decodes: a 2 MiB PNG of one flat colour can declare
+// 30000 x 30000 pixels, and every phone that opens the dog's page then tries
+// to allocate ~3.6 GB for it. Likewise an animated WebP or APNG is a
+// container we "understand" but a portrait that plays video. Both are refused
+// here with the same UnsupportedImageError (a 400 INVALID_PHOTO) as any other
+// photo we will not store.
+//
+// Dimensions come from the header each format already requires: JPEG's first
+// SOFn frame header, PNG's IHDR, WebP's VP8X canvas (else VP8L's header, else
+// the VP8 key-frame header). Where a header is too short or lacks its start
+// code the dimensions are UNKNOWN and not guessed; the stored bytes are still
+// metadata-free, which is the property this module exists for.
+// ---------------------------------------------------------------------------
+
+/** Longest side we store, in pixels. A phone camera re-encoded by apps/web is ~1600. */
+export const MAX_IMAGE_SIDE = 4096;
+
+/** Largest pixel count we store: 4096 x 4096. */
+export const MAX_IMAGE_PIXELS = 16_777_216;
+
+export interface ImageInfo {
+  width: number | null;
+  height: number | null;
+  animated: boolean;
+}
+
+export function assertImageWithinLimits(info: ImageInfo): void {
+  if (info.animated) {
+    throw new UnsupportedImageError("animated images are not accepted");
+  }
+  const { width, height } = info;
+  if (width !== null && width > MAX_IMAGE_SIDE) {
+    throw new UnsupportedImageError(`image is ${width} px wide; the limit is ${MAX_IMAGE_SIDE}`);
+  }
+  if (height !== null && height > MAX_IMAGE_SIDE) {
+    throw new UnsupportedImageError(`image is ${height} px tall; the limit is ${MAX_IMAGE_SIDE}`);
+  }
+  if (width !== null && height !== null && width * height > MAX_IMAGE_PIXELS) {
+    throw new UnsupportedImageError(`image has ${width * height} pixels; the limit is ${MAX_IMAGE_PIXELS}`);
+  }
+}
+
+/** Read dimensions and the animation flag from an already-validated container. */
+export function inspectImage(format: ImageFormat, bytes: Buffer): ImageInfo {
+  if (format === "jpeg") return inspectJpeg(bytes);
+  if (format === "png") return inspectPng(bytes);
+  return inspectWebp(bytes);
+}
+
+function inspectJpeg(bytes: Buffer): ImageInfo {
+  let i = 2;
+  while (i + 4 <= bytes.length) {
+    if (bytes[i] !== 0xff) break;
+    let markerAt = i;
+    while (markerAt < bytes.length && bytes[markerAt] === 0xff) markerAt++;
+    if (markerAt >= bytes.length) break;
+    const marker = bytes[markerAt];
+    i = markerAt + 1;
+    if (marker === JPEG_EOI || marker === JPEG_SOS) break;
+    if (marker === JPEG_SOI || isJpegStandaloneMarker(marker)) continue;
+    if (i + 2 > bytes.length) break;
+    const length = bytes.readUInt16BE(i);
+    if (isJpegFrameHeader(marker) && length >= 7 && i + 7 <= bytes.length) {
+      // SOFn payload: precision(1), height(2), width(2), components...
+      return { height: bytes.readUInt16BE(i + 3), width: bytes.readUInt16BE(i + 5), animated: false };
+    }
+    if (length < 2) break;
+    i += length;
+  }
+  return { width: null, height: null, animated: false };
+}
+
+function inspectPng(bytes: Buffer): ImageInfo {
+  let width: number | null = null;
+  let height: number | null = null;
+  let animated = false;
+  let i = PNG_SIGNATURE.length;
+  while (i + 12 <= bytes.length) {
+    const size = bytes.readUInt32BE(i);
+    const type = bytes.toString("latin1", i + 4, i + 8);
+    if (type === "IHDR" && size >= 8 && i + 16 <= bytes.length) {
+      width = bytes.readUInt32BE(i + 8);
+      height = bytes.readUInt32BE(i + 12);
+    }
+    // acTL is what makes a PNG an APNG; a browser that supports APNG plays it.
+    if (type === "acTL" || type === "fcTL" || type === "fdAT") animated = true;
+    if (type === "IEND") break;
+    i += 12 + size;
+  }
+  return { width, height, animated };
+}
+
+function inspectWebp(bytes: Buffer): ImageInfo {
+  let canvas: { width: number; height: number } | null = null;
+  let frame: { width: number; height: number } | null = null;
+  let animated = false;
+  let i = RIFF_HEADER_BYTES;
+  while (i + 8 <= bytes.length) {
+    const fourcc = bytes.toString("latin1", i, i + 4);
+    const size = bytes.readUInt32LE(i + 4);
+    const p = i + 8;
+    const end = Math.min(bytes.length, p + size);
+    if (fourcc === "VP8X" && end - p >= 10) {
+      if ((bytes[p] & 0x02) !== 0) animated = true;
+      canvas = { width: bytes.readUIntLE(p + 4, 3) + 1, height: bytes.readUIntLE(p + 7, 3) + 1 };
+    } else if (fourcc === "ANIM" || fourcc === "ANMF") {
+      animated = true;
+    } else if (fourcc === "VP8L" && frame === null && end - p >= 5 && bytes[p] === 0x2f) {
+      const bits = bytes.readUInt32LE(p + 1);
+      frame = { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+    } else if (
+      fourcc === "VP8 " &&
+      frame === null &&
+      end - p >= 10 &&
+      bytes[p + 3] === 0x9d &&
+      bytes[p + 4] === 0x01 &&
+      bytes[p + 5] === 0x2a
+    ) {
+      // Key-frame header: 3-byte frame tag, start code 9d 01 2a, then two
+      // 16-bit little-endian fields whose low 14 bits are the size.
+      frame = { width: bytes.readUInt16LE(p + 6) & 0x3fff, height: bytes.readUInt16LE(p + 8) & 0x3fff };
+    }
+    i = p + size + (size % 2);
+  }
+  const dims = canvas ?? frame;
+  return { width: dims?.width ?? null, height: dims?.height ?? null, animated };
 }

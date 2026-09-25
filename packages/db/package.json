@@ -17,6 +17,7 @@
     "geocode:care": "GEOCODE=1 tsx src/import-care-verified.ts"
   },
   "dependencies": {
+    "@hetja/contracts": "workspace:*",
     "libphonenumber-js": "^1.13.10",
     "pg": "^8.23.0"
   },

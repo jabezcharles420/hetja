@@ -8,6 +8,8 @@ import { loadConfig } from "../config.js";
 import { deviceTokenSubject, issueDeviceToken } from "../lib/device.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { reportStatusLimiter } from "./sos.js";
+import { reportPerSubject, sosAckPerAccount } from "../lib/rate-limit.js";
+import { photoGate } from "../lib/photo-gate.js";
 import { query, generateSlug } from "@hetja/db";
 
 const config = loadConfig();
@@ -31,14 +33,18 @@ const LOC_B = { lat: 19.05, lng: 72.88 };
  * registered in `createdFeeders` for afterEach cleanup, which deletes
  * attributing scans first, since wave 7 sos scans carry feeder_id.
  */
-async function makeFeeder(displayName: string, role: "feeder" | "admin" = "feeder"): Promise<{
+async function makeFeeder(
+  displayName: string,
+  role: "feeder" | "admin" = "feeder",
+  opts: { trust?: number; sosOptIn?: boolean } = {},
+): Promise<{
   id: string;
   accessToken: string;
 }> {
   const res = await query<{ id: string }>(
-    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor)
-     VALUES ($1, $2, $3, 40, 'v1', FALSE) RETURNING id`,
-    [randomUUID(), displayName, role],
+    `INSERT INTO feeders (identity_hmac, display_name, role, trust_score, consent_version, is_minor, sos_opt_in)
+     VALUES ($1, $2, $3, $4, 'v1', FALSE, $5) RETURNING id`,
+    [randomUUID(), displayName, role, opts.trust ?? 40, opts.sosOptIn ?? false],
   );
   const id = res.rows[0].id;
   createdFeeders.push(id);
@@ -120,7 +126,20 @@ async function insertNearbyProvider(): Promise<void> {
   createdProviders.push(res.rows[0].id);
 }
 
+/**
+ * A responder the ack route will accept on standing alone (hardening batch 1,
+ * T1): opted in, and at the critical floor (60), so it may claim a case of any
+ * severity without having been paged for it.
+ */
+function makeResponder(displayName: string) {
+  return makeFeeder(displayName, "feeder", { trust: 60, sosOptIn: true });
+}
+
 beforeEach(async () => {
+  // Module-level limiter singletons are shared by every test in this file.
+  reportPerSubject.reset();
+  sosAckPerAccount.reset();
+  photoGate.reset();
   await insertDog();
 });
 
@@ -701,7 +720,7 @@ describe("GET /api/v1/sos/cases/:id (bound to the case's people)", () => {
     const caseId = report.json().data.caseId;
     expect(report.json().data.fanout).toBe("escalated");
 
-    const claimer = await makeFeeder("Suppressed Claimer");
+    const claimer = await makeResponder("Suppressed Claimer");
     const ack = await app.inject({
       method: "POST",
       url: `/api/v1/sos/cases/${caseId}/ack`,
@@ -772,7 +791,7 @@ describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
 
   it("first ack claims the case: sets acked_by and acked_at, and ack latency is computable from sos_cases alone", async () => {
     const caseId = await openCase();
-    const feeder = await makeFeeder("Ack Responder");
+    const feeder = await makeResponder("Ack Responder");
     const app = buildServer(config);
 
     const res = await app.inject({
@@ -803,8 +822,8 @@ describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
 
   it("a second ack from a different feeder does not steal the case -- the first claimant still owns it", async () => {
     const caseId = await openCase();
-    const first = await makeFeeder("First Claimant");
-    const second = await makeFeeder("Second Claimant");
+    const first = await makeResponder("First Claimant");
+    const second = await makeResponder("Second Claimant");
     const app = buildServer(config);
 
     const firstAck = await app.inject({
@@ -863,7 +882,7 @@ describe("POST /api/v1/sos/cases/:id/ack (feeder auth)", () => {
 
   it("treats a retry from the same claimant as idempotent, not a steal against themselves", async () => {
     const caseId = await openCase();
-    const feeder = await makeFeeder("Retry Claimant");
+    const feeder = await makeResponder("Retry Claimant");
     const app = buildServer(config);
 
     const first = await app.inject({
@@ -944,7 +963,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
    */
   it("the acking responder resolves the case and stamps resolved_at + resolution", async () => {
     const caseId = await openCase();
-    const acker = await makeFeeder("Resolving Acker");
+    const acker = await makeResponder("Resolving Acker");
     const app = buildServer(config);
 
     await app.inject({
@@ -1040,7 +1059,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
 
   it("answers a missing resolution with 400, not a silent close", async () => {
     const caseId = await openCase();
-    const acker = await makeFeeder("Acker Without Words");
+    const acker = await makeResponder("Acker Without Words");
     const app = buildServer(config);
     await app.inject({
       method: "POST",
@@ -1083,7 +1102,7 @@ describe("POST /api/v1/sos/cases/:id/resolve (acker or moderator)", () => {
   it("an ack cannot reopen a case a moderator already resolved (409 SOS_CASE_CLOSED)", async () => {
     const caseId = await openCase("critical");
     const admin = await makeFeeder("Closing Admin", "admin");
-    const late = await makeFeeder("Late Responder");
+    const late = await makeResponder("Late Responder");
     const app = buildServer(config);
 
     const closed = await app.inject({
@@ -1252,7 +1271,9 @@ describe("PATCH /api/v1/feeders/me: SOS responder consent (wave 7)", () => {
       payload: { sosOptIn: true, lastKnownGeo: { lat: 18.97, lng: 72.82 } },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error.code).toBe("INVALID_SOS_OPT_IN");
+    // B-11: an unknown field is a PATCH error, not a consent error. The old
+    // code survives only for a bad `sosOptIn` value (below).
+    expect(res.json().error.code).toBe("INVALID_FEEDER_PATCH");
 
     // And nothing was written.
     const row = await query<{ sos_opt_in: boolean }>(
@@ -1616,6 +1637,250 @@ describe("GET /api/v1/reports/:caseId/status", () => {
       headers: { "x-device-token": other },
     });
     expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Hardening batch 1 (2026-09-25)
+// ---------------------------------------------------------------------------
+
+async function fileCase(app: ReturnType<typeof buildServer>, severity: "minor" | "serious" | "critical"): Promise<string> {
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/v1/reports",
+    payload: { dogSlug, severity, note: `h1 ${randomUUID()}`, deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET) },
+  });
+  expect(res.statusCode).toBe(200);
+  return res.json().data.caseId as string;
+}
+
+function ackAs(app: ReturnType<typeof buildServer>, accessToken: string, caseId: string) {
+  return app.inject({
+    method: "POST",
+    url: `/api/v1/sos/cases/${caseId}/ack`,
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+}
+
+describe("POST /api/v1/sos/cases/:id/ack: eligibility (T1, audit A-01)", () => {
+  it("403s SOS_ACK_FORBIDDEN for a signed-in feeder with trust 30 who was never paged", async () => {
+    const app = buildServer(config);
+    const caseId = await fileCase(app, "minor");
+    const newbie = await makeFeeder("Newbie", "feeder", { trust: 30, sosOptIn: true });
+    const res = await ackAs(app, newbie.accessToken, caseId);
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("SOS_ACK_FORBIDDEN");
+    const row = await query<{ acked_by: string | null; state: string }>(
+      `SELECT acked_by, state FROM sos_cases WHERE id = $1`,
+      [caseId],
+    );
+    expect(row.rows[0]).toEqual({ acked_by: null, state: "open" });
+    await app.close();
+  });
+
+  it("accepts a responder who was paged for the case, whatever their standing", async () => {
+    const app = buildServer(config);
+    const caseId = await fileCase(app, "critical");
+    const paged = await makeFeeder("Paged Low Trust", "feeder", { trust: 30, sosOptIn: false });
+    await query(`INSERT INTO sos_notifications (case_id, feeder_id, channel) VALUES ($1, $2, 'push')`, [caseId, paged.id]);
+    const res = await ackAs(app, paged.accessToken, caseId);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.ackedBy).toBe(paged.id);
+    await app.close();
+  });
+
+  it("trust 45 and opted in may claim a minor case but not a critical one", async () => {
+    const app = buildServer(config);
+    const minor = await fileCase(app, "minor");
+    const critical = await fileCase(app, "critical");
+    const mid = await makeFeeder("Mid Trust", "feeder", { trust: 45, sosOptIn: true });
+    expect((await ackAs(app, mid.accessToken, minor)).statusCode).toBe(200);
+    const res = await ackAs(app, mid.accessToken, critical);
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("SOS_ACK_FORBIDDEN");
+    await app.close();
+  });
+
+  it("a moderator may claim any case without opting in", async () => {
+    const app = buildServer(config);
+    const caseId = await fileCase(app, "critical");
+    const admin = await makeFeeder("Claiming Admin", "admin");
+    expect((await ackAs(app, admin.accessToken, caseId)).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("409s SOS_TOO_MANY_OPEN_ACKS on a third open case, while a re-ack of a held case stays 200", async () => {
+    const app = buildServer(config);
+    const cases = [await fileCase(app, "minor"), await fileCase(app, "minor"), await fileCase(app, "minor")];
+    const responder = await makeResponder("Hoarder");
+    expect((await ackAs(app, responder.accessToken, cases[0])).statusCode).toBe(200);
+    expect((await ackAs(app, responder.accessToken, cases[1])).statusCode).toBe(200);
+    const third = await ackAs(app, responder.accessToken, cases[2]);
+    expect(third.statusCode).toBe(409);
+    expect(third.json().error.code).toBe("SOS_TOO_MANY_OPEN_ACKS");
+    expect((await ackAs(app, responder.accessToken, cases[0])).statusCode).toBe(200);
+
+    // Resolving one frees a slot.
+    const resolved = await app.inject({
+      method: "POST",
+      url: `/api/v1/sos/cases/${cases[0]}/resolve`,
+      headers: { authorization: `Bearer ${responder.accessToken}` },
+      payload: { resolution: "handled" },
+    });
+    expect(resolved.statusCode).toBe(200);
+    expect((await ackAs(app, responder.accessToken, cases[2])).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("rate-limits acks per account: the 6th in a burst is 429 RATE_LIMITED with retry-after", async () => {
+    const app = buildServer(config);
+    const responder = await makeResponder("Prober");
+    for (let i = 0; i < 5; i++) {
+      expect((await ackAs(app, responder.accessToken, randomUUID())).statusCode).toBe(404);
+    }
+    const sixth = await ackAs(app, responder.accessToken, randomUUID());
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.json().error.code).toBe("RATE_LIMITED");
+    expect(Number(sixth.headers["retry-after"])).toBeGreaterThan(0);
+
+    // Another account is unaffected.
+    const other = await makeResponder("Other Prober");
+    expect((await ackAs(app, other.accessToken, randomUUID())).statusCode).toBe(404);
+    await app.close();
+  });
+});
+
+describe("POST /api/v1/reports: hardening batch 1 (T3, T5, T11)", () => {
+  it("accepts the device token in the X-Device-Token header", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      headers: { "x-device-token": token },
+      payload: { dogSlug, severity: "minor", note: "header token" },
+    });
+    expect(res.statusCode).toBe(200);
+    const row = await query<{ device_token: string }>(
+      `SELECT s.device_token FROM scans s JOIN sos_cases c ON c.scan_id = s.id WHERE c.id = $1`,
+      [res.json().data.caseId],
+    );
+    expect(row.rows[0].device_token).toBe(deviceTokenSubject(token, config.HETJA_DEVICE_SECRET));
+    await app.close();
+  });
+
+  it("the INVARIANT 7 cap's 429 still carries nearbyCare", async () => {
+    await insertNearbyProvider();
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    for (const note of ["one", "two"]) {
+      const ok = await app.inject({
+        method: "POST",
+        url: "/api/v1/reports",
+        payload: { dogSlug, severity: "minor", note, deviceToken: token },
+      });
+      expect(ok.statusCode).toBe(200);
+    }
+    const capped = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug, severity: "minor", note: "three", deviceToken: token },
+    });
+    expect(capped.statusCode).toBe(429);
+    expect(capped.json().error.code).toBe("SOS_RATE_LIMITED");
+    expect(capped.json().data.nearbyCare.length).toBeGreaterThan(0);
+    await app.close();
+  });
+
+  it("rate-limits the route per device (burst 6): the 7th request is 429 RATE_LIMITED with nearbyCare", async () => {
+    await insertNearbyProvider();
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const payload = { dogSlug, severity: "minor", note: "same report", deviceToken: token };
+    for (let i = 0; i < 6; i++) {
+      const res = await app.inject({ method: "POST", url: "/api/v1/reports", payload });
+      expect(res.statusCode).toBe(200); // the first opens, the rest are replays
+    }
+    const seventh = await app.inject({ method: "POST", url: "/api/v1/reports", payload });
+    expect(seventh.statusCode).toBe(429);
+    expect(seventh.json().error.code).toBe("RATE_LIMITED");
+    expect(Number(seventh.headers["retry-after"])).toBeGreaterThan(0);
+    expect(seventh.json().data.nearbyCare.length).toBeGreaterThan(0);
+
+    // Another device is unaffected.
+    const other = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { ...payload, deviceToken: issueDeviceToken(config.HETJA_DEVICE_SECRET) },
+    });
+    expect(other.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("omits data on a 429 when the dog has no position", async () => {
+    await query(`UPDATE dogs SET last_seen_geo = NULL WHERE id = $1`, [dogId]);
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const payload = { dogSlug, severity: "minor", note: "no geo", deviceToken: token };
+    for (let i = 0; i < 6; i++) await app.inject({ method: "POST", url: "/api/v1/reports", payload });
+    const limited = await app.inject({ method: "POST", url: "/api/v1/reports", payload });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().data).toBeUndefined();
+    await app.close();
+  });
+});
+
+describe("GET /api/v1/sos/cases/:id: ward (T15)", () => {
+  it("adds the dog's wardId and wardName, and nothing finer", async () => {
+    const app = buildServer(config);
+    const caseId = await fileCase(app, "minor");
+    const admin = await makeFeeder("Ward Reader", "admin");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/sos/cases/${caseId}`,
+      headers: { authorization: `Bearer ${admin.accessToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.wardId).toBe("K-West");
+    expect(res.json().data.wardName).toBe("Andheri West");
+    expect(res.body).not.toMatch(/"lat"|"lng"/);
+    expect(res.json().data.mine).toBe(false);
+    await app.close();
+  });
+
+  it("reports mine: true to the acker and false to a paged responder who did not take it", async () => {
+    const app = buildServer(config);
+    const caseId = await fileCase(app, "minor");
+    const acker = await makeResponder("Mine Acker");
+    const paged = await makeResponder("Mine Bystander");
+    await query(`INSERT INTO sos_notifications (case_id, feeder_id, channel) VALUES ($1, $2, 'push')`, [caseId, paged.id]);
+    expect((await ackAs(app, acker.accessToken, caseId)).statusCode).toBe(200);
+    const read = (token: string) =>
+      app.inject({ method: "GET", url: `/api/v1/sos/cases/${caseId}`, headers: { authorization: `Bearer ${token}` } });
+    expect((await read(acker.accessToken)).json().data.mine).toBe(true);
+    const other = await read(paged.accessToken);
+    expect(other.statusCode).toBe(200);
+    expect(other.json().data.mine).toBe(false);
+    await app.close();
+  });
+});
+
+describe("PATCH /api/v1/feeders/me error codes (B-11)", () => {
+  it("keeps INVALID_SOS_OPT_IN for a bad sosOptIn and uses INVALID_FEEDER_PATCH otherwise", async () => {
+    const feeder = await makeFeeder("Patch Codes");
+    const app = buildServer(config);
+    const patch = (payload: object) =>
+      app.inject({
+        method: "PATCH",
+        url: "/api/v1/feeders/me",
+        headers: { authorization: `Bearer ${feeder.accessToken}` },
+        payload,
+      });
+    expect((await patch({ sosOptIn: "yes" })).json().error.code).toBe("INVALID_SOS_OPT_IN");
+    expect((await patch({ displayName: "" })).json().error.code).toBe("INVALID_FEEDER_PATCH");
+    expect((await patch({ homeWard: "K/W" })).json().error.code).toBe("INVALID_FEEDER_PATCH");
+    expect((await patch({})).json().error.code).toBe("INVALID_FEEDER_PATCH");
     await app.close();
   });
 });

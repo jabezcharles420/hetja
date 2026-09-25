@@ -2,6 +2,7 @@
 
 import { Button, Label } from "@/components/ds";
 import type { Me, WardDetail } from "@/app/map/api";
+import type { AckMessage } from "@/lib/sos-ack";
 import {
   callLabel,
   dogsLabel,
@@ -39,12 +40,21 @@ const FLOOR: Record<Severity, number> = { minor: 40, serious: 40, critical: 60 }
 /** Final wording of the caption under "I can go and help" (see the report: the app never shows the exact spot). */
 export const HELP_CAPTION = "Trusted responders only. The exact spot stays private.";
 
+/**
+ * Caption under "Get alerts for {code} ward" (audit B-03). The button sets the
+ * home ward AND turns SOS paging on, and paging follows where the feeder has
+ * recently fed, not the home ward. Saying only "alerts for K/W" promised
+ * something the fan-out does not do.
+ */
+export const ALERTS_CAPTION = "Turns on SOS alerts. Alerts follow where you feed.";
+
 export type FootState =
   | { kind: "idle" }
   | { kind: "busy" }
   | { kind: "needSignIn" }
   | { kind: "notResponder"; viewer: NonNullable<WardDetail["viewer"]>; severity: Severity }
-  | { kind: "acked" }
+  | { kind: "acked"; caseId?: string | null }
+  | { kind: "refused"; msg: AckMessage }
   | { kind: "taken" }
   | { kind: "alertsOn" }
   | { kind: "error" };
@@ -329,6 +339,39 @@ function WardFoot({
       </div>
     );
   }
+  if (foot.kind === "refused") {
+    const m = foot.msg;
+    return (
+      <div className={styles.foot} aria-live="polite">
+        <p className={styles.footMsg}>
+          <b>{m.title}</b>
+          {m.body ? ` ${m.body}` : null}
+        </p>
+        {m.action && (
+          <Button href={m.action.href} fullWidth>
+            {m.action.label}
+          </Button>
+        )}
+        <div className={styles.footLinks}>
+          <button type="button" className={styles.linkBtn} onClick={onDismiss}>
+            Not now
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (foot.kind === "acked" && foot.caseId) {
+    return (
+      <div className={styles.foot} aria-live="polite">
+        <p className={styles.footMsg}>
+          <b>It&apos;s yours.</b> The person who raised it can now see someone is on the way.
+        </p>
+        <Button href={`/sos/${encodeURIComponent(foot.caseId)}`} fullWidth>
+          Open the case
+        </Button>
+      </div>
+    );
+  }
   if (foot.kind === "acked" || foot.kind === "taken" || foot.kind === "alertsOn") {
     const msg =
       foot.kind === "acked" ? (
@@ -341,7 +384,7 @@ function WardFoot({
         </>
       ) : (
         <>
-          <b>Alerts are on.</b> {ward.code} is your home ward, and SOS paging is on for dogs near where you feed.
+          <b>Alerts are on.</b> {ward.code} is your home ward. SOS alerts follow where you feed, not the ward.
         </>
       );
     return (
@@ -367,7 +410,9 @@ function WardFoot({
           <Button fullWidth onClick={onAlerts} disabled={busy}>
             Get alerts for {ward.code} ward
           </Button>
-          {already && <div className={styles.caption}>You already get alerts for {ward.code} ward.</div>}
+          <div className={styles.caption}>
+            {already ? `${ward.code} is your home ward. ${ALERTS_CAPTION}` : ALERTS_CAPTION}
+          </div>
         </>
       )}
     </div>

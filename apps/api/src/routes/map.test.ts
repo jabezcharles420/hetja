@@ -15,7 +15,7 @@ import { generateSlug, query } from "@hetja/db";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
-import { clampToMumbai, mapCache, pinKind } from "./map.js";
+import { clampToMumbai, clearMapCaches, pinKind } from "./map.js";
 
 const config = loadConfig();
 let app: FastifyInstance;
@@ -123,7 +123,7 @@ async function insertProvider(p: ProviderFixture): Promise<string> {
 }
 
 async function getWards(): Promise<Array<Record<string, any>>> {
-  mapCache.clear();
+  clearMapCaches();
   const res = await app.inject({ method: "GET", url: "/api/v1/map/wards" });
   expect(res.statusCode).toBe(200);
   return res.json().data.wards;
@@ -141,7 +141,7 @@ async function istMidnight(): Promise<Date> {
 }
 
 beforeEach(async () => {
-  mapCache.clear();
+  clearMapCaches();
   app = buildServer(config);
   await app.ready();
 });
@@ -213,7 +213,7 @@ describe("GET /api/v1/map/wards", () => {
   it("is ward-level only: no dog, scan, reporter or feeder identifier and no finer position", async () => {
     const d = await insertDog("R-North");
     await openCase(d.id, "critical", "open");
-    mapCache.clear();
+    clearMapCaches();
     const res = await app.inject({ method: "GET", url: "/api/v1/map/wards" });
     expect(res.body).not.toContain(d.id);
     expect(res.body).not.toContain(d.slug);
@@ -225,7 +225,7 @@ describe("GET /api/v1/map/wards", () => {
   });
 
   it("serves from a 60 s cache: a new dog is not visible until the cache turns over", async () => {
-    mapCache.clear();
+    clearMapCaches();
     const first = (await app.inject({ method: "GET", url: "/api/v1/map/wards" })).json().data.wards;
     await insertDog("R-North");
     const second = (await app.inject({ method: "GET", url: "/api/v1/map/wards" })).json().data.wards;
@@ -442,5 +442,57 @@ describe("GET /api/v1/map/places", () => {
   it("maps care kinds onto the two pin kinds", () => {
     expect(pinKind("ngo")).toBe("ngo");
     for (const k of ["private_clinic", "charity_hospital", "govt"]) expect(pinKind(k)).toBe("vet");
+  });
+});
+
+describe("map caches (hardening batch 1, T8)", () => {
+  it("ward detail: one shared 30 s base, public max-age=30 anonymously, private no-store with the viewer's overlay", async () => {
+    const d = await insertDog("R-North");
+    const early = await openCase(d.id, "serious", "open", 3);
+    const anon = await app.inject({ method: "GET", url: "/api/v1/map/wards/R-North" });
+    expect(anon.headers["cache-control"]).toBe("public, max-age=30");
+
+    // A case opened after the base was cached is not in it, for anyone.
+    const late = await openCase(d.id, "serious", "open", 1);
+    const trusted = await insertFeeder(70, true);
+    const signedIn = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/wards/R-North",
+      headers: { authorization: trusted.auth },
+    });
+    expect(signedIn.headers["cache-control"]).toBe("private, no-store");
+    const ids = (signedIn.json().data.sos as Array<{ caseId: string | null }>).map((s) => s.caseId);
+    expect(ids).toContain(early); // the per-viewer overlay still applies to the shared base
+    expect(ids).not.toContain(late);
+    const again = await app.inject({ method: "GET", url: "/api/v1/map/wards/R-North" });
+    expect((again.json().data.sos as Array<{ caseId: string | null }>).every((s) => s.caseId === null)).toBe(true);
+
+    clearMapCaches();
+    const fresh = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/wards/R-North",
+      headers: { authorization: trusted.auth },
+    });
+    expect((fresh.json().data.sos as Array<{ caseId: string | null }>).map((s) => s.caseId)).toContain(late);
+  });
+
+  it("places: all of Mumbai is loaded once per kind and every bbox is filtered from it", async () => {
+    const boxA = `${SG.lng - 0.02},${SG.lat - 0.02},${SG.lng},${SG.lat}`;
+    const boxB = `${SG.lng},${SG.lat},${SG.lng + 0.02},${SG.lat + 0.02}`;
+    expect((await app.inject({ method: "GET", url: `/api/v1/map/places?bbox=${boxA}` })).statusCode).toBe(200);
+    // Inserted after the first load, inside a DIFFERENT box: a per-bbox query
+    // would find it; the shared all-Mumbai list does not until it turns over.
+    const late = await insertProvider({ name: "MapTest Late", lat: SG.lat + 0.01, lng: SG.lng + 0.01 });
+    const b1 = await app.inject({ method: "GET", url: `/api/v1/map/places?bbox=${boxB}` });
+    expect(b1.headers["cache-control"]).toBe("public, max-age=60");
+    expect((b1.json().data.places as Array<{ id: string }>).map((p) => p.id)).not.toContain(late);
+    clearMapCaches();
+    const b2 = await app.inject({ method: "GET", url: `/api/v1/map/places?bbox=${boxB}` });
+    const got = b2.json().data.places as Array<{ id: string; lat: number; lng: number }>;
+    expect(got.map((p) => p.id)).toContain(late);
+    for (const p of got) {
+      expect(p.lng).toBeGreaterThanOrEqual(SG.lng);
+      expect(p.lat).toBeGreaterThanOrEqual(SG.lat);
+    }
   });
 });

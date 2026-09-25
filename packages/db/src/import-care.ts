@@ -25,8 +25,9 @@
  *
  * Refusals, all before anything is written:
  *   - any row with an error (missing source_id/name, unknown kind, a guessed
- *     cost tier, a bad ward, a point outside Mumbai, a duplicate source_id):
- *     an errored row would otherwise look "missing" and retire a good record;
+ *     cost tier, a bad ward, a confirmed_on in the future, a duplicate
+ *     source_id): an errored row would otherwise look "missing" and retire a
+ *     good record;
  *   - retiring more than a quarter of the source's listed rows (and more than
  *     3), which is what a truncated or wrong file looks like, unless
  *     --allow-mass-retire;
@@ -43,9 +44,15 @@
  * as `locality` precision. phone_verified_at is set to `confirmed_on` when the
  * row has a phone: that column means "a human confirmed this number with the
  * provider", which is what the monthly file certifies.
+ *
+ * Warnings (printed, never block): a lat/lng outside @hetja/contracts
+ * MUMBAI_BOUNDS (the row gets no pin), one phone on more than 3 rows under
+ * different names, a confirmed_on more than 365 days old, and two rows of the
+ * same kind within 30 m under different names.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
+import { MUMBAI_BOUNDS } from "@hetja/contracts";
 import { pool } from "./pool.js";
 import {
   GEOCODE_CACHE,
@@ -71,8 +78,39 @@ export const WARD_CODES = [
   "R-North", "R-South", "S", "T",
 ] as const;
 
-/** Greater Mumbai plus a margin; a point outside is a typo (swapped lat/lng, a Pune address). */
-const MUMBAI_BOUNDS = { minLat: 18.85, maxLat: 19.35, minLng: 72.75, maxLng: 73.2 };
+/**
+ * The map's one box (@hetja/contracts MUMBAI_BOUNDS, the same box the web map
+ * pans inside and GET /api/v1/map/places clamps to). A point outside it could
+ * never be shown as a pin, so it is a warning and the row is imported without
+ * one (address lookup, else locality centroid), not a hard error: a vet in
+ * Navi Mumbai is still worth listing by phone.
+ */
+export function insideMumbai(lat: number, lng: number): boolean {
+  return lat >= MUMBAI_BOUNDS.south && lat <= MUMBAI_BOUNDS.north && lng >= MUMBAI_BOUNDS.west && lng <= MUMBAI_BOUNDS.east;
+}
+
+/** Cross-row sanity thresholds (audit T13). */
+export const SHARED_PHONE_MAX_ROWS = 3;
+export const STALE_CONFIRMATION_DAYS = 365;
+export const NEARBY_SAME_KIND_METRES = 30;
+
+/** Today's date in Mumbai (UTC+05:30, no DST) as YYYY-MM-DD. */
+export function todayInMumbai(now: Date = new Date()): string {
+  return new Date(now.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  return Math.round((Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000);
+}
+
+function isRealDate(iso: string): boolean {
+  const t = Date.parse(`${iso}T00:00:00Z`);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === iso;
+}
+
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 const LEGACY_SOURCE_RE = /^(curated|osm|verified-csv-.*)$/;
 const SOURCE_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
@@ -161,7 +199,7 @@ function bool(v: string): boolean | null {
  * Header row + data rows -> validated records. Column names are matched
  * case-insensitively; unknown columns are ignored (notes, evidence ...).
  */
-export function readRecords(rows: string[][]): {
+export function readRecords(rows: string[][], today: string = todayInMumbai()): {
   records: CareRecord[];
   errors: RowIssue[];
   warnings: RowIssue[];
@@ -232,13 +270,22 @@ export function readRecords(rows: string[][]): {
       lat = Number(latRaw);
       lng = Number(lngRaw);
       if (!latRaw || !lngRaw || !Number.isFinite(lat) || !Number.isFinite(lng)) return err("lat and lng must both be numbers");
-      if (lat < MUMBAI_BOUNDS.minLat || lat > MUMBAI_BOUNDS.maxLat || lng < MUMBAI_BOUNDS.minLng || lng > MUMBAI_BOUNDS.maxLng) {
-        return err(`lat/lng ${lat},${lng} is outside Mumbai (swapped, or the wrong place?)`);
+      if (!insideMumbai(lat, lng)) {
+        warn(`lat/lng ${lat},${lng} is outside the Mumbai map box (swapped, or the wrong place?): no pin, imported by address or locality`);
+        lat = null;
+        lng = null;
       }
     }
 
     const confirmedOn = col(r, "confirmed_on");
     if (confirmedOn && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedOn)) return err(`confirmed_on "${confirmedOn}" is not YYYY-MM-DD`);
+    if (confirmedOn && !isRealDate(confirmedOn)) return err(`confirmed_on "${confirmedOn}" is not a real date`);
+    if (confirmedOn && confirmedOn > today) {
+      return err(`confirmed_on ${confirmedOn} is in the future (today is ${today} in Mumbai): nobody has confirmed it yet`);
+    }
+    if (confirmedOn && daysBetween(confirmedOn, today) > STALE_CONFIRMATION_DAYS) {
+      warn(`confirmed_on ${confirmedOn} is more than ${STALE_CONFIRMATION_DAYS} days old: re-confirm with the provider`);
+    }
     if (!confirmedOn) warn("confirmed_on is empty: the number will be shown as unconfirmed");
 
     records.push({
@@ -386,6 +433,62 @@ export function duplicateKeys(records: CareRecord[]): RowIssue[] {
   return out;
 }
 
+/**
+ * One phone number on more than SHARED_PHONE_MAX_ROWS rows under different
+ * names. A chain's call centre can legitimately answer for a few branches,
+ * but a single number spread across many differently named providers is what
+ * a copy-paste slip, or someone steering emergencies to one line, looks like.
+ * A warning, not an error: a human reads the list before --apply.
+ */
+export function sharedPhoneWarnings(records: CareRecord[]): RowIssue[] {
+  const byPhone = new Map<string, CareRecord[]>();
+  for (const r of records) {
+    if (!r.phone) continue;
+    const list = byPhone.get(r.phone) ?? [];
+    list.push(r);
+    byPhone.set(r.phone, list);
+  }
+  const out: RowIssue[] = [];
+  for (const [phone, list] of byPhone) {
+    if (list.length <= SHARED_PHONE_MAX_ROWS) continue;
+    if (list.every((r) => sameName(r.name, list[0].name))) continue;
+    out.push({
+      line: 0,
+      sourceRef: list.map((r) => r.sourceRef).join(", "),
+      message: `phone ${phone} is on ${list.length} rows with different names: check it is really each provider's own number`,
+    });
+  }
+  return out;
+}
+
+/**
+ * Two providers of the same kind within NEARBY_SAME_KIND_METRES of each other
+ * under different names: usually one clinic entered twice (renamed, or a
+ * typo), which would show a stranger two pins for one door. Only real points
+ * count; locality-centroid rows all share one point by construction.
+ */
+export function nearbySameKindWarnings(
+  points: Array<{ sourceRef: string; name: string; kind: string; lat: number; lng: number }>,
+): RowIssue[] {
+  const out: RowIssue[] = [];
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const a = points[i];
+      const b = points[j];
+      if (a.kind !== b.kind || sameName(a.name, b.name)) continue;
+      const metres = kmBetween(a, b) * 1000;
+      if (metres <= NEARBY_SAME_KIND_METRES) {
+        out.push({
+          line: 0,
+          sourceRef: `${a.sourceRef}, ${b.sourceRef}`,
+          message: `"${a.name}" and "${b.name}" are both ${a.kind} ${Math.round(metres)} m apart: the same place entered twice?`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export function tooManyRetires(listedCount: number, retires: number): boolean {
   return retires > MASS_RETIRE_MIN && retires > listedCount * MASS_RETIRE_SHARE;
 }
@@ -435,7 +538,7 @@ async function resolve(records: CareRecord[], geocode: boolean): Promise<{ resol
     let pt = r.address ? cache[r.address] : undefined;
     if (!pt && r.address && geocode) {
       const hit = await geocodeAddress(r.address);
-      if (hit && kmBetween(hit, centroid) <= 12) {
+      if (hit && kmBetween(hit, centroid) <= 12 && insideMumbai(hit.lat, hit.lng)) {
         pt = hit;
         cache[r.address] = hit;
         dirty = true;
@@ -488,9 +591,10 @@ export async function runImport(args: Args, log: (s: string) => void = console.l
   const text = readFileSync(path.resolve(process.env.INIT_CWD ?? process.cwd(), args.file), "utf8");
   const { records, errors, warnings } = readRecords(parseCsv(text));
   errors.push(...duplicateKeys(records));
+  warnings.push(...sharedPhoneWarnings(records));
 
   log(`care import: ${args.apply ? "APPLY" : "DRY RUN"} of ${args.file} as source "${args.source}"`);
-  for (const w of warnings) log(`  warn   line ${w.line} [${w.sourceRef}] ${w.message}`);
+  for (const w of warnings) log(`  warn   ${w.line ? `line ${w.line} ` : ""}[${w.sourceRef}] ${w.message}`);
   if (errors.length) {
     for (const e of errors) log(`  ERROR  ${e.line ? `line ${e.line} ` : ""}[${e.sourceRef}] ${e.message}`);
     log(`${errors.length} error(s): fix the file and run again. Nothing was written.`);
@@ -499,6 +603,9 @@ export async function runImport(args: Args, log: (s: string) => void = console.l
 
   const { resolved, notes } = await resolve(records, args.geocode);
   for (const n of notes) log(`  note   [${n.sourceRef}] ${n.message}`);
+  // After resolving, so geocoded addresses are compared too.
+  const pinned = resolved.filter((r) => r.geoPrecision === "exact").map((r) => ({ ...r, lat: r.geoLat, lng: r.geoLng }));
+  for (const w of nearbySameKindWarnings(pinned)) log(`  warn   [${w.sourceRef}] ${w.message}`);
 
   const client = await pool.connect();
   try {

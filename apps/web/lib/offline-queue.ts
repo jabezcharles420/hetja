@@ -14,7 +14,7 @@
 import { queueScan, listQueued, removeQueued, uuid } from "./idb";
 import type { QueuedScan } from "./idb";
 import { api, ApiError, getAccessToken } from "./api";
-import type { FeedOutcomeValue } from "./api";
+import type { FeedOutcomeValue, ScanResult } from "./api";
 
 export const SYNC_TAG = "hetja-feed-flush";
 
@@ -39,6 +39,17 @@ export interface FeedOutcome {
   queued: QueuedScan;
   syncing: boolean;
   offline: boolean;
+  /** The server's answer, when this feed was delivered while the feeder watched. */
+  result?: ScanResult;
+  /**
+   * Still on this phone because the server said "not now" (429 RATE_LIMITED,
+   * 503 PHOTO_BUSY) or is backing off from saying so. It sends later.
+   */
+  throttled: boolean;
+  /** Still on this phone for another retryable reason (network, 5xx, 401). */
+  pending: boolean;
+  /** Refused permanently: the record is gone and recordDroppedFeed has it. */
+  dropped?: ApiError;
 }
 
 /**
@@ -99,19 +110,93 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
   });
 
   const offline = !isOnLine();
-  let syncing = false;
-  if (!offline) {
-    if (await hasBackgroundSync()) {
-      syncing = await requestSync();
-    } else {
-      // recordDroppedFeed, not a bare flush(): a feed refused permanently here
-      // is the one the feeder just tapped, so it is the LAST place that should
-      // discard it without a word.
-      syncing = (await flush(recordDroppedFeed)) > 0;
-    }
-  }
+  if (offline) return { queued, syncing: false, offline, throttled: false, pending: true };
 
-  return { queued, syncing, offline };
+  // Online: try it now, while the feeder is looking, so the screen can say
+  // what actually happened (photo not kept, server busy). This used to hand
+  // the record to Background Sync unsent on Chromium, so the screen said
+  // "Logged" before anything had left the phone. Background Sync is still
+  // registered for whatever stays queued.
+  //
+  // recordDroppedFeed, not a bare flush(): a feed refused permanently here is
+  // the one the feeder just tapped, so it is the LAST place that should
+  // discard it without a word.
+  const report = await flushDetailed(recordDroppedFeed);
+  const result = report.results.get(queued.id);
+  const dropped = report.dropped.get(queued.id);
+  const stillQueued = !result && !dropped;
+  let syncing = !!result;
+  if (stillQueued && (await hasBackgroundSync())) {
+    syncing = await requestSync().catch(() => false);
+  }
+  const throttled = stillQueued && (report.throttled || backoffActive());
+  return {
+    queued,
+    syncing,
+    offline,
+    ...(result ? { result } : {}),
+    ...(dropped ? { dropped } : {}),
+    throttled,
+    pending: stillQueued && !throttled,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Server back-off (429 RATE_LIMITED / 503 PHOTO_BUSY)
+
+/** localStorage key: epoch ms before which the queue does not send. */
+export const QUEUE_NOT_BEFORE_KEY = "hetja.feedQueueNotBefore";
+
+/** Wait used when a 429 / 503 comes without a usable retry-after. */
+const DEFAULT_BACKOFF_SEC = 30;
+/** Never wait longer than this on the server's say-so (a bad header must not park the queue for days). */
+const MAX_BACKOFF_SEC = 6 * 60 * 60;
+
+let notBefore = 0;
+
+function readNotBefore(): number {
+  let stored = 0;
+  try {
+    if (typeof localStorage !== "undefined") stored = Number(localStorage.getItem(QUEUE_NOT_BEFORE_KEY) ?? 0) || 0;
+  } catch {
+    /* storage blocked: the in-memory value still holds for this page */
+  }
+  return Math.max(notBefore, stored);
+}
+
+function backoffActive(now = Date.now()): boolean {
+  return readNotBefore() > now;
+}
+
+/** Epoch ms until which the queue waits, or 0. */
+export function queueBackoffUntil(now = Date.now()): number {
+  const t = readNotBefore();
+  return t > now ? t : 0;
+}
+
+/** Forget any back-off (tests, and a manual "send now"). */
+export function resetQueueBackoff(): void {
+  notBefore = 0;
+  try {
+    localStorage?.removeItem(QUEUE_NOT_BEFORE_KEY);
+  } catch {
+    /* nothing stored */
+  }
+}
+
+function backOff(retryAfterSec: number | undefined, now = Date.now()): void {
+  const sec = Math.min(MAX_BACKOFF_SEC, Math.max(1, retryAfterSec ?? DEFAULT_BACKOFF_SEC));
+  notBefore = now + sec * 1000;
+  try {
+    localStorage?.setItem(QUEUE_NOT_BEFORE_KEY, String(notBefore));
+  } catch {
+    /* in-memory only */
+  }
+}
+
+/** The server asked us to slow down: keep the record, stop this pass, wait retry-after. */
+function isThrottle(err: unknown): err is ApiError {
+  return err instanceof ApiError && (err.status === 429 || err.status === 503);
 }
 
 /**
@@ -150,6 +235,14 @@ function isRetryable(err: unknown): boolean {
   return false; // every other 4xx is a statement about the request itself
 }
 
+interface FlushReport {
+  sent: number;
+  /** A 429 / 503 stopped this pass (or a back-off was already running). */
+  throttled: boolean;
+  results: Map<string, ScanResult>;
+  dropped: Map<string, ApiError>;
+}
+
 /**
  * Replays the whole queue against POST /api/v1/scans (FIFO). Returns the number
  * of scans acknowledged (created or deduped).
@@ -172,19 +265,34 @@ function isRetryable(err: unknown): boolean {
 export async function flush(
   onDrop?: (item: QueuedScan, err: ApiError) => void,
 ): Promise<number> {
+  return (await flushDetailed(onDrop)).sent;
+}
+
+/**
+ * flush, with the per-record answers. Honors the server's back-off: after a
+ * 429 RATE_LIMITED or 503 PHOTO_BUSY the record stays queued (never dropped),
+ * the rest of this pass is skipped (the next record would only be refused
+ * too, after uploading its photo), and no pass sends anything until the
+ * retry-after has passed. The deadline is kept in localStorage so a reload
+ * does not undo it.
+ */
+async function flushDetailed(onDrop?: (item: QueuedScan, err: ApiError) => void): Promise<FlushReport> {
+  const report: FlushReport = { sent: 0, throttled: false, results: new Map(), dropped: new Map() };
+  if (backoffActive()) {
+    report.throttled = true;
+    return report;
+  }
   const items = await listQueued();
-  let sent = 0;
   for (const item of items) {
     if (!item.deviceToken && !getAccessToken()) {
       await removeQueued(item.id);
-      onDrop?.(
-        item,
-        new ApiError("attested device token required", { status: 401, code: "UNAUTHENTICATED_DEVICE" }),
-      );
+      const err = new ApiError("attested device token required", { status: 401, code: "UNAUTHENTICATED_DEVICE" });
+      report.dropped.set(item.id, err);
+      onDrop?.(item, err);
       continue;
     }
     try {
-      await api.createScan(
+      const result = await api.createScan(
         {
           clientUuid: item.clientUuid,
           dogSlug: item.dogSlug,
@@ -202,14 +310,23 @@ export async function flush(
       // `created: false` = already recorded server-side (idempotent replay).
       // Either way the record is handled and must not be re-queued.
       await removeQueued(item.id);
-      sent++;
+      report.sent++;
+      report.results.set(item.id, result);
     } catch (err) {
+      if (isThrottle(err)) {
+        backOff(err.retryAfterSec);
+        report.throttled = true;
+        break; // keep this and every later record; try after retry-after
+      }
       if (isRetryable(err)) continue; // keep queued; retried on the next flush
       await removeQueued(item.id);
-      if (err instanceof ApiError) onDrop?.(item, err);
+      if (err instanceof ApiError) {
+        report.dropped.set(item.id, err);
+        onDrop?.(item, err);
+      }
     }
   }
-  return sent;
+  return report;
 }
 
 /** localStorage key holding metadata for feeds the server permanently refused. */

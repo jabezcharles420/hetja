@@ -24,6 +24,10 @@ import { savePendingPhoto } from "@/lib/registration-photo";
 import RequireCapability from "@/components/RequireCapability";
 import styles from "./new.module.css";
 
+/** 429 REGISTRATION_WEEKLY_CAP: six registrations in seven days (API T9). */
+export const REGISTRATION_WEEKLY_CAP_MESSAGE =
+  "You've registered 6 dogs this week. The limit keeps fake dogs off the map. Try again in a few days.";
+
 export function wardLabel(w: Pick<Ward, "code" | "name">): string {
   return `${w.code} · ${w.name}`;
 }
@@ -160,6 +164,8 @@ function NewFormInner(): React.JSX.Element {
       if (err instanceof ApiError) {
         if (err.code === "REGISTRATION_BUDGET_EXCEEDED" || err.code === "DEVICE_REGISTRATION_BUDGET_EXCEEDED") {
           setError("Two dogs are already waiting for their collars. Attach one to free a slot.");
+        } else if (err.code === "REGISTRATION_WEEKLY_CAP") {
+          setError(REGISTRATION_WEEKLY_CAP_MESSAGE);
         } else if (err.code === "REGISTRATION_DISABLED") {
           setError("Registration is switched off for this account.");
         } else if (err.code === "UNAUTHENTICATED_DEVICE") {

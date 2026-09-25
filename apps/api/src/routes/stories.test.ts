@@ -5,6 +5,7 @@ import { loadConfig } from "../config.js";
 import { signAccessToken } from "../lib/jwt.js";
 import { query, generateSlug } from "@hetja/db";
 import { logTrustEvent } from "../lib/trust.js";
+import { storyPerAccount } from "../lib/rate-limit.js";
 
 const config = loadConfig();
 
@@ -42,6 +43,7 @@ async function insertFeeder(role: "feeder" | "admin", trustScore: number): Promi
 }
 
 beforeEach(async () => {
+  storyPerAccount.reset();
   const slug = randomSlug();
   const dogRes = await query<{ id: string }>(
     `INSERT INTO dogs (slug, name, ward_id)
@@ -421,6 +423,43 @@ describe("admin rejection: full delete + trust penalty", () => {
     ]);
     expect(feeder.rows[0].trust_score).toBe(25);
 
+    await app.close();
+  });
+});
+
+describe("POST /api/v1/dogs/:slug/stories: hardening batch 1 (T3)", () => {
+  const post = (app: ReturnType<typeof buildServer>, slug: string, token: string, paragraph: string) =>
+    app.inject({
+      method: "POST",
+      url: `/api/v1/dogs/${slug}/stories`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { paragraph },
+    });
+
+  it("allows 5 stories a day per account; the 6th is 429 RATE_LIMITED with retry-after", async () => {
+    const app = buildServer(config);
+    for (let i = 1; i <= 5; i++) expect((await post(app, fx.dogSlug, fx.feederToken, `story ${i}`)).statusCode).toBe(200);
+    const sixth = await post(app, fx.dogSlug, fx.feederToken, "story 6");
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.json().error.code).toBe("RATE_LIMITED");
+    expect(Number(sixth.headers["retry-after"])).toBeGreaterThan(0);
+    // Another account is unaffected.
+    expect((await post(app, fx.dogSlug, fx.adminToken, "admin story")).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("only active dogs take stories: pending is 404 (hidden), lost is 409 DOG_NOT_ACTIVE", async () => {
+    const app = buildServer(config);
+    await query(`UPDATE dogs SET status = 'pending_activation' WHERE id = $1`, [fx.dogId]);
+    const pending = await post(app, fx.dogSlug, fx.feederToken, "on a pending dog");
+    expect(pending.statusCode).toBe(404);
+    expect(pending.json().error.code).toBe("DOG_NOT_FOUND");
+    await query(`UPDATE dogs SET status = 'lost' WHERE id = $1`, [fx.dogId]);
+    const lost = await post(app, fx.dogSlug, fx.feederToken, "on a lost dog");
+    expect(lost.statusCode).toBe(409);
+    expect(lost.json().error.code).toBe("DOG_NOT_ACTIVE");
+    const rows = await query<{ n: number }>(`SELECT count(*)::int AS n FROM dog_stories WHERE dog_id = $1`, [fx.dogId]);
+    expect(rows.rows[0].n).toBe(0);
     await app.close();
   });
 });

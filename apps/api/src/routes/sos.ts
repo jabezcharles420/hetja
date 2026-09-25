@@ -28,16 +28,25 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { MAX_PHOTO_BASE64_CHARS, SLUG_REGEX, type SosSeverity } from "@hetja/contracts";
+import { MAX_PHOTO_BASE64_CHARS, SLUG_REGEX, wardName, type SosSeverity } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { deviceTokenSubject } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { parseUuidParam } from "../lib/params.js";
-import { RateLimiter } from "../lib/rate-limit.js";
+import {
+  RateLimiter,
+  logRateLimited,
+  reportPerSubject,
+  sosAckPerAccount,
+  subjectKey,
+} from "../lib/rate-limit.js";
+import { PHOTO_ROUTE_BODY_LIMIT } from "../lib/body-limits.js";
+import { PHOTO_BUSY_RETRY_AFTER_SEC, PhotoBusyError, photoGate, type Release } from "../lib/photo-gate.js";
+import { MAX_OPEN_ACKS, TRUST_FLOOR, mayAck } from "../lib/sos-eligibility.js";
 import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storage.js";
 import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
 import { capabilitiesFor, requireFeeder } from "../lib/require-role.js";
-import { getNearbyCare } from "./care.js";
+import { getNearbyCare, type NearbyCareProvider } from "./care.js";
 
 // INVARIANT 7: anonymous SOS is capped per attested device token.
 const SOS_DAILY_CAP = 2;
@@ -173,7 +182,9 @@ async function dispatchFanout(
     await client.query(`UPDATE sos_cases SET tier = 2 WHERE id = $1`, [caseId]);
     return false;
   }
-  const trustFloor = severity === "critical" ? 60 : 40;
+  // The floors live in lib/sos-eligibility.ts, shared with the ack route and
+  // the map, so "who gets paged" and "who may claim" cannot drift apart.
+  const trustFloor = TRUST_FLOOR[severity];
   const res = await client.query<{ id: string }>(
     `SELECT f.id
      FROM feeders f
@@ -208,24 +219,60 @@ async function dispatchFanout(
   return true;
 }
 
-async function persistReportPhoto(app: FastifyInstance, scanId: string, photo: StrippedImage): Promise<void> {
+async function persistReportPhoto(
+  app: FastifyInstance,
+  scanId: string,
+  photo: StrippedImage,
+  release: Release,
+): Promise<void> {
   try {
     const photoKey = await storePhoto(photo, app.config as unknown as StorageConfig);
     await query(`UPDATE scans SET photo_s3_key = $1 WHERE id = $2 AND photo_s3_key IS NULL`, [photoKey, scanId]);
   } catch (err) {
     app.log.warn({ err, scanId }, "sos report photo persist failed");
+  } finally {
+    release();
   }
 }
 
+/**
+ * Nearby care for the dog behind a report, or null when the dog is unknown or
+ * has no position. Shared by the success path and both 429s (hardening batch
+ * 1, T11): a reporter who is rate-limited is still standing over a hurt dog,
+ * and the fastest useful thing is still a phone number.
+ */
+async function nearbyCareForSlug(dogSlug: string): Promise<NearbyCareProvider[] | null> {
+  // SECURITY-GATE: public-coordinates -- internal only. Used to rank nearby
+  // care providers by distance; the dog's own position is not echoed back.
+  // Only the resulting provider list (published clinic addresses) is returned.
+  const dogGeoRes = await query<{ lat: number | null; lng: number | null }>(
+    `SELECT ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng
+       FROM dogs WHERE slug = $1`,
+    [dogSlug],
+  );
+  const dogGeo = dogGeoRes.rows[0];
+  if (dogGeo?.lat == null || dogGeo?.lng == null) return null;
+  return getNearbyCare(dogGeo.lat, dogGeo.lng);
+}
+
 export default async function sosRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/api/v1/reports", async (req: FastifyRequest, reply: FastifyReply) => {
+  // bodyLimit: one of the two photo routes (lib/body-limits.ts). The rest of
+  // the API accepts 64 KiB.
+  app.post("/api/v1/reports", { bodyLimit: PHOTO_ROUTE_BODY_LIMIT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = SosReportInput.safeParse(req.body);
     if (!parsed.success) {
       return reply
         .status(400)
         .send({ ok: false, error: { message: "invalid sos report", code: "INVALID_SOS_REPORT" } });
     }
-    const { dogSlug, severity, note, deviceToken, photoBase64 } = parsed.data;
+    const { dogSlug, severity, note, photoBase64 } = parsed.data;
+    // The token may arrive in the body (the original contract, apps/scan) or in
+    // the X-Device-Token header every other device-attested route uses
+    // (hardening batch 1, T5). The body wins when both are present, so an
+    // existing client's behaviour cannot change.
+    const headerToken = req.headers["x-device-token"];
+    const deviceToken =
+      parsed.data.deviceToken ?? (typeof headerToken === "string" && headerToken.length > 0 ? headerToken : undefined);
 
     // INVARIANT 6/7: `deviceSubject` (the canonical deviceId the token
     // attests) is the rate-limit subject, and the ONLY device-derived value
@@ -255,17 +302,50 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
     }
 
+    // Request-rate limit per account or device (hardening batch 1, T3),
+    // never per IP (INVARIANT 6). Before any photo decode or database work.
+    // It does not replace INVARIANT 7's case cap below; it bounds how often a
+    // subject can hit this route at all (replays and photo re-uploads
+    // included). The 429 still carries nearbyCare (T11).
+    const reportBudget = reportPerSubject.consume(subjectKey(feederId, deviceSubject));
+    if (!reportBudget.allowed) {
+      logRateLimited(req.log, "reportPerSubject", feederId ? "account" : "device");
+      const nearbyCare = await nearbyCareForSlug(dogSlug);
+      return reply
+        .status(429)
+        .header("retry-after", String(reportBudget.retryAfterSec))
+        .send({
+          ok: false,
+          error: { message: "too many reports; try again shortly", code: "RATE_LIMITED" },
+          ...(nearbyCare ? { data: { nearbyCare } } : {}),
+        });
+    }
+
     // Photo: validated and metadata-stripped HERE, on the request path, for
     // the same two reasons as routes/scans.ts (unstripped bytes would publish
     // the camera's GPS, INVARIANT 2; and "rejected" must mean a 400, not a
     // background warning). After auth, so an unauthenticated caller cannot
     // make the server decode images. The bytes are only WRITTEN after the
     // transaction below has passed the INVARIANT 7 cap and opened a new case.
+    // The photo gate (lib/photo-gate.ts) bounds how many decoded photos are
+    // alive at once; saturated, it answers 503 PHOTO_BUSY with retry-after.
     let photo: StrippedImage | null = null;
+    let release: Release | null = null;
+    let handedOff = false;
     if (photoBase64) {
+      try {
+        release = await photoGate.acquire();
+      } catch (err) {
+        if (!(err instanceof PhotoBusyError)) throw err;
+        return reply
+          .status(503)
+          .header("retry-after", String(PHOTO_BUSY_RETRY_AFTER_SEC))
+          .send({ ok: false, error: { message: "photo processing is busy; try again shortly", code: "PHOTO_BUSY" } });
+      }
       try {
         photo = decodePhotoUpload(photoBase64);
       } catch (err) {
+        release();
         if (!(err instanceof UnsupportedImageError)) throw err;
         return reply.status(400).send({
           ok: false,
@@ -273,6 +353,8 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         });
       }
     }
+
+    try {
 
     // INVARIANT 5: deterministic client_uuid → replay of the same report is
     // idempotent (a re-submit while a case is open/acked never double-opens).
@@ -500,9 +582,16 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       });
     } catch (err) {
       if (err instanceof SosRateLimitError) {
-        return reply
-          .status(429)
-          .send({ ok: false, error: { message: "sos report cap exceeded", code: "SOS_RATE_LIMITED" } });
+        // INVARIANT 7's case cap. Unchanged in what it counts; what changed
+        // (hardening batch 1, T11) is that the refusal still hands the reporter
+        // the nearest numbers to call.
+        logRateLimited(req.log, "sosCaseCap", feederId ? "account" : "device");
+        const nearbyCare = await nearbyCareForSlug(dogSlug);
+        return reply.status(429).send({
+          ok: false,
+          error: { message: "sos report cap exceeded", code: "SOS_RATE_LIMITED" },
+          ...(nearbyCare ? { data: { nearbyCare } } : {}),
+        });
       }
       if (err instanceof SosDogNotFoundError) {
         return reply
@@ -517,8 +606,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     // capped report stores nothing), and never over a photo the scan row
     // already has: a re-filed report reuses its scan row (see the cap
     // comment above), and the first photo stays the evidence.
-    if (photo && result.created && opened.scanId) {
-      void persistReportPhoto(app, opened.scanId, photo);
+    if (photo && release && result.created && opened.scanId) {
+      handedOff = true;
+      void persistReportPhoto(app, opened.scanId, photo, release);
     }
 
     // Emergency-path improvement (plan §2.4): return a callable number
@@ -528,19 +618,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     // wave 7 adds `fanout` (see FanoutDisposition). nearbyCare is
     // STATUS-INDEPENDENT on purpose: an uncorroborated dog gets the same
     // phone numbers as a corroborated one.
-    // SECURITY-GATE: public-coordinates -- internal only. Used to rank nearby
-    // care providers by distance; the dog's own position is not echoed back.
-    // Only the resulting provider list (published clinic addresses) is returned.
-    const dogGeoRes = await query<{ lat: number | null; lng: number | null }>(
-      `SELECT ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng
-       FROM dogs WHERE slug = $1`,
-      [dogSlug],
-    );
-    const dogGeo = dogGeoRes.rows[0];
-    const nearbyCare =
-      dogGeo?.lat != null && dogGeo?.lng != null ? await getNearbyCare(dogGeo.lat, dogGeo.lng) : [];
+    const nearbyCare = (await nearbyCareForSlug(dogSlug)) ?? [];
 
     return { ok: true, data: { ...result, nearbyCare } };
+    } finally {
+      if (release && !handedOff) release();
+    }
   });
 
   /**
@@ -588,6 +671,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
 
     const budget = reportStatusLimiter.consume(feederId ? `acct:${feederId}` : `dev:${deviceSubject}`);
     if (!budget.allowed) {
+      logRateLimited(req.log, "reportStatusLimiter", feederId ? "account" : "device");
       return reply
         .status(429)
         .header("retry-after", String(budget.retryAfterSec))
@@ -659,12 +743,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         error: { message: "case id must be a UUID", code: "INVALID_CASE_ID" },
       });
     }
-    const res = await query<CaseRow & { acked_by: string | null; fanned_out: boolean }>(
+    const res = await query<CaseRow & { acked_by: string | null; fanned_out: boolean; ward_id: string | null }>(
       `SELECT c.id, c.severity, c.state, c.tier, c.opened_at, c.acked_at, c.escalated_at,
-              c.resolved_at, c.resolution, c.acked_by,
+              c.resolved_at, c.resolution, c.acked_by, d.ward_id,
               EXISTS (SELECT 1 FROM sos_notifications n
                        WHERE n.case_id = c.id AND n.feeder_id = $2) AS fanned_out
-       FROM sos_cases c WHERE c.id = $1`,
+       FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id WHERE c.id = $1`,
       [id, auth.feederId],
     );
     const row = res.rows[0];
@@ -699,6 +783,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         escalatedAt: row.escalated_at ? new Date(row.escalated_at).toISOString() : null,
         resolvedAt: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
         resolution: row.resolution ?? null,
+        // Ward-level only (INVARIANT 2), for the /sos/[caseId] page's
+        // "see it on the map" link. Never a position.
+        wardId: row.ward_id ?? null,
+        wardName: wardName(row.ward_id),
+        // The caller holds this case (they acknowledged it): the web
+        // /sos/[caseId] page shows Resolve only then.
+        mine: row.acked_by === auth.feederId,
       },
     };
   });
@@ -862,6 +953,18 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     if (!auth) return reply;
     const feederId = auth.feederId;
 
+    // Per account (hardening batch 1, T1): burst 5, 10 a day. After auth,
+    // before the case id is even parsed, so probing ids costs budget.
+    const ackBudget = sosAckPerAccount.consume(`acct:${feederId}`);
+    if (!ackBudget.allowed) {
+      logRateLimited(req.log, "sosAckPerAccount", "account");
+      return reply
+        .status(429)
+        .header("retry-after", String(ackBudget.retryAfterSec))
+        .send({ ok: false, error: { message: "too many acknowledgements; try again later", code: "RATE_LIMITED" } });
+    }
+    const isModerator = capabilitiesFor(auth.role).has("moderate");
+
     // Same 22P02 → 500 guard as the GET above (see lib/params.ts).
     const id = parseUuidParam((req.params as { id: string }).id);
     if (!id) {
@@ -872,6 +975,60 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const outcome = await withTx(async (client) => {
+      // ELIGIBILITY (hardening batch 1, T1, audit A-01). Checked inside the
+      // transaction, under the case row lock, BEFORE the claim UPDATE:
+      //
+      //   1. the existing acker retrying          -> idempotent success
+      //   2. otherwise the caller must have been paged for this case, or be a
+      //      moderator, or have the standing that would have got them paged
+      //      (sos_opt_in AND trust >= TRUST_FLOOR[severity])  -> else 403
+      //   3. a non-moderator already holding MAX_OPEN_ACKS acknowledged,
+      //      unresolved cases may not take another       -> 409
+      //
+      // The claim is what stops escalation (the worker only promotes
+      // state = 'open'), so "signed in" was never enough to hold it.
+      const caseRes = await client.query<{
+        severity: SosSeverity;
+        acked_by: string | null;
+        acked_at: Date | null;
+        resolved_at: Date | null;
+      }>(
+        `SELECT severity::text AS severity, acked_by, acked_at, resolved_at
+           FROM sos_cases WHERE id = $1 FOR UPDATE`,
+        [id],
+      );
+      const current = caseRes.rows[0];
+      if (!current) return { status: "not_found" as const };
+      if (current.acked_by === feederId) {
+        // Same responder retrying: idempotent success, not a steal attempt
+        // against their own claim. Holds for a resolved case too.
+        return { status: "claimed" as const, ackedAt: current.acked_at as Date };
+      }
+
+      const standing = await client.query<{ sos_opt_in: boolean; trust_score: number; notified: boolean }>(
+        `SELECT f.sos_opt_in, f.trust_score,
+                EXISTS (SELECT 1 FROM sos_notifications n WHERE n.case_id = $2 AND n.feeder_id = f.id) AS notified
+           FROM feeders f WHERE f.id = $1`,
+        [feederId, id],
+      );
+      const me = standing.rows[0];
+      const eligible =
+        !!me &&
+        mayAck(
+          { sosOptIn: me.sos_opt_in, trustScore: me.trust_score, notified: me.notified, moderator: isModerator },
+          current.severity,
+        );
+      if (!eligible) return { status: "forbidden" as const };
+
+      if (current.resolved_at === null && current.acked_by === null && !isModerator) {
+        const open = await client.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM sos_cases
+            WHERE acked_by = $1 AND resolved_at IS NULL AND state IN ('open', 'acked', 'escalated')`,
+          [feederId],
+        );
+        if ((open.rows[0]?.n ?? 0) >= MAX_OPEN_ACKS) return { status: "too_many_open" as const };
+      }
+
       const claim = await client.query<{ acked_at: Date }>(
         `UPDATE sos_cases SET acked_by = $1, acked_at = now(), state = 'acked'
          WHERE id = $2 AND acked_by IS NULL AND resolved_at IS NULL
@@ -923,6 +1080,25 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       return reply
         .status(404)
         .send({ ok: false, error: { message: "case not found", code: "NOT_FOUND" } });
+    }
+    if (outcome.status === "forbidden") {
+      return reply.status(403).send({
+        ok: false,
+        error: {
+          message:
+            "only a responder paged for this case, one opted in with enough trust for its severity, or a moderator may acknowledge it",
+          code: "SOS_ACK_FORBIDDEN",
+        },
+      });
+    }
+    if (outcome.status === "too_many_open") {
+      return reply.status(409).send({
+        ok: false,
+        error: {
+          message: `you already hold ${MAX_OPEN_ACKS} open cases; resolve one before taking another`,
+          code: "SOS_TOO_MANY_OPEN_ACKS",
+        },
+      });
     }
     if (outcome.status === "already_claimed") {
       return reply

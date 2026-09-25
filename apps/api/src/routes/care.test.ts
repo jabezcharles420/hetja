@@ -31,7 +31,7 @@ import type { FastifyInstance } from "fastify";
 import { buildServer } from "../server.js";
 import { loadConfig } from "../config.js";
 import { query } from "@hetja/db";
-import { careCache } from "./care.js";
+import { careCache, roundTo3 } from "./care.js";
 
 const config = loadConfig();
 
@@ -362,5 +362,24 @@ describe("GET /api/v1/care", () => {
     expect(res.statusCode).toBe(200);
     const ids = (res.json().data.providers as Array<{ id: string }>).map((p) => p.id);
     expect(ids.indexOf(freeAmbulanceFarther)).toBeLessThan(ids.indexOf(paidCloser));
+  });
+});
+
+describe("GET /api/v1/care: coordinate rounding (hardening batch 1, T8)", () => {
+  it("rounds lat/lng to 3 decimals before the cache key and the query", async () => {
+    expect(roundTo3(19.07654)).toBe(19.077);
+    expect(roundTo3(72.87749)).toBe(72.877);
+    const first = await app.inject({ method: "GET", url: `/api/v1/care?lat=${ORIGIN.lat}1234&lng=${ORIGIN.lng}4321&max_km=5` });
+    expect(first.statusCode).toBe(200);
+    expect([...careCache.keys()]).toEqual([`${roundTo3(Number(`${ORIGIN.lat}1234`))},${roundTo3(Number(`${ORIGIN.lng}4321`))},5,`]);
+
+    // A provider added now is invisible to a request within the same ~110 m
+    // cell (served from that cache entry), which proves the two requests
+    // share one key.
+    const added = await insertProvider({ name: "CareTest Rounded", lat: ORIGIN.lat, lng: ORIGIN.lng });
+    createdIds.push(added);
+    const second = await app.inject({ method: "GET", url: `/api/v1/care?lat=${ORIGIN.lat}1299&lng=${ORIGIN.lng}4399&max_km=5` });
+    expect((second.json().data.providers as Array<{ id: string }>).map((p) => p.id)).not.toContain(added);
+    expect(careCache.size).toBe(1);
   });
 });

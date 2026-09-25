@@ -30,17 +30,28 @@
  *                (any dog status: a dog marked lost can still be hurt)
  *
  * CASE IDS ARE NOT PUBLIC. POST /api/v1/sos/cases/:id/ack is first writer
- * wins and checks only that the caller is signed in, so publishing case ids on
- * an anonymous map would let any new account claim every open case and stop
- * it escalating (worker escalate_sos only promotes state = 'open'). The ward
- * detail therefore returns `caseId: null` unless the caller presents a valid
- * access token AND meets the responder rules the fan-out uses (sos_opt_in and
- * trust_score >= 40, or >= 60 for critical; routes/sos.ts dispatchFanout), or
- * already holds the case. Those answers are per-caller and never cached.
+ * wins, and a claimed case stops escalating (worker escalate_sos only promotes
+ * state = 'open'), so publishing case ids on an anonymous map would invite
+ * anyone to claim them. The ack route now enforces the responder rules itself
+ * (lib/sos-eligibility.ts, hardening batch 1), and this read applies the same
+ * rules: the ward detail returns `caseId: null` unless the caller presents a
+ * valid access token AND meets them (sos_opt_in and trust_score >= 40, or
+ * >= 60 for critical), or already holds the case.
  *
- * Caching: the three public reads are 60 s read-through LRU caches (the same
- * TTL as /stats/impact and /care) with a matching Cache-Control. Only the
- * anonymous variant of a ward detail is cached.
+ * CACHING (hardening batch 1, T8). Three separate read-through LRUs, so a
+ * flood of one kind of request cannot evict the others:
+ *
+ *   wards list      60 s, one entry
+ *   ward detail     30 s, one entry per ward (24 at most). The SHARED base
+ *                   (counts, cases, nearby) is cached for every caller and the
+ *                   per-viewer overlay (which case ids this caller may see) is
+ *                   applied on each request. Anonymous answers are
+ *                   `public, max-age=30`; a signed-in answer is
+ *                   `private, no-store`, because its case ids are the caller's.
+ *   places          60 s, one entry per pin kind (all, vet, ngo): every exact
+ *                   pin in Mumbai is loaded ONCE and each bbox is filtered in
+ *                   memory, so arbitrary boxes cannot each cost a query or fill
+ *                   the cache with one-off keys.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { LRUCache } from "lru-cache";
@@ -49,15 +60,15 @@ import { BMC_WARD_CENTROIDS, BMC_WARD_CODES, MUMBAI_BOUNDS, isBmcWardCode, wardD
 import { query } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { normalizeIndianPhone } from "../lib/phone.js";
+import { TRUST_FLOOR, canRespond as canRespondShared } from "../lib/sos-eligibility.js";
 
 const CACHE_TTL_MS = 60_000;
+/** Ward detail carries open SOS state, so it turns over twice as fast. */
+const WARD_DETAIL_TTL_MS = 30_000;
 const MAX_PLACES = 200;
 /** "Near" a ward, for the ward sheet's list: within this of its centre. */
 const NEARBY_RADIUS_M = 4000;
 const NEARBY_LIMIT = 3;
-/** Trust floors of the SOS fan-out (routes/sos.ts dispatchFanout). */
-const TRUST_FLOOR = { minor: 40, serious: 40, critical: 60 } as const;
-
 type Severity = keyof typeof TRUST_FLOOR;
 
 export interface MapWard {
@@ -102,7 +113,19 @@ export interface MapPlace {
   partner: boolean;
 }
 
-export const mapCache = new LRUCache<string, object>({ max: 500, ttl: CACHE_TTL_MS });
+/** GET /map/wards. */
+export const mapCache = new LRUCache<string, object>({ max: 4, ttl: CACHE_TTL_MS });
+/** GET /map/wards/:wardId, the shared (viewer-independent) base per ward. */
+export const wardDetailCache = new LRUCache<string, WardDetailBase>({ max: 32, ttl: WARD_DETAIL_TTL_MS });
+/** GET /map/places, every exact pin in Mumbai per pin kind. */
+export const placesCache = new LRUCache<string, MapPlace[]>({ max: 4, ttl: CACHE_TTL_MS });
+
+/** Test seam: empty every map cache. */
+export function clearMapCaches(): void {
+  mapCache.clear();
+  wardDetailCache.clear();
+  placesCache.clear();
+}
 
 /** Mumbai midnight, as a timestamptz, computed in SQL so the server TZ never matters. */
 const IST_MIDNIGHT_SQL = `(date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata')`;
@@ -213,7 +236,9 @@ SELECT ${PROVIDER_COLUMNS}
 `;
 
 // Pins: exact points only. A locality-precision row would be drawn on a
-// centroid guess, i.e. in the wrong place, so it never gets a pin.
+// centroid guess, i.e. in the wrong place, so it never gets a pin. Loaded for
+// the whole Mumbai box at once (see CACHING above); $1..$4 are MUMBAI_BOUNDS.
+// The LIMIT is a sanity ceiling far above the curated directory's size.
 const PLACES_SQL = `
 SELECT ${PROVIDER_COLUMNS}
   FROM care_providers
@@ -224,7 +249,7 @@ SELECT ${PROVIDER_COLUMNS}
         OR ($5 = 'ngo' AND kind = 'ngo')
         OR ($5 = 'vet' AND kind <> 'ngo'))
  ORDER BY has_ambulance DESC, is_24x7 DESC, name, id
- LIMIT ${MAX_PLACES + 1}
+ LIMIT 5000
 `;
 
 interface ProviderRow {
@@ -347,8 +372,15 @@ async function optionalViewer(req: FastifyRequest): Promise<Viewer | null> {
   return row ? { feederId, sosOptIn: row.sos_opt_in, trustScore: row.trust_score } : null;
 }
 
+/** The shared responder rule (lib/sos-eligibility.ts), re-exported for existing callers. */
 export function canRespond(viewer: Pick<Viewer, "sosOptIn" | "trustScore"> | null, severity: Severity): boolean {
-  return !!viewer && viewer.sosOptIn && viewer.trustScore >= TRUST_FLOOR[severity];
+  return canRespondShared(viewer, severity);
+}
+
+interface WardDetailBase {
+  ward: MapWard;
+  cases: WardCaseRow[];
+  nearby: ReturnType<typeof toNearby>[];
 }
 
 const BboxQuery = z.object({
@@ -374,22 +406,30 @@ export function clampToMumbai(b: readonly number[]): [number, number, number, nu
   return minLng < maxLng && minLat < maxLat ? [minLng, minLat, maxLng, maxLat] : null;
 }
 
-function cached<T extends object>(key: string, reply: FastifyReply, load: () => Promise<T>): Promise<T> {
-  reply.header("Cache-Control", "public, max-age=60");
-  const hit = mapCache.get(key) as T | undefined;
-  if (hit) return Promise.resolve(hit);
-  return load().then((value) => {
-    mapCache.set(key, value);
-    return value;
-  });
+async function readThrough<V extends object>(
+  cache: LRUCache<string, V>,
+  key: string,
+  load: () => Promise<V>,
+): Promise<V> {
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const value = await load();
+  cache.set(key, value);
+  return value;
+}
+
+/** A place whose pin lies inside [minLng, minLat, maxLng, maxLat] (edges included). */
+function inBox(p: MapPlace, box: readonly [number, number, number, number]): boolean {
+  return p.lng >= box[0] && p.lat >= box[1] && p.lng <= box[2] && p.lat <= box[3];
 }
 
 export default async function mapRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/map/wards", async (_req: FastifyRequest, reply: FastifyReply) => {
-    const data = await cached("wards", reply, async () => {
+    const data = await readThrough(mapCache, "wards", async () => {
       const counts = await wardCounts(BMC_WARD_CODES);
       return { wards: BMC_WARD_CODES.map((id) => toWard(id, counts.get(id))) };
     });
+    reply.header("Cache-Control", "public, max-age=60");
     return { ok: true, data };
   });
 
@@ -403,7 +443,9 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
 
     const viewer = await optionalViewer(req);
     const centre = BMC_WARD_CENTROIDS[wardId];
-    const load = async () => {
+    // The base is the same for every caller and shared through the 30 s cache;
+    // only the overlay below (which case ids THIS caller may see) is per viewer.
+    const base = await readThrough(wardDetailCache, wardId, async (): Promise<WardDetailBase> => {
       const [counts, cases, nearby] = await Promise.all([
         wardCounts([wardId]),
         query<WardCaseRow>(WARD_CASES_SQL, [wardId]),
@@ -414,13 +456,8 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         cases: cases.rows,
         nearby: nearby.rows.map(toNearby),
       };
-    };
-
-    // Only the anonymous shape is shared; the per-caller answer is not.
-    const base = viewer
-      ? await load()
-      : await cached(`ward:${wardId}`, reply, load);
-    if (viewer) reply.header("Cache-Control", "private, no-store");
+    });
+    reply.header("Cache-Control", viewer ? "private, no-store" : "public, max-age=30");
 
     const sos: MapSos[] = base.cases.map((c) => {
       const severity = asSeverity(c.severity);
@@ -473,15 +510,23 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         error: { message: "bbox is outside Mumbai; the map covers the 24 BMC wards only", code: "OUTSIDE_MUMBAI" },
       });
     }
-    const [minLng, minLat, maxLng, maxLat] = box;
     const kind = parsed.data.kind ?? null;
-    const data = await cached(`places:${box.join(",")}:${kind ?? ""}`, reply, async () => {
-      const res = await query<ProviderRow>(PLACES_SQL, [minLng, minLat, maxLng, maxLat, kind]);
-      return {
-        places: res.rows.slice(0, MAX_PLACES).map(toPlace),
-        truncated: res.rows.length > MAX_PLACES,
-      };
+    const all = await readThrough(placesCache, kind ?? "all", async () => {
+      const res = await query<ProviderRow>(PLACES_SQL, [
+        MUMBAI_BOUNDS.west,
+        MUMBAI_BOUNDS.south,
+        MUMBAI_BOUNDS.east,
+        MUMBAI_BOUNDS.north,
+        kind,
+      ]);
+      return res.rows.map(toPlace);
     });
-    return { ok: true, data };
+    // Already in the SQL order (ambulance, 24x7, name, id), so filtering keeps it.
+    const inside = all.filter((p) => inBox(p, box));
+    reply.header("Cache-Control", "public, max-age=60");
+    return {
+      ok: true,
+      data: { places: inside.slice(0, MAX_PLACES), truncated: inside.length > MAX_PLACES },
+    };
   });
 }

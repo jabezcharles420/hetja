@@ -373,6 +373,21 @@ describe("GET /api/v1/dogs/:slug: design-v4 fields", () => {
     await app2.close();
   });
 
+  it("never uses a rejected photo as the portrait: a newer rejected photo loses to an older pending one", async () => {
+    const app = buildServer({ ...config, PUBLIC_API_ORIGIN: "https://api.example.test/" });
+    await query(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, captured_at, received_at, review_status, photo_s3_key)
+       VALUES ($1, gen_random_uuid(), 'feed', now() - interval '2 hours', now() - interval '2 hours', 'pending', 'photos/older-pending.webp'),
+              ($1, gen_random_uuid(), 'feed', now(), now(), 'rejected', 'photos/newer-rejected.jpg')`,
+      [testDog!.id],
+    );
+    const res = await app.inject({ method: "GET", url: `/api/v1/dogs/${testDog!.slug}` });
+    const d = res.json().data;
+    expect(d.photoKey).toBe("photos/older-pending.webp");
+    expect(res.body).not.toContain("newer-rejected");
+    await app.close();
+  });
+
   for (const status of ["pending_activation", "expired"]) {
     it(`404s a ${status} dog to the public, but not to the registrator who filed it`, async () => {
       const app = buildServer(config);

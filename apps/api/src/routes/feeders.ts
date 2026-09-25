@@ -39,7 +39,7 @@ import { BMC_WARD_CODES, wardName } from "@hetja/contracts";
 import { query } from "@hetja/db";
 import { requireFeeder } from "../lib/require-role.js";
 import { capabilitiesFor } from "../lib/require-role.js";
-import { REGISTRATION_BUDGET_MAX } from "../lib/enrol.js";
+import { REGISTRATION_BUDGET_MAX, REGISTRATION_WEEKLY_CAP } from "../lib/enrol.js";
 
 interface MyDogRow {
   slug: string;
@@ -86,15 +86,22 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
 
     // The budget is only meaningful for accounts that can file registrations;
     // everyone else reports a truthful zero without spending the query.
-    const pending = holdsRegister
+    const counts = holdsRegister
       ? (
-          await query<{ n: number }>(
-            `SELECT count(*)::int AS n FROM dogs
-              WHERE registered_by = $1 AND status = 'pending_activation'`,
+          await query<{ pending: number; weekly: number }>(
+            `SELECT count(*) FILTER (WHERE status = 'pending_activation')::int AS pending,
+                    count(*) FILTER (WHERE registered_at >= now() - interval '7 days')::int AS weekly
+               FROM dogs WHERE registered_by = $1`,
             [auth.feederId],
           )
-        ).rows[0]?.n ?? 0
-      : 0;
+        ).rows[0]
+      : undefined;
+    const pending = counts?.pending ?? 0;
+    // `weekly` (hardening batch 1, T9): this account's registrations of any
+    // status in the rolling last 7 days, against REGISTRATION_WEEKLY_CAP. The
+    // per-device half of the cap is enforced on POST /registrations but has no
+    // device to report on here.
+    const weeklyUsed = counts?.weekly ?? 0;
 
     return {
       ok: true,
@@ -107,7 +114,11 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         verificationTier: feeder.verification_tier,
         homeWard: feeder.home_ward ?? null,
         canRegister: holdsRegister && feeder.can_register,
-        registrationBudget: { pending, max: REGISTRATION_BUDGET_MAX },
+        registrationBudget: {
+          pending,
+          max: REGISTRATION_BUDGET_MAX,
+          weekly: { used: weeklyUsed, max: REGISTRATION_WEEKLY_CAP },
+        },
         sosOptIn: feeder.sos_opt_in,
       },
     };
@@ -216,12 +227,21 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
       )
       .safeParse(req.body ?? {});
     if (!parsed.success) {
+      // Error code (docs/BUGS.md, B-11). This route grew from a one-field
+      // consent toggle into a profile PATCH, but every failure still said
+      // INVALID_SOS_OPT_IN, so a bad displayName read as a consent error. Now:
+      //   INVALID_SOS_OPT_IN    the `sosOptIn` field itself is what failed
+      //                         (kept exactly, so existing clients that branch
+      //                         on it for the consent toggle are unaffected)
+      //   INVALID_FEEDER_PATCH  anything else: displayName, homeWard, an
+      //                         unknown field, or an empty body
+      const sosOptInFailed = parsed.error.issues.some((i) => i.path[0] === "sosOptIn");
       return reply.status(400).send({
         ok: false,
         error: {
           message:
             "body must contain { sosOptIn?: boolean, displayName?: string (1..64), homeWard?: BMC ward code | null } and no unknown fields",
-          code: "INVALID_SOS_OPT_IN",
+          code: sosOptInFailed ? "INVALID_SOS_OPT_IN" : "INVALID_FEEDER_PATCH",
         },
       });
     }

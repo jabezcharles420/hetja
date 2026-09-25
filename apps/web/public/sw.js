@@ -161,9 +161,8 @@ scope.addEventListener("sync", (event) => {
 
 /**
  * Web Push (plan §3.4). Payload is JSON: { title, body, caseId, url }. The
- * `url` may point at a case page that does not exist yet -- the click
- * behavior below is correct today regardless, and needs no further
- * service-worker change once that page ships.
+ * worker sends url /sos/<caseId>, the responder's case page
+ * (app/sos/[caseId]); the click handler below focuses or opens it.
  */
 scope.addEventListener("push", (event) => {
   let data = {};

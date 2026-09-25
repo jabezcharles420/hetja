@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
 import { TabBar, TopNav } from "@/components/ds";
 import { hasSession, mapApi, MapApiError, type Me, type WardDetail } from "@/app/map/api";
+import { ackRefusal } from "@/lib/sos-ack";
 import {
   ALL_ON,
   bboxParam,
@@ -452,8 +453,9 @@ export function MapScreen(): React.JSX.Element {
       setFoot({ kind: "needSignIn" });
       return;
     }
-    if (detail.sos.some((s) => s.mine)) {
-      setFoot({ kind: "acked" });
+    const held = detail.sos.find((s) => s.mine);
+    if (held) {
+      setFoot({ kind: "acked", caseId: held.caseId });
       return;
     }
     const claimable = detail.sos.find((s) => s.caseId && s.state !== "acked");
@@ -465,11 +467,15 @@ export function MapScreen(): React.JSX.Element {
     setFoot({ kind: "busy" });
     try {
       await mapApi.ack(claimable.caseId);
-      setFoot({ kind: "acked" });
+      setFoot({ kind: "acked", caseId: claimable.caseId });
       void loadDetail(detail.id);
     } catch (e) {
+      // Same words as the case page (lib/sos-ack.ts): the server decides who
+      // may take a case, and a refusal says why and what to do next.
       if (e instanceof MapApiError && e.code === "SOS_ALREADY_ACKED") setFoot({ kind: "taken" });
       else if (e instanceof MapApiError && e.status === 401) setFoot({ kind: "needSignIn" });
+      else if (e instanceof MapApiError && (e.status === 403 || e.status === 409 || e.status === 429))
+        setFoot({ kind: "refused", msg: ackRefusal(e) });
       else setFoot({ kind: "error" });
     }
   }, [detail, me, loadDetail]);

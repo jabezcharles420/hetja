@@ -290,7 +290,17 @@ jobs:
         run: bash ops/contrast-gate.sh
 
       - name: Caddy cache-policy gate (life-safety no-store on /d/*)
-        run: bash ops/check-caddy-cache.sh
+        run: |
+          set -euo pipefail
+          bash ops/check-caddy-cache.sh
+          # Negative test: the gate must FAIL on deliberately broken copies.
+          bash ops/check-caddy-cache.sh --self-test
+
+      - name: Caddy security-headers gate (Permissions-Policy, COOP, CSP)
+        run: |
+          set -euo pipefail
+          bash ops/check-caddy-headers.sh
+          bash ops/check-caddy-headers.sh --self-test
 
       - name: systemd wiring gate (every unit is installed by bootstrap.sh)
         run: bash ops/check-systemd.sh
@@ -412,6 +422,69 @@ jobs:
             union all select 'care_providers', count(*) from care_providers union all select 'feed_events', count(*) from feed_events;
           SQL
           echo "repo migrations: $(ls packages/db/migrations | xargs echo)"
+
+          # Exposure checks (audit T12). Read-only and WARN-ONLY: they print a
+          # ::warning:: annotation on the run and never fail the job. Supabase
+          # serves every public table over PostgREST to the anon and
+          # authenticated roles, so a table they hold a grant on, or a public
+          # table without row level security, is readable (or writable) by
+          # anyone holding the publishable key. ops/supabase/03_hardening.sql
+          # is what is meant to keep both lists empty.
+          #
+          # Grants come from information_schema.role_table_grants and, as a
+          # cross-check, from the table ACLs themselves: the information_schema
+          # view only lists grants whose grantor or grantee is a role the
+          # connecting user has enabled, so a grant made by supabase_admin
+          # could be missing from it but not from pg_class.relacl.
+          echo "== anon/authenticated grants on public tables"
+          if grants=$(psql -X -v ON_ERROR_STOP=1 -At <<'SQL'
+          select grantee || ' ' || table_name || ': ' || string_agg(distinct privilege_type, ',' order by privilege_type)
+            from (
+              select grantee::text, table_name::text, privilege_type::text
+                from information_schema.role_table_grants
+               where table_schema = 'public' and grantee in ('anon', 'authenticated')
+              union
+              select r.rolname::text, c.relname::text, a.privilege_type::text
+                from pg_class c
+                join pg_namespace n on n.oid = c.relnamespace
+                cross join lateral aclexplode(c.relacl) a
+                join pg_roles r on r.oid = a.grantee
+               where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p')
+                 and r.rolname in ('anon', 'authenticated')
+            ) g
+           group by grantee, table_name
+           order by 1;
+          SQL
+          ); then
+            if [ -n "$grants" ]; then
+              echo "$grants"
+              echo "::warning title=Supabase exposure::anon/authenticated hold $(printf '%s\n' "$grants" | wc -l | tr -d ' ') grant(s) on public tables (listed in the log): anyone with the publishable key can use them through PostgREST. See ops/supabase/03_hardening.sql."
+            else
+              echo "<none>"
+            fi
+          else
+            echo "::warning title=Supabase exposure::could not read table grants (check skipped)"
+          fi
+
+          echo "== public tables without row level security"
+          if norls=$(psql -X -v ON_ERROR_STOP=1 -At <<'SQL'
+          select c.relname
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
+           order by 1;
+          SQL
+          ); then
+            if [ -n "$norls" ]; then
+              echo "$norls"
+              echo "::warning title=Supabase exposure::$(printf '%s\n' "$norls" | wc -l | tr -d ' ') public table(s) have row level security DISABLED: $(printf '%s' "$norls" | tr '\n' ' ')"
+            else
+              echo "<none>"
+            fi
+          else
+            echo "::warning title=Supabase exposure::could not read row level security state (check skipped)"
+          fi
+          exit 0
 
       - name: Apply migrations to Supabase (session pooler)
         if: env.SUPABASE_MIGRATE == 'true'

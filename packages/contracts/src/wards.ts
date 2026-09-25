@@ -133,3 +133,20 @@ export function wardCentroid(wardId: string | null | undefined): WardCentroid | 
  * inside it, and GET /api/v1/map/places clamps every query to it.
  */
 export const MUMBAI_BOUNDS = { south: 18.88, west: 72.76, north: 19.3, east: 73.0 } as const;
+
+/**
+ * Is a point inside MUMBAI_BOUNDS? Hetja serves the 24 BMC wards and nothing
+ * else, so a scan geotag outside this box is either a spoof or a phone that
+ * has not got a fix yet; either way it must not move a dog, activate a
+ * registration or corroborate an SOS (routes/scans.ts treats it as absent).
+ * Inclusive on every edge. Non-finite input is never inside.
+ */
+export function isInMumbai(lat: number, lng: number): boolean {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  return (
+    lat >= MUMBAI_BOUNDS.south &&
+    lat <= MUMBAI_BOUNDS.north &&
+    lng >= MUMBAI_BOUNDS.west &&
+    lng <= MUMBAI_BOUNDS.east
+  );
+}

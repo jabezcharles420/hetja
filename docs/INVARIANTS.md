@@ -13,7 +13,7 @@ external build guide that lived outside the repo.
 | 3 | identity_hmac only (HMAC-SHA256 pepper), never bare contact info | ✅ | `lib/hmac.ts`; schema has no phone/email column; security-gate grep |
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
-| 6 | Rate limits per account/device token, never per IP | ✅ | device tokens as write subject (`device.ts`); SOS caps per token |
+| 6 | Rate limits per account/device token, never per IP (one documented exception: device-token minting, see #6 below) | ✅ | device tokens as write subject (`device.ts`); SOS caps per token; per-subject limiters in `lib/rate-limit.ts` |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check, per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
@@ -176,6 +176,31 @@ spec PDFs directly. Migrated here so it survives independently of them.
    carrier's user base for that abuser's behavior. A device token is the
    correct rate-limit subject because it identifies one client, not one NAT
    pool.
+
+   **The one IP-keyed limit, and why it is allowed (hardening batch 1,
+   2026-09-25).** `POST /api/v1/devices/token` is where a device subject is
+   CREATED, so there is no device or account to key on yet. Its only bound was
+   the global mint bucket (200/day), which one client could drain in about
+   twenty seconds of solving and so switch off anonymous SOS for every stranger
+   in the city until the next day (audit A-07). `deviceMintPerIp`
+   (`lib/rate-limit.ts`: burst 10, then 10 an hour) now keys minting on the
+   client address, IPv4 as is and IPv6 by its /64, checked after the proof of
+   work verifies and the challenge is spent and before the global bucket. It
+   does not reintroduce the CGNAT lockout this rule exists to prevent: it gates
+   only minting, which a real phone does once and then keeps the token; the
+   budget is generous for a shared address; and nothing else (reports, scans,
+   sign-in) is keyed on the address. It relies on `TRUST_PROXY=1` (set by the
+   deploy workflow) so `request.ip` is the forwarded client rather than the
+   loopback proxy; without it every request would share one bucket, which fails
+   closed. Any second IP-keyed limit needs its own entry here.
+
+   Every other limiter added in the same batch is per account or per device:
+   scans (burst 30, then 1 a minute), scan photos (40 a day; over budget the
+   scan is kept and answered `photoAccepted: false`), SOS reports (burst 6, then
+   1 per 10 minutes, on top of INVARIANT 7's case caps, which are unchanged),
+   stories (5 a day), SOS acks (burst 5, then 10 a day), registrations (6 a week
+   of any status, per account and per device). Every 429 logs
+   `{ event: "rate_limited", limiter, subjectKind }` and never the subject.
 7. **No unauthenticated unbounded fan-out.** Anonymous SOS reports require an
    attested device token (Play Integrity / App Attest, or a proof-of-work
    fallback on desktop web) and are capped at 2/day and 5/week per token.
@@ -307,11 +332,28 @@ in the table above:
   positive unit and every gate a count of ordinary actions from the 30
   baseline:
 
-  | Gate | Trust | Feeds required |
-  |---|---|---|
-  | SOS fan-out floor, minor/serious (`sos.ts`) | 40 | 10 |
-  | Re-tag gate (this section) | 50 | 20 |
-  | SOS fan-out floor, critical (`sos.ts`) | 60 | 30 |
+  | Gate | Trust | Credited feeds required | Fastest possible (since 2026-09-25) |
+  |---|---|---|---|
+  | SOS fan-out and ack floor, minor/serious (`lib/sos-eligibility.ts`) | 40 | 10 | 2 days (8 + 2) |
+  | Re-tag gate (this section) | 50 | 20 | 3 days (8 + 8 + 4) |
+  | SOS fan-out and ack floor, critical (`lib/sos-eligibility.ts`) | 60 | 30 | 4 days (8 + 8 + 8 + 6) |
+
+  **"Credited" changed on 2026-09-25 (hardening batch 1, audit A-02).** The
+  table used to count feed SCANS, and every created feed scan was credited, so
+  "10 feeds" meant ten HTTP requests: a shell loop reached the critical floor
+  in thirty. A feed scan now earns its +1 only if the dog is `active`, this
+  feeder has no credited feed of THIS dog on the same Mumbai calendar day (by
+  server time, so a backdated `capturedAt` buys nothing), and fewer than
+  `FEED_TRUST_DAILY_CAP = 8` credited feeds in the rolling last 24 hours
+  (`lib/trust.ts` `feedTrustCreditAllowed`). The scan itself is always
+  recorded. The same batch made these floors gate the ACK as well as the page
+  (`POST /sos/cases/:id/ack` answers 403 `SOS_ACK_FORBIDDEN` unless the caller
+  was paged for the case, is a moderator, or is opted in at the floor for its
+  severity; a non-moderator holding 2 open acks gets 409
+  `SOS_TOO_MANY_OPEN_ACKS`), and stopped feeds that reached the server more
+  than 72 h after capture from moving the streak or earning the night/monsoon
+  badges (`lib/gamification.ts` `BACKDATE_LIMIT_HOURS`). The cap of 8 awaits
+  the owner's confirmation (audit report D14).
 
    This restores the "+1 per action" economics the paragraph above reasons
   from: a feed scan is self-reported (review_status starts `'pending'`), so it

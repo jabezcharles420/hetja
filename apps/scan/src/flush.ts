@@ -22,7 +22,10 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429;
 }
 
-type PostOutcome = { ok: true } | { ok: false; retry: true } | { ok: false; retry: false; reason: string };
+type PostOutcome =
+  | { ok: true }
+  | { ok: false; retry: true; throttled?: boolean }
+  | { ok: false; retry: false; reason: string };
 
 /**
  * Forget the cached device token. Called on a 401: the token the record
@@ -70,6 +73,11 @@ export async function flushQueue(onDrop?: (item: QueuedScan, reason: string) => 
     if (outcome.ok) {
       await removeQueued(item.id);
       sent++;
+    } else if (outcome.retry && outcome.throttled) {
+      // 429 RATE_LIMITED / 503 PHOTO_BUSY: the server asked for a pause. Keep
+      // this record and the rest, and stop: each later record would upload
+      // its photo only to be refused the same way. The next page open tries.
+      break;
     } else if (!outcome.retry) {
       // Permanently refused: remove it so it stops re-uploading its photo on
       // every open, and say so: a silent drop is the failure INVARIANT 14's
@@ -107,7 +115,9 @@ async function postScan(item: QueuedScan): Promise<PostOutcome> {
     // A 200 with `created: false` is the idempotent replay answer (INVARIANT
     // 5): the feed is already recorded server-side, so this is success.
     if (res.ok) return { ok: true };
-    if (isRetryableStatus(res.status)) return { ok: false, retry: true };
+    if (isRetryableStatus(res.status)) {
+      return { ok: false, retry: true, throttled: res.status === 429 || res.status === 503 };
+    }
     if (res.status === 401) forgetCachedDeviceToken();
     return { ok: false, retry: false, reason: `http-${res.status}` };
   } catch {

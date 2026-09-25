@@ -11,11 +11,14 @@ import {
   WARD_CODES,
   columnsOf,
   duplicateKeys,
+  nearbySameKindWarnings,
   normaliseWard,
   parseArgs,
   parseCsv,
   plan,
   readRecords,
+  sharedPhoneWarnings,
+  todayInMumbai,
   tooManyRetires,
   type ResolvedRecord,
   type StoredRow,
@@ -109,14 +112,13 @@ describe("readRecords", () => {
     expect(warnings.some((w) => /alt_phone/.test(w.message))).toBe(true);
   });
 
-  it("errors on a guessed cost tier, an unknown kind, a bad ward, a point outside Mumbai, a missing or repeated id", () => {
+  it("errors on a guessed cost tier, an unknown kind, a bad ward, a missing or repeated id", () => {
     const { errors } = readRecords(
       parseCsv(
         csv(
           "c-1,A,private_clinic,cheap,,,,,,,,no,no,,no,,",
           "c-2,B,vet,paid,,,,,,,,no,no,,no,,",
           "c-3,C,ngo,free,,,Q/Z,,,,,no,no,,no,,",
-          "c-4,D,ngo,free,,,,18.52,73.85,,,no,no,,no,,",
           ",E,ngo,free,,,,,,,,no,no,,no,,",
           "c-6,F,ngo,free,,,,,,,,maybe,no,,no,,",
           "c-7,G,ngo,free,,,,,,,,no,no,,no,01/09/2026,",
@@ -125,7 +127,104 @@ describe("readRecords", () => {
         ),
       ),
     );
-    expect(errors.map((e) => e.sourceRef)).toEqual(["c-1", "c-2", "c-3", "c-4", "", "c-6", "c-7", "c-8"]);
+    expect(errors.map((e) => e.sourceRef)).toEqual(["c-1", "c-2", "c-3", "", "c-6", "c-7", "c-8"]);
+  });
+
+  it("imports a point outside contracts MUMBAI_BOUNDS without a pin, as a warning", () => {
+    // Pune (18.52, 73.85) and Vashi (19.08, 73.01, just east of the map box).
+    const { records, errors, warnings } = readRecords(
+      parseCsv(
+        csv(
+          "c-1,Pune Clinic,private_clinic,paid,,,,18.52,73.85,,,yes,no,,no,2026-09-01,",
+          "c-2,Vashi Clinic,private_clinic,paid,,,,19.08,73.01,,,yes,no,,no,2026-09-01,",
+          "c-3,Andheri Clinic,private_clinic,paid,,,,19.13,72.83,,,yes,no,,no,2026-09-01,",
+        ),
+      ),
+      "2026-09-25",
+    );
+    expect(errors).toEqual([]);
+    expect(records.map((r) => [r.sourceRef, r.lat, r.lng])).toEqual([
+      ["c-1", null, null],
+      ["c-2", null, null],
+      ["c-3", 19.13, 72.83],
+    ]);
+    expect(warnings.filter((w) => /no pin/.test(w.message)).map((w) => w.sourceRef)).toEqual(["c-1", "c-2"]);
+  });
+
+  it("refuses a confirmed_on in the future (Mumbai date)", () => {
+    const { records, errors } = readRecords(
+      parseCsv(
+        csv(
+          "c-1,Clinic A,private_clinic,paid,,,,,,,,yes,no,,no,2026-09-26,",
+          "c-2,Clinic B,private_clinic,paid,,,,,,,,yes,no,,no,2026-09-25,",
+          "c-3,Clinic C,private_clinic,paid,,,,,,,,yes,no,,no,2026-02-30,",
+        ),
+      ),
+      "2026-09-25",
+    );
+    expect(errors.map((e) => [e.sourceRef, /future/.test(e.message)])).toEqual([
+      ["c-1", true],
+      ["c-3", false],
+    ]);
+    expect(records.map((r) => r.sourceRef)).toEqual(["c-2"]);
+    // 23:00 UTC on the 25th is already the 26th in Mumbai.
+    expect(todayInMumbai(new Date("2026-09-25T23:00:00Z"))).toBe("2026-09-26");
+  });
+
+  it("warns when confirmed_on is more than 365 days old", () => {
+    const { errors, warnings } = readRecords(
+      parseCsv(
+        csv(
+          "c-1,Clinic A,private_clinic,paid,,,,,,,,yes,no,,no,2025-09-24,",
+          "c-2,Clinic B,private_clinic,paid,,,,,,,,yes,no,,no,2025-09-25,",
+        ),
+      ),
+      "2026-09-25",
+    );
+    expect(errors).toEqual([]);
+    expect(warnings.filter((w) => /365 days old/.test(w.message)).map((w) => w.sourceRef)).toEqual(["c-1"]);
+  });
+
+  it("warns when one phone is on more than 3 rows under different names", () => {
+    const row = (id: string, name: string, phone: string) =>
+      `${id},${name},private_clinic,paid,,,,,,${phone},,no,no,,no,2026-09-01,`;
+    const { records } = readRecords(
+      parseCsv(
+        csv(
+          row("a-1", "Clinic One", "022 2413 7518"),
+          row("a-2", "Clinic Two", "022 2413 7518"),
+          row("a-3", "Clinic Three", "022 2413 7518"),
+          row("a-4", "Clinic Four", "022 2413 7518"),
+          // Exactly 3 rows: a small chain's shared line is fine.
+          row("b-1", "Chain Andheri", "022 2600 0001"),
+          row("b-2", "Chain Bandra", "022 2600 0001"),
+          row("b-3", "Chain Dadar", "022 2600 0001"),
+          // Many rows, one name: the same provider, not a clash.
+          row("c-1", "Same Name", "022 2600 0002"),
+          row("c-2", "same  name", "022 2600 0002"),
+          row("c-3", "Same Name", "022 2600 0002"),
+          row("c-4", "Same Name", "022 2600 0002"),
+        ),
+      ),
+      "2026-09-25",
+    );
+    const w = sharedPhoneWarnings(records);
+    expect(w.map((x) => x.sourceRef)).toEqual(["a-1, a-2, a-3, a-4"]);
+    expect(w[0].message).toMatch(/\+912224137518 is on 4 rows/);
+  });
+
+  it("warns on two rows of the same kind within 30 m under different names", () => {
+    // 0.0002 deg of latitude is about 22 m; 0.0004 is about 44 m.
+    const pts = [
+      { sourceRef: "p-1", name: "Paws Clinic", kind: "private_clinic", lat: 19.13, lng: 72.83 },
+      { sourceRef: "p-2", name: "Paws Vet Clinic", kind: "private_clinic", lat: 19.1302, lng: 72.83 },
+      { sourceRef: "p-3", name: "Far Clinic", kind: "private_clinic", lat: 19.1306, lng: 72.83 },
+      { sourceRef: "p-4", name: "Street Rescue", kind: "ngo", lat: 19.1301, lng: 72.83 },
+      { sourceRef: "p-5", name: "paws clinic", kind: "private_clinic", lat: 19.13, lng: 72.83 },
+    ];
+    const w = nearbySameKindWarnings(pts);
+    expect(w.map((x) => x.sourceRef)).toEqual(["p-1, p-2", "p-2, p-5"]);
+    expect(w[0].message).toMatch(/22 m apart/);
   });
 
   it("refuses a file without the load-bearing columns", () => {

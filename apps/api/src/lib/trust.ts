@@ -87,6 +87,62 @@ export const TRUST_EVENTS: Readonly<Record<string, number>> = {
 
 export type TrustEventType = keyof typeof TRUST_EVENTS;
 
+/**
+ * FEED TRUST DEDUPE (hardening batch 1, audit A-02). `feed +1` only measures
+ * tenure if a feed is an act of care, not an HTTP request. It used to be
+ * credited on every created scan with no dedupe and no limit: ten POSTs took a
+ * new account from 30 to the 40 SOS floor, thirty to the 60 critical floor,
+ * i.e. every trust gate in the system was one shell loop deep.
+ *
+ * A feed scan now earns its +1 only when ALL of these hold (checked in the
+ * scan's own transaction, under the feeder row lock):
+ *
+ *   - the dog is `active` (a pending or expired registration is not yet a dog
+ *     anybody has been seen caring for);
+ *   - this feeder has no credited feed for THIS dog on the same Mumbai
+ *     (Asia/Kolkata) calendar day, measured by when the server credited it,
+ *     so a backdated capturedAt cannot manufacture extra days;
+ *   - this feeder has fewer than FEED_TRUST_DAILY_CAP credited feeds in the
+ *     rolling last 24 hours, across all dogs.
+ *
+ * The scan itself is ALWAYS recorded (it is care data, the heatmap and "last
+ * fed" read it); only the trust credit is withheld. With the cap at 8 a new
+ * account needs at least two days of real rounds to reach 40 and four to
+ * reach 60, instead of ten and thirty requests.
+ */
+export const FEED_TRUST_DAILY_CAP = 8;
+
+/**
+ * Whether a newly created feed scan by `feederId` on `dogId` earns the `feed`
+ * trust credit. Takes the feeder row lock first so two concurrent feeds cannot
+ * both read "7 so far" and both credit an eighth-and-ninth.
+ */
+export async function feedTrustCreditAllowed(
+  feederId: string,
+  dogId: string,
+  dogStatus: string,
+  client?: TxClient,
+): Promise<boolean> {
+  if (dogStatus !== "active") return false;
+  const c = client ?? trustDb;
+  await c.query(`SELECT id FROM feeders WHERE id = $1 FOR UPDATE`, [feederId]);
+  const res = await c.query<{ last_day: number; same_dog_today: number }>(
+    `SELECT count(*) FILTER (WHERE te.created_at >= now() - interval '24 hours')::int AS last_day,
+            count(*) FILTER (
+              WHERE s.dog_id = $2
+                AND (te.created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date
+            )::int AS same_dog_today
+       FROM trust_events te
+       LEFT JOIN scans s ON s.id = te.ref_scan_id
+      WHERE te.feeder_id = $1
+        AND te.event_type = 'feed'
+        AND te.created_at >= now() - interval '48 hours'`,
+    [feederId, dogId],
+  );
+  const row = res.rows[0];
+  return (row?.same_dog_today ?? 0) === 0 && (row?.last_day ?? 0) < FEED_TRUST_DAILY_CAP;
+}
+
 /** Structural view of the pg client so helpers avoid importing `pg`. */
 export interface TxClient {
   query<T = any>(

@@ -51,13 +51,15 @@ import {
   listDroppedFeeds,
   clearDroppedFeeds,
   DROPPED_FEEDS_KEY,
+  queueBackoffUntil,
+  resetQueueBackoff,
 } from "./offline-queue";
 import { setAccessToken, clearAccessToken } from "./api";
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(status: number, body: unknown, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...extra },
   });
 }
 
@@ -119,6 +121,8 @@ describe("lib/offline-queue", () => {
   beforeEach(() => {
     idbMock.store.clear();
     clearDroppedFeeds();
+    // A 429 / 503 in one test must not park the queue for the next.
+    resetQueueBackoff();
     // Tokenless queued records are dropped when no session exists, so a token
     // left in localStorage by an earlier test would change which path runs.
     clearAccessToken();
@@ -351,5 +355,105 @@ describe("lib/offline-queue", () => {
     expect(headers["x-device-token"]).toBeUndefined();
     expect(idbMock.store.size).toBe(0);
     clearAccessToken();
+  });
+
+  // Hardening T3/T5: POST /scans answers 429 RATE_LIMITED and 503 PHOTO_BUSY
+  // with retry-after. Both mean "not now", never "never": the feed is kept,
+  // the pass stops (the next record would only upload its photo to be
+  // refused too), and nothing is sent again until retry-after has passed.
+  describe("server back-off", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["429 RATE_LIMITED", 429, "RATE_LIMITED", "120", 120],
+      ["503 PHOTO_BUSY", 503, "PHOTO_BUSY", "5", 5],
+    ])("%s keeps every record, stops the pass and waits retry-after", async (_l, status, code, header, sec) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
+      await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
+      await enqueueOffline({ dogSlug: "cde345678", deviceToken: "tok-b" });
+
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(status, { ok: false, error: { message: "busy", code } }, { "retry-after": header }),
+      );
+      const dropped: unknown[] = [];
+      expect(await flush(() => dropped.push(1))).toBe(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1); // the second record was not tried
+      expect(idbMock.store.size).toBe(2);
+      expect(dropped).toEqual([]);
+      expect(queueBackoffUntil()).toBe(Date.now() + sec * 1000);
+
+      // Inside the window: nothing is sent at all.
+      vi.setSystemTime(new Date(Date.now() + (sec - 1) * 1000));
+      expect(await flush()).toBe(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // After it: both go.
+      vi.setSystemTime(new Date(Date.now() + 2000));
+      fetchMock.mockImplementation(async () => jsonResponse(200, { ok: true, data: { created: true } }));
+      expect(await flush()).toBe(2);
+      expect(idbMock.store.size).toBe(0);
+    });
+
+    it("waits a default 30 s when a 429 has no retry-after", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
+      await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
+      fetchMock.mockResolvedValueOnce(jsonResponse(429, { ok: false, error: { message: "slow", code: "RATE_LIMITED" } }));
+      await flush();
+      expect(queueBackoffUntil()).toBe(Date.now() + 30_000);
+      expect(idbMock.store.size).toBe(1);
+    });
+
+    it("keeps the back-off across a reload (localStorage)", async () => {
+      await enqueueOffline({ dogSlug: "abc234567", deviceToken: "tok-a" });
+      localStorage.setItem("hetja.feedQueueNotBefore", String(Date.now() + 60_000));
+      expect(await flush()).toBe(0);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(idbMock.store.size).toBe(1);
+    });
+  });
+
+  describe("enqueueFeed online: the screen hears the real answer", () => {
+    it("returns the server's result, photoAccepted:false included", async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(200, { ok: true, data: { created: true, photoAccepted: false, geoAccepted: false } }),
+      );
+      const out = await enqueueFeed({ dogSlug: "abc234567", deviceToken: "tok-a", photo: "AAAA" });
+      expect(out.offline).toBe(false);
+      expect(out.throttled).toBe(false);
+      expect(out.pending).toBe(false);
+      expect(out.result).toMatchObject({ photoAccepted: false, geoAccepted: false });
+      expect(idbMock.store.size).toBe(0);
+    });
+
+    it("says throttled (and keeps the feed) on 503 PHOTO_BUSY", async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(503, { ok: false, error: { message: "busy", code: "PHOTO_BUSY" } }, { "retry-after": "5" }),
+      );
+      const out = await enqueueFeed({ dogSlug: "abc234567", deviceToken: "tok-a", photo: "AAAA" });
+      expect(out.throttled).toBe(true);
+      expect(out.result).toBeUndefined();
+      expect(out.dropped).toBeUndefined();
+      expect(idbMock.store.size).toBe(1);
+    });
+
+    it("says throttled without sending while a back-off is running", async () => {
+      localStorage.setItem("hetja.feedQueueNotBefore", String(Date.now() + 60_000));
+      const out = await enqueueFeed({ dogSlug: "abc234567", deviceToken: "tok-a" });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(out.throttled).toBe(true);
+      expect(idbMock.store.size).toBe(1);
+    });
+
+    it("says pending (not throttled) on a server fault", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(500, { ok: false, error: { message: "x", code: "INTERNAL" } }));
+      const out = await enqueueFeed({ dogSlug: "abc234567", deviceToken: "tok-a" });
+      expect(out.throttled).toBe(false);
+      expect(out.pending).toBe(true);
+      expect(idbMock.store.size).toBe(1);
+    });
   });
 });

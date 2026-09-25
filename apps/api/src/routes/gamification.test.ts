@@ -68,8 +68,12 @@ async function insertFeedScan(
   reviewStatus = "pending",
 ): Promise<void> {
   await query(
+    // received_at = captured_at + 1 min: a feed that synced promptly. The
+    // time-of-day and season badges ignore feeds that reached the server more
+    // than 72 h after capture (hardening batch 1, BACKDATE_LIMIT_HOURS), and
+    // these fixtures pin captured_at to fixed dates.
     `INSERT INTO scans (dog_id, client_uuid, scan_type, feeder_id, captured_at, received_at, review_status)
-     VALUES ($1, $2, 'feed', $3, $4, now(), $5)`,
+     VALUES ($1, $2, 'feed', $3, $4, $4::timestamptz + interval '1 minute', $5)`,
     [dogId, randomUUID(), feederId, capturedAtIso, reviewStatus],
   );
 }
@@ -315,6 +319,18 @@ describe("badges: night_owl window", () => {
     const res = await checkBadges(fixture);
     expect(res.statusCode).toBe(200);
     expect(res.json().data.awarded).toContain("night_owl");
+  });
+
+  it("does not award night_owl for a 23:00 feed that reached the server days later (backdated)", async () => {
+    await query(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, feeder_id, captured_at, received_at, review_status)
+       VALUES ($1, gen_random_uuid(), 'feed', $2, '2026-07-15T17:30:00.000Z', '2026-07-19T17:30:00.000Z', 'pending')`,
+      [fixture.dogId, fixture.feederId],
+    );
+    const res = await checkBadges(fixture);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.awarded).not.toContain("night_owl");
+    expect(res.json().data.awarded).not.toContain("monsoon_hero");
   });
 
   it("does not award night_owl outside the window", async () => {

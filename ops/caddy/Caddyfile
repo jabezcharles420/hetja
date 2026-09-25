@@ -26,6 +26,15 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		# Powerful features (audit T10). Camera: the QR scanner and photo
+		# capture; geolocation: geotagged scans and the "near me" care list.
+		# Both first-party only. Everything else the app never uses is off, so
+		# an injected script or a hostile embed cannot ask for it either.
+		Permissions-Policy "camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), browsing-topics=()"
+		# A window this origin opens, or that opens it, gets no handle on the
+		# other (tabnabbing, cross-window leaks). Nothing here relies on
+		# window.opener: there is no OAuth popup.
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
 	}
 }
@@ -67,20 +76,118 @@
 http://hetja.in {
 	import common
 
+	# Content-Security-Policy, REPORT-ONLY (audit T10): browsers log what this
+	# policy would have blocked and block nothing, so it can be watched in the
+	# console before it is enforced. Every origin is one the apps really load:
+	#   script  fastly/cdn.jsdelivr.net: zxing-wasm (barcode-detector polyfill)
+	#           fetches its .wasm there; 'wasm-unsafe-eval' compiles it
+	#   style   fonts.googleapis.com: public/offline.html's web-font CSS
+	#   img     api.hetja.in: dog photos (dogPhotoUrl); arcgis + cartocdn:
+	#           the map's Esri and Carto tiles (components/map/tiles.ts)
+	#   connect api.hetja.in (NEXT_PUBLIC_API_URL), *.supabase.co (dog
+	#           profile RPCs), jsdelivr (the wasm fetch itself)
+	#   font    fonts.gstatic.com: offline.html's web fonts
+	#   frame   www.youtube-nocookie.com: the song embeds on /hetja
+	#   worker  'self' blob:: both service workers, and zxing's worker
+	# Only on this vhost: api.hetja.in serves JSON and photos, not pages.
+	header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://fastly.jsdelivr.net https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://api.hetja.in https://static-map-tiles-api.arcgis.com https://*.basemaps.cartocdn.com; connect-src 'self' https://api.hetja.in https://*.supabase.co https://fastly.jsdelivr.net https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
 	# Cache-Control policy (enhancement stack §M.4). Cloudflare Cache Rules on
 	# the dashboard are the edge half; these headers are the origin half of the
 	# same contract. /d/* and the API catch-all are no-store: SOS state
 	# changes underneath and a stale collar page is a life-safety bug, not a
 	# perf regression. Guarded by ops/check-caddy-cache.sh in CI. Order
 	# matters: more specific handles first (care* before the API catch-all).
+	#
+	# Every Cache-Control here is `header >Cache-Control`, i.e. deferred until
+	# the upstream response is written, so it REPLACES whatever the upstream
+	# sent. The plain `header Cache-Control` form this file used before was
+	# applied first and reverse_proxy then ADDED the upstream's own value, so
+	# the browser got two headers. Measured with caddy 2.11.4 against a stub
+	# upstream that sends "public, max-age=86400":
+	#     GET /d/abc   -> Cache-Control: no-store
+	#                     Cache-Control: public, max-age=86400
+	# Deferred, it is exactly the one value written here.
+	#
+	# Body caps (audit T5): 16KB on the read-only handles (all GET), 3MB on
+	# the API catch-all, which is the only one a photo upload goes through.
 	handle /api/v1/care* {
-		header Cache-Control "public, max-age=60, s-maxage=60"
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}
 	}
+	# Public read-only reference data, identical for every caller (audit T17):
+	# 60 s at the browser and at Cloudflare turns a burst of map loads into a
+	# handful of origin hits on a box we share. The ward LIST only:
+	# /api/v1/map/wards/<id> can carry the signed-in responder's own state
+	# (apps/api map.ts sends private, no-store for it), so it keeps its
+	# explicit no-store handle below. Exact paths here are deliberate:
+	# `/api/v1/map/wards*` would also match the detail.
+	handle /api/v1/wards {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/wards {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/stats/impact {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/places* {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/heatmap* {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/wards/* {
+		header >Cache-Control "no-store"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	# Everything else under the API: no-store. 3MB body cap (audit T5): a
+	# photo is at most MAX_PHOTO_BASE64_CHARS (2,796,204) of base64 inside a
+	# JSON body the API caps at that + 64 KiB, so 3MB (3,000,000 bytes) holds
+	# the biggest legal upload and refuses anything larger before it reaches
+	# Node. The API's own 64 KiB default still binds every other route.
 	handle /api/v1/* {
-		header Cache-Control "no-store"
+		request_body {
+			max_size 3MB
+		}
+		header >Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}
@@ -95,14 +202,14 @@ http://hetja.in {
 	# the filename is not content-hashed. More specific than /d/*, so Caddy
 	# matches it first; every other /d/ path stays no-store.
 	handle /d/inter-scan.woff2 {
-		header Cache-Control "public, max-age=2592000"
+		header >Cache-Control "public, max-age=2592000"
 		reverse_proxy 127.0.0.1:8081 {
 			import real_ip
 		}
 	}
 
 	handle /d/* {
-		header Cache-Control "no-store"
+		header >Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8081 {
 			import real_ip
 		}
@@ -158,7 +265,7 @@ http://hetja.in {
 	# defeated INVARIANT 2 through a channel the coarsening code never sees. If
 	# that strip is ever removed, remove this handler with it.
 	handle /photos/* {
-		header Cache-Control "public, max-age=31536000, immutable"
+		header >Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
 		root * /srv/hetja/photos
 		file_server
@@ -166,7 +273,7 @@ http://hetja.in {
 
 	# Next.js static assets: content-addressed, immutable for a year.
 	handle /_next/static/* {
-		header Cache-Control "public, max-age=31536000, immutable"
+		header >Cache-Control "public, max-age=31536000, immutable"
 		reverse_proxy 127.0.0.1:3100 {
 			import real_ip
 		}
@@ -190,13 +297,73 @@ http://www.hetja.in {
 http://api.hetja.in {
 	import common
 	handle /api/v1/care* {
-		header Cache-Control "public, max-age=60, s-maxage=60"
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}
 	}
+	# Same public 60 s set as on hetja.in (see the comment there); ward
+	# detail stays no-store.
+	handle /api/v1/wards {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/wards {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/stats/impact {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/places* {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/heatmap* {
+		request_body {
+			max_size 16KB
+		}
+		header >Cache-Control "public, max-age=60, s-maxage=60"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	handle /api/v1/map/wards/* {
+		header >Cache-Control "no-store"
+		reverse_proxy 127.0.0.1:8080 {
+			import real_ip
+		}
+	}
+	# No-store catch-all with the 3MB photo-upload cap (see hetja.in).
 	handle /api/v1/* {
-		header Cache-Control "no-store"
+		request_body {
+			max_size 3MB
+		}
+		header >Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}
@@ -209,7 +376,7 @@ http://api.hetja.in {
 	# /api/v1 ones above, with no catch-all. See the matching block on hetja.in
 	# for the path arithmetic and why serving these publicly is safe.
 	handle /photos/* {
-		header Cache-Control "public, max-age=31536000, immutable"
+		header >Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
 		root * /srv/hetja/photos
 		file_server
@@ -234,7 +401,7 @@ http://api.hetja.in {
 	# to third-party clients, which every client-side error handler reads as
 	# success-with-no-data rather than as the 404 it is.
 	handle {
-		header Cache-Control "no-store"
+		header >Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:8080 {
 			import real_ip
 		}

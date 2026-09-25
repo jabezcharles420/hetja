@@ -264,6 +264,14 @@
   box-shadow: var(--h-sh-chip);
 }
 
+/* The quiet second line (photo not kept, location ignored). */
+.toastNote {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  color: #d2d2d7;
+}
+
 .error {
   margin: 0;
   font-size: 15px;

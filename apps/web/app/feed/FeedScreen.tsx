@@ -45,6 +45,24 @@ export function loggedToast(name: string): string {
 
 export const QUEUED_TOAST = "Saved on this phone. It sends when you're back online.";
 
+/** 429 RATE_LIMITED / 503 PHOTO_BUSY: the queue keeps it and retries after retry-after. */
+export const BUSY_TOAST = "Saved on this phone. It sends when the server is less busy.";
+
+/** photoAccepted:false: the feed counted, the photo did not stay. Quiet, not an error. */
+export const PHOTO_NOT_KEPT = "Feed logged. The photo wasn't kept this time.";
+
+/** geoAccepted:false: a location outside Mumbai was dropped. Nothing to worry about. */
+export const GEO_IGNORED = "Location outside Mumbai was ignored.";
+
+/** The quiet line under the toast, or null. */
+export function feedNote(result: { photoAccepted?: boolean; geoAccepted?: boolean } | undefined): string | null {
+  if (!result) return null;
+  const lines: string[] = [];
+  if (result.photoAccepted === false) lines.push(PHOTO_NOT_KEPT);
+  if (result.geoAccepted === false) lines.push(GEO_IGNORED);
+  return lines.length ? lines.join(" ") : null;
+}
+
 type Load =
   | { kind: "loading" }
   | { kind: "no-dog" }
@@ -76,6 +94,7 @@ export default function FeedScreen(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,9 +185,25 @@ export default function FeedScreen(): React.JSX.Element {
         deviceToken,
         ...(outcome ? { outcome } : {}),
       });
+      if (res.dropped) {
+        // Refused for good (recordDroppedFeed has it). Say so; do not pretend.
+        setError("Hetja couldn't log this feed. Try again.");
+        return;
+      }
       setDone(true);
-      setToast(res.offline ? QUEUED_TOAST : loggedToast(dogName(load.dog.name)));
-      leaveTimer.current = setTimeout(() => routerRef.current.push("/me"), 2200);
+      const quiet = feedNote(res.result);
+      setToast(
+        res.offline
+          ? QUEUED_TOAST
+          : res.throttled
+            ? BUSY_TOAST
+            : res.pending
+              ? QUEUED_TOAST
+              : loggedToast(dogName(load.dog.name)),
+      );
+      setNote(quiet);
+      // A second line to read: give it a second longer before leaving.
+      leaveTimer.current = setTimeout(() => routerRef.current.push("/me"), quiet ? 3400 : 2200);
     } catch {
       setError("Could not log the feed. Try again.");
     } finally {
@@ -309,6 +344,11 @@ export default function FeedScreen(): React.JSX.Element {
         {toast && (
           <p className={styles.toast} role="status">
             {toast}
+            {note && (
+              <span className={styles.toastNote} data-testid="feed-note">
+                {note}
+              </span>
+            )}
           </p>
         )}
         {error && (

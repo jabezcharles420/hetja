@@ -209,6 +209,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@hetja/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       libphonenumber-js:
         specifier: ^1.13.10
         version: 1.13.10

@@ -14,8 +14,11 @@ import styles from "./ChromeShell.module.css";
  *   /hetja     the muted memorial TopNav only. The mock (Pages 17) shows no
  *              footer and no tab bar, so none is drawn.
  *   /me        TabBar only.
- *   focused    /scan, /feed, /login, /register/**, /d/**, /dog/** and /design:
- *              no chrome at all. Those screens draw their own back / cancel.
+ *   focused    /scan, /feed, /login, /register/**, /d/**, /dog/**, /sos/**
+ *              and /design: no chrome at all. Those screens draw their own
+ *              back / cancel. /sos/<caseId> is the responder's case page that
+ *              SOS pushes open (worker: url /sos/<caseId>); SOS screens are
+ *              focused flows (handoff: hide the TabBar on SOS).
  *   /map       no chrome either: the map draws its own nav, chips, sheet and
  *              tab bar (screen 19).
  *   anything else (404s, error pages): TopNav + Footer, so nobody is stranded.
@@ -49,7 +52,7 @@ export const MARKETING_ROUTES = [
   "/contact",
 ] as const;
 
-const FOCUSED_ROUTES = ["/scan", "/feed", "/login", "/register", "/d", "/dog", "/map", "/design"];
+const FOCUSED_ROUTES = ["/scan", "/feed", "/login", "/register", "/d", "/dog", "/sos", "/map", "/design"];
 
 const NONE: Chrome = {
   nav: null,

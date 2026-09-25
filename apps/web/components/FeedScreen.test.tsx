@@ -40,7 +40,7 @@ vi.mock("@/lib/offline-queue", async () => {
   };
 });
 
-import FeedScreen, { loggedToast, OUTCOMES, QUEUED_TOAST } from "@/app/feed/FeedScreen";
+import FeedScreen, { BUSY_TOAST, feedNote, loggedToast, OUTCOMES, QUEUED_TOAST } from "@/app/feed/FeedScreen";
 import { api, ApiError, setAccessToken } from "@/lib/api";
 import { enqueueFeed } from "@/lib/offline-queue";
 import { kolkataDay } from "@/lib/streak";
@@ -147,6 +147,51 @@ describe("Log a feed", () => {
     render(<FeedScreen />);
     fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
     expect(await screen.findByText(QUEUED_TOAST)).not.toBeNull();
+  });
+
+  it("says the server is busy (and the feed is kept) on 429 / 503", async () => {
+    enqueue.mockResolvedValue({ queued: {}, syncing: true, offline: false, throttled: true, pending: false });
+    render(<FeedScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
+    expect(await screen.findByText(BUSY_TOAST)).not.toBeNull();
+    expect(BUSY_TOAST).toBe("Saved on this phone. It sends when the server is less busy.");
+  });
+
+  it("adds a quiet line when the photo was not kept", async () => {
+    enqueue.mockResolvedValue({
+      queued: {},
+      syncing: true,
+      offline: false,
+      throttled: false,
+      pending: false,
+      result: { created: true, photoAccepted: false },
+    });
+    render(<FeedScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
+    expect((await screen.findByTestId("feed-note")).textContent).toBe("Feed logged. The photo wasn't kept this time.");
+    expect(screen.getByRole("status").textContent).toContain("Logged. Bruno");
+  });
+
+  it("mentions an ignored out-of-Mumbai location quietly, and nothing else", () => {
+    expect(feedNote({ geoAccepted: false })).toBe("Location outside Mumbai was ignored.");
+    expect(feedNote({ photoAccepted: true, geoAccepted: true })).toBeNull();
+    expect(feedNote({})).toBeNull();
+    expect(feedNote(undefined)).toBeNull();
+  });
+
+  it("does not claim a permanently refused feed was logged", async () => {
+    enqueue.mockResolvedValue({
+      queued: {},
+      syncing: false,
+      offline: false,
+      throttled: false,
+      pending: false,
+      dropped: new ApiError("bad", { status: 400, code: "INVALID_PHOTO" }),
+    });
+    render(<FeedScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
+    expect(await screen.findByText("Hetja couldn't log this feed. Try again.")).not.toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("sends a signed-out feeder to /login with a way back", async () => {

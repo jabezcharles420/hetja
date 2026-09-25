@@ -260,3 +260,33 @@ the old single-tenant instructions are marked historical.
 
 *End of report. Full commit history in the local repo (24 commits) and the
 private backup (Hermes_aic).*
+
+## 2026-09-25: hardening batch 1 (commit `960a413`)
+
+From an overnight abuse-prevention audit of the whole app, the findings that
+were additive, fully testable and needed no account or policy decision:
+
+- **SOS ack diversion (critical):** only paged responders, moderators, or
+  opted-in feeders at the trust floor (40/40/60) may take a case, at most two
+  open at once, with a per-account limit. Before this, any signed-in account
+  could take every open case and stop it escalating.
+- **Trust farming (critical):** feed trust is credited once per feeder, dog
+  and Mumbai day, for active dogs only, at most 8 per rolling 24 hours; feeds
+  sent more than 72 hours late no longer move streaks or time badges.
+- **Mumbai-only writes:** scan locations outside `MUMBAI_BOUNDS` are ignored.
+- **Resource limits for the shared box:** 64 KiB default body limit, photo
+  routes only get the large one, unauthenticated scans refused before the body
+  is read, a photo decode semaphore, image size and animation limits, a disk
+  guard, per-account/device limits on scans, photos, SOS reports and stories,
+  a weekly registration cap, and a per-IP device-token mint limit.
+- **Caddy:** fixed duplicate `Cache-Control` headers (an upstream
+  `public, max-age` was leaking next to `no-store` on `/d/*`, `/sos`,
+  `/reports`, `/dogs`); security headers; CSP in report-only mode; public reads
+  cacheable at the edge for 60 s; new header and cache check scripts in CI.
+- **Web:** the `/sos/<caseId>` page that SOS push notifications link to (it
+  was a 404); the feed screen no longer says "Logged" before sending; offline
+  queues back off on 429/503.
+
+Tests: api 419, contracts 35, db 62, worker 19 (PostgreSQL 16 in WSL); web
+349, scan 59, e2e 36. What still needs the maintainer is in
+[OWNER-TODO.md](OWNER-TODO.md).

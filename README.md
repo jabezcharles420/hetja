@@ -180,6 +180,7 @@ path and the database all read Hetja now.
 - [AGENTS.md](AGENTS.md): how to work on it and how code reaches production.
 - [ops/room/README.md](ops/room/README.md): hosting on the shared box.
 - [docs/BUGS.md](docs/BUGS.md): the bug inventory, fixed and open.
+- [docs/OWNER-TODO.md](docs/OWNER-TODO.md): decisions and account steps waiting on the maintainer.
 - [docs/CREDITS.md](docs/CREDITS.md): what Hetja is built from, with licences.
 - [docs/VET-DATA-INTAKE.md](docs/VET-DATA-INTAKE.md): how the vet and NGO list is kept.
 - [docs/MAKING-A-COLLAR.md](docs/MAKING-A-COLLAR.md): the physical tag.

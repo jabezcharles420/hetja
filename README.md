@@ -36,10 +36,12 @@ Fork it. Run it in your city. Tell us what we got wrong.
 
 ## What it does today
 
-Every screen below is built to the Claude Design handoffs (v4, then v5 and
-v6 on top of it; see Design). The app has four tabs, **Home, Map, Scan, Me**.
-On a desktop wider than 744 px the app is an invitation instead: "Hetja lives
-on your phone", with a QR to open the same page there.
+Every screen below is built to the Claude Design handoffs (v4, then v5, v6
+and v7 on top of it; see Design). The app has four tabs, **Home, Map, Scan,
+Me**; a verified vet's third tab is **Vet**, an NGO member's **NGO**. On a
+desktop wider than 744 px the app is an invitation instead: "Hetja lives on
+your phone", with a QR to open the same page there. The one exception is the
+admin portal, which is made for a laptop.
 
 - **Scan** (`/scan`). The camera opens by itself and a found QR opens the dog.
   After six seconds without a read it offers three ways on: type the code,
@@ -58,7 +60,9 @@ on your phone", with a QR to open the same page there.
   vouched for yet says Unverified; a tag someone reported as being on the
   wrong dog says so; a dog that has died keeps a quiet memorial page. **Report
   a tag problem** (damaged, found on the ground, wrong dog, too tight) tells
-  the dog's feeders.
+  the dog's feeders. Its **Health** list says of every record whether a vet
+  signed it (name, council number, vaccine batch) or a feeder noted it, and
+  links a vaccination certificate for rescues and adoptions.
 - **SOS**. Three choices ("Hurt, but moving", "Can't get up, or bleeding",
   "Something else"), an optional note or photo, then send. No account. The
   location is asked for once, in words, before the browser asks. The reporter
@@ -66,12 +70,16 @@ on your phone", with a QR to open the same page there.
   way", three first-aid lines while they wait, a way to send the responder an
   update or say "I had to leave", and the outcome (taken to a vet, treated on
   the spot, not found, or died). Tappable numbers for vets and NGOs are there
-  throughout (confirmed numbers only; see Contributing); with no signal the message is written for the phone's own SMS
-  app. Nobody's personal number is ever shown.
+  throughout (a number nobody has confirmed yet is marked so, never hidden),
+  and a government vet or hospital says **"Government vet · free"**; with no
+  signal the message is written for the phone's own SMS app. The dog's own
+  feeders are told at once, then the NGO covering the ward, then, if nobody
+  has taken it after 15 minutes, the ward's verified vets. Vets' and NGOs'
+  professional numbers are public; a feeder's or a reporter's never is.
 - **An SOS with no known dog.** An unknown or unreadable collar still gets an
   SOS: it needs the reporter's location, works in Mumbai only, and is located
-  to the ward; a "Can't get up, or bleeding" report pages that ward's feeders
-  and every report escalates to the nearest vets. Its limits are tighter than
+  to the ward, and reaches the feeders who chose that ward, the NGO covering
+  it and, if nobody takes it, the ward's vets. Its limits are tighter than
   for a report about a known dog.
 - **The responder's SOS page** (`/sos/<case>`). Where a push lands: the dog,
   the ward, how far away, when it escalates, and **I'm going** (or "I can't go
@@ -107,13 +115,34 @@ on your phone", with a QR to open the same page there.
   A batch sheet takes up to eight dogs. Scanning the tag once, next to the
   dog, switches it on; a wrong tag is caught and named. At most two dogs wait
   for their collars at a time.
-- **Vet checkup** (`/vet/<code>`, vet accounts). Rabies, sterilisation, next
-  vaccine due, a note for feeders; written to the tamper-evident ledger, and
-  it verifies the dog.
+- **The vet portal** (`/vet`). A feeder who is a registered vet applies with
+  their council number, certificate and photo ID; once the Hetja team
+  verifies them they get the Vet tab: SOS cases in their wards, feeders'
+  requests to sign a record, dogs due a vaccine, and **signing** vaccination,
+  sterilisation and treatment records with a passkey (Face ID, fingerprint or
+  screen lock), so each record is checkable and sits in the tamper-evident
+  ledger. A signed record is never edited: a vet signs a correction or a
+  withdrawal, and the old one stays visible, struck through. Feeders can note
+  care themselves ("Feeder noted") and ask a vet to sign it.
+- **The NGO portal** (`/ngo`). An NGO registers with its documents, and once
+  approved its members get the NGO tab: SOS cases in its wards with **Send
+  someone** (a vet, a volunteer with transport, the ambulance) or pass it on,
+  the ambulance and shelter beds, the team (coordinators invite people and
+  vouch for their vets), dogs in its wards, and collar and vaccination
+  **drives**, whose dogs' feeders get a heads-up the day before.
+- **The admin portal** (`admin.hetja.in`, also `hetja.in/admin`). For the
+  Hetja team, on a laptop: today's task list, verifying vets (with the MSVC
+  register checklist) and NGOs, avatar batches, merging duplicate dogs,
+  dogs, feeders (suspend, block a device), collars, SOS cases (assign a
+  vet), reports, and four roles: Owner, Moderator, Avatar editor, Ward lead.
+  Every action goes to an audit log nobody can edit. Vets' and NGOs'
+  documents are encrypted, seen only by admins, and deleted 30 days after
+  the decision.
 - **Map** (`/map`). All of Mumbai by ward: which wards have a dog that needs
   help, which are waiting for dinner, who has not been logged today, and the
-  vets and NGOs nearby, with "open now" where the hours say so. Dogs are
-  counted per ward, never placed on a street.
+  vets and NGOs nearby, with "open now" where the hours say so and
+  "Government vet · free" where it applies. Dogs are counted per ward, never
+  placed on a street.
 - **Marketing and reading pages**: Home, About, How it works, FAQ, Privacy,
   Contact, and `/hetja`, the memorial. English only for now: Hindi and
   Marathi wait for human translations.
@@ -126,7 +155,7 @@ What is designed but not finished is listed plainly in
 ```
 apps/
   scan/     the public collar page + SOS: static HTML + vanilla TS, <40 KB gzipped
-  web/      everything else: Next.js 14 App Router (PWA)
+  web/      everything else, incl. the vet, NGO and admin portals: Next.js 14 App Router (PWA)
   api/      Fastify 5 + zod, /api/v1/*
   worker/   job queue: SOS fan-out, escalation, retention, registration expiry
   ai/       Python: photo validation, re-identification (Phase 2)
@@ -143,15 +172,17 @@ ops/        the shared-box room (ops/room), Caddy, gates, Supabase, runbook
 
 The collar page is deliberately framework-free. A citizen standing over an
 injured dog on 4G gets served static HTML under a hard 40 KB gzipped budget,
-enforced in CI; a framework runtime alone would exceed it. It is 39,101 bytes
+enforced in CI; a framework runtime alone would exceed it. It is 40,346 bytes
 of its 40,960 today, 11.2 KB of which is a small Inter subset for Android. The
-v6 screens paid for themselves with three cuts: the HTML is minified at build
+v6 screens paid for themselves with three cuts (the HTML is minified at build
 time, 20 rarely used ASCII symbols left the font subset, and the web-vitals
-package gave way to the browser's own measurements.
+package gave way to the browser's own measurements), and v7's health list
+took most of what was left: about 600 bytes remain.
 
 ## Architecture, briefly
 
-The public site is `hetja.in` and the API also answers at `api.hetja.in`.
+The public site is `hetja.in`, the API also answers at `api.hetja.in`, and
+the admin portal has its own `admin.hetja.in`.
 Caddy routes `/d/*` to the scan app, `/api/v1/*` to the API and everything
 else to the web app; the worker has no port. The production database is
 **Supabase** (PostgreSQL with PostGIS, pgvector and pgcrypto). Anonymous reads
@@ -205,18 +236,21 @@ rules underneath are older than the look: one loud button per screen (blue,
 or red for SOS only), colour never alone, 44px targets, and plain white fast
 screens for the collar page and SOS.
 
-Two more handoffs built on it without changing the look. **v5** audited the
+Three more handoffs built on it without changing the look. **v5** audited the
 live site and added the missing pages (become a feeder, alerts, settings, my
 dogs, a vet's checkup, the SOS page for responders), registering and printing
 a tag, and what happens when a tag breaks. **v6** polished every screen, gave
 each dog's feeders a first name, followed an SOS through to its outcome, and
-made desktop an invitation to use a phone.
+made desktop an invitation to use a phone. **v7** added the portals for
+vets, NGOs and the Hetja team, where the main button is black: they are
+working tools, and blue stays the street app's.
 
 Each handoff (spec, mocks, rendered boards) is kept in the repo:
 [docs/design/v4-handoff/](docs/design/v4-handoff/README.md),
-[docs/design/v5-handoff/](docs/design/v5-handoff/CONTRACT.md) and
-[docs/design/v6-handoff/](docs/design/v6-handoff/CONTRACT.md); the v5 and v6
-folders each carry a `CONTRACT.md` with the owner's decisions and every place
+[docs/design/v5-handoff/](docs/design/v5-handoff/CONTRACT.md),
+[docs/design/v6-handoff/](docs/design/v6-handoff/CONTRACT.md) and
+[docs/design/v7-portals/](docs/design/v7-portals/CONTRACT.md); the v5, v6 and
+v7 folders each carry a `CONTRACT.md` with the owner's decisions and every place
 the build deliberately departs from a mock. The values live in
 [packages/design/tokens.css](packages/design/tokens.css), the components in
 `apps/web/components/ds`, and the rationale in

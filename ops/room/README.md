@@ -29,7 +29,9 @@ secrets; the box copy is `/srv/hetja/shared/api.env` (0600, hetja).
   opt/node-v22.x/      root
   releases/<id>/       hetja: web/ api/ worker/ scan/ Caddyfile REVISION
   releases/current -> <id>   (in releases/ because /srv/hetja is root-owned)
-  shared/              hetja: api.env, web.env, deploy-stamp, caddy/
+  shared/              hetja: api.env, web.env, deploy-stamp, caddy/,
+                       documents/ (v7: encrypted vet and NGO documents, 0700,
+                       created by the API; never served by Caddy)
   photos/              hetja: uploaded dog photos
   incoming/            hetja: where the runner drops a release
 /etc/hetja/tunnel.env  root 0600: TUNNEL_TOKEN (never readable by hetja)
@@ -68,6 +70,12 @@ systemctl disable --now hetja.target hetja-guard.timer
 rm /etc/systemd/system/hetja* && systemctl daemon-reload
 rm -rf /srv/hetja /etc/hetja && userdel hetja
 ```
+
+Every public hostname on the tunnel points at `http://localhost:80`, and
+Caddy tells them apart by host: `hetja.in`, `www.hetja.in`, `api.hetja.in`
+and, since design v7, `admin.hetja.in` (added by
+the owner in the Cloudflare dashboard; Caddy's own `http://admin.hetja.in`
+block sends that host to the web app's `/admin`).
 
 The very first deploy needs `systemctl start hetja.target` once, as root,
 right after `releases/current` exists; from then on the target is enabled at

@@ -10,10 +10,10 @@ external build guide that lived outside the repo.
 |---|---|---|---|
 | 1 | Slugs random, non-sequential, base32 | ✅ | `packages/db/src/slugs.ts` + tests (500-gen uniqueness, check char) |
 | 2 | Anonymous geo: ward / ≥500m cells, ≤2 decimals | ✅ | `packages/contracts/src/geo.ts` + tests; `dogs.ts` route test |
-| 3 | identity_hmac only (HMAC-SHA256 pepper), never bare contact info | ✅ | `lib/hmac.ts`; schema has no phone/email column; security-gate grep |
+| 3 | identity_hmac only (HMAC-SHA256 pepper), never bare contact info **of feeders and reporters** (v7: vets' and NGOs' professional numbers are public, see the v7 section) | ✅ | `lib/hmac.ts`; schema has no feeder phone/email column; security-gate grep with a named allowlist |
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
-| 6 | Rate limits per account/device token, never per IP (documented exceptions, each paired with a subject or global bucket: device-token minting, the two v5 finding reads, v5 tag reports and the v6 dogless SOS; see #6 below) | ✅ | device tokens as write subject (`device.ts`); SOS caps per token; per-subject limiters in `lib/rate-limit.ts` |
+| 6 | Rate limits per account/device token, never per IP (documented exceptions, each paired with a subject or global bucket: device-token minting, the two v5 finding reads, v5 tag reports, the v6 dogless SOS, and v7's health and professionals reads and problem reports; see #6 below and the v7 section) | ✅ | device tokens as write subject (`device.ts`); SOS caps per token; per-subject limiters in `lib/rate-limit.ts` |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check, per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
@@ -211,7 +211,141 @@ answers 404 for both, except to the registrator who filed it
   NGO only once a notification was actually delivered. Tier-2 escalation
   writes sms/bmc rows that nothing sends yet, so today those count as zero.
 
-## Why this exists
+### New surfaces in design v7 (2026-09-26), checked against 2, 3, 6, 7, 8, 9 and 11
+
+Design v7 is the Admin, Vet and NGO portals (docs/design/v7-portals/CONTRACT.md).
+Migration `0029_v7_portals.sql` is additive only. Each rule below is new, and
+each is tested in `apps/api/src/routes/v7.test.ts` or `apps/worker/src/v7.test.ts`.
+
+- **INVARIANT 3, rescoped (owner decision, 2026-09-25).** A verified vet's
+  public phone (`vet_profiles.phone_e164`) and an active NGO's
+  (`ngos.phone_e164`) are PUBLIC professional contacts, shown where care
+  providers are: the SOS answer (`professionals`), the map ward detail,
+  `GET /wards/:wardId/professionals` and `GET /dogs/:slug/vets`. They exist
+  to be called, like the care directory's published numbers, and they sit on
+  the same named allowlist in `ops/security-gate.sh`. Everyone else is
+  unchanged: a feeder's or a reporter's contact details are never stored
+  except as an HMAC and never shown. Invitations (vet, team, NGO member) keep
+  only the identity HMAC of the address; the address is used for one optional
+  email and dropped, and is never audited or logged (tested).
+- **Owner bootstrap.** `HETJA_OWNER_EMAILS` is turned into identity HMACs at
+  boot (typed and canonical forms, as sign-in resolves them), and only those
+  HMACs are compared (`lib/admin.ts`). The addresses are never written to the
+  database or a log, but they are not erased from memory: they stay in the
+  API's loaded config and in `/srv/hetja/shared/api.env`, as every secret
+  does. Admin roles are LIVE reads, never JWT claims, like `feeders.role`
+  (`lib/require-role.ts`); the pre-v7 `feeders.role = admin` counts as Owner.
+  Every admin WRITE asks for a PERMISSION (`ROLE_PERMISSIONS`), and a role
+  without it gets 403 `ADMIN_FORBIDDEN`; a few reads (`/admin/me`, `today`,
+  `search`, `care`, `documents/:id`) take any admin role and filter or check
+  the permission inline.
+- **The audit log is append-only for everyone, the Owner included** (A6).
+  `audit_log` has SELECT and INSERT for `app_user` only, a REVOKE of
+  UPDATE, DELETE and TRUNCATE, a row trigger refusing UPDATE and DELETE and a
+  statement trigger refusing TRUNCATE for every role, and no foreign keys (an
+  ON DELETE SET NULL would itself be an UPDATE). Admin decisions, vet
+  signatures, corrections and withdrawals, NGO decisions and dispatches, and
+  every document opened by an admin write a row, in the same transaction as
+  the change for nearly all of them (`lib/audit.ts`). Not every write is
+  covered yet: avatar file uploads, NGO ambulance and bed updates, dispatch
+  accept and decline, drive edits and drive-dog updates, a vet declining a
+  sign request and a vet editing their own profile write no row, and two
+  (an NGO member change, removing a passkey) are audited just after their
+  transaction rather than inside it. `scrubDetail` drops any
+  key that could carry contact data, a position or file bytes. The CSV export
+  neutralises spreadsheet formulas and is itself audited. AGENTS.md section f's
+  recipe must re-apply `REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM
+  app_user` after its `GRANT ALL`, as it does for `medical_records`.
+- **Documents stay private** (owner decision). Certificates, photo IDs and a
+  vet's vaccine-sticker photo are validated by magic bytes (PDF up to 5 MiB;
+  JPEG/PNG/WebP through the photo decoder, which caps them at 2 MiB and
+  strips metadata), encrypted with AES-256-GCM under `HETJA_DOCS_KEY` with the
+  document id as associated data, written under `DOCS_LOCAL_DIR` (0700, never
+  the photos directory Caddy serves; production `/srv/hetja/shared/documents`),
+  and no file name is stored. Certificates, photo IDs and NGO registrations
+  are streamed only to admins with the matching permission, audited on every
+  open, and deleted by the worker 30 days after the decision (an unattached
+  upload after a day). A record photo (the vaccine sticker) is different: it
+  is shown to verified vets, the dog's feeders and any admin role, its opens
+  are not audited, and once attached to a record it has no deletion date.
+  `POST /documents` authenticates before the body is read; `/vet/record-photos`
+  reads its photo-sized body first and authenticates in the handler.
+- **INVARIANTs 8 and 9: vet signatures append, never update.** A signature is
+  a new `medical_records` row through `appendMedicalRecord` (the one chain
+  writer), with new nullable columns: `record_source`, `signed_by`,
+  `credential_id`, `assertion`, `record_hash`, `correction_reason`,
+  `drive_dog_id`, `noted_by` (no foreign keys, for the same reason as the
+  audit log). The passkey challenge IS the record hash,
+  `sha256(canonicalJSON({ v: 1, signer, record }))`. The record hash, the
+  signer and the credential id are inside the hashed payload, with
+  `hash_vet_id = vet:<feederId>`, so none of them can be changed without
+  breaking the chain. The assertion itself is stored in its own column,
+  outside the chained payload: it can be re-verified against the chained hash
+  and the credential's public key, but the chain alone does not protect the
+  column's bytes. Challenges are single use and expire in five minutes; a changed
+  draft, a reused challenge and an assertion without user verification are
+  refused (tested). A correction is a new row with `corrects_record_id` and a
+  reason, a withdrawal a row of type `withdrawal`, and only the signer may do
+  either. Confirming a feeder note is a new signed row that supersedes it.
+  INVARIANT 11: the hashed payload holds pseudonymous account ids only.
+- **A suspended vet** (A2) cannot sign, and their vet pages
+  (`vet_escalation`, `admin_assign`) are no ground to take a case
+  (`lib/sos-eligibility.ts` `pageIsGround`, one rule for the ack route and
+  the case page). They lose only the vet grounds: with ordinary feeder
+  standing (paging on, the trust floor, a feed nearby or the ward) they can
+  still take a case like any feeder. Their past signatures stay valid. The
+  only way to flag them is removing the vet with `signatures: flag`, which
+  marks ALL of that vet's signed records `flagged` on the health list.
+- **SOS routing to professionals, one rule** (`lib/sos-eligibility.ts` and
+  `packages/db/src/sos-routing.ts`, shared by the API and the worker):
+  feeders as before; at filing, the active NGO covering the ward (a paused one
+  gets nothing), whose coordinators are paged; after 15 minutes with nobody
+  taking it (at once when the NGO passes, or when no NGO covers the ward and
+  no feeder could be told; an NGO with no coordinator still waits the 15
+  minutes), every verified vet whose wards include the case's ward and who
+  takes SOS, inside their SOS hours, government vets first, at most 15. An
+  admin can assign a vet until someone has taken the case. A dispatched NGO
+  member is paged for that case, so the ordinary case page admits them and the
+  ordinary "I'm going" takes it (and marks the dispatch accepted). A verified
+  vet covering the ward who takes SOS may take a case by that standing
+  (`vetCoversWard`, which also needs `sos_available`), never a suspended one. "Told" still means told: vet and NGO pages count only
+  once delivered. The N3 list gives each member's distance to the case,
+  rounded to 100 m, from their own last scan; no member's position and no
+  dog's position before an ack is ever returned (INVARIANT 2).
+- **D13 moderation tools.** A suspended account (`feeders.suspended_at`) gets
+  403 `ACCOUNT_SUSPENDED` on every write except the ways out (release a case,
+  unsubscribe, delete the account) and reporting an emergency; it is never
+  paged, never handed a case, holds no admin role, and its held cases are
+  released on suspension. A blocked device (`blocked_devices`, SHA-256 of the
+  canonical device id, never the id or the token; admins see a 16-hex
+  reference) is refused scans, tag reports, problem reports and registrations
+  with 403 `DEVICE_BLOCKED`; its SOS report is still accepted and still
+  answered with the numbers to call, but pages nobody and escalates at once
+  (INVARIANT 7's purpose). A photo taken down (`scans.photo_hidden_at`) is no
+  longer returned by any API response; the scan and the feed stay. The file
+  itself is not deleted, so anyone who already has its `/photos/<key>` URL can
+  still open it until photo retention removes it (`HETJA_PHOTO_TTL_DAYS`, 7).
+- **INVARIANT 6: three more anonymous-path limits, each paired.**
+  `healthReadPerSubject` (burst 30, then one every 2 s) with
+  `healthReadGlobal` (20000 a day) on `GET /dogs/:slug/health`;
+  `professionalsReadPerSubject` (burst 30, then one every 2 s) on the two
+  professional lists; and "Report a problem"'s `problemReportPerIp` (burst 10,
+  then 20 an hour) on top of `problemReportPerSubject` (per device or
+  account) and `problemReportPerDog`. The reads key on the device when a valid
+  `x-device-token` is presented and on the address only when there is none,
+  exactly like the v5 finding reads; a refusal is a read refused, never an
+  SOS, a scan or a sign-in. Every other v7 limiter is per account
+  (`lib/rate-limit.ts`, "Design v7").
+- **Merges never rewrite the ledger** (A5). The merged dog's scans move onto
+  the kept dog (`scans.merged_from_dog_id` keeps where each came from); its
+  medical records stay on it and are read with the kept dog's; its slug and
+  collar answer the kept dog's page with `mergedFrom`; the "feeder of a dog"
+  rule counts the merged dog's registrator; last-seen takes the merged dog's
+  position only when its `last_seen_at` is newer (a plain comparison, without
+  INVARIANT 4's future-skew window or `received_at` tie-break). Duplicate suggestions come from
+  reports and same-ward names (a normalised trigram comparison in JS, the
+  contract's fallback; no pg_trgm dependency).
+
 
 The reasoning below used to live only in the build guide, which cites the
 spec PDFs directly. Migrated here so it survives independently of them.
@@ -239,6 +373,16 @@ spec PDFs directly. Migrated here so it survives independently of them.
    migration `0010_identity_email.sql` rather than adding a parallel
    column): an email address is just as recoverable from a bare hash as a
    phone number was; the fix is the same HMAC, over a different string.
+
+   **Rescoped in design v7 (owner decision, 2026-09-25): this protects
+   feeders and reporters.** The reason is that a person who feeds dogs, or
+   who reported one, must not become findable through Hetja. A vet or an
+   NGO taking part as a professional is the opposite case: their number is
+   published so a stranger can call it, like the care directory's. So a
+   verified vet's and an active NGO's phone are stored in the clear
+   (`phone_e164`) and shown publicly; everything else about a person,
+   including a vet's own sign-in address, stays HMAC-only. The v7 section
+   above lists every surface.
 4. **Offline conflict resolution uses `captured_at`, never `received_at`.**
    A feeder's phone can be offline for hours; if the server resolved
    `last_seen_geo` by the order photos arrive rather than the order they were

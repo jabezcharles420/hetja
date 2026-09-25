@@ -42,9 +42,17 @@ Four services, all bound to loopback, plus Caddy and the tunnel:
 | Caddy | stock Caddy | 127.0.0.1:80 | Path routing; the tunnel's only origin. |
 | cloudflared | Cloudflare Tunnel | none | Dials out. The box has no inbound web port. |
 
-**The tab and route model (design v6).** The app has four tabs, **Home, Map,
-Scan, Me** (`components/ds/TabBar.tsx`). Alerts is not a tab: it is a row on
-Me with an unread count, and push notifications open it. Only the tab roots
+**The tab and route model (design v6, with v7's role tab bars).** The app
+has four tabs, **Home, Map, Scan, Me** (`components/ds/TabBar.tsx`). Since v7
+the third tab depends on the account (`apps/web/lib/tab-role.ts`, from
+`GET /feeders/me`): a verified vet gets **Home, Map, Vet, Me** (`/vet`), an
+NGO member (active or paused NGO) gets **Home, Map, NGO, Me** (`/ngo`), and
+someone who is both gets the NGO tab with the vet tools inside it. For them
+"Scan a collar" moves inside that tab. The role is cached on the phone for
+first paint and refreshed once a session; it only picks tabs, the API decides
+what anyone may do. Alerts is not a tab: it is a row on Me with an unread
+count, and push notifications open it. Me also carries "Sign records as a
+vet" and "Bring your NGO to Hetja" until the application is decided. Only the tab roots
 carry the tab bar (`/`, `/scan`, `/me`; `/map` draws its own inside its
 sheet). Every other app screen is a focused screen with a 52 px `AppHeader`
 (back or Cancel), no tab bar and no footer; the footer is for the reading
@@ -58,6 +66,21 @@ is framed at 480 px so a responder at a desk can still act, and the print
 sheets (`/register/<slug>/print`, `/register/batch`) and `/design` are left
 as they are. There are no languages yet: English only, until human
 translations exist.
+
+**The admin portal (design v7)** is the one part of Hetja built for a laptop:
+`/admin/**` in the web app, with no street chrome and no desktop invitation
+(`ChromeShell` kind `admin`); on a narrow screen it shows "Admin works on a
+laptop" instead. It has its own hostname, **`admin.hetja.in`**, which needs a
+public hostname on the Cloudflare tunnel (owner action, OWNER-TODO) pointing
+at the same `http://localhost:80`. Caddy has a separate
+`http://admin.hetja.in` block in `ops/caddy/Caddyfile`: the bare host
+redirects to `/admin`, `/_next/static/*` is immutable, and everything else
+goes to the web app on 3100, so it is the same Next app on a separate origin
+(an admin signs in there separately and the session never sits in the street
+app's storage). `hetja.in/admin` works too. The admin API is under
+`/api/v1/admin/*`, and every admin route checks a permission of a live admin
+role (Owner, Moderator, Avatar editor, Ward lead), never a JWT claim.
+`CORS_ORIGINS` and `WEBAUTHN_ORIGINS` include `https://admin.hetja.in`.
 
 **The production database is Supabase** (PostgreSQL with PostGIS, pgvector and
 pgcrypto, in Mumbai, reached through its session pooler with `PGSSLMODE=require`).
@@ -133,6 +156,8 @@ into a file, a commit, an issue, a log or a chat.
 | `HETJA_HMAC_PEPPER` | Peppers `identity_hmac` (INVARIANT 3). |
 | `HETJA_QR_SECRET` | **Carry over, never regenerate.** See below. |
 | `HETJA_DEVICE_SECRET` | Signs anonymous device tokens. |
+| `HETJA_OWNER_EMAILS` | Design v7. The admin portal's Owner: comma-separated sign-in addresses, turned into identity HMACs when the API boots, and only the HMACs are compared; the account whose identity matches is Owner. Never committed, and never written to the database or a log (it is in `api.env` like every secret). Optional: without it nobody is Owner by configuration (a pre-v7 `feeders.role = admin` still counts as Owner). |
+| `HETJA_DOCS_KEY` | Design v7. AES-256-GCM key (base64 of 32 bytes, `openssl rand -base64 32`) for the certificates and photo IDs vets and NGOs upload. Optional: without it document upload answers 503 and everything else runs. Keep it in the password manager: losing it makes the documents still awaiting review unreadable (decided ones are deleted after 30 days anyway). It can be replaced, unlike `HETJA_QR_SECRET`, but not while applications are waiting. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Web Push. Rotating them invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_USER`, `BREVO_SMTP_PASSWORD` | Sign-in email. The API refuses to boot in production without SMTP, deliberately: the original bug was generating login codes and sending them nowhere. |
 | `ESRI_API_KEY` | The map's basemap tiles. Inlined into the web bundle at build time as `NEXT_PUBLIC_ESRI_API_KEY`, so it is public by design: it is an ArcGIS Location Platform key restricted to Hetja's referrers and to basemap privileges only. It also draws the street map on the responder's SOS page (`components/care/SpotMap.tsx`). Without it there are no street tiles at all (the ward pills and pins sit on a plain background and the map says so): there is no keyless fallback, because CARTO's keyless tiles now answer with an "API key required" image. |
@@ -141,7 +166,14 @@ The workflow also writes fixed values that are not secrets: `JWT_ACCESS_TTL=15m`
 `JWT_REFRESH_TTL=30d`, `TRUST_PROXY=1` (one hop: cloudflared to Caddy to the
 API), `CORS_ORIGINS`, `STORAGE_BACKEND=local` with photos in
 `/srv/hetja/photos`, `PUBLIC_API_ORIGIN=https://api.hetja.in`, `PGPOOL_MAX=4`,
-`MAIL_FROM` and `VAPID_SUBJECT`. `web.env` carries only `NEXT_PUBLIC_API_URL`.
+`MAIL_FROM` and `VAPID_SUBJECT`. `CORS_ORIGINS` is `https://hetja.in,https://www.hetja.in,https://admin.hetja.in`.
+Design v7 adds four fixed values: `DOCS_LOCAL_DIR=/srv/hetja/shared/documents`
+(the private, encrypted document directory, created 0700; never the photos
+directory Caddy serves), `WEBAUTHN_RP_ID=hetja.in` (vets' passkeys are bound
+to it), `WEBAUTHN_ORIGINS=https://hetja.in,https://www.hetja.in,https://admin.hetja.in`
+and `PUBLIC_WEB_ORIGIN=https://hetja.in` (links in emails and pushes).
+`apps/api/.env.example` has the local equivalents (`localhost`,
+`http://localhost:3000`, `data/documents`). `web.env` carries only `NEXT_PUBLIC_API_URL`.
 `DEVICE_POW_DIFFICULTY` is not set, so the default of 16 applies (see
 `docs/HOW-IT-WORKS.md` §9 for why not 18). The ledger signing key
 (`HETJA_LEDGER_SIGNING_JWK`) is not wired into the room yet, so daily anchors
@@ -149,7 +181,10 @@ are unsigned.
 
 Design v5 and v6 added **no secret and no environment variable**: every new
 limit, window and cap (wards, quiet hours, the 30-day alerts pause, the
-dogless SOS limits) is a constant in the code, not configuration.
+dogless SOS limits) is a constant in the code, not configuration. Design v7
+added the two secrets and four fixed values above, and nothing else: the
+15-minute wait before an SOS opens to vets, the 30-day document deletion and
+the new rate limits are constants too.
 
 For local development, copy `apps/api/.env.example` to a `.env` of your own
 and fill it with throwaway values.
@@ -197,7 +232,8 @@ sudo -u postgres psql -d hetja_test -v ON_ERROR_STOP=1 -c "
   GRANT ALL ON ALL TABLES IN SCHEMA public TO app_user;
   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
   REVOKE UPDATE, DELETE ON medical_records FROM app_user;
-  REVOKE TRUNCATE ON medical_records FROM app_user;"
+  REVOKE TRUNCATE ON medical_records FROM app_user;
+  REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM app_user;"
 
 PGHOST=127.0.0.1 PGDATABASE=hetja_test PGUSER=app_user PGPASSWORD=dev-pw \
   pnpm --filter @hetja/api test
@@ -292,9 +328,10 @@ GitHub secret only; never copy it to a laptop.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.** A
   deliberate guard. Do not work around it.
 - **The scan bundle has a hard 40 KB gzipped budget** enforced in CI, and it
-  is nearly full: 39,101 B of 40,960 B on 2026-09-25 (about 1.9 KB left), of
-  which 11,267 B is the Inter subset. It was 33,260 B before the v6 screens;
-  three cuts made room for them (build-time HTML minification in
+  is full: 40,346 B of 40,960 B on 2026-09-26 (614 B left), of which 11,267 B
+  is the Inter subset. It was 33,260 B before the v6 screens and 39,101 B
+  after them; v7's health list and "Government vet · free" labels took the
+  rest. Three cuts made room for v6 (build-time HTML minification in
   `apps/scan/scripts/build.mjs`, 20 rarely used ASCII symbols dropped from the
   subset, and the `web-vitals` package replaced by native `PerformanceObserver`
   measurement in a separate idle-loaded `telemetry.js`). It is the page a
@@ -342,6 +379,22 @@ GitHub secret only; never copy it to a laptop.
 - **Some `ops/*.sh` were committed non-executable** and CI invoked them as
   `bash ops/...`, which hid it. If `./ops/foo.sh` gives "permission denied",
   `git update-index --chmod=+x` it rather than working around it.
+- **The audit log is append-only like `medical_records`** (design v7). Its
+  triggers are in migration 0029, so they bind Supabase too, but the §f
+  recipe and CI must still re-apply `REVOKE UPDATE, DELETE, TRUNCATE ON
+  audit_log FROM app_user` after any `GRANT ALL`, and test rows in it can
+  never be removed. Do not "fix" a test by deleting audit rows.
+- **Documents never go in the photos directory.** `DOCS_LOCAL_DIR` is
+  private and encrypted; `STORAGE_LOCAL_DIR` (photos) is served publicly by
+  Caddy. Anything a vet or NGO uploads as proof goes through `lib/documents.ts`.
+- **Passkeys need a matching origin.** Locally `WEBAUTHN_RP_ID=localhost` and
+  `WEBAUTHN_ORIGINS` must list the exact origin the web app is opened on
+  (`http://localhost:3000` in `.env.example`, `next dev`'s default); a
+  different port or host fails the passkey ceremony.
+- **The export script has no portal flows yet.** `screens:export` does not
+  visit `/admin`, `/vet` or `/ngo`; the admin fixtures in
+  `components/admin/fixtures.ts` (the board's example data) are what a flow
+  would use.
 - **Historical files.** `ops/bootstrap.sh`, `ops/deploy.sh`,
   `ops/deploy-remote.sh`, `ops/systemd/*` and `ops/caddy/setup-tunnel.sh`
   describe the single-tenant box (a git checkout at `/root/hetja`, a local

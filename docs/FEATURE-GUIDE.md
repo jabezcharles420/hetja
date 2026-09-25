@@ -135,6 +135,9 @@ their first feed, pick your wards). After that:
   alerts** switch, **Register a dog** and **Settings**. Turning SOS alerts off
   offers a pause instead: until tomorrow morning, for a week, or off.
 - With no signal, Me shows the last saved copy and says so.
+- **Sign records as a vet** and **Bring your NGO to Hetja** (v7) start an
+  application and show its status until it is decided; after that the Vet or
+  NGO tab takes their place.
 
 ### Alerts and Settings
 
@@ -222,13 +225,90 @@ Hetja collar. You can do it yourself, without an operator on the other end.*
    **Unverified** until a vet records a checkup or a second feeder confirms
    the dog.
 
-### For vets (N3)
+### If you are a vet (V1 to V5)
 
-A vet account opens a dog's **checkup record**: rabies (given today, up to
-date, or due), sterilised or not, the month the next vaccine is due, a note
-for feeders, and "I examined this dog". Nothing is preselected. Saving it
-writes to the tamper-evident medical ledger, turns the dog's Vaccinated and
-Sterilised pills on where they apply, and marks the dog verified.
+1. **Apply.** On Me, tap **Sign records as a vet**. Give your MSVC
+   registration number, your clinic, and upload your registration certificate
+   and a photo ID. Then the wards you cover, whether and when you take SOS
+   calls, and the phone number you want the public to call. Your documents
+   are encrypted, seen only by the Hetja team, and deleted 30 days after your
+   application is decided. Me shows where your application is ("Waiting",
+   "Asked for more"); if the team needs something, you see their reason and
+   can send it again.
+2. **The Vet tab.** Once verified, your tabs are Home, Map, Vet, Me. The Vet
+   tab shows SOS cases in your wards (**I'll take it**), feeders asking you to
+   sign a record, and dogs due a vaccine soon, with **Scan a collar** and a
+   search by name or collar code.
+3. **Sign a record.** Open a dog, choose Sign vaccination, Mark sterilised or
+   Add treatment, fill it in (brand, batch, dates), and sign with your phone:
+   **Sign with Face ID** on an iPhone, **Sign with your screen lock** on
+   other phones. The first time, Hetja sets up a passkey on your phone; it
+   never leaves the phone, and it makes every record you sign checkable. The
+   record shows as **Vet signed** with your name and council number on the
+   dog's page, and in a vaccination certificate anyone can download.
+4. **Confirm a feeder's note.** When a feeder has noted care and asked a vet
+   to sign, the form is filled in from their note; change anything that is
+   wrong and sign, or tap **I didn't give this**.
+5. **Correct or withdraw.** Signed records can't be edited. In My signatures,
+   open one and sign a correction with a reason; the old version stays
+   visible, struck through. Or withdraw it, which takes the badge off the
+   dog's page and tells its feeders.
+6. **Your profile**: clinic, wards, SOS hours and switch, public phone, and
+   your signing passkey. If you are a government vet linked to Hetja's
+   directory, you show as **Government vet · free**.
+
+### If you run an NGO (N1 to N5)
+
+1. **Bring your NGO to Hetja.** On Me, tap **Bring your NGO to Hetja**:
+   registration type and number, the Mumbai wards you cover, what you offer
+   (ambulance, shelter beds, sterilisation, collars), a contact and a public
+   phone, and your registration document. The Hetja team checks it.
+2. **The NGO tab.** Your tabs become Home, Map, NGO, Me. It shows cases sent
+   to you (**I'll go** / **Can't**), every SOS in your wards and who is on
+   it, your ambulance (in or out) and shelter beds (how many free), your
+   team, drives, and the dogs in your wards.
+3. **Send someone** (coordinators). On an SOS in your wards, see your people
+   with how far each is from the dog (never where they are), and send one,
+   with the ambulance if you like. They get the case and tap **I'm going**
+   like any responder. If you can't take it, **Pass it on**: the ward's vets
+   are asked at once instead of after 15 minutes.
+4. **Your team.** Invite people by email as coordinator, rescue, collars or
+   volunteer, note who has transport, and **vouch** for the vets who work
+   with you, so their application reaches the Hetja team already vouched for.
+5. **Drives.** Plan a collar, vaccination or sterilisation drive in a ward:
+   date and time, lead vet, volunteers, and the dogs with what each needs. The
+   day before, the feeders of those dogs are told, so they can help find
+   them. On the day, tick each dog off; a vaccination only counts once a vet
+   signs it.
+
+### The Hetja team: the admin portal (A1 to A7)
+
+*On a laptop at admin.hetja.in. On a phone it says "Admin works on a
+laptop".*
+
+- **Today**: what is waiting on you (vets to verify, avatars to review, open
+  SOS cases and how long one has been unassigned, reports), each row opening
+  the screen that clears it, and a search across dogs, feeders, vets and
+  collar codes (⌘K).
+- **Vets**: an application with its documents, a checklist item "Checked on
+  the MSVC register" (with a link to the council's register), and Verify, Ask
+  for more or Decline with a reason. Verified vets can be suspended (they can
+  no longer sign; what they signed stays valid) or removed (their signatures
+  stay, or are flagged for re-check). Invite a vet by email.
+- **NGOs**: approve, edit, pause (no new SOS) or remove.
+- **Avatars**: drop a folder of drawn portraits; files named with the dog's
+  code or collar number match themselves, the rest you pick. Nothing goes
+  live until **Publish**, and you can ask the feeder whether it looks right.
+- **Dogs, merges and reports**: one dog's photos, history and status;
+  **Merge** two records of the same dog (feeds, photos and signed records all
+  stay, and the old link opens the kept dog); reports of duplicate dogs,
+  photos, tags and fake tags.
+- **Feeders**: suspend an account or block a device. **Collars**, **SOS
+  cases** (assign a vet), and a read-only **Settings** page with the rules.
+- **Team and roles**: Owner (everything), Moderator (vets, merges, reports,
+  SOS), Avatar editor (avatars only), Ward lead (collars and SOS in their
+  wards). The **audit log** records what everyone did and can't be edited by
+  anyone, the Owner included; it exports as CSV.
 
 ### The map (screen 19, M1 to M7)
 
@@ -285,13 +365,15 @@ which), treated on the spot, couldn't find the dog, or the dog didn't make it
 (which starts the passed-away update for its feeders). Only you (the one who
 took it) or a moderator can close it; the anonymous reporter cannot. If you
 are not allowed to respond yet, the page shows the checklist of what is
-missing instead of a bare refusal. If no one takes a case quickly, the system
-escalates it to the three nearest contracted vets and the municipal desk.
+missing instead of a bare refusal. The NGO covering the ward is told at the
+same time, and if no one takes a case within 15 minutes, every verified vet
+covering the ward who takes SOS calls is asked too.
 
 **The honest caveat:** you are only reached if you allowed notifications, and
 on iPhone only if you added Hetja to your home screen first. There is no SMS
-fallback. A report of a dog that is hurt but moving, or "something else",
-wakes no feeder when it is sent; only "Can't get up, or bleeding" does at once.
+fallback. Every SOS tells the dog's own feeders at once, whatever their
+trust; only "Can't get up, or bleeding" also wakes every responder nearby. To
+take a case you still need the trust level for it.
 
 ---
 
@@ -305,7 +387,7 @@ exists and where.*
 
 | Service | App | Port (loopback) | Runs as |
 |---|---|---|---|
-| Web | `apps/web` (Next.js 14 App Router, standalone output) | 3100 | `hetja-web.service`, from `/srv/hetja/releases/current/web` |
+| Web | `apps/web` (Next.js 14 App Router, standalone output) | 3100 | `hetja-web.service`, from `/srv/hetja/releases/current/web`. Also serves `admin.hetja.in` (its own Caddy block, bare host redirected to `/admin`). |
 | API | `apps/api` (Fastify 5 + zod) | 8080 | `hetja-api.service`, from `.../current/api` |
 | Scan | `apps/scan` (static vanilla TS, no framework) | 8081 | `hetja-scan.service`; served at `/d/*` via Caddy. 40 KB gzipped CI budget. |
 | Worker | `apps/worker` (Node) | none | `hetja-worker.service`, same env file as the API. Polls Postgres with `FOR UPDATE SKIP LOCKED`. |
@@ -333,12 +415,14 @@ L, D, N10 and up). Web paths are under `apps/web/` unless they start with
 screen gets and what happens on a desktop wider than 744 px
 (`data-desktop`: `invite` shows `components/DesktopInvite.tsx`, D1; `frame`
 centres the page at 480 px; `none` leaves it alone). The tab bar
-(`components/ds/TabBar.tsx`: Home, Map, Scan, Me) shows on `/`, `/scan` and
-`/me`; `/map` draws its own inside its sheet. Every other app screen is a
-focused screen with `components/ds/AppHeader.tsx`. Frame: the reading pages,
+(`components/ds/TabBar.tsx`: Home, Map, Scan, Me, or with v7's role tab
+bars Vet or NGO third) shows on `/`, `/scan`, `/me`, `/vet` and `/ngo`;
+`/map` draws its own inside its sheet. Every other app screen is a focused
+screen with `components/ds/AppHeader.tsx`. Frame: the reading pages,
 `/hetja/**`, `/sos/**` and 404s. None: `/design/**`,
-`/register/<code>/print/**` and `/register/batch/**`. Invite: everything
-else.
+`/register/<code>/print/**`, `/register/batch/**` and `/admin/**` (which also
+gets no street chrome). Invite: everything else, the vet and NGO portals
+included.
 
 | Route | Screen (boards) | Code |
 |---|---|---|
@@ -367,7 +451,6 @@ else.
 | `/register/<code>/print/sheet`, `/register/batch/sheet` | HTML sheets at real millimetres, the PDF's fallback | `app/(register)/register/_sheet/PrintableSheet.tsx`, `components/CollarSheet.tsx`, `lib/collar-sheet.ts` |
 | `/register/batch` | Batch sheet, up to 8 dogs (R8) | `app/(register)/register/batch/BatchClient.tsx` |
 | `/sos/<caseId>` | The responder's case page, one layout per state (P9 to P11, L4 to L6, V21, V22) | `app/sos/[caseId]/SosCaseScreen.tsx`, `lib/sos-case.ts`, `components/care/SpotMap.tsx` |
-| `/vet/<code>` | Checkup record, vet accounts (N3) | `app/vet/[slug]/VetCheckupScreen.tsx` |
 | `/map` | Map, city, ward, place, taking a case, cached counts (19, M1 to M7, V20) | `app/map/page.tsx`, `app/map/api.ts`, `components/map/MapScreen.tsx`, `SheetViews.tsx`, `logic.ts`, `tiles.ts` |
 | `/dog/<code>` | Redirects to the collar page | `app/dog/[slug]/page.tsx` |
 | `/design` | Development style guide; 404 in production unless `HETJA_STYLEGUIDE=1` | `app/design/page.tsx` |
@@ -375,6 +458,80 @@ else.
 | `/d/<code>` (apps/scan) | The collar page: loading, profile, no feeders yet, saved copy, Unverified, tag under review, memorial, unknown collar, outage, desktop (03, P7, V15 to V17, N9, P8, D2) | `apps/scan/index.html`, `apps/scan/src/main.ts`, `ui.ts`, `panel.ts`, `format.ts`, `api.ts` |
 | `/d/<code>` report a tag problem | F4, F5 | `apps/scan/src/tag.ts` |
 | `/d/<code>` SOS | What happened, location ask, no location, no signal, sent, help coming, closed, open case (04, 05, V18, N12, P12, P13, V19, N10, N11, L7) | `apps/scan/src/sos.ts`, `firstaid.ts`, `care.ts`, `format.ts` |
+
+**The admin portal (design v7).** `/admin/**`, also served at
+`admin.hetja.in` (Caddy redirects that host's `/` to `/admin`; there is no
+host logic in the app). `app/admin/layout.tsx` wraps every page in
+`components/admin/AdminShell.tsx`: a 232 px sidebar (Today, Vets, NGOs, Dogs,
+Avatars, Feeders, Collars, SOS cases, Reports; Team & roles, Audit log,
+Settings) with counts from `GET /admin/today`, the ⌘K / Ctrl K search, and
+the gate states (checking, signed out, not an admin, load error). Below
+1024 px a signed-in admin sees "Admin works on a laptop" instead. List screens
+are list-with-detail (`?id=` selects a row; Esc, ↑ and ↓ move). Buttons and
+sidebar items follow the role's permissions from `GET /admin/me`
+(`components/admin/permissions.ts`); the API is the real check. Shared
+pieces are in `components/admin/ui.tsx`, styles in `admin.module.css`.
+
+| Route | Screen (boards) | Code |
+|---|---|---|
+| `/admin` | Today: four counts, Needs you, This week (A1) | `components/admin/TodayScreen.tsx` |
+| `/admin/vets` | Vets: Waiting, Verified, Suspended, Invited; the application with the MSVC checklist, documents, verify, ask for more, decline, suspend, reinstate, remove (A2) | `components/admin/VetsScreen.tsx` |
+| `/admin/vets/invite` | Invite a vet (designed here) | `components/admin/TeamScreens.tsx` `InviteVetScreen` |
+| `/admin/ngos`, `/admin/ngos/new`, `/admin/ngos/edit` | NGOs: Active, Waiting, Paused; approve, pause, resume, remove; add and edit (A7, designed here) | `components/admin/NgosScreen.tsx` |
+| `/admin/dogs`, `/admin/dogs/<code>` | Dogs: search; one dog's photos (take down), health, history, status, collar, avatar, feeders, merge (designed here) | `components/admin/DogScreens.tsx` |
+| `/admin/merge?a=&b=` | Merge duplicate dogs (A5) | `app/admin/merge/page.tsx`, `DogScreens.tsx` `MergeScreen` |
+| `/admin/avatars`, `/admin/avatars/<batch>`, `/admin/avatars/<batch>/<tile>` | Batches; drop a folder, match, publish (A3); one avatar, where it shows, ask the feeder (A4) | `components/admin/AvatarScreens.tsx`, `avatarMatch.ts` |
+| `/admin/feeders`, `/admin/feeders/<id>` | Feeders: search; one feeder's feeds, dogs, trust history, suspend, block a device (designed here, D13) | `components/admin/OpsScreens.tsx` |
+| `/admin/collars` | Collars: issued, reprinted, reissued, no batch number (designed here) | `OpsScreens.tsx` |
+| `/admin/sos` | SOS cases: open, unassigned, escalated, closed; assign a vet, close (designed here) | `OpsScreens.tsx` |
+| `/admin/reports` | Reports: duplicates, photos, tag reports, fake tags, other (designed here) | `OpsScreens.tsx` |
+| `/admin/team`, `/admin/team/add` | Team and roles, recent audit, Export CSV (A6); add someone (designed here) | `components/admin/TeamScreens.tsx` |
+| `/admin/audit` | The audit log, 50 at a time, Export CSV (designed here) | `TeamScreens.tsx` |
+| `/admin/settings` | Read-only rules: SOS timings, who can take an SOS, budgets, keeping and deleting, limits (designed here) | `OpsScreens.tsx` |
+
+**The vet portal (design v7).** The Vet tab root `/vet` carries the tab bar
+(Home, Map, Vet, Me); every other `/vet/**` route is a focused screen.
+Screens are in `components/vet/` (data `vet-api.ts`, copy `vet-copy.ts`,
+passkeys `passkey.ts`). On a desktop the vet portal shows the invitation like
+every app route.
+
+| Route | Screen (boards) | Code |
+|---|---|---|
+| `/vet` | Vet home: SOS near you, feeders asking you to sign, due soon, scan a collar (V2) | `components/vet/VetHome.tsx` |
+| `/vet/apply` | Apply with documents; waiting, asked for more, declined, suspended, removed (V1, designed here) | `components/vet/ApplyScreen.tsx` |
+| `/vet/dogs/<code>` | A vet's view of a dog (V2b) | `components/vet/VetDogScreen.tsx` |
+| `/vet/dogs/<code>/sign` | Sign a vaccination, sterilisation or treatment with a passkey (V3) | `components/vet/SignRecordScreen.tsx`, `passkey.ts` |
+| `/vet/dogs/<code>/health` | The health list with the certificate bar (V4) | `components/vet/HealthScreen.tsx`, `HealthList.tsx` |
+| `/vet/signatures`, `/vet/signatures/<id>` | My signatures; correct or withdraw one (designed here, V5) | `components/vet/VetLists.tsx`, `CorrectScreen.tsx` |
+| `/vet/due` | Due soon in your wards (designed here) | `VetLists.tsx` |
+| `/vet/search` | Find a dog by name or collar code (designed here) | `components/vet/SearchScreen.tsx` |
+| `/vet/profile`, `/vet/passkey` | Vet profile (clinic, wards, SOS hours, public phone); set up signing (designed here) | `components/vet/VetProfileScreen.tsx` |
+| `/vet/<code>/certificate` | Vaccination certificate, a PDF built in the browser (V4) | `components/vet/CertificateScreen.tsx`, `certificate-pdf.ts` |
+| `/vet/<code>` | Redirects to `/vet/dogs/<code>` (was v5's N3 checkup) | `app/vet/[slug]/page.tsx` |
+| `/me/dogs/<code>` (feeder) | Health list, "Note care yourself", "Ask a vet to sign", certificate | `components/vet/FeederHealth.tsx` in `DogWeekScreen.tsx` |
+
+**The NGO portal (design v7).** The NGO tab root `/ngo` carries the tab bar
+(Home, Map, NGO, Me); sub-routes are focused screens. Screens are in
+`components/ngo/` (gate `NgoGate.tsx`: signed out, no NGO, not active yet, or
+the portal; data `ngo-api.ts`, copy `ngo-copy.ts`).
+
+| Route | Screen (boards) | Code |
+|---|---|---|
+| `/ngo` | NGO home: sent to you, SOS in your wards, ambulance and beds, team, drives, dogs (N2) | `components/ngo/NgoHomeScreen.tsx`, `UpdateSheets.tsx` |
+| `/ngo/register` | Register an NGO with documents; its status (N1, designed here) | `components/ngo/NgoRegisterScreen.tsx`, `NgoStatusView.tsx` |
+| `/ngo/sos/<caseId>` | Who's going: send someone, or pass it on (N3) | `components/ngo/DispatchScreen.tsx`, `TeamMap.tsx` |
+| `/ngo/team`, `/ngo/team/invite` | Team, roles, vouching for vets (N4); invite (designed here) | `components/ngo/TeamScreen.tsx`, `InviteScreen.tsx` |
+| `/ngo/drives`, `/ngo/drives/new`, `/ngo/drives/<id>` | Drives; plan one (designed here); run one, dog by dog (N5) | `components/ngo/DrivesScreen.tsx`, `NewDriveScreen.tsx`, `DriveScreen.tsx` |
+| `/ngo/dogs` | Dogs in your wards, or the unsterilised ones (designed here) | `components/ngo/WardDogsScreen.tsx` |
+| `/ngo/profile` | NGO profile (designed here) | `components/ngo/NgoProfileScreen.tsx`, `WardSheet.tsx` |
+
+**Role tab bars and labels.** `lib/tab-role.ts` picks the tab set from
+`GET /feeders/me` (`VET_TABS`, `NGO_TABS` in `components/ds/TabBar.tsx`) and
+caches it under `hetja:tab-role`. `lib/care-label.ts` writes "Government vet ·
+free", "Government hospital · free" and "<kind> · free" for the map, the V4
+signer line, the certificate and the vet profile; the collar page has its own
+copy in `apps/scan/src/format.ts` `careRow`. The collar page's health list is
+`apps/scan/src/ui.ts` `healthMarkup`, filled after the profile loads.
 
 ### 3. Every API route
 
@@ -447,7 +604,7 @@ noted as `{ok:true}` wrapper.*
 | `POST /api/v1/dogs/:slug/stories` | FEEDER | Add story (unique per feeder+dog). |
 | `GET /api/v1/dogs/:slug/stories` | NONE | Stories for a dog. |
 | `POST /api/v1/dogs/:slug/confirm` | FEEDER (a feeder of the dog, not its registrator or registering device) | Second-feeder verification: `{verified: true, via: "feeder"}`. |
-| `POST /api/v1/dogs/:slug/checkups` | FEEDER (`vet` role and a `vets` registry row) | N3: `{rabies, sterilised, nextVaccineDue?, noteForFeeders?, examined: true}` → medical records through the one chain writer; verifies the dog. 201 `{verified: true, via: "vet"}`. |
+| `POST /api/v1/dogs/:slug/checkups` | FEEDER (`vet` role and a `vets` registry row) | v5 N3, no longer called by the web app (v7 signing replaced it): `{rabies, sterilised, nextVaccineDue?, noteForFeeders?, examined: true}` → medical records through the one chain writer; verifies the dog. 201 `{verified: true, via: "vet"}`. |
 | `POST /api/v1/dogs/:slug/status-reports` | FEEDER (of the dog) | N9: `{kind}` = `not_seen` (dog `lost`, ward's feeders asked to look out), `adopted`, or `passed_away` (waits for a second feeder, 30 days). 201 `{id, status, needsConfirmation}`. |
 | `GET /api/v1/dogs/:slug/status-reports` | FEEDER (of the dog) | The pending passed-away reports. |
 | `POST /api/v1/dogs/:slug/status-reports/:id/confirm` | FEEDER (of the dog, not the reporter) | Sets `deceased`. |
@@ -467,14 +624,72 @@ noted as `{ok:true}` wrapper.*
 | `POST /api/v1/push/subscribe` | FEEDER | Stores `{endpoint, p256dh, auth}`. |
 | `POST /api/v1/push/unsubscribe` | FEEDER | Removes subscription. |
 
+**Design v7 routes.** Admin routes are in `routes/admin.ts` (vets, NGOs,
+documents, team, audit, settings) and `routes/admin-content.ts` (avatars,
+dogs, merges, feeders, collars, SOS, reports). Every one calls `requireAdmin`
+(`lib/admin.ts`: live roles, never a JWT claim) and names a permission from
+`ROLE_PERMISSIONS`; writes are rate limited per account and audited
+(`lib/audit.ts`). `(Owner)` marks the permissions only the Owner holds.
+
+| Method & Path | Auth | What it returns / side-effect |
+|---|---|---|
+| `GET /api/v1/admin/me`, `/admin/today`, `/admin/search?q=` | any admin role | Roles, permissions and wards; A1's cards, sidebar counts, "needs you" and week (filtered by permission); search over dogs, feeders, vets, collars, NGOs. |
+| `GET /api/v1/admin/vets`, `/admin/vets/:id` | `vets` | The list with counts; one application with its documents. |
+| `POST /api/v1/admin/vets/:id/verify` \| `ask-more` \| `decline` \| `suspend` \| `reinstate` \| `not-on-register` | `vets` | A2 decisions (`verify` needs `registerChecked: true`, optional `validTo`; the others a reason). A decision starts the documents' 30-day clock. |
+| `POST /api/v1/admin/vets/:id/remove` | `vets_remove` (Owner) | `{reason, signatures: "keep" \| "flag"}`; unlinks the vet from NGOs. |
+| `POST /api/v1/admin/vets/invite` | `vets` | Invite by email (only the identity HMAC is kept). |
+| `POST /api/v1/admin/vets/:id/link-care`, `/admin/ngos/:id/link-care`; `GET /admin/care?q=` | `vets` / `ngos` | Link an account to its care-directory row (what makes a vet a government vet). |
+| `GET /api/v1/admin/documents/:id` | `vets` or `ngos`, by owner | Streams the decrypted document; audited as `document.view`. |
+| `GET/POST /api/v1/admin/ngos`, `GET/PATCH /admin/ngos/:id`, `POST .../approve` \| `pause` \| `resume` | `ngos` | A7: list, create (active, optional coordinator invite), edit, decide. |
+| `POST /api/v1/admin/ngos/:id/remove` | `ngos_remove` (Owner) | Unlinks its vets and ends every membership. |
+| `GET /api/v1/admin/team`; `POST /admin/team`, `/admin/team/:feederId/role`, `.../remove` | `team_read`; `team` (Owner) | A6 team; grant or invite, change a role, remove. The config Owner cannot be removed here. |
+| `GET /api/v1/admin/audit`, `/admin/audit.csv` | `audit` | The log, paged; CSV (formulas neutralised, the export itself audited). |
+| `GET /api/v1/admin/settings` | `settings` | The rules, read-only. |
+| `GET/POST /api/v1/admin/avatars/batches`, `GET .../batches/:id`, `POST .../batches/:id/files` \| `publish` | `avatars` | A3: batches; upload (matched by file name); publish the batch. |
+| `GET /api/v1/admin/avatars/:id`; `POST .../match` \| `publish` \| `restore` \| `ask-feeder` \| `file` | `avatars` | A4: one avatar; restore within 30 days. |
+| `GET /api/v1/admin/dogs`, `/admin/dogs/:slug`; `POST /admin/dogs/:slug/status` | `dogs` (ward lead: own wards); `merge` | Dogs; set a status with a reason. |
+| `GET /api/v1/admin/duplicates`; `POST /admin/dogs/merge`, `/admin/duplicates/dismiss` | `merge` | A5. |
+| `POST /api/v1/admin/photos/:scanId/hide` | `reports` | Take a photo down from every API response. |
+| `GET /api/v1/admin/feeders`, `/admin/feeders/:id`; `POST .../suspend` \| `unsuspend`; `POST /admin/devices/block` \| `unblock` | `feeders` | D13 tools; suspending releases the cases the account holds. |
+| `GET /api/v1/admin/collars`, `GET/PATCH /admin/collars/:slug` | `collars` (ward lead: own wards) | PATCH sets `batch_no`. |
+| `GET /api/v1/admin/sos`, `/admin/sos/:id`, `/admin/sos/:id/vets`; `POST .../assign-vet` \| `resolve` | `sos` (ward lead: own wards) | Cases; assign a vet (until someone has taken the case); close. |
+| `GET /api/v1/admin/reports`; `POST /admin/reports/:id/resolve`, `/admin/tag-reports/:id/resolve` | `reports` | Problem and tag reports. |
+| `GET /api/v1/vet/me`; `PATCH /vet/me` | FEEDER | The caller's vet profile, passkeys, documents, `canSign`, `canAcceptSos` (claims any invite); edit clinic, wards, SOS hours, public phone. |
+| `POST /api/v1/vet/apply` | FEEDER | V1: needs a `certificate` and a `photo_id` document. |
+| `GET /api/v1/vet/home`, `/vet/due-soon`, `/vet/dogs?q=`, `/vet/dogs/:slug`, `/vet/sign-requests`, `/vet/sign-requests/:id`, `/vet/signatures`, `/vet/signatures/:id` | verified (or suspended) vet | V2, V2b and the lists. |
+| `POST /api/v1/vet/sign-requests/:id/decline` | vet | "I didn't give this". |
+| `POST /api/v1/vet/passkeys/options`, `/vet/passkeys`, `/vet/passkeys/:id/remove` | verified vet (remove: FEEDER) | Register a passkey (at most 5), or remove one. |
+| `POST /api/v1/vet/records/options`, `/vet/records` | verified vet | V3/V5: the record hash as the WebAuthn challenge, then the assertion; appends a vet-signed record, a correction (`supersedes` + reason) or a `withdrawal`. |
+| `POST /api/v1/vet/record-photos` | verified vet | An encrypted vaccine-sticker photo for a record. |
+| `POST /api/v1/ngo/register`; `GET/PATCH /ngo/me` | FEEDER; coordinator | N1: needs an `ngo_registration` document, makes the caller coordinator; the NGO and its status; edit. |
+| `GET /api/v1/ngo/home`; `POST /ngo/ambulance`, `/ngo/beds` | member; coordinator or rescue | N2; ambulance in or out, beds free. |
+| `GET /api/v1/ngo/sos/:caseId/candidates`; `POST .../dispatch`, `.../pass` | coordinator | N3: members with distance rounded to 100 m; send one (optionally the ambulance); pass to the vets now. |
+| `GET /api/v1/ngo/dispatches/mine`; `POST /ngo/dispatches/:id/accept` \| `decline` | the member sent | Cases sent to me. |
+| `GET /api/v1/ngo/team`; `POST /ngo/team/invite`; `PATCH /ngo/team/:feederId`; `POST .../remove`; `POST /ngo/vets/:feederId/vouch` | member; coordinator | N4. |
+| `GET /api/v1/ngo/dogs?filter=` | member | Dogs in the NGO's wards. |
+| `GET/POST /api/v1/ngo/drives`, `GET/PATCH /ngo/drives/:id`, `POST .../dogs`, `PATCH .../dogs/:driveDogId`, `POST .../start` \| `finish` | member; coordinator (dogs: collars or rescue too) | N5 drives. |
+| `GET /api/v1/dogs/:slug/health` | NONE | V4: the health list (`vet_signed` / `feeder_noted`, corrections, withdrawals, flags) and `certificateUrl`; a merged dog's records read with the kept dog's. Rate limited per device or address. |
+| `GET /api/v1/dogs/:slug/health/:recordId/photo` | verified vet, feeder of the dog, or admin | A record's private sticker photo. |
+| `GET /api/v1/wards/:wardId/professionals`, `/dogs/:slug/vets` | NONE | Verified vets and active NGOs with their public numbers (`isGovernment` where linked). |
+| `POST /api/v1/dogs/:slug/problems` | FEEDER or DEVICE | Report a duplicate dog, a photo or something else (limited per device, dog and address). |
+| `POST /api/v1/dogs/:slug/health-notes`, `/dogs/:slug/sign-requests` | FEEDER (of the dog) | "Feeder noted" care; "Ask a vet to sign" (to one vet or up to 10 covering the ward; optional clinic-slip photo). |
+| `GET/POST /api/v1/dogs/:slug/avatar-signoff` | the feeder asked | A4's feeder sign-off: looks right, or redo. |
+| `POST /api/v1/documents` | FEEDER (checked before the body is read) | Upload an encrypted document (PDF up to 5 MiB, images up to 2 MiB); 503 without `HETJA_DOCS_KEY`. |
+
+Care lookups (`GET /care`, the SOS answer's `nearbyCare`, the map) now carry
+`isGovernment`, `isPerson`, `regNo`, `publicPhone` and `wards`, and a
+government row's `costTier` is always `free`. The SOS answer also carries
+`professionals`, and the map's ward detail the ward's vets and NGOs.
+
 ### 4. Data model
 
-*Twenty-six domain tables plus `schema_migrations`. `0001_init.sql` creates
+*Forty-six domain tables plus `schema_migrations`. `0001_init.sql` creates
 the core fifteen; `care_providers` (0008), `otp_codes` (0010),
 `push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
 `spent_challenges` (0021), `collar_reissues` (0023), `tag_reports`,
 `tag_prints` and `dog_status_reports` (0026, design v5) and `sos_case_events`
-(0027, design v6) arrive later; `0024` and `0025` add columns only. `\dt` counts higher because PostGIS ships
+(0027, design v6) and the twenty of `0029` (design v7, below) arrive later;
+`0024`, `0025` and `0028` add columns only. `\dt` counts higher because PostGIS ships
 `spatial_ref_sys`. The count query is in `docs/HOW-IT-WORKS.md` §5.*
 
 **Grouped by domain:**
@@ -514,6 +729,31 @@ the core fifteen; `care_providers` (0008), `otp_codes` (0010),
   `declined_at` from 0026), `sos_case_events` (0027: `released`, `close_by`,
   `arrived`, `reporter_update`, `reporter_left`, with an optional 280-character
   note).
+- **Design v7 (0029):** `admin_roles` (owner, moderator, avatar_editor,
+  ward_lead; wards for a ward lead; revoked, never deleted), `audit_log`
+  (append-only by REVOKE and triggers, no foreign keys), `invites` (vet, team,
+  NGO member; identity HMAC only), `vet_profiles` (council MSVC, reg no,
+  clinic, wards, SOS availability and hours, public `phone_e164`, status,
+  register check, decision, NGO vouching, care-directory link, signatures
+  flagged), `documents` (metadata only; the AES-256-GCM bytes are under
+  `DOCS_LOCAL_DIR`; `delete_after`, `deleted_at`), `webauthn_credentials` and
+  `webauthn_challenges`, `ngos` (registration, 80G, wards or citywide,
+  offers, public phone, ambulance and beds state, status), `ngo_members`,
+  `ngo_vets`, `sos_dispatches`, `sign_requests`, `drives` and `drive_dogs`,
+  `avatar_batches` and `dog_avatars`, `dog_merges` and
+  `duplicate_dismissals`, `reports`, `blocked_devices` (a hash of the device
+  id). New columns: `medical_records.record_source` (`vet_signed` or
+  `feeder_noted`), `signed_by`, `credential_id`, `assertion`, `record_hash`,
+  `correction_reason`, `drive_dog_id`, `noted_by` (a correction or withdrawal
+  still points back through the original `corrects_record_id`);
+  `sos_cases.ngo_id`, `ngo_routed_at`, `ngo_passed_at`, `vets_opened_at`;
+  `sos_notifications.route` (`ngo_coordinator`, `ngo_dispatch`,
+  `vet_escalation`, `admin_assign`); `dogs.merged_into` / `merged_at` and a
+  `merged` status; `scans.merged_from_dog_id`, `photo_hidden_at/by`;
+  `feeders.suspended_at/reason/by`; `tag_reports.admin_outcome`;
+  `care_providers.is_government`, `is_person`, `reg_no`, `wards`. And from
+  0028, `sos_notifications.notify_only` (the dog's own feeder below the trust
+  floor: told, never a ground to take the case).
 - **Tags and status (0026):** `tag_reports` (`kind`, reporter feeder or a
   SHA-256 of the device, `resolved_at/by`, `resolution`), `tag_prints`
   (`layout` tags/notice/batch, `paper` a4/letter, `tag_count`),
@@ -557,7 +797,9 @@ lost ──(any feed or view scan)───────────────�
 active | lost ──(N9 "Adopted")───────────────────────────────────────────▶ adopted
 active | lost ──(N9 "Passed away" + a second feeder confirms, 30 d)──────▶ deceased
 active ────────────────────────────────────────────────────────────────▶ relocated
-(deceased / adopted / relocated are terminal; lost is not. The happy-path
+any ──(A5 admin merge into the kept dog, v7)────────────────────────────▶ merged
+(deceased / adopted / relocated / merged are terminal; lost is not. A merged
+dog's slug serves the kept dog's page (`dogs.merged_into`). The happy-path
 is pending → active and staying active. Since v5 feeders drive lost, adopted
 and deceased from Update on a dog (`routes/dog-status.ts`); an SOS closed as
 `died` files the first passed-away report. The finding reads
@@ -594,7 +836,10 @@ per job (claim → run → settle) so attempt counts survive handler rollback.
 | `anchor_ledger` | `apps/worker` `enqueueAnchorJobIfDue` (420010, “no anchor in 24 h” from `ledger_anchors`) | Daily | `publishLedgerAnchor`: ordered scan of `medical_records` (`created_at ASC, id ASC`), head = last stored `hash_curr` (not recomputed), Merkle root via `@hetja/ledger`, optional EdDSA signature (`sign-anchor.ts`), inserts `ledger_anchors` with `published_url=''` | Park |
 | `expire_stale_registrations` | `apps/worker` `enqueueRegistrationSweepIfDue` (420012, mirror of retention: `failed_at IS NULL AND run_after > now()-24h`) | Daily | One `withTx`, three passes in order: day 7 (`activation_reminders_sent 0→1`), day 21 (`1→2`), expire (`status='pending_activation' AND registered_at≤now()-30d → status='expired', registered_device_id=NULL`, retire collars `retired_at=now(), status='retired'`). Each reminder pass carries `activation_reminders_sent=N-1` so double-run reminds once; reminders handed off as `send_registration_reminder` jobs | Park; `failed_at IS NULL` filter is load-bearing; without it one dead-letter stops expiry forever |
 | `send_registration_reminder` | `expire_stale_registrations` handler | Per pending dog on day 7 / 21 | Push to `dogs.registered_by`’s subscribers via `sendPush` (no `sos_notifications` row); payload `tag=registration-<dogId>-<reminder>` and print-page URL; `PUSH_ENABLED` false → degrade | Park |
-| `send_feeder_push` | `apps/api/src/lib/dog-feeders.ts` `enqueueFeederPush` (tag reports, status reports, the "Looks unwell" tell-co-feeders push) | Per event, per recipient | Every non-SOS push to feeders (design v5). Skips a feeder whose `alerts_mode` is `sos_only`; inside a feeder's quiet hours it re-queues itself for the end of the window. SOS pushes never go through it and never wait for quiet hours | Park; `PUSH_ENABLED` false → degrade |
+| `sos_open_to_vets` | `packages/db/src/sos-routing.ts` `scheduleOpenToVets` (from `POST /api/v1/reports`, 15 minutes out; at once when the NGO passes or nobody could be told) | Per SOS case | v7: if nobody has taken the case, pages every verified vet whose wards include the case's ward and who takes SOS, inside their hours, government vets first, at most 15 (route `vet_escalation`), then queues `send_sos_push` | Park |
+| `sweep_v7` | `apps/worker` `enqueueDailyIfDue` | Daily | v7: deletes each document 30 days after its decision (an unattached upload after a day: file first, then `deleted_at`, the row stays), deletes retired or rejected avatar files after the 30-day restore window, deletes WebAuthn challenges a day past expiry, and tells a dog's feeders a week before a vet-signed vaccination is due | Park |
+| `drive_headsup` | `apps/worker` `enqueueDailyIfDue` (hourly) | Per drive, the day before | v7 N5: one push to the feeders of a drive's dogs, once (`headsup_sent_at`; moving the date clears it) | Park |
+| `send_feeder_push` | `apps/api/src/lib/dog-feeders.ts` `enqueueFeederPush` (tag reports, status reports, the "Looks unwell" tell-co-feeders push; v7's vaccine-due and drive reminders) | Per event, per recipient | Every non-SOS push to feeders (design v5). Skips a feeder whose `alerts_mode` is `sos_only`; inside a feeder's quiet hours it re-queues itself for the end of the window. SOS pushes never go through it and never wait for quiet hours | Park; `PUSH_ENABLED` false → degrade |
 
 ### 7. The fifteen invariants: what enforces each
 
@@ -602,12 +847,12 @@ per job (claim → run → settle) so attempt counts survive handler rollback.
 |---|---|---|
 | 1 | Slugs random, non-sequential, base32 | `packages/db/src/slugs.ts` + 500-gen uniqueness & check-char tests |
 | 2 | Anonymous geo: ward / ≥500 m cells, ≤2 decimals | `packages/contracts/src/geo.ts` + tests; `dogs.ts` route test |
-| 3 | `identity_hmac` only (HMAC-SHA256 pepper), never bare contact | `lib/hmac.ts`; schema has no bare `phone`/`email` column; `ops/security-gate.sh` grep. Since v6 public pages name feeders by first name only, with an opt-out (`lib/public-name.ts`, `feeders.show_first_name`) |
+| 3 | `identity_hmac` only (HMAC-SHA256 pepper), never bare contact | `lib/hmac.ts`; schema has no bare `phone`/`email` column; `ops/security-gate.sh` grep. Since v6 public pages name feeders by first name only, with an opt-out (`lib/public-name.ts`, `feeders.show_first_name`). Since v7 the rule covers feeders and reporters; verified vets' and NGOs' professional numbers are public, like the care directory's |
 | 4 | LWW on `dogs.last_seen_geo` by `captured_at` (±15 min future, 30 d past), tie-break `received_at` | `scans.ts` `applyLww` + `0002_*` columns; test |
 | 5 | `scans.client_uuid` UNIQUE (offline replay idempotency) | Unique index + scan replay test (`created:false`) |
 | 6 | Rate limits per account / device token, never per IP | `device.ts` tokens as write subject; `lib/rate-limit.ts`. The documented exceptions, each paired with a subject or global bucket, are token minting, the two finding reads, tag reports and the dogless SOS (`docs/INVARIANTS.md` #6) |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | `sos.ts` per-device-token for anon, per-account for feeder-authed; rolling 24 h/7 d windows; a dogless SOS adds its own tighter limits |
-| 8 | `medical_records` append-only (no UPDATE/DELETE/TRUNCATE) | `0001`/`0012` REVOKE + `BEFORE TRUNCATE` trigger; `app_user` UPDATE/DELETE negative test |
+| 8 | `medical_records` append-only (no UPDATE/DELETE/TRUNCATE) | `0001`/`0012` REVOKE + `BEFORE TRUNCATE` trigger; `app_user` UPDATE/DELETE negative test. v7's vet signatures, corrections and withdrawals are new rows through the one chain writer; v7's `audit_log` is append-only the same way, with its triggers in migration 0029 |
 | 9 | Ledger hash-chained, length-prefixed payloads | `@hetja/ledger` `hashInput` + `medical.ts` chain write under advisory lock; Merkle root per append (0014), `GET /api/v1/ledger/proof` |
 | 10 | Daily published anchor | Worker `anchor_ledger` job + `sign-anchor.ts` EdDSA when key configured; `ledger.ts` serve+verify. **Not yet published externally**: `published_url=''` (see “Deliberately not finished”) |
 | 11 | DPDP erasure = PII delete, chain stays valid | Pseudonymous actor IDs in chain; `dogs.registered_by ON DELETE SET NULL`, runbook documents erasure |
@@ -736,18 +981,30 @@ systemd-cgtop -1 | grep hetja
 - **No backups run for the room.** The restic and `pg_dump` timers belonged
   to the old box; uploaded photos in `/srv/hetja/photos` are not backed up.
 
-- **Tier-2 escalation is recorded, not delivered.** The worker writes
-  `sos_notifications` rows for the nearest contracted vets (`sms`) and the
-  municipal desk (`bmc`), and the case page counts them, but nothing sends
-  either channel: there is no SMS provider and no desk integration. Web Push
-  to feeders and the numbers on the reporter's screen are what reach people.
+- **Tier-2 escalation to contracted vets and the municipal desk is recorded,
+  not delivered.** The worker writes `sos_notifications` rows (`sms`, `bmc`)
+  that nothing sends: there is no SMS provider and no desk integration. They
+  are not counted as told anywhere ("told means delivered", migration 0028's
+  review). What reaches people is Web Push to feeders, to v7's NGO
+  coordinators and verified vets, and the numbers on the reporter's screen.
 
-- **Only a critical SOS pages feeders when it is filed.** "Hurt, but moving"
-  and "Something else" (`serious`) wait eight minutes and then escalate as
-  above.
+- **A `serious` SOS tells only the dog's own feeders when it is filed**
+  (`notify_only` rows below the trust floor, migration 0028). "Hurt, but
+  moving" and "Something else" do not fan out city-wide; only a critical
+  report does.
 
 - **The collar page has no "lost" state.** A dog reported not seen is `lost`
   and its ward is asked to look out, but a stranger sees the ordinary page.
+
+- **v7 gaps, recorded rather than hidden.** Avatars and duplicates are matched
+  by name, never by photo (no image model fits the room). The MSVC register is
+  checked by an admin by hand. The audit log misses a few smaller writes
+  (avatar uploads, NGO ambulance and beds, dispatch accept and decline, drive
+  edits, a vet's own profile and sign-request declines). There is no route to
+  cancel a drive or revoke an invitation, and a suspended vet's signatures can
+  be flagged only by removing the vet. A taken-down photo is hidden from every
+  API response but its file waits for the 7-day retention. The collar page
+  has about 600 bytes of its 40 KB budget left.
 
 - **The re-tag route is not a separate endpoint yet.** A replacement tag keeps
   the same slug and the print page keeps returning the same `collarUrl`, so a

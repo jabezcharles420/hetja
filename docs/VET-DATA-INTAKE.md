@@ -201,6 +201,12 @@ and commit the month's file next to it (e.g. `2026-10-clinics.csv`):
 | `ambulance`, `is_24x7`, `handles_wildlife` | `yes` / `no`. |
 | `hours` | Free text shown on the map as is ("Open till 9 pm", "Weekdays 10 to 6"). |
 | `confirmed_on` | `YYYY-MM-DD` you confirmed the details with the provider. It marks the phone number as confirmed. |
+| `is_person` | Design v7, optional: `yes` for a vet listed as a person (a government vet, say), not a place. |
+| `is_government` | Optional, `yes` / `no`; defaults to `yes` for `kind` `govt`. A government vet or hospital **must** be `cost_tier` `free`: Hetja labels it "Government vet · free" / "Government hospital · free", so the import refuses anything else. |
+| `reg_no` | Optional: a person's council registration number (MSVC). |
+| `wards` | Optional: the wards a person covers, separated by `;` (`K/W; K/E`). Defaults to `ward`. |
+
+Older files without the four v7 columns import unchanged. A verified vet's Hetja account (or an NGO) is linked to its directory row by an admin (A2 / A7, "link to directory"), which is what makes a vet account show as a government vet.
 
 **Running it.** Dry run first, always:
 

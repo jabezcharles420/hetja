@@ -1,4 +1,4 @@
-# Hetja bug inventory, 2026-09-07, base 005a3fd (re-verified line by line against the live box; fix pass applied; 2026-09-24 section added)
+# Hetja bug inventory, 2026-09-07, base 005a3fd (re-verified line by line against the live box; fix pass applied; 2026-09-24 and 2026-09-25 sections added)
 
 Generated unattended, then re-verified by hand on 2026-09-05. Every line cites a file:line that was read. No speculative
 bugs. `STILL_BROKEN` means code at that line contradicts the invariant/contract
@@ -88,6 +88,17 @@ what would prove it. Keep under 300 lines; fixer waves consume this.
 - [x] B-11 `PATCH /feeders/me` said `INVALID_SOS_OPT_IN` for every bad field (`routes/feeders.ts`). FIXED: `INVALID_SOS_OPT_IN` only when `sosOptIn` itself is invalid (kept for existing clients), `INVALID_FEEDER_PATCH` otherwise.
 - [x] No readiness probe (`server.ts`). FIXED: `GET /readyz` runs `SELECT 1` with a 2 s timeout, 200 or 503 `NOT_READY`; `/healthz` unchanged.
 - [x] Room Caddy never picked up a new Caddyfile (`ops/room/units/hetja-restart.service`, `hetja-caddy.service`). FIXED: every deploy ran `systemctl reload-or-restart hetja-caddy`, whose `caddy reload` needs the admin API, but the room Caddyfile sets `admin off`, so the reload failed and Caddy kept serving the first deploy's config (no security headers, two `Cache-Control` headers on `api.hetja.in`). The restart unit now restarts Caddy, the dead `ExecReload` is gone, and the live headers were checked after the fix.
+
+## 2026-09-25 design v5 and v6 build
+Found while building v5 and v6, most of them from the screen export (`apps/web/scripts/export-screens.mjs`, which shoots every screen and state against fixtures), and fixed in the same work.
+- [x] Sign-in showed the API's raw error code (`apps/web/app/login/page.tsx`, `apps/web/lib/login.ts`). FIXED: a wrong code put the literal `invalid_code` on screen. `verifyErrorMessage` now says it in words ("That's not the code. Check the newest email."), and likewise for an expired code and too many attempts. `lib/v6-chrome.test.ts`, `components/LoginPage.test.tsx`.
+- [x] An unknown collar looked like an outage (`apps/scan/src/main.ts`, `src/api.ts`). FIXED: a code no dog has fell into the same branch as a network failure and showed "Can't reach Hetja right now". A 404 or 400 from `GET /dogs/:slug` (and a malformed slug) now throws `NotFoundError` and shows P8, "Hetja doesn't know this collar.", with SOS still live as a dogless SOS to the visitor's ward; only a real failure shows the outage copy. `src/v6.test.ts`.
+- [x] The print sheet printed the code in lowercase (`apps/web/lib/collar-pdf.ts`, `lib/dog-copy.ts`). FIXED: the slug is stored lowercase and was drawn as is under the QR, unlike every screen, which shows it uppercase in groups of three. The sheets now use `prettyCode` (`DDR 017 XK2`).
+- [x] Map chips clipped at 390 px (`apps/web/components/map/MapScreen.module.css`). FIXED: the four chips are wider than a phone and the last one was cut off with no way to reach it. The row scrolls sideways, snapping chip by chip, and fades at the right edge.
+- [x] A ward badge sat on top of an NGO pin (`apps/web/components/map/logic.ts` `pinOffset`). FIXED: place pins near a ward centre were drawn under the ward pill and could not be tapped. Pins are nudged clear of ward labels and each other on screen (M-board), never moved on the ground.
+- [x] The map's CARTO fallback went blank without saying so (`apps/web/components/map/tiles.ts`, `components/care/SpotMap.tsx`). FIXED: CARTO's keyless `light_all` tiles now answer 200 with an "API KEY REQUIRED" image, so Leaflet's `tileerror` never fired and the fallback drew that image across Mumbai. There is no keyless fallback any more: without an Esri key, or when Esri refuses it, `/map` and the vets-near-you SpotMap draw no street tiles and say so, and the ward pills and pins still sit at their places. `components/map/tiles.test.ts`.
+- [x] Retry-After was hidden from the web app (`apps/api/src/server.ts`). FIXED: `hetja.in` calls `api.hetja.in` cross-origin, and CORS exposes only safelisted headers unless told otherwise, so the "Too many codes" screen (V6) could never read when to try again. `exposedHeaders: ["retry-after"]`.
+- The Caddy reload that failed with `admin off` belongs to this period too; it is recorded under hardening batch 1 above.
 
 ## Verified fixed (do not re-fix)
 - [x] `sos_notifications` no-op `ON CONFLICT` (`packages/db/migrations/0020_sos_network_indexes.sql:63`). FIXED: three partial unique indexes (`case_feeder_uix`, `case_vet_uix`, `case_channel_uix`) make `sos.ts:185` + `worker/index.ts:278` `ON CONFLICT DO NOTHING` arbitrate.

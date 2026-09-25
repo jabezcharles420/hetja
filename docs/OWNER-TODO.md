@@ -1,7 +1,8 @@
 # Owner to-do (decisions and account access)
 
-Things the overnight work of 2026-09-24/25 could not do without you: they need
-your accounts, money, or a policy decision. Everything that could be done
+Things the overnight work of 2026-09-24/25 (and the design v5 and v6 build
+that followed) could not do without you: they need your accounts, money, or a
+policy decision. Everything that could be done
 safely without you is already built, tested and deployed (see
 [WORK-REPORT.md](WORK-REPORT.md) and [BUGS.md](BUGS.md)).
 
@@ -28,6 +29,35 @@ Ordered by how much they matter.
    includes (the free plan has no point-in-time recovery). `/srv/hetja/photos`
    is not backed up (photos expire after 7 days anyway).
 
+## Before design v5 and v6 go live
+
+6. **Have a practising vet read the first-aid lines.** The reporter's "While
+   you wait" card (N10, `apps/scan/src/firstaid.ts`) now ships by your
+   decision, three lines verbatim from the mock: keep traffic and people back,
+   don't lift a dog that can't stand or give food or water, keep your hands
+   away from the dog's face. These are the holding instructions a frightened
+   stranger follows until help arrives, and the mock itself asks for a vet's
+   review before launch. Change the words only with that review.
+7. **Check "About ₹150".** The first-dog screen (V13, `/register`) tells a new
+   registrator a collar costs "About ₹150", shipped as the designer wrote it.
+   Confirm it against what a print shop and a collar actually cost in Mumbai.
+8. **The dogs already in the production database.** The live map said 4 dogs
+   were waiting for dinner. Confirm they are real dogs with real feeders, or
+   remove them (with a checked backup: `dogs` rows are referenced by the
+   append-only ledger) before launch, so the first strangers do not see test
+   data.
+9. **Translations, if you want Hindi or Marathi.** N14 (the language setting)
+   was designed and deliberately not built: no Language row ships in Settings
+   until human translations exist. Machine translation of SOS and first-aid
+   copy is not an option. Sheets already print Devanagari dog names.
+10. **Confirm vet and NGO numbers before launch, or decide otherwise.** Since
+    v6 the collar page's SOS screens show **confirmed numbers only**
+    (`phone_verified_at` set); unconfirmed ones are hidden there (the map
+    and the web app's SOS with no dog still show them, marked unconfirmed). Until the first monthly CSV of
+    confirmed details is applied (see Monthly, below), a stranger's SOS
+    screen may list nobody to call. Either apply that file before launch or
+    ask for the collar page to show unconfirmed numbers, labelled, again.
+
 ## Cloudflare dashboard (free plan)
 
 - **Rate limiting rule** (one on the free plan): POST to
@@ -36,11 +66,17 @@ Ordered by how much they matter.
 - **WAF custom rules:** block methods other than GET, HEAD, POST, PATCH,
   OPTIONS; block `.php`, `/.env`, `/wp-*` probes.
 - **Cache Rules:** cache the paths Caddy now marks `s-maxage=60`
-  (`/api/v1/wards`, `/api/v1/map/wards` list, `/api/v1/map/places*`,
-  `/api/v1/stats/impact`, `/api/v1/heatmap*`) and `/api/v1/care*`; bypass
-  `/d/*`, `/sos*`, `/reports*`, and `/api/v1/map/wards/*`. This is the main
-  fix for slowness: the box is in Europe, so an edge cache in Mumbai removes
-  the round trip for public reads.
+  (`/api/v1/wards` as an exact path, `/api/v1/map/wards` list,
+  `/api/v1/map/places*`, `/api/v1/stats/impact`, `/api/v1/heatmap*`) and
+  `/api/v1/care*`; bypass `/d/*`, `/sos*`, `/reports*`, and
+  `/api/v1/map/wards/*`. This is the main fix for slowness: the box is in
+  Europe, so an edge cache in Mumbai removes the round trip for public reads.
+  Design v5 and v6 added no cached public GET: `ops/caddy/Caddyfile` is
+  unchanged, and the new reads (`/api/v1/dogs/lookup`,
+  `/api/v1/wards/<id>/dogs`, `/api/v1/dogs/<slug>/week`, the SOS case and
+  reporter status) fall to the API's `no-store` catch-all. Keep them out of
+  the cache: the two finding reads are rate limited per caller, and a rule on
+  `/api/v1/wards*` would catch `/api/v1/wards/<id>/dogs` too.
 - Security level medium, Browser Integrity Check on, Always Use HTTPS,
   minimum TLS 1.2. Keep Bot Fight Mode OFF (it cannot be scoped per path on
   the free plan and would break `fetch`). Never put Managed Challenge on
@@ -59,9 +95,9 @@ Ordered by how much they matter.
 | D4 | Should the registrator's own account/device count toward SOS corroboration? Should a scan far from the dog's ward move the dog? | No, and no beyond 5 km |
 | D5 | Acked cases left unresolved | Re-escalate after 60 min; a non-moderator's "false alarm" becomes "resolved, pending review" |
 | D6 | Public timing on the map/profile | Round SOS times to 10 min and "last fed" to 15 min for anonymous viewers |
-| D7 | One open case per dog | Later reports join the open case instead of paging again |
-| D8 | What an acker sees | Dog, photo and a 500 m area, eligible ackers only |
-| D9 | "Get alerts for ward": should the home ward drive paging? | Yes, as well as recent feeds (the caption is honest either way) |
+| D7 | One open case per dog | Later reports join the open case instead of paging again. **Partly built (v6 L7):** a device that already has an open case on the dog is refused a second one and shown that case (who took it, when, "Add an update"); a different reporter's report still opens its own case |
+| D8 | What an acker sees | **Decided and built (v5, v6):** the exact spot only after taking the case ("The exact spot unlocks when you tap I'm going"); before that, the ward and, for an eligible responder, a distance rounded to 100 m |
+| D9 | "Get alerts for ward": should the home ward drive paging? | **Decided and built (v5 N1, Settings):** a feeder's chosen wards (up to 6) drive paging, as well as recent feeds near the dog; with wards set, a feeder is paged only for dogs in them. Quiet hours and a pause of up to 30 days hold paging back too |
 | D10 | OTP: per-address daily cap, device token required to send | 10/day; device token after the client update |
 | D11 | Global device-token mint bucket | Raise to about 1000/day now that the per-IP limit exists |
 | D12 | Supabase: revoke `anon` on the three dog RPCs | Revoke (the web app does not use them) |
@@ -81,5 +117,7 @@ Full evidence and reasoning: the audit report summarised in
   run the "Care directory import" workflow as a dry run, then with apply and
   `yes-i-mean-it`. See [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md).
 - **ArcGIS key expiry:** set a reminder a week before the date on the key.
-  When it lapses the map falls back to CARTO tiles until you replace the
-  `ESRI_API_KEY` secret.
+  When it lapses the map and the vets-near-you map show no street tiles at
+  all (ward pills and pins still draw on a plain background) until you
+  replace the `ESRI_API_KEY` secret. There is no keyless fallback any more:
+  CARTO now needs a key too.

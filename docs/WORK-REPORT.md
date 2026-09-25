@@ -290,3 +290,70 @@ were additive, fully testable and needed no account or policy decision:
 Tests: api 419, contracts 35, db 62, worker 19 (PostgreSQL 16 in WSL); web
 349, scan 59, e2e 36. What still needs the maintainer is in
 [OWNER-TODO.md](OWNER-TODO.md).
+
+## 2026-09-25: design v5 and v6 (commits `1c9c057` to `e710559`)
+
+Branch `design-v5`. Two more Claude Design handoffs, built on v4 and on each
+other; the boards and each build contract are in `docs/design/v5-handoff/`
+and `docs/design/v6-handoff/`. Factual summary; the commit messages and the
+contracts carry the detail.
+
+**Owner decisions** (2026-09-25, recorded in the contracts): four tabs, Home,
+Map, Scan and Me, with Alerts reached from Me (this replaced a five-tab v5
+decision the same day); no languages until human translations exist (v5's
+Language row and v6's N14 not built); the N10 first-aid lines ship as
+designed (a vet's review is still advised, in OWNER-TODO); feeders' first
+names appear on dogs' pages with an opt-out in Settings, on by default; the
+sign-in code keeps its 5-minute life although V5's mock says 10; desktop
+wider than 744 px shows "Hetja lives on your phone" (reading pages and
+`/hetja` in a 480 px phone column, `/sos/**` framed at 480 px, print sheets
+and `/design` unchanged); and the SOS with no known dog is built, located to
+a ward, Mumbai only, under strict limits.
+
+**API and data** (migrations `0026_v5_tags_status_profile.sql` and
+`0027_v6_sos_outcomes_and_names.sql`, both additive). v5: a feeder's wards
+(which now drive paging), quiet hours, alerts mode, onboarding, data export
+and anonymising delete; alerts; My dogs with what needs attention; second
+feeder and vet verification (the checkup writes through the ledger); finding
+a dog by partial code and by ward; tag reports, tag history, prints and batch
+collars; not seen, adopted and passed-away reports with a second-feeder
+confirmation and a memorial; richer SOS case data with the exact spot for the
+acker only, and decline. v6: SOS outcomes, release, arrived and close-by, a
+case timeline (`sos_case_events`), the reporter's view of who is coming,
+updates and "I had to leave", the dogless SOS, feed notes, feed rounds
+(`/scans/batch`) and telling co-feeders, the dog week, an alerts pause, the
+first-name opt-out, registration and map summary fields, and the wrong-tag
+check before activation. New worker job `send_feeder_push` (quiet hours and
+alerts mode). No new secret or environment variable.
+
+**Web.** Four-tab chrome, a 52 px `AppHeader` on every focused screen, new
+`Segmented`, `SettingsList`, `Sheet` and `Switch` components, six v5 tokens,
+and the desktop invitation. Rebuilt or new: sign-in (V4 to V6), Become a
+feeder, Me (V7 to V9, L1), Alerts, Settings, the scan tab (camera, partial
+code, did you mean, find by photo, SOS anyway), register and print (a real
+vector PDF in the browser with pdf-lib, Devanagari names through fontkit and
+a Noto Sans Devanagari subset, Web Share to a print shop, the laser sheet),
+My dogs with the dog week, story, tag and status screens, the vet checkup,
+the responder's SOS page in every state, feed rounds and offline, and the map
+states M1 to M7.
+
+**Collar page** (`apps/scan`). The v6 profile with feeders' first names, the
+early SOS button, Unverified and Tag under review badges, the memorial, the
+unknown collar (no longer shown as an outage) with a dogless SOS, report a
+tag problem, and the SOS flow through location ask, no location, no signal,
+sent, help coming (with the first-aid lines), closed and open case; plus the
+desktop QR. The bundle is 39,101 B of its 40,960 B budget after three cuts
+(build-time HTML minification, 20 rarely used ASCII symbols dropped from the
+Inter subset, and the `web-vitals` package replaced by native measurement).
+
+**Bugs fixed along the way** are in [BUGS.md](BUGS.md) (2026-09-25 design
+v5 and v6 section), most found with the new screen export
+(`pnpm --filter @hetja/web screens:export`), which photographs the screens
+and their states against fixtures and blocks every write.
+
+**Docs.** README, AGENTS.md, HOW-IT-WORKS (new flow sections 3.5 to 3.10 and
+an accurate §9), FEATURE-GUIDE (every screen and route, with its code), the
+design system document (v5 and v6 sections), INVARIANTS (corrections to the
+v5 and v6 entries), BUGS, OWNER-TODO and CREDITS were brought up to date.
+Things that need the maintainer before launch are in
+[OWNER-TODO.md](OWNER-TODO.md).

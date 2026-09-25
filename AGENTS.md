@@ -42,6 +42,23 @@ Four services, all bound to loopback, plus Caddy and the tunnel:
 | Caddy | stock Caddy | 127.0.0.1:80 | Path routing; the tunnel's only origin. |
 | cloudflared | Cloudflare Tunnel | none | Dials out. The box has no inbound web port. |
 
+**The tab and route model (design v6).** The app has four tabs, **Home, Map,
+Scan, Me** (`components/ds/TabBar.tsx`). Alerts is not a tab: it is a row on
+Me with an unread count, and push notifications open it. Only the tab roots
+carry the tab bar (`/`, `/scan`, `/me`; `/map` draws its own inside its
+sheet). Every other app screen is a focused screen with a 52 px `AppHeader`
+(back or Cancel), no tab bar and no footer; the footer is for the reading
+pages (About, How it works, FAQ, Privacy, Contact). One file decides all of
+it, per route: `apps/web/components/ChromeShell.tsx`. **Desktop wider than
+744 px is an invitation, not an app:** every app route shows "Hetja lives on
+your phone" (D1, `components/DesktopInvite.tsx`, with a QR of the page), the
+collar page shows its own QR plus a working SOS button (D2, in `apps/scan`),
+the reading pages, `/hetja` and 404s open in a 480 px phone column, `/sos/**`
+is framed at 480 px so a responder at a desk can still act, and the print
+sheets (`/register/<slug>/print`, `/register/batch`) and `/design` are left
+as they are. There are no languages yet: English only, until human
+translations exist.
+
 **The production database is Supabase** (PostgreSQL with PostGIS, pgvector and
 pgcrypto, in Mumbai, reached through its session pooler with `PGSSLMODE=require`).
 There is no PostgreSQL on the production box. This reverses what an earlier
@@ -58,10 +75,13 @@ historical.
   a new sentence. Check with `grep -rn "$(printf '\342\200\224')" <files>`
   (the UTF-8 bytes of U+2014, the em dash); it should print nothing.
 - **UI work is verified against the handoff mocks, side by side.** Open the
-  mock or its rendered board from `docs/design/v4-handoff/` next to the running
-  screen at 390 x 844 (and 1440 where there is a desktop mock), and compare
-  sizes, spacing, colours and button position. Ship **all** of the mock's copy
-  verbatim. The workflow is in
+  mock or its rendered board from `docs/design/v4-handoff/`, `v5-handoff/` or
+  `v6-handoff/` next to the running screen at 390 x 844 (and 1440 where there
+  is a desktop mock), and compare sizes, spacing, colours and button position.
+  Ship **all** of the mock's copy verbatim. Where v6 and v5 overlap, v6 wins;
+  the `CONTRACT.md` in each folder lists the owner's decisions and every
+  deliberate departure from a mock, and a departure not listed there is a bug.
+  The workflow is in
   [`docs/design/HETJA-DESIGN.md`](docs/design/HETJA-DESIGN.md) under
   "Verifying a screen".
 - **Never kill processes by image name** (`taskkill /IM node.exe`,
@@ -115,7 +135,7 @@ into a file, a commit, an issue, a log or a chat.
 | `HETJA_DEVICE_SECRET` | Signs anonymous device tokens. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Web Push. Rotating them invalidates every existing push subscription. |
 | `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_USER`, `BREVO_SMTP_PASSWORD` | Sign-in email. The API refuses to boot in production without SMTP, deliberately: the original bug was generating login codes and sending them nowhere. |
-| `ESRI_API_KEY` | The map's basemap tiles. Inlined into the web bundle at build time as `NEXT_PUBLIC_ESRI_API_KEY`, so it is public by design: it is an ArcGIS Location Platform key restricted to Hetja's referrers and to basemap privileges only. Without it the map falls back to CARTO tiles. |
+| `ESRI_API_KEY` | The map's basemap tiles. Inlined into the web bundle at build time as `NEXT_PUBLIC_ESRI_API_KEY`, so it is public by design: it is an ArcGIS Location Platform key restricted to Hetja's referrers and to basemap privileges only. It also draws the street map on the responder's SOS page (`components/care/SpotMap.tsx`). Without it there are no street tiles at all (the ward pills and pins sit on a plain background and the map says so): there is no keyless fallback, because CARTO's keyless tiles now answer with an "API key required" image. |
 
 The workflow also writes fixed values that are not secrets: `JWT_ACCESS_TTL=15m`,
 `JWT_REFRESH_TTL=30d`, `TRUST_PROXY=1` (one hop: cloudflared to Caddy to the
@@ -126,6 +146,10 @@ API), `CORS_ORIGINS`, `STORAGE_BACKEND=local` with photos in
 `docs/HOW-IT-WORKS.md` §9 for why not 18). The ledger signing key
 (`HETJA_LEDGER_SIGNING_JWK`) is not wired into the room yet, so daily anchors
 are unsigned.
+
+Design v5 and v6 added **no secret and no environment variable**: every new
+limit, window and cap (wards, quiet hours, the 30-day alerts pause, the
+dogless SOS limits) is a constant in the code, not configuration.
 
 For local development, copy `apps/api/.env.example` to a `.env` of your own
 and fill it with throwaway values.
@@ -267,10 +291,15 @@ GitHub secret only; never copy it to a laptop.
   `postgres` user through the pooler.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.** A
   deliberate guard. Do not work around it.
-- **The scan bundle has a hard 40 KB gzipped budget** enforced in CI
-  (33,260 B on 2026-09-24, of which 13,611 B is the Inter subset). It is the
-  page a stranger loads on a street; every kilobyte is a second. Anything
-  added there has to earn its bytes.
+- **The scan bundle has a hard 40 KB gzipped budget** enforced in CI, and it
+  is nearly full: 39,101 B of 40,960 B on 2026-09-25 (about 1.9 KB left), of
+  which 11,267 B is the Inter subset. It was 33,260 B before the v6 screens;
+  three cuts made room for them (build-time HTML minification in
+  `apps/scan/scripts/build.mjs`, 20 rarely used ASCII symbols dropped from the
+  subset, and the `web-vitals` package replaced by native `PerformanceObserver`
+  measurement in a separate idle-loaded `telemetry.js`). It is the page a
+  stranger loads on a street; every kilobyte is a second. Anything added there
+  has to earn its bytes, and there is no fourth easy cut.
 - **`/d/*` is `no-store` at Caddy**, because a dog's status is life-safety state
   that must never be served stale. The one exception is `/d/inter-scan.woff2`
   (30 days). `ops/check-caddy-cache.sh` guards both.
@@ -282,6 +311,34 @@ GitHub secret only; never copy it to a laptop.
 - **Do not reintroduce the old working title.** The project is Hetja. The name
   was removed from 967 files; only git history still carries it, pending a
   rewrite that will invalidate every SHA.
+- **Run the `ops/*.sh` gates on an LF copy on Windows.** This checkout uses
+  `core.autocrlf=true`, so the scripts on disk have CRLF line endings, and bash
+  reads each carriage return as part of the command: `bash ops/security-gate.sh`
+  and friends fail with `$'\r': command not found` errors that look like a
+  broken gate. The repository itself stores LF. Run them from an LF copy, such
+  as the WSL copy of §f with its line endings converted (`dos2unix`, or a
+  checkout made inside WSL); an rsync from `/mnt/c` copies the CRLF as it is.
+  For a single script, `tr -d '\r' < ops/x.sh > ops/.x-lf.sh` inside the repo
+  (the scripts find files relative to themselves), run it, and delete it.
+- **Playwright on this workstation uses Edge.** Playwright's bundled Chromium
+  is not installed on the maintainer's Windows machine, so ad hoc checks and
+  the screen export launch with `channel: "msedge"` (the export hard-codes it).
+  `playwright.config.ts` itself asks for plain Chromium, which CI installs
+  with `test:e2e:install`.
+- **Screen export for design review.** `pnpm --filter @hetja/web
+  screens:export` (`apps/web/scripts/export-screens.mjs`) shoots the screens
+  and states in its 47 flows at 390 x 844 (and 1440 where there is a desktop
+  design) for Claude Design, which cannot visit the site, and writes an
+  `INDEX.md` the v6 boards refer to by capture number. It does not yet visit
+  `/settings`, `/alerts`, `/welcome`, `/scan/code`, `/scan/find`,
+  `/me/dogs/**`, `/vet` or `/register/batch`; add a flow before asking for a
+  design pass on those. Every `/api/v1/*` call is answered from
+  fixtures in the script and every non-GET request is blocked, so it cannot
+  page a responder or send an email. It shoots `https://hetja.in` unless
+  `HETJA_SCREENS_BASE_URL` says otherwise, writes to `Hetja-screens/` (and a
+  zip) next to the repo checkout (`HETJA_SCREENS_OUT`), and
+  `HETJA_SCREENS_ONLY` picks flows. It is not a test and CI never runs it; the
+  screenshots are never committed.
 - **Some `ops/*.sh` were committed non-executable** and CI invoked them as
   `bash ops/...`, which hid it. If `./ops/foo.sh` gives "permission denied",
   `git update-index --chmod=+x` it rather than working around it.

@@ -39,7 +39,7 @@ traffic is this person.
 
 **The feeder.** Someone who feeds and watches over specific dogs in their area.
 They sign in (emailed code, no passwords, no SMS), log feeds, upload photos,
-and can be woken by an SOS near them. They accumulate a *trust score* over
+and can be woken by an SOS near them or in the wards they chose. They accumulate a *trust score* over
 time, which is what earns them the right to do higher-stakes things.
 
 **The responder.** A feeder, NGO worker or vet who has opted in to being
@@ -87,22 +87,71 @@ Two paths reach that URL, and both work:
   follows an explicit tap on the home page rather than a cold visit. It uses
   the native `BarcodeDetector` where it exists and lazily imports the small
   `barcode-detector` polyfill elsewhere. If permission is denied or there is no
-  camera, the frame goes away and the code input takes focus. Every code,
-  scanned or typed, is checked against `GET /api/v1/dogs/:slug` before leaving
-  the page, so a wrong code gets "No dog with that code" instead of a dead
-  profile.
+  camera, the sheet under the viewfinder offers the code instead. A scanned
+  code is checked against `GET /api/v1/dogs/:slug` before leaving the page.
 
-The page that opens (screen 03) shows the dog's photo (or its initial on a
-pastel circle), name, ward (`K/W ward · Andheri West`), vaccinated and
-sterilised status, when it was last fed, the collar code, its story and how
-many feeders wrote it. Status comes only from vet-recorded evidence: vaccinated
-is "yes" or "unknown", sterilised is "yes", "no" or "unknown", and "no" is never
-shown without evidence. What the page deliberately does **not** show is the
-dog's exact location or anyone's phone number (INVARIANTs 2 and 3). Locations
-are coarsened to the ward before they reach an anonymous viewer, because a
-precise live location for a street dog is a targeting tool for anyone who wants
-to hurt it, and there are such people. Feeder information is counts only: how
-many feed it, how many wrote its story, never who.
+When a QR will not read (mud, glare, a chewed tag), the scan tab does not
+leave the finder stuck. After six seconds without a read the sheet becomes
+"Can't read this QR." (F1) with three ways on:
+
+- **Type the code** (`/scan/code`). One field, or three boxes of three when
+  only part of the code is legible (F2): `?`, `.` or a space stands for a
+  character that cannot be read. `GET /api/v1/dogs/lookup` folds the usual
+  slips before it searches (case; `0` as `o`; `1` and `l` as `i`), needs at
+  least four known characters, and answers with the exact dog, the dogs that
+  match the known characters, and, for a full nine-character miss, the dogs
+  one swap or one character away. A near miss is shown as a question with the
+  dog's photo ("One letter off. Is it her?", V3: "Yes, that's Rani" or "Not
+  her. Type it again"), not as an error.
+- **Find by ward and photo** (`/scan/find`, F3). `GET /api/v1/wards/:wardId/dogs`
+  lists the ward's collared dogs (at most 30), narrowed by coat colour, from
+  the visitor's location, their home ward or a picked ward. A stranger picks
+  the dog by its face.
+- **Dog is hurt · Send SOS anyway**: the SOS with no known dog, §3.2.
+
+Both finding reads hand out slugs by design, so they are active and lost dogs
+only, ward-level only, and rate limited per device (or per address when there
+is no device yet) under a global daily bucket each; INVARIANTS.md #6 records
+why those per-address limits are allowed.
+
+The page that opens (screen 03, polished as V15) shows the dog's photo (or its
+initial on a pastel circle), name, ward (`K/W ward · Andheri West`),
+vaccinated and sterilised status, its feeders, its story and the collar code.
+Status comes only from vet-recorded evidence: vaccinated is "yes" or
+"unknown", sterilised is "yes", "no" or "unknown", and "no" is never shown
+without evidence. What the page deliberately does **not** show is the dog's
+exact location or anyone's phone number (INVARIANTs 2 and 3). Locations are
+coarsened to the ward before they reach an anonymous viewer, because a precise
+live location for a street dog is a targeting tool for anyone who wants to hurt
+it, and there are such people.
+
+**Feeders are named by first name, and can opt out.** Until design v6 the page
+gave counts only. By the owner's decision it now names the dog's feeders
+("Tells Priya, Arjun and a vet nearby.") by the first word of their display
+name and nothing more: never a surname, an initial, an account or a contact.
+Settings has "Show my first name on dogs' pages", on by default; a feeder who
+turns it off is counted ("Rani has 2 feeders") and not named. INVARIANTS.md
+records this as a deliberate widening of what INVARIANT 3 protects.
+
+The page also says what Hetja is unsure of. A dog nobody has vouched for yet
+carries an **Unverified** badge until a vet records a checkup or a second
+feeder confirms it (§3.8). A tag someone reported as being on the wrong dog
+says so ("A feeder will check it. SOS still works."). A dog whose tag keeps
+breaking suggests a sturdier collar. A dog that has died keeps a quiet
+memorial page with the first names of the people who fed it, and no SOS
+button (§3.9). If the page has been opened before on this phone, a saved copy
+opens offline and says when it was saved. And the red button is live before
+the page has finished loading (P7): a tiny inline script records the tap and
+the SOS module replays it.
+
+**An unknown code is not an outage** (P8). When `GET /dogs/:slug` answers 404,
+the page says "Hetja doesn't know this collar.", offers to type the code again
+or find the dog by photo, and keeps SOS live as a dogless SOS to the visitor's
+ward. Only a real failure to reach Hetja shows "Can't reach Hetja right now".
+Those two used to look the same (docs/BUGS.md, 2026-09-25).
+
+On a desktop wider than 744 px the collar page shows its own QR, so the visitor
+can carry it to a phone, with the SOS button still working (D2).
 
 A dog whose registration is still `pending_activation`, or has `expired`, is
 not public at all: `GET /api/v1/dogs/:slug` answers 404 for it, except to the
@@ -115,9 +164,10 @@ the SOS stays the one loud action.
 
 ### 3.2 Danger
 
-On the collar page there is one primary action: **This dog needs help**. It
-opens a whole-screen step (screen 04, "How bad is it?") with three choices,
-which map onto the API's severity enum in `apps/scan/src/format.ts`:
+On the collar page there is one primary action: **{Name} needs help** ("This
+dog needs help" when the page does not know the dog). It opens a whole-screen
+step (screen 04, polished as V18, "What's happened to {Name}?") with three
+choices, which map onto the API's severity enum in `apps/scan/src/format.ts`:
 
 | The stranger picks | Severity sent |
 |---|---|
@@ -130,6 +180,16 @@ made. A note and a photo are optional; the photo is EXIF-stripped on
 the server and saved only for a case the request actually opened, and it is
 not part of the report's dedupe key, so a different photo cannot mint a "new"
 case around the INVARIANT 7 cap.
+
+Before the browser's own location prompt, the page asks in words, once
+("Share where you are, once.", N12). Location is optional for a known dog and
+required for a dogless SOS. If it is refused, the report is not lost (P12,
+"Not sent yet."): the reporter can copy the details, share location and send,
+or send to the dog's feeders only. With no signal at all (P13) the message is
+already written: **Open Messages** opens the phone's SMS app with the text
+filled in and no recipient, the saved vet numbers are offered as recipients,
+and the page sends it itself when the signal comes back. Hetja never holds a
+feeder's number, so an SMS "to Rani's feeders" is impossible by design.
 
 The send is one `POST /api/v1/reports`, and the answer carries two things.
 
@@ -163,34 +223,105 @@ unless the coordinate is real, and the API states which contract applies via
 
 Phone numbers carry the same honesty rule. `phone_verified_at` is surfaced to
 the client, not collapsed into a boolean, so a number nobody has ever called is
-shown *as unconfirmed* rather than either hidden or presented as fact. About
-thirty of the seeded NGO numbers are still `NULL` here. Someone has to pick up
-a phone and call them; there is no way to shortcut that.
+never presented as fact. The web app's map and its SOS with no dog show such
+a number *as unconfirmed*. **The collar page, since
+v6 (V19), goes further and hides it**: its "Can't wait? Call" rows, and the
+numbers it saves for a no-signal SOS, are confirmed numbers only, and a place
+that is closed keeps its row but loses its Call button. That makes the
+monthly confirmation of the list (`import-care.ts`, VET-DATA-INTAKE.md) a
+precondition for the collar page offering anyone to call at all: with no
+confirmed number near the dog, the reporter sees no Call rows. About thirty of
+the seeded NGO numbers are still `NULL` here. Someone has to pick up a phone
+and call them; there is no way to shortcut that.
 
-**An SOS case.** The same request creates a case, and the worker fans out
-push notifications to responders near the dog (feeders with SOS paging on,
-enough trust for the severity, and a geotagged feed within 2 km in the last 30
-days). This is rate-capped, because an unauthenticated endpoint that can notify
-unbounded numbers of people is a harassment vector (INVARIANT 7). If no
-eligible responder exists, it escalates to tier 2 immediately rather than
-waiting out a timer. Otherwise an unacknowledged case escalates after eight
-minutes.
+**An SOS case.** The same request creates a case. For a "Can't get up, or
+bleeding" (`critical`) report on a dog that is eligible for paging, the API
+picks responders there and then and the worker pushes to them. A responder is
+a feeder with SOS paging on, not paused, and trusted enough for the severity
+(`lib/sos-eligibility.ts`, one rule for the fan-out, the ack and the map),
+who is either near the dog (a geotagged feed within 2 km in the last 30 days)
+or, if they chose wards in Settings, feeds in the dog's ward. **Wards drive
+paging** since design v5: a feeder with wards set is paged only for dogs in
+those wards, and for any dog in them, recent feed or not; a feeder with no
+wards is paged by proximity as before. At most 15 are paged. Quiet hours
+never hold back an SOS. This is rate-capped, because an unauthenticated
+endpoint that can notify unbounded numbers of people is a harassment vector
+(INVARIANT 7). If no eligible responder exists, the case escalates to tier 2
+immediately rather than waiting out a timer: the three nearest contracted vets
+and the municipal desk are recorded as told (a record, not yet a delivery;
+see §9). A `serious` report ("Hurt, but moving", "Something else") pages no
+feeder at report time and escalates the same way after eight minutes unless
+someone has taken it. That is why the reporter's screen always leads with
+numbers to call.
 
-`POST /api/v1/sos/cases/:id/ack` claims a case. It is a conditional update
-(`WHERE acked_by IS NULL AND resolved_at IS NULL`), so the first writer wins
-atomically, a closed case can never be walked back open, and everyone
-else gets a 409 and a stand-down. This is what makes the programme's headline
-metric (median acknowledgement under five minutes) measurable at all.
+`POST /api/v1/sos/cases/:id/ack` (**I'm going**) claims a case. It is a
+conditional update (`WHERE acked_by IS NULL AND resolved_at IS NULL`), so the
+first writer wins atomically, a closed case can never be walked back open,
+and everyone else gets a 409 and a stand-down. Only a paged responder, a
+moderator, or a feeder who meets the responder rule may take one, at most two
+open at a time. This is what makes the programme's headline metric (median
+acknowledgement under five minutes) measurable at all.
 
-**The reporter can see that someone is coming.** While the sent screen is
+**The responder's page** (`/sos/<caseId>`, where the push lands) follows the
+case through its life, one layout per state:
+
+- **Open** (P9): the dog, its photo, the reporter's note and photo, the ward,
+  how far away (rounded to 100 m, from the responder's own last scan), who
+  else was told, when it escalates, and **I'm going**. The quiet link "I
+  can't go right now" declines the page (`/decline`); it never changes the
+  escalation clock. An escalated case (L5) says so; a case someone else took
+  (L4) names them by first name and stands the viewer down.
+- **Taken, yours** (P10): **the exact spot unlocks only now**, with a street
+  map and Directions ("The exact spot unlocks when you tap I'm going"). Before
+  taking a case nobody sees finer than the ward (INVARIANT 2). From here: "Tell
+  the reporter you're close" (`/close-by`), "With Rani" when there
+  (`/arrived`), and "I can't make it after all" (`/release`), which hands the
+  case back to open, pages the others again (not the releaser, not anyone who
+  declined) and leaves the escalation clock where it was.
+- **Closing** (P11): the outcome, **Taken to a vet** (with the vet's name),
+  **Treated on the spot**, **Couldn't find the dog** or **She didn't make it**
+  (`/resolve` with `outcome`; the older `resolved` and `false_alarm` still
+  work). "Didn't make it" files a pending passed-away report for the dog and
+  opens Update on a dog, where a second feeder confirms it (§3.9). A closed case (V21) shows its timeline.
+- **Not for you** (V22): a signed-in feeder who may not respond sees why, as
+  the real checklist from the responder rule (paging on, trust, a feed nearby
+  or the ward), not a bare 403. A page that fails to load (L6) says so and
+  offers the vets.
+
+Every step is also an event in `sos_case_events` (migration 0027), which is
+what the timeline on both sides is built from.
+
+**The reporter can follow the case** (V19, N10, N11). While the screen is
 visible, the reporter's phone polls `GET /api/v1/reports/:caseId/status` every
-15 seconds, for at most ten minutes, and stops for good once the case is taken
-or closed. The pills read "Waiting for reply" until then. The route answers
-only the device token (or signed-in account) that filed the report, returns
-four fields (state and three timestamps) and nothing about who took it
-(INVARIANT 3), gives the same 404 for "not yours" as for "does not exist" so
-case ids cannot be probed, and is rate-limited per device, not per IP
-(INVARIANT 6).
+15 seconds, for at most an hour. The route answers only the device token (or
+signed-in account) that filed the report, gives the same 404 for "not yours"
+as for "does not exist" so case ids cannot be probed, and is rate-limited per
+device, not per IP (INVARIANT 6). Since v6 it says who was told (feeders by
+first name, opt-outs respected, and a count of vets), and once someone takes
+the case, their first name and when they took it, came close and arrived:
+"Priya is on the way." It never says where the responder is. While waiting
+the reporter sees three first-aid lines (N10, `apps/scan/src/firstaid.ts`:
+keep traffic back, don't lift a dog that can't stand or give food or water,
+keep your hands away from its face), shipped by the owner's decision and
+still due a vet's review (OWNER-TODO). They can **Send Priya an update**
+(`POST /reports/:caseId/updates`, 280 characters) or say **I had to leave**
+(`/left`). The outcome closes the screen (N11). A phone that already has an
+open case on the dog and tries again is shown that case, who took it and when,
+with "Add an update", instead of a bare refusal (L7).
+
+**An SOS with no known dog** (P8, F1). The pipeline used to need a dog: its
+feeders were the people to page. Designed twice (F1 on the scan tab, P8 on an
+unknown collar), it is now built. `POST /api/v1/reports` without a `dogSlug`
+needs a point inside Mumbai (400 `GEO_REQUIRED` or `GEO_OUTSIDE_MUMBAI`
+otherwise). The case is stamped with the nearest ward (`sos_cases.ward_id`)
+and keeps the point (`sos_cases.geo`, migration 0027), which, like a dog's
+exact spot, only the responder who takes it ever sees. It is paged exactly like
+a dog at that point, by ward and proximity, and escalates to the vets nearest
+the point. Its limits are stricter than a dog report's, on top of INVARIANT 7:
+2 then 3 a day per device or account, 3 then 6 a day per address, and one open
+dogless case per reporter per ward. On the web the path is **Dog is hurt · Send
+SOS anyway** (`/scan/find?sos=1`, `components/scan/SosAnyway.tsx`), which also
+lists the nearest vets and NGOs with Call buttons whatever happens.
 
 ### 3.3 Feed
 
@@ -210,6 +341,22 @@ dog must never count against the person who reported it. Feeds go through the
 same offline queue as before, and a signed-in response includes the feeder's
 streak so the screen can say "Keeps your streak at N days" truthfully.
 
+Design v6 added three things around the same write. A feed can carry a short
+**note** (`scans.note`, 280 characters, migration 0027). On "Looks unwell" a
+signed-in feeder can **tell the dog's other feeders** (`tellCoFeeders: true`):
+one push to them, at most a few a day per dog, still never an SOS. And a
+feeder on a round can open `/feed` without a dog, tick everyone they fed
+("Who did you feed?", V11) and send them in one `POST /api/v1/scans/batch` (up
+to 12, each under exactly the single-feed rules). With no signal the screen
+says how many feeds are waiting (N7). After a first feed the phone is offered
+"Add to home screen" (V23), which is what makes Web Push work on an iPhone.
+A feed or view scan of a dog marked lost puts it back to active (§3.9).
+
+Each feeder also has a private **week view** per dog (`/me/dogs/<code>`, N15,
+`GET /api/v1/dogs/:slug/week`, feeders of the dog only): which of the last
+seven Mumbai days it was fed and by whom (first names), the rabies booster
+date, and how many vet records it has.
+
 ### 3.4 Map
 
 `/map` (screen 19) shows all of Mumbai, and only Mumbai. Its data is three
@@ -219,13 +366,21 @@ public reads in `apps/api/src/routes/map.ts`:
   not fed since midnight in Mumbai, open SOS cases) and the newest open case's
   severity and time, at a **fixed, hand-placed ward centre**
   (`BMC_WARD_CENTROIDS` in `@hetja/contracts`). The point is the same for every
-  request, so it cannot leak where any dog, reporter or feeder is.
+  request, so it cannot leak where any dog, reporter or feeder is. Since v6 it
+  also carries the city summary for "Mumbai right now" (M1, V20): dogs with
+  collars, feeders, fed today, not logged today, and the open SOS rows with
+  the dog's name and whether someone has taken it.
 - `GET /api/v1/map/wards/:wardId`: one ward's counts, its open cases (severity,
   time, state and whether responders were paged; no note, no reporter, no
-  photo, no position), and up to three vets and NGOs in or near it.
+  photo, no position), up to three vets and NGOs in or near it, and since v6
+  the first names of its dogs and the ones not logged today with when they
+  last were (M2, M6). Still ward level: a name beside a ward, never a street.
 - `GET /api/v1/map/places?bbox=`: listed vets and NGOs with a real geocoded
   point inside a box, for pins. A provider whose position is only a locality
   estimate never gets a pin, because it would be drawn in the wrong place.
+  The client nudges a pin clear of a ward label on screen (it is never moved on
+  the ground), and a place sheet says "open now" only where the hours are
+  structured enough to compute it (M5); otherwise it shows the hours note.
 
 **Everything about dogs is aggregated to the ward** (INVARIANT 2). The only
 phone numbers are organisations' published numbers from `care_providers`
@@ -237,9 +392,11 @@ claim every open case and stop it escalating. The ward detail returns a case id
 only to a signed-in caller who meets the same responder rules the fan-out uses
 (SOS paging on, trust 40 or more, 60 for critical) or who already holds the
 case; that answer is per caller and never cached. That is what makes the map's
-**I can go and help** button safe. **Get alerts for {ward} ward** sets the
-feeder's home ward and turns SOS paging on (`PATCH /api/v1/feeders/me`); note
-that paging itself still follows recent feeds near the dog, not the home ward.
+**I can go and help** button safe (M4 is the taking step; signed out, M3 says
+what signing in unlocks). **Get alerts for {ward} ward** sets the feeder's
+home ward and turns SOS paging on (`PATCH /api/v1/feeders/me`). Paging follows
+the wards a feeder chose in Settings or on Become a feeder (§3.2, §3.10), as
+well as recent feeds near the dog.
 
 The vets and NGOs on the map are Hetja's own list, refreshed monthly from a CSV
 of details confirmed with each provider (`packages/db/src/import-care.ts`, run
@@ -249,22 +406,168 @@ content is never stored, per Google's terms. See
 [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md).
 
 Base tiles are Esri's Light Gray static basemap (ArcGIS Location Platform, a
-referrer-restricted key in `NEXT_PUBLIC_ESRI_API_KEY`), falling back to CARTO's
-keyless light tiles when there is no key or Esri refuses it.
+referrer-restricted key in `NEXT_PUBLIC_ESRI_API_KEY`), on `/map` and on the
+responder's SOS page. There is **no keyless fallback**: CARTO's keyless tiles
+now answer 200 with an "API key required" image, and OpenStreetMap's own
+tiles are ruled out for a production app by their usage policy. With no key,
+or once Esri has refused three tiles before any loaded, there is no tile layer; the
+map says "Street map unavailable. Wards are shown at their centres." and the
+ward pills and pins still work on a plain background. A map that says it has
+no streets is better than one drawn full of an error image.
 **Mumbai only.** `MUMBAI_BOUNDS` in `packages/contracts/src/wards.ts`
 (18.88 to 19.30 N, 72.76 to 73.00 E) is the whole world as far as the map is
 concerned: the tile layer is bounded to it (no tile outside Mumbai is ever
 requested), the view cannot be panned past it, and `/api/v1/map/places`
 clamps any box to it and answers 400 for a box entirely outside it.
 
-### 3.5 Registration's self-reported medical status
+### 3.5 Registration and activation
 
-The New dog screen (10) asks whether the dog is vaccinated and sterilised.
-Those answers are stored as `dogs.vaccinated_reported` and
-`dogs.sterilised_reported` (migration `0025`) and are **never read by any
+A feeder registers a dog they look after from `/register`. The first time,
+that screen (V13) explains what it takes, including "About ₹150" for a collar,
+and turns registering on for the account; after that it lists their
+registrations (V12) as sentences sorted by what needs doing. `/register/new`
+is one client flow in four steps:
+
+1. **Photo** (R2): a face photo, compressed and EXIF-stripped on the phone.
+   It becomes the dog's portrait (`photoBase64` on `POST /registrations`,
+   through the same photo gate as every upload).
+2. **Is this dog already registered?** (R3): the collared dogs already in the
+   dog's ward (`GET /wards/:wardId/dogs`). "Same dog" opens that dog's page
+   instead of minting a second code: one dog, one code.
+3. **About the dog** (R4): name, sex, how to spot it (markings, at most 8
+   short words, which the finding screens show), and whether it is
+   vaccinated and sterilised as far as the registrator knows.
+4. **Check and confirm** (R5).
+
+The self-reported medical answers are stored as `dogs.vaccinated_reported`
+and `dogs.sterilised_reported` (migration `0025`) and are **never read by any
 public route**. The profile's Vaccinated and Sterilised pills come only from
 vet-verified medical records, which is what the screen's caption promises:
 "Vets can confirm medical status later."
+
+An account and a phone may each hold two dogs waiting for their collars at a
+time, and at most six registrations a week. At the limit, `/register/new`
+opens on "Two collars waiting" (P6), naming the dogs that hold the slots,
+rather than failing at the end of the form.
+
+The code is ready at once (V14, "Kalu is almost on Hetja."): the real signed
+QR, an Unverified pill and the activation line. **The dog stays invisible
+until its tag is scanned next to it.** `/register/<code>` (P1) is the
+registrator's checklist, with a countdown to expiry and a full-screen scanner;
+the scan it takes is checked first (`POST /registrations/:slug/tag-check`),
+and a wrong tag is named with both dogs and both codes (P2) instead of being
+silently accepted. Only then does the page ask for location, and activation
+itself is the geotagged `POST /scans` it has always been. After it, "Collar is
+live" (P3), and from then on the same route manages the dog (P4): its page,
+reprint, edit, who feeds it, and Update on a dog. A registration nobody
+activates expires after 30 days, with reminders on day 7 and day 21
+([FEATURE-GUIDE.md](FEATURE-GUIDE.md) Part 2 §5 has the state machine).
+
+### 3.6 Printing a tag
+
+`/register/<code>/print` (R7 merged with P5) starts with the material:
+
+- **Paper, laminated**: the R7 layouts, "10 small tags + collar band" or "1
+  large tag + wall notice", on A4 or Letter, with a live preview; or "Add to
+  a batch sheet", which goes to `/register/batch` (R8), up to eight of the
+  registrator's dogs, two tags each, on one page (`POST /collars/batch` signs
+  them in one call). **Download PDF** builds a real vector PDF in the browser
+  (`apps/web/lib/collar-pdf.ts`, pdf-lib, dynamic-imported), because the room
+  cannot afford server-side rendering. Each QR is one filled path of module
+  rectangles at exact millimetres (version 5, 0.49 mm a module on the 22 mm
+  tag, well inside what a phone reads), and the text uses the PDF standard
+  fonts, so a sheet is a few KB. A dog's name in Devanagari is drawn with an
+  embedded subset of Noto Sans Devanagari, fetched only then. **Send to a
+  print shop** hands the same PDF to the Web Share API, and downloads it
+  where a phone cannot share files, saying so. If the PDF cannot be built,
+  the HTML sheet at `./sheet` prints at real size.
+- **Laser on TPU**: the 40 x 40 mm laser sheet that was already there, with
+  the print-shop specification from P5 (TPU Shore 95A, laser-etched with no
+  ink, QR version 5 ECC M, 37 modules, 4-module quiet zone).
+
+The QR is always the signed collar URL, never the mock's unsigned
+`HTTPS://HETJA.IN/D/<CODE>`: collar QRs are HMAC-signed (§3.1). Every print
+is recorded (`POST /dogs/:slug/prints`, table `tag_prints`) for the dog's tag
+history, and a reprint for a damaged or lost tag closes that report.
+
+### 3.7 When a tag breaks
+
+Anyone holding the dog's page can **Report a tag problem** (F4): damaged or
+faded, found it on the ground, this isn't the dog in the photo, or the collar
+is too tight. No sign-in: `POST /dogs/:slug/tag-reports` takes a device token,
+is limited per device, per dog and per address, and keeps only a hash of the
+device for its 24-hour dedupe. The dog's feeders get a push, and the reporter
+is told what to do with the tag (F5).
+
+"This isn't the dog in the photo" puts the tag **under review**: the page says
+so, and feeds on that code earn no trust until a feeder checks. **SOS is never
+paused.** The mock said "Feeds and SOS on that code pause"; the build does
+not, because an anonymous report must not be able to switch off SOS for a dog.
+
+A feeder of the dog handles it from `/me/dogs/<code>/tag` (F6): reprint (the
+print screen, preloaded), "I have a spare", or, for a wrong-dog report,
+"checked, it's fine". The review clears once no wrong-dog report is left
+open. Three different reporters in seven days suggest a sturdier collar, on
+the feeder's page and on the dog's.
+
+### 3.8 Verified dogs
+
+A registration proves one person stood next to a dog once. The page says
+**Unverified** until someone independent vouches for it (`dogs.verified_at`,
+`verified_via`, migration 0026):
+
+- **A second feeder** (`POST /dogs/:slug/confirm`): a signed-in feeder of the
+  dog who is not its registrator, not on the registering phone, and has fed
+  it recently. My dogs lists the unverified dogs a feeder could confirm.
+- **A vet** (`/vet/<code>`, N3, `POST /dogs/:slug/checkups`, vet accounts in
+  the contracted-vets registry only): rabies given today, up to date or due;
+  sterilised; next vaccine due month; a note for feeders; and "I examined this
+  dog". Nothing is preselected. It is written through the one ledger writer,
+  so it is append-only and hash-chained (INVARIANTs 8 and 9), and it is what
+  turns the page's Vaccinated and Sterilised pills on.
+
+### 3.9 Not seen, adopted, passed away
+
+A feeder of the dog files **Update on a dog** (`/me/dogs/<code>/status`, N9,
+`POST /dogs/:slug/status-reports`, table `dog_status_reports`):
+
+- **Not seen** marks the dog `lost` and asks that ward's feeders to look out.
+  Any later feed or view scan puts it back to `active`.
+- **Adopted, or in a shelter** marks it `adopted`.
+- **Passed away** waits for a second, different feeder to confirm within 30
+  days, then marks it `deceased`. An SOS closed as "didn't make it" files the
+  first report for the responder.
+
+A deceased dog's page becomes a memorial: "{Name} has passed away. Her page
+stays, with the names of everyone who fed her.", the first names of its
+signed-in feeders (opt-outs respected), no SOS button. That list is the one
+public place names appeared before v6 made them general (§3.1).
+
+### 3.10 Alerts, quiet hours and a pause
+
+**Become a feeder** (`/welcome`, N1) runs once after the first sign-in: the
+name other feeders see, up to six wards ("We only alert you about dogs in
+these wards.", and that is exactly what paging does, §3.2), SOS alerts, and
+quiet hours. The same settings live in **Settings** (`/settings`, N6), with
+the name opt-out, a download of the account's own data
+(`GET /feeders/me/export`, JSON) and **Delete my account**
+(`DELETE /feeders/me`), which anonymises: the name becomes "Former feeder",
+the identity HMAC, wards, sessions and push subscriptions go, and the dogs and
+feed logs stay, because other people's care depends on them.
+
+- **Alerts** (`/alerts`, N5, `GET /feeders/me/alerts`): the last 14 days,
+  newest first, at most 50: SOS cases, tag reports, verifications, feeds by
+  others, not-seen reports and status changes on the feeder's dogs, each
+  linking to its screen. It is a row on Me with an unread count, not a tab.
+- **SOS only or all** (`alertsMode`): with SOS only, the worker's
+  `send_feeder_push` job skips every other push.
+- **Quiet hours** (`quietHours`, Mumbai time): every push except an SOS is
+  held until the window ends.
+- **Pause** (L1, `sosPausedUntil`, at most 30 days): turning the SOS switch
+  off on Me offers "Pause until tomorrow" (8 am Mumbai time), "Pause for a
+  week" or "Turn off". A paused feeder is not paged for a new case; their consent is not
+  changed by it. Turning alerts on asks for notification permission with
+  Hetja's own explanation first (N13).
 
 ---
 
@@ -281,24 +584,32 @@ apps/
 packages/
   contracts  zod schemas and ward data shared by API and clients; the single source of truth
   db         pool, migrations, slug generation and signing, care-directory importers
-  design     tokens.css: the design v4 tokens from the Claude Design handoff
+  design     tokens.css: the design v4 tokens from the Claude Design handoff, plus v5's few additions
   ledger     hash-chained append-only medical ledger
   pow        ALTCHA proof-of-work solver for anonymous device tokens
 ```
 
 The split is about failure domains, not tidiness.
 
-`apps/scan` is the life-safety surface. It is plain TypeScript with zero
-dependencies, held under a **40 KB gzipped CI budget** that fails the build if
-exceeded, because the person using it is on a phone on a street and every
-kilobyte is a second. It runs as its own service (`hetja-scan`), so a crash in
+`apps/scan` is the life-safety surface. It is plain TypeScript with no
+third-party runtime dependency (only the repo's own proof-of-work solver),
+held under a **40 KB gzipped CI budget** that fails the build if exceeded,
+because the person using it is on a phone on a street and every kilobyte is a
+second. The v6 screens brought it to 39,101 of 40,960 bytes; three cuts paid
+for them (build-time HTML minification, 20 rarely used ASCII symbols dropped
+from the Inter subset, and the `web-vitals` package replaced by the browser's
+own `PerformanceObserver`), and there is about 1.9 KB left. It runs as its own service (`hetja-scan`), so a crash in
 the web app or the API's heavier routes cannot take down the page a stranger
 needs. It does ship in the same release tarball as everything else, so a bad
 release is health-checked and rolled back as a whole.
 
-`apps/web` is everything else: scanning from the site, logging feeds, signing
-in, Me, registering a dog, the map, and the marketing and reading pages.
-Richer, heavier, and allowed to be. `/hetja` is the memorial page. `/privacy` is a DPDP notice and is
+`apps/web` is everything else: the scan tab and finding a dog, logging feeds,
+signing in, Me with its alerts, settings and dogs, registering and printing,
+the responder's SOS page, the vet's checkup, the map, and the marketing and
+reading pages. Richer, heavier, and allowed to be. It has four tabs (Home,
+Map, Scan, Me), and on a desktop wider than 744 px every app route shows an
+invitation to open it on a phone instead (reading pages, `/hetja` and
+`/sos/**` open in a 480 px column; the print sheets are left alone). `/hetja` is the memorial page. `/privacy` is a DPDP notice and is
 treated as a factual document: when the login moved from phone to email, that
 page had to change in the same commit, because a privacy notice that describes
 storage you no longer do is simply false.
@@ -319,20 +630,27 @@ staff who need to retag on day one, which is why access gates on role, not score
 
 ## 5. Data
 
-Twenty-two domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
+Twenty-six domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
 for geography and pgvector for image embeddings. Fifteen of them come from
 `0001_init.sql`; `care_providers` (0008), `otp_codes` (0010),
 `push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
-`spent_challenges` (0021) and `collar_reissues` (0023) arrived later. Earlier
-versions of this paragraph said "eighteen", then "nineteen" (which omitted the
-0017 and 0021 tables), while `WORK-REPORT.md` said "15". None matched the
-database, which `\dt` counts even higher because PostGIS ships its own
+`spent_challenges` (0021), `collar_reissues` (0023), `tag_reports`,
+`tag_prints` and `dog_status_reports` (0026, design v5) and `sos_case_events`
+(0027, design v6) arrived later. Earlier versions of this paragraph said
+"eighteen", then "nineteen" (which omitted the 0017 and 0021 tables), then
+"twenty-two", while `WORK-REPORT.md` said "15". None matched the database for
+long, which `\dt` counts even higher because PostGIS ships its own
 `spatial_ref_sys`. The count is checkable:
 `SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN
 ('schema_migrations', 'spatial_ref_sys')`. Migrations `0024` and `0025` added
 columns, not tables: `scans.feed_outcome` and
-`dogs.vaccinated_reported` / `dogs.sterilised_reported` (§3.3, §3.5). The ones
-to know:
+`dogs.vaccinated_reported` / `dogs.sterilised_reported` (§3.3, §3.5). `0026`
+and `0027` also added columns: a feeder's wards, quiet hours, alerts mode,
+onboarding, deletion, name opt-out and alerts pause; a dog's markings,
+verification, tag review and vaccine due month; a declined page; and a case's
+note, ward, point, outcome, vet name and lifecycle times. `sos_cases.dog_id`
+became nullable for the dogless SOS, with a check that a case has a dog, or a
+ward and a point. All of it is additive. The ones to know:
 
 | Table | What it holds |
 |---|---|
@@ -341,6 +659,9 @@ to know:
 | `feeders` | accounts; identified by `identity_hmac`, never a raw address |
 | `medical_records` | append-only, hash-chained treatment ledger |
 | `sos_cases`, `sos_notifications` | the case machine and its delivery receipts |
+| `sos_case_events` | a case's lifecycle after the ack: released, close by, arrived, reporter updates, reporter left |
+| `tag_reports`, `tag_prints` | reported tag problems (reporter device stored only as a hash) and every print, for a dog's tag history |
+| `dog_status_reports` | not seen, adopted, passed away, and who confirmed it |
 | `care_providers` | the public vets/NGO directory behind the danger flow |
 | `vets` | *contracted* partner clinics: signing keys, MOUs, retainers |
 | `geofences`, `feeder_territories` | who gets woken for what |
@@ -594,9 +915,28 @@ box up, is historical now; the shared box is provisioned once with
 - `apps/shell`: the native wrapper. iOS requires add-to-home-screen before Web
   Push works at all, so until this exists, iOS responders are not reliably
   reachable. The UI says so rather than implying a safety net that isn't there.
-- The first-aid instruction card is behind `FIRST_AID_ENABLED=false` until a
-  practising vet signs off the wording. Bad first-aid advice given to a
-  frightened stranger can kill a dog faster than doing nothing.
+- **The first-aid lines have no vet's sign-off yet.** They sat behind
+  `FIRST_AID_ENABLED=false` for that reason until design v6, when the owner
+  decided to ship the three N10 lines as designed (`apps/scan/src/firstaid.ts`,
+  no flag any more). The mock itself asks for a vet's review before launch, and
+  it is in [OWNER-TODO.md](OWNER-TODO.md). Bad first-aid advice given to a
+  frightened stranger can kill a dog faster than doing nothing; change the
+  words only with that review.
+- **No languages.** English only. The language setting (N14 in v6, a Settings
+  row in v5) was designed and deliberately not built, by the owner's decision,
+  until human translations exist. The print sheets already draw Devanagari
+  dog names.
+- **Tier-2 escalation is a record, not yet a delivery.** When a case
+  escalates, the worker writes `sos_notifications` rows for the three nearest
+  contracted vets (channel `sms`) and the municipal desk (`bmc`), and the case
+  page counts them as told, but no code sends an SMS or reaches the desk:
+  Hetja has no SMS provider and no desk integration. What actually reaches people today is Web Push to feeders and
+  the numbers on the reporter's screen.
+- **A `serious` SOS pages no feeder when it is filed.** Only a critical report
+  ("Can't get up, or bleeding") fans out at once; the other two choices wait
+  eight minutes and then escalate as above. This predates v5 (the validation
+  step it was waiting for was never built) and is why the reporter's screen
+  always leads with numbers to call.
 - `validate_scan` has **no producer**. Nothing enqueues it, so `ai_validation`
   stays `NULL`, `review_status` stays `pending` forever, and INVARIANT 15's
   gate can never fire from real AI output. It is recorded in
@@ -643,13 +983,10 @@ box up, is historical now; the shared box is provisioned once with
   backed up at all.
 - **The daily ledger anchor is unsigned in the room.** `deploy.yml` writes no
   `HETJA_LEDGER_SIGNING_JWK`, so anchors publish unsigned: degraded, but honest.
-- **The SOS sent screen does not say how many people were told.** The mock's
-  "3 of Bruno's feeders and 1 vet" needs counts the API does not return, so the
-  screen says the dog's feeders and a vet nearby "are being told" and nothing
-  more precise.
-- **A feeder's home ward does not drive paging yet.** The map's "Get alerts for
-  {ward} ward" stores the ward and turns SOS paging on, but the fan-out still
-  selects responders by recent feeds within 2 km of the dog.
+- **The collar page has no "lost" state.** A dog a feeder reported as not seen
+  is `lost` in the database and its ward's feeders are asked to look out, but
+  a stranger scanning it sees the ordinary page; the first feed or view scan
+  sets it back to active.
 - `DEVICE_POW_DIFFICULTY` is **16**, capped at 20. It went 14 → 18 on 2026-08-13 (enhancement stack Phase 0 #6) and 18 → 16 on 2026-08-14, which needs explaining because it reads like a retreat.
 
   ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits, so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead: the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.

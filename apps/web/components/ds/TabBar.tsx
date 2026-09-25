@@ -10,7 +10,7 @@ import styles from "./TabBar.module.css";
  * row on Me). Every tab is a filled
  * icon over an always-visible label; the active tab paints both in blue and
  * carries aria-current="page". 83px tall with the home-indicator area
- * (--h-tab-clear). Only the five tab roots render it (ChromeShell); focused
+ * (--h-tab-clear). Only the four tab roots render it (ChromeShell); focused
  * screens draw their own 52px header with a back or Cancel instead.
  */
 

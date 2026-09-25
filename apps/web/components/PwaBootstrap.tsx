@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { registerServiceWorker, maybeSubscribeAfterFeed } from "@/lib/pwa";
 import { flushOnOpen } from "@/lib/offline-queue";
+import { captureInstallPrompt } from "@/lib/install-offer";
 
 /**
  * Layout-level client bootstrap: registers the service worker (installs the
@@ -16,6 +17,8 @@ import { flushOnOpen } from "@/lib/offline-queue";
  */
 export function PwaBootstrap(): React.JSX.Element | null {
   useEffect(() => {
+    // V23: hold the browser's install prompt for the first logged feed.
+    captureInstallPrompt();
     void registerServiceWorker();
     void flushOnOpen();
 

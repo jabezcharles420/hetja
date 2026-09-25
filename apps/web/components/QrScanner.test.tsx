@@ -158,7 +158,7 @@ describe("QrScanner screen", () => {
     render(<QrScanner />);
     expect(await screen.findByText("Camera is off for Hetja.")).not.toBeNull();
     expect(screen.queryByTestId("scan-frame")).toBeNull();
-    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code");
+    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1");
     expect(screen.getByRole("link", { name: /Find by ward and photo/ }).getAttribute("href")).toBe("/scan/find");
     expect(screen.getByRole("link", { name: "Dog is hurt · Send SOS anyway" }).getAttribute("href")).toBe(
       "/scan/find?sos=1",
@@ -219,7 +219,7 @@ describe("QrScanner screen", () => {
     window.location.search = "?intent=feed";
     render(<QrScanner />);
     await screen.findByText("No camera here.");
-    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?intent=feed");
+    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1&intent=feed");
   });
 
   it("verifies a decoded collar, then does a full navigation to /d/ with the signature", async () => {

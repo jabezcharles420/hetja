@@ -2,7 +2,7 @@
 
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { COLLAR_LENGTH, collarGroups, sanitizeCollarCode } from "./collar";
+import { COLLAR_LENGTH, collarGroups, foldConfusables, sanitizeCollarCode } from "./collar";
 import { Label } from "./Label";
 import styles from "./CollarCodeInput.module.css";
 
@@ -40,6 +40,13 @@ export interface CollarCodeInputProps {
   autoFocus?: boolean;
   disabled?: boolean;
   className?: string;
+  /** Read 0 as O and 1 / l as I instead of dropping them (v6 V2). Default false. */
+  fold?: boolean;
+  /** Draw the "___" slots for characters still to come. Default true. */
+  ghost?: boolean;
+  /** Amber ring with no error line (v6 V3, "No dog has this code."). */
+  warn?: boolean;
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 function display(code: string): string {
@@ -68,16 +75,21 @@ export function CollarCodeInput({
   autoFocus,
   disabled,
   className,
+  fold = false,
+  ghost: showGhost = true,
+  warn = false,
+  inputRef,
   "aria-label": ariaLabel,
 }: CollarCodeInputProps): React.JSX.Element {
+  const clean = (raw: string): string => sanitizeCollarCode(fold ? foldConfusables(raw) : raw);
   const autoId = useId();
   const inputId = id ?? `collar-${autoId}`;
   const helperId = `${inputId}-helper`;
   const errorId = `${inputId}-error`;
 
-  const [inner, setInner] = useState(() => sanitizeCollarCode(defaultValue));
-  const code = value !== undefined ? sanitizeCollarCode(value) : inner;
-  const ref = useRef<HTMLInputElement>(null);
+  const [inner, setInner] = useState(() => clean(defaultValue));
+  const code = value !== undefined ? clean(value) : inner;
+  const ref = useRef<HTMLInputElement | null>(null);
   const caret = useRef<number | null>(null);
 
   // Put the caret back where the user was after we reformat the text.
@@ -92,9 +104,9 @@ export function CollarCodeInput({
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
     const raw = e.target.value;
     const pos = e.target.selectionStart ?? raw.length;
-    const next = sanitizeCollarCode(raw);
+    const next = clean(raw);
     // Caret = number of valid chars before it, mapped back into display form.
-    const before = sanitizeCollarCode(raw.slice(0, pos)).length;
+    const before = clean(raw.slice(0, pos)).length;
     caret.current = before + Math.max(0, Math.floor((before - 1) / 3));
     if (before > 0 && before % 3 === 0 && before < next.length) caret.current += 1;
 
@@ -114,13 +126,21 @@ export function CollarCodeInput({
           {label}
         </Label>
       )}
-      <div className={[styles.field, error ? styles.invalid : ""].filter(Boolean).join(" ")}>
-        <span className={styles.ghost} aria-hidden="true">
-          <span className={styles.ghostTyped}>{ghost.typed}</span>
-          {ghost.rest}
-        </span>
+      <div
+        className={[styles.field, error ? styles.invalid : warn ? styles.warn : ""].filter(Boolean).join(" ")}
+      >
+        {showGhost && (
+          <span className={styles.ghost} aria-hidden="true">
+            <span className={styles.ghostTyped}>{ghost.typed}</span>
+            {ghost.rest}
+          </span>
+        )}
         <input
-          ref={ref}
+          ref={(el) => {
+            ref.current = el;
+            if (typeof inputRef === "function") inputRef(el);
+            else if (inputRef) (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+          }}
           id={inputId}
           name={name}
           className={styles.input}

@@ -16,7 +16,7 @@ import styles from "./QrScanner.module.css";
  * white sheet under it is the typed fallback ("No camera, or the QR is
  * muddy?"). After 6 seconds of the camera running without a read, and while
  * nobody is typing, the sheet becomes F1: "Can't read this QR." with Type the
- * code (F2, /scan/code), Find by ward and photo (F3, /scan/find) and the red
+ * code (F2 boxes, /scan/code?part=1), Find by ward and photo (F3, /scan/find) and the red
  * "Dog is hurt · Send SOS anyway" (/scan/find?sos=1: nearest vets and NGOs
  * first, then the finder, because an SOS with no dog pages nobody; see the
  * adapted list in docs/design/v5-handoff/CONTRACT.md). The frame turns
@@ -30,7 +30,7 @@ import styles from "./QrScanner.module.css";
  * `barcode-detector` polyfill is imported lazily, so it only ever loads here.
  * A scanned collar is checked against GET /dogs/:slug before we leave, and a
  * typed code that is not a dog (or not all there) goes to /scan/code, where
- * F2 narrows a partial code and N8 handles a miss. /d/<slug> is a different
+ * F2 narrows a partial code and V3 handles a miss. /d/<slug> is a different
  * app behind Caddy, so that hop is a full navigation.
  *
  * This is a tab root: ChromeShell draws the TabBar, so the screen is the
@@ -364,7 +364,8 @@ export default function QrScanner(): React.JSX.Element {
     {
       title: "Type the code",
       sub: "Printed under the QR. Part of it is fine.",
-      href: withIntent("/scan/code", intent),
+      // F2's boxes: this row promises "Part of it is fine."
+      href: withIntent("/scan/code?part=1", intent),
     },
     { title: "Find by ward and photo", sub: "When the code is gone too", href: withIntent("/scan/find", intent) },
   ];
@@ -447,6 +448,7 @@ export default function QrScanner(): React.JSX.Element {
             <CollarCodeInput
               id="scan-collar-code"
               value={code}
+              fold
               onChange={(next) => {
                 setCode(next);
                 setTyping(true);

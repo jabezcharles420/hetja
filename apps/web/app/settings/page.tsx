@@ -7,8 +7,12 @@ import { AppHeader } from "@/components/ds/AppHeader";
 import { SettingsGroup, SettingsRow } from "@/components/ds/SettingsList";
 import { Sheet } from "@/components/ds/Sheet";
 import { AlertsSheet, QuietHoursSheet, WardPickerSheet } from "@/components/FeederPrefs";
+import { AlertsAsk } from "@/components/AlertsAsk";
+import { PauseAlertsSheet } from "@/components/PauseAlertsSheet";
+import { Switch } from "@/components/ds/Switch";
 import { api, ApiError, clearSession, getAccessToken, type FeederMe, type FeederPatch } from "@/lib/api";
-import { alertsModeLabel, cleanName, formatQuietHours, MAX_NAME, wardsSummary } from "@/lib/feeder-prefs";
+import { alertsModeLabel, cleanName, formatQuietHours, MAX_NAME, wardCode, wardsSummary } from "@/lib/feeder-prefs";
+import { isPaused, resumeLabel } from "@/lib/sos-pause";
 import styles from "./settings.module.css";
 
 /**
@@ -20,7 +24,7 @@ import styles from "./settings.module.css";
 /** Trust floor the SOS fan-out applies before paging a feeder (routes/sos.ts). */
 const SOS_PAGE_TRUST_FLOOR = 40;
 
-type Editor = "name" | "wards" | "alerts" | "quiet" | "delete" | null;
+type Editor = "name" | "wards" | "alerts" | "quiet" | "delete" | "pause" | "ask" | null;
 
 type State =
   | { kind: "loading" }
@@ -50,6 +54,7 @@ export default function SettingsPage(): React.JSX.Element {
   const [nameDraft, setNameDraft] = useState("");
   const [wardsDraft, setWardsDraft] = useState<string[]>([]);
   const nameId = useId();
+  const showId = useId();
 
   const load = useCallback(async () => {
     if (!getAccessToken()) {
@@ -171,6 +176,9 @@ export default function SettingsPage(): React.JSX.Element {
   const wards = me.wards ?? [];
   const mode = me.alertsMode ?? "sos_only";
   const quiet = me.quietHours ?? null;
+  const paused = me.sosOptIn && isPaused(me.sosPausedUntil);
+  const sosOn = me.sosOptIn && !paused;
+  const showName = me.showFirstName !== false;
   const trustNote =
     me.trustScore < SOS_PAGE_TRUST_FLOOR
       ? `Only feeders with a trust score of ${SOS_PAGE_TRUST_FLOOR} or more are paged for SOS. Yours is ${me.trustScore}, so keep logging feeds.`
@@ -187,6 +195,21 @@ export default function SettingsPage(): React.JSX.Element {
           <SettingsRow label="Name shown" value={me.publicName || me.displayName} onClick={() => open("name")} />
           <SettingsRow label="My wards" value={wardsSummary(wards)} onClick={() => open("wards")} />
           <SettingsRow label="Alerts" value={alertsModeLabel(mode)} onClick={() => open("alerts")} />
+          <SettingsRow
+            label="Show my first name on dogs' pages"
+            labelId={`${showId}-l`}
+            sub={showName ? "Strangers see you as one of the dog's feeders." : "You're counted as a feeder, not named."}
+            subId={`${showId}-d`}
+            control={
+              <Switch
+                checked={showName}
+                labelledBy={`${showId}-l`}
+                describedBy={`${showId}-d`}
+                disabled={busy}
+                onChange={(next) => void save({ showFirstName: next })}
+              />
+            }
+          />
         </SettingsGroup>
 
         <h2 className={styles.label}>Your data</h2>
@@ -256,7 +279,15 @@ export default function SettingsPage(): React.JSX.Element {
         open={editor === "alerts"}
         onClose={() => setEditor(null)}
         mode={mode}
-        sosOptIn={me.sosOptIn}
+        sosOn={sosOn}
+        sosSub={
+          paused && me.sosPausedUntil
+            ? `Paused until ${resumeLabel(me.sosPausedUntil)}`
+            : sosOn
+              ? "Hurt dogs in your wards"
+              : "Off"
+        }
+        onSosToggle={(next) => open(next ? "ask" : "pause")}
         quietHours={formatQuietHours(quiet)}
         onEditQuiet={() => open("quiet")}
         trustNote={trustNote}
@@ -272,6 +303,29 @@ export default function SettingsPage(): React.JSX.Element {
         busy={busy}
         error={sheetError}
         onSave={(q) => void save({ quietHours: q }, "alerts")}
+      />
+
+      <PauseAlertsSheet
+        open={editor === "pause"}
+        onClose={() => setEditor("alerts")}
+        wardCodes={wards.map(wardCode)}
+        onDone={(next) => {
+          setState((s) => (s.kind === "ready" ? { kind: "ready", me: { ...s.me, ...next } } : s));
+          setEditor("alerts");
+        }}
+      />
+
+      <AlertsAsk
+        open={editor === "ask"}
+        me={me}
+        onClose={() => setEditor("alerts")}
+        onDone={() => {
+          setState((s) =>
+            s.kind === "ready" ? { kind: "ready", me: { ...s.me, sosOptIn: true, sosPausedUntil: null } } : s,
+          );
+          setEditor("alerts");
+          void load();
+        }}
       />
 
       <Sheet

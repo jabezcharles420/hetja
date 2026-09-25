@@ -15,8 +15,16 @@ import styles from "./ScanParts.module.css";
  */
 
 /** The focused screen's 52px "‹ Scan" header (the shared ds AppHeader). */
-export function ScanHeader({ href = "/scan", label = "Scan" }: { href?: string; label?: string }): React.JSX.Element {
-  return <AppHeader back={{ href, label }} surface="mist" />;
+export function ScanHeader({
+  href = "/scan",
+  label = "Scan",
+  surface = "mist",
+}: {
+  href?: string;
+  label?: string;
+  surface?: "mist" | "white";
+}): React.JSX.Element {
+  return <AppHeader back={{ href, label }} surface={surface} />;
 }
 
 export function Chevron(): React.JSX.Element {

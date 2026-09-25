@@ -20,7 +20,7 @@ import { getPosition } from "./care";
 import { getDeviceToken } from "./device";
 import { pronouns, tagChoices, tagFootnote, tagSentCopy, type Pronouns, type TagKind, type TagOutcome } from "./format";
 import { uuid } from "./idb";
-import { escapeHtml, icon, showView, toast } from "./ui";
+import { closeSheet, escapeHtml, icon, openSheet, sheetOpen, showView, toast } from "./ui";
 
 const q = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
 
@@ -35,12 +35,9 @@ export function openTagSheet(p: DogProfile, done?: () => void): void {
   profile = p;
   onDone = done;
   const pr = pronouns(p.sex);
-  const el = q("#sheet")!;
-  el.innerHTML = `
-    <div class="scrim" id="scrim"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
-      <span class="grab" aria-hidden="true"></span>
-      <h2 id="sheet-t" class="sheet-t" tabindex="-1">What's wrong with the tag?</h2>
+  history.pushState({ hv: "sheet" }, "");
+  openSheet(
+    `<h2 id="sheet-t" class="sheet-t" tabindex="-1">What's wrong with the tag?</h2>
       <div class="group">${tagChoices(pr)
         .map(
           (c) =>
@@ -49,35 +46,24 @@ export function openTagSheet(p: DogProfile, done?: () => void): void {
             )}</span><span class="g-s">${escapeHtml(c.sub)}</span></span><span class="chev" aria-hidden="true">›</span></button>`,
         )
         .join("")}</div>
-      <p class="fn">${escapeHtml(tagFootnote(pr, p.feederCount))}</p>
-    </div>`;
-  el.classList.remove("hidden");
-  q("#v-profile")!.inert = true;
-  history.pushState({ hv: "sheet" }, "");
-  q("#scrim")!.addEventListener("click", () => history.back());
-  el.querySelectorAll<HTMLButtonElement>(".grow").forEach((b) =>
+      <p class="fn">${escapeHtml(tagFootnote(pr, p.feederCount))}</p>`,
+    "#v-profile",
+    () => history.back(),
+  );
+  document.querySelectorAll<HTMLButtonElement>(".grow").forEach((b) =>
     b.addEventListener("click", () => void choose(b.dataset.kind as TagKind)),
   );
-  q("#sheet-t")!.focus();
-}
-
-/** Closes the sheet without touching history (the caller already moved it). */
-export function closeTagSheet(): void {
-  const el = q("#sheet");
-  if (!el || el.classList.contains("hidden")) return;
-  el.classList.add("hidden");
-  el.innerHTML = "";
-  q("#v-profile")!.inert = false;
-  q("#tag-open")?.focus();
 }
 
 /** Back button and Escape close the sheet. Call once from main.ts. */
 export function wireTag(): void {
   window.addEventListener("popstate", (ev) => {
-    if ((ev.state as { hv?: string } | null)?.hv !== "sheet") closeTagSheet();
+    if ((ev.state as { hv?: string } | null)?.hv !== "sheet") closeSheet();
   });
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && !q("#sheet")?.classList.contains("hidden")) history.back();
+    if (ev.key !== "Escape" || !sheetOpen()) return;
+    if ((history.state as { hv?: string } | null)?.hv === "sheet") history.back();
+    else closeSheet();
   });
   window.addEventListener("online", () => void flushTagQueue());
 }
@@ -93,7 +79,7 @@ async function choose(kind: TagKind): Promise<void> {
     toast("Couldn't send that. Please try again.");
     return;
   }
-  closeTagSheet();
+  closeSheet();
   q("#v-tag")!.innerHTML = tagSentMarkup(kind, p, o);
   history.replaceState({ hv: "tag" }, "");
   showView("tag");

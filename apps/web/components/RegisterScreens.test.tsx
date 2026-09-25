@@ -65,7 +65,6 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
-import StartClient from "@/app/(register)/register/StartClient";
 import RegisterFlow, {
   REGISTRATION_WEEKLY_CAP_MESSAGE,
   nearestWard,
@@ -138,36 +137,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks();
   cleanup();
-});
-
-describe("R1 Start", () => {
-  it("shows the mock's copy and starts with a photo", async () => {
-    render(<StartClient />);
-    expect(await screen.findByText("Register a dog")).not.toBeNull();
-    expect(
-      screen.getByText("Know a street dog well? Give them a code so anyone can scan it and help. About two minutes."),
-    ).not.toBeNull();
-    for (const t of [
-      "A clear face photo",
-      "Taken now, in daylight if you can",
-      "The ward they live in",
-      "Never a street or building",
-      "A printer or print shop",
-      "One A4 page, black and white",
-      "New dogs show as Unverified until a vet or a second feeder confirms them.",
-    ]) {
-      expect(screen.getByText(t)).not.toBeNull();
-    }
-    expect(screen.getByRole("link", { name: "Start with a photo" }).getAttribute("href")).toBe("/register/new");
-    expect(screen.getByRole("link", { name: "‹ Me" }).getAttribute("href")).toBe("/me");
-  });
-
-  it("keeps the capability gate: a feeder without it is offered the switch", async () => {
-    apiMock.getFeederMe.mockResolvedValue({ role: "feeder", capabilities: [] });
-    render(<StartClient />);
-    expect(await screen.findByText("One more step.")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Enable registration" })).not.toBeNull();
-  });
 });
 
 async function throughPhoto(): Promise<void> {
@@ -269,53 +238,33 @@ describe("R2 to R5, one flow", () => {
   });
 });
 
-describe("R6 Code ready", () => {
-  const detail = {
-    slug: "rni482pq7",
-    name: "Rani",
-    status: "pending_activation",
-    wardId: "K-West",
-    registeredAt: null,
-    collarUrl: collarUrl("rni482pq7"),
-  };
-
-  it("shows the real QR, the grouped code, the Unverified pill and the activation line", async () => {
-    rememberDogSex("rni482pq7", "female");
-    apiMock.getRegistration.mockResolvedValue(detail);
-    const { container } = render(<ReadyClient slug="rni482pq7" />);
-    expect(await screen.findByText("Rani is on Hetja.")).not.toBeNull();
+describe("V14 Code ready (keeps R6's QR and pill)", () => {
+  it("says what happens next, with the real QR, the grouped code and the Unverified pill", async () => {
+    rememberDogSex("k2au9pd3z", "male");
+    apiMock.getRegistration.mockResolvedValue({
+      slug: "k2au9pd3z",
+      name: "Kalu",
+      status: "pending_activation",
+      wardId: "K-West",
+      registeredAt: null,
+      collarUrl: collarUrl("k2au9pd3z"),
+    });
+    const { container } = render(<ReadyClient slug="k2au9pd3z" />);
+    expect(await screen.findByText("Kalu is almost on Hetja.")).not.toBeNull();
     expect(
-      screen.getByText("Print her tag and tie it to a soft collar. Anyone who scans it can log a feed or send an SOS."),
+      screen.getByText("This is his code, for good. Print the tag, put it on, and scan it once to switch his page on."),
     ).not.toBeNull();
-    expect(["RNI", "482", "PQ7"].every((g) => screen.getByText(g))).toBe(true);
+    expect(["K2A", "U9P", "D3Z"].every((g) => screen.getByText(g))).toBe(true);
+    expect(screen.getByText("Kalu · Scan me if I look lost")).not.toBeNull();
     expect(screen.getByText("Unverified · needs one confirmation")).not.toBeNull();
     expect(container.querySelector("svg path")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Print her tag" }).getAttribute("href")).toBe("/register/rni482pq7/print");
-    expect(screen.getByRole("link", { name: /Switch the profile on/ }).getAttribute("href")).toBe("/register/rni482pq7");
-    expect(screen.getByRole("link", { name: "Done" }).getAttribute("href")).toBe("/me");
-  });
-
-  it("asks a vet through the share sheet with the dog's page", async () => {
-    apiMock.getRegistration.mockResolvedValue({ ...detail, status: "active" });
-    const share = vi.fn(async () => {});
-    Object.defineProperty(navigator, "share", { value: share, configurable: true, writable: true });
-    render(<ReadyClient slug="rni482pq7" />);
-    await screen.findByText("Rani is on Hetja.");
-    expect(screen.queryByRole("link", { name: /Switch the profile on/ })).toBeNull();
-    expect(screen.getByRole("link", { name: "Print their tag" })).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Ask a vet to confirm" }));
-    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
-    expect(share).toHaveBeenCalledWith({
-      title: "Rani is on Hetja.",
-      text: "Could you check Rani and confirm them on Hetja? Their collar code is RNI 482 PQ7.",
-      url: "https://hetja.in/d/rni482pq7",
-    });
-    Object.defineProperty(navigator, "share", { value: undefined, configurable: true, writable: true });
+    expect(screen.getByRole("link", { name: "Print Kalu's tag" }).getAttribute("href")).toBe("/register/k2au9pd3z/print");
+    expect(screen.getByRole("link", { name: "I'll print it later" }).getAttribute("href")).toBe("/register");
   });
 
   it("words a nameless dog sensibly", () => {
-    expect(readyTitle(null)).toBe("Your dog is on Hetja.");
-    expect(readyTitle("Rani")).toBe("Rani is on Hetja.");
+    expect(readyTitle(null)).toBe("Your dog is almost on Hetja.");
+    expect(readyTitle("Rani")).toBe("Rani is almost on Hetja.");
   });
 });
 
@@ -333,7 +282,7 @@ describe("pronouns", () => {
   });
 });
 
-describe("R7 Print tag", () => {
+describe("R7 + P5 Print the tag (paper)", () => {
   beforeEach(() => {
     apiMock.getCollar.mockResolvedValue({ slug: "rni482pq7", name: "Rani", wardId: "K-West", collarUrl: collarUrl("rni482pq7") });
   });
@@ -341,7 +290,7 @@ describe("R7 Print tag", () => {
   it("offers the three layouts and the paper, and records every sheet it makes", async () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     render(<PrintClient slug="rni482pq7" />);
-    expect(await screen.findByText("Print tag")).not.toBeNull();
+    expect(await screen.findByText("Print the tag")).not.toBeNull();
     for (const t of [
       "10 small tags + collar band",
       "Coin-sized, 32 × 46 mm",

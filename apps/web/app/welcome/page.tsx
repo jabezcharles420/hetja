@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, StickyFooter } from "@/components/ds";
 import { Switch } from "@/components/ds/Switch";
 import { QuietHoursSheet, WardChips } from "@/components/FeederPrefs";
+import { AlertsAsk } from "@/components/AlertsAsk";
 import { api, ApiError, getAccessToken, type FeederMe, type QuietHours } from "@/lib/api";
 import { cleanName, DEFAULT_QUIET_HOURS, formatQuietHours, MAX_NAME } from "@/lib/feeder-prefs";
 import { safeNext } from "@/lib/login";
@@ -30,6 +31,7 @@ export default function WelcomePage(): React.JSX.Element {
   const [sos, setSos] = useState(true);
   const [quiet, setQuiet] = useState<QuietHours | null>(DEFAULT_QUIET_HOURS);
   const [quietOpen, setQuietOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const id = useId();
@@ -66,6 +68,8 @@ export default function WelcomePage(): React.JSX.Element {
     void load();
   }, [load]);
 
+  const goOn = () => router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
+
   const start = async () => {
     const displayName = cleanName(name);
     if (!displayName) {
@@ -76,7 +80,10 @@ export default function WelcomePage(): React.JSX.Element {
     setStatus(null);
     try {
       await api.patchFeederMe({ displayName, wards, sosOptIn: sos, quietHours: quiet, onboarded: true });
-      router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
+      // N13 before the browser's push prompt, so "Allow" is an informed tap.
+      const undecided = typeof Notification !== "undefined" && Notification.permission === "default";
+      if (sos && undecided) setAskOpen(true);
+      else goOn();
     } catch (err) {
       setStatus(err instanceof ApiError ? err.message : "Could not save that. Try again.");
     } finally {
@@ -177,6 +184,13 @@ export default function WelcomePage(): React.JSX.Element {
           </Button>
         </StickyFooter>
       </form>
+
+      <AlertsAsk
+        open={askOpen}
+        me={{ ...state.me, wards, quietHours: quiet, sosOptIn: sos }}
+        onClose={goOn}
+        onDone={goOn}
+      />
 
       <QuietHoursSheet
         open={quietOpen}

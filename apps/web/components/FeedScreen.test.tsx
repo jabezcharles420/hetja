@@ -27,7 +27,7 @@ vi.mock("@/lib/api", async () => {
   return {
     ...actual,
     bestEffortDeviceToken: vi.fn().mockResolvedValue("dev-tok"),
-    api: { ...actual.api, getDog: vi.fn(), getStreak: vi.fn() },
+    api: { ...actual.api, getDog: vi.fn(), getStreak: vi.fn(), getFeederMe: vi.fn().mockResolvedValue({ publicName: "Priya S." }), getMyDogsV5: vi.fn(), createScanBatch: vi.fn() },
   };
 });
 
@@ -118,7 +118,8 @@ describe("Log a feed", () => {
     expect(screen.getByRole("link", { name: "Change" }).getAttribute("href")).toBe("/scan?intent=feed&dog=ddr237xk2");
     expect(screen.getByRole("link", { name: "Cancel" })).not.toBeNull();
     expect(screen.getByText("Add a photo (optional)")).not.toBeNull();
-    expect(screen.getByText("How did it go? (optional)")).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Feeding Bruno" })).not.toBeNull();
+    expect(screen.getByText("How were they?")).not.toBeNull();
     expect(OUTCOMES.map((o) => o.label)).toEqual(["Ate it all", "Ate a little", "Didn't eat", "Looks unwell"]);
     for (const o of OUTCOMES) expect(screen.getByRole("button", { name: o.label })).not.toBeNull();
     expect(await screen.findByText("Keeps your streak at 24 days.")).not.toBeNull();
@@ -159,8 +160,8 @@ describe("Log a feed", () => {
     expect(screen.queryByTestId("unwell-hint")).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "Looks unwell" }));
     const hint = screen.getByTestId("unwell-hint");
-    expect(hint.textContent).toMatch(/raise an SOS/);
-    expect(screen.getByRole("link", { name: /Open Bruno.s profile/ }).getAttribute("href")).toBe("/d/ddr237xk2");
+    expect(screen.getByRole("link", { name: /Raise an SOS/ }).getAttribute("href")).toBe("/d/ddr237xk2");
+    expect(hint.textContent).toContain("serious");
     fireEvent.click(screen.getByRole("button", { name: "Log feed" }));
     await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
     expect((enqueue.mock.calls[0]![0] as { outcome: string }).outcome).toBe("unwell");
@@ -274,7 +275,10 @@ describe("Log a feed", () => {
     render(<FeedScreen />);
     fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
     expect((await screen.findByTestId("feed-note")).textContent).toBe("Feed logged. The photo wasn't kept this time.");
-    expect(screen.getByRole("status").textContent).toContain("Logged. Bruno");
+    // Delivered: V10, not a toast.
+    expect(screen.getByRole("heading", { name: "Bruno has eaten." })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Scan the next dog" }).getAttribute("href")).toBe("/scan?intent=feed");
+    expect(screen.getByRole("link", { name: "Done for now" }).getAttribute("href")).toBe("/me");
   });
 
   it("mentions an ignored out-of-Mumbai location quietly, and nothing else", () => {

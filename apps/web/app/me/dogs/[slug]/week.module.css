@@ -1,0 +1,181 @@
+/* N15 Your dog, this week (design v6). Mist, plain. */
+
+.body {
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.face {
+  width: 64px !important;
+  height: 64px !important;
+  font-size: 26px !important;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.by {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.weekCard {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.weekHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.weekTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.weekCount {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dotFed {
+  background: var(--h-ok);
+  color: var(--h-white);
+}
+
+.dotNone {
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  color: var(--h-tertiary);
+  font-size: 15px;
+}
+
+.dotWarn {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dotToday {
+  box-shadow: 0 0 0 2px var(--h-white), 0 0 0 4px var(--h-ink);
+}
+
+.dotNone.dotToday {
+  box-shadow: inset 0 0 0 1.5px var(--h-line), 0 0 0 2px var(--h-white), 0 0 0 4px var(--h-ink);
+}
+
+.dayLetter {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.dayToday {
+  color: var(--h-ink);
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
+}
+
+.group {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 0 16px;
+}
+
+.row {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--h-divider);
+  color: inherit;
+  text-decoration: none;
+}
+
+.row:last-child {
+  min-height: 60px;
+  border-bottom: 0;
+}
+
+a.row:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: 17px;
+}
+
+.rowSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.rowMeta {
+  font-size: 17px;
+  color: var(--h-secondary);
+}

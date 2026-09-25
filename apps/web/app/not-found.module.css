@@ -1,0 +1,56 @@
+/* V1 Not found: the light aurora, 120px down, 18px between blocks. */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--h-ink);
+  background:
+    radial-gradient(70% 40% at 0% 0%, var(--h-aurora-light-pink) 0%, rgba(255, 201, 230, 0) 70%),
+    radial-gradient(60% 35% at 100% 5%, var(--h-aurora-light-peach) 0%, rgba(255, 217, 201, 0) 70%),
+    var(--h-aurora-base);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding-block: calc(120px + env(safe-area-inset-top, 0px)) 24px;
+}
+
+.code {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  text-wrap: wrap;
+}
+
+.lead {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+/* The link's 44px target, its text on the mock's line. */
+.body .home {
+  margin-block: -12px;
+  padding-inline: 0;
+}
+
+.page .footer {
+  padding-bottom: max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+}

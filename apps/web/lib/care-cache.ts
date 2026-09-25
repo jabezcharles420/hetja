@@ -138,3 +138,65 @@ export async function cachedDogName(slug: string): Promise<string | null> {
 export function telHref(phoneE164: string): string {
   return `tel:${phoneE164.replace(/[^\d+]/g, "")}`;
 }
+
+// ---------------------------------------------------------------------------
+// L6 "Couldn't load Rani's case": what the alert said, with no signal.
+
+/** What the page can show about a case it could not load. */
+export interface CaseGlance {
+  caseId: string;
+  dogName: string | null;
+  dogSlug: string | null;
+  severity: "minor" | "serious" | "critical" | null;
+  wardId: string | null;
+  wardName: string | null;
+  openedAt: string | null;
+  /** The push's own text, when that is all there is. */
+  pushBody: string | null;
+}
+
+const caseKey = (id: string) => `sos-case:${id}`;
+/** Where public/sw.js keeps an SOS push's payload (Cache Storage). */
+export const PUSH_CACHE_PATH = "/__hetja/push/";
+
+/** Remember a loaded case's headline facts (ward level, no location). Never throws. */
+export async function rememberCase(g: Omit<CaseGlance, "pushBody">): Promise<void> {
+  try {
+    await putCached(caseKey(g.caseId), { ...g, pushBody: null });
+  } catch {
+    /* nothing saved */
+  }
+}
+
+/**
+ * The case as last seen on this phone, else what its push said (public/sw.js
+ * stores the payload when it arrives), else null. Never throws.
+ */
+export async function caseGlance(caseId: string): Promise<CaseGlance | null> {
+  try {
+    const saved = await getCached<CaseGlance>(caseKey(caseId));
+    if (saved) return saved;
+  } catch {
+    /* fall through to the push */
+  }
+  try {
+    if (typeof caches === "undefined") return null;
+    const res = await caches.match(`${PUSH_CACHE_PATH}${encodeURIComponent(caseId)}`);
+    if (!res) return null;
+    const d = (await res.json()) as Record<string, unknown>;
+    const str = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : null);
+    const sev = str("severity");
+    return {
+      caseId,
+      dogName: str("dogName"),
+      dogSlug: str("dogSlug"),
+      severity: sev === "minor" || sev === "serious" || sev === "critical" ? sev : null,
+      wardId: str("wardId"),
+      wardName: str("wardName"),
+      openedAt: str("openedAt"),
+      pushBody: str("body"),
+    };
+  } catch {
+    return null;
+  }
+}

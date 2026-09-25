@@ -178,7 +178,7 @@ export default async function LandingPage(): Promise<React.JSX.Element> {
               <Button fullWidth href="/scan" className={s.scanBtn}>
                 Scan a collar
               </Button>
-              <Button variant="link" chevron href="/scan#code" className={`${s.textLink} ${s.mOnly}`}>
+              <Button variant="link" chevron href="/scan/code" className={`${s.textLink} ${s.mOnly}`}>
                 Or type a collar code
               </Button>
               <Button variant="link" chevron href="/login" className={`${s.textLink} ${s.dOnly}`}>

@@ -1,0 +1,128 @@
+/* P6 Two collars waiting. */
+
+.cancel {
+  align-self: flex-start;
+  margin-top: env(safe-area-inset-top, 0px);
+}
+
+.card {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pill {
+  align-self: flex-start;
+}
+
+.title {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.row + .row {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.act {
+  flex: none;
+  position: relative;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue-tint);
+  color: var(--h-blue-tint-ink);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.act::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.act:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.faded {
+  opacity: 0.4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.fadedPhoto {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.fadedCircle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  background: var(--h-white);
+}
+
+.fadedForm {
+  background: var(--h-white);
+  border-radius: 20px;
+  padding: 0 16px;
+}
+
+.fadedRow {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  font-size: 17px;
+  color: var(--h-tertiary);
+}
+
+.fadedRow + .fadedRow {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.fadedValue {
+  color: var(--h-ink);
+}

@@ -6,7 +6,6 @@ import { Button } from "@/components/ds";
 import { api, ApiError, type DogCard, type DogLookupResult } from "@/lib/api";
 import {
   BOX_LENGTH,
-  EMPTY_BOXES,
   MIN_KNOWN,
   UNKNOWN,
   boxesFromCode,
@@ -16,28 +15,33 @@ import {
   knownCount,
   matchCountLabel,
   normaliseCode,
-  prettyCode,
   queryFromBoxes,
   withIntent,
   type CodeBoxes,
 } from "@/lib/scan-code";
-import { ChoiceRows, DogList, DogRow, ScanHeader } from "./ScanParts";
+import { DogList, DogRow, ScanHeader } from "./ScanParts";
+import FullCode, { type Miss } from "./FullCode";
 import styles from "./CodeScreen.module.css";
 
 /**
- * F2 "Type what you can read" and N8 "No dog has this code." (design v5).
+ * /scan/code: two ways to type a collar code, one route.
  *
- * Three boxes of three. Whatever is typed is folded the way GET /dogs/lookup
- * folds it (0 is O; 1 and l are I), a `?`, `.` or space skips a character,
- * and anything not yet typed is unknown too. Unknowns show as dots. Once at
- * least 4 characters are known the list of matches narrows as you type
- * (debounced). A full code that is a dog opens it; a full code that is not
- * is N8, with the lookup's one-swap "Did you mean" suggestions when there
- * are any.
+ *   V2 / V3 (design v6, FullCode.tsx): one field for the whole printed code,
+ *   an "8 / 9" counter, "Find the dog" enabling at 9. A miss is V3 on the
+ *   same field ("No dog has this code." / "One letter off. Is it her?").
+ *   This is the default: most people can read the whole code.
  *
- * `?code=` prefills the boxes (the Scan sheet sends a typed code here when
- * it is short or unknown), and `?intent=feed` is kept, so a feeder who came
- * to log a feed lands on Log a feed for the dog they pick.
+ *   F2 (design v5, PartialCode below): three boxes of three for a tag that is
+ *   only partly readable. `?`, `.` or a space skips a character; from 4 known
+ *   characters the matches narrow as you type. Reached from F1's "Type the
+ *   code" row (its sub line promises "Part of it is fine."), from V2's "Can't
+ *   read all of it?" link, and from the Scan sheet with a short code
+ *   (`?code=rni4`). A full code typed into the boxes that is not a dog goes
+ *   to V3, which supersedes v5's N8 (v6 CONTRACT, supersedes table).
+ *
+ * Both fold what is typed the way GET /dogs/lookup folds it (0 is O; 1 and l
+ * are I). `?intent=feed` is kept, so a feeder who came to log a feed lands on
+ * Log a feed for the dog they pick.
  */
 
 export const DEBOUNCE_MS = 300;
@@ -46,7 +50,6 @@ type Lookup =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "matches"; dogs: DogCard[] }
-  | { kind: "miss"; code: string; suggestions: DogCard[] }
   | { kind: "leaving" }
   | { kind: "error"; reason: "offline" | "limited" | "failed" };
 
@@ -57,12 +60,68 @@ function boxClass(box: string, focused: boolean): string {
   return box.replaceAll(UNKNOWN, "").length > 0 ? styles.boxFilled : styles.boxEmpty;
 }
 
+type Start = { mode: "full"; code: string } | { mode: "part"; code: string };
+
+/** Which view a URL opens: `?part=1` or a short `?code=` is F2, anything else V2. */
+export function startFor(search: string): Start {
+  const params = new URLSearchParams(search);
+  const code = normaliseCode(params.get("code") ?? "");
+  if (params.get("part") === "1") return { mode: "part", code };
+  if (code.length > 0 && !isFullCode(code)) return { mode: "part", code };
+  return { mode: "full", code };
+}
+
 export default function CodeScreen(): React.JSX.Element {
-  const [boxes, setBoxes] = useState<CodeBoxes>(EMPTY_BOXES);
+  const [start, setStart] = useState<Start | null>(null);
+  const [intent, setIntent] = useState<string | null>(null);
+  const [miss, setMiss] = useState<Miss | null>(null);
+
+  useEffect(() => {
+    setStart(startFor(window.location.search));
+    setIntent(currentIntent());
+  }, []);
+
+  // Server render and first paint: V2 without a prefill (the common case).
+  const view = start ?? { mode: "full" as const, code: "" };
+  if (view.mode === "part") {
+    return (
+      <PartialCode
+        initial={view.code}
+        intent={intent}
+        onMiss={(m) => {
+          setMiss(m);
+          setStart({ mode: "full", code: m.code });
+        }}
+      />
+    );
+  }
+  return (
+    <FullCode
+      key={`${view.code}:${miss ? "miss" : ""}`}
+      initial={view.code}
+      initialMiss={miss}
+      intent={intent}
+      onPartial={() => {
+        setMiss(null);
+        setStart({ mode: "part", code: "" });
+      }}
+    />
+  );
+}
+
+/** F2: three boxes of three, for a tag that is only partly readable. */
+export function PartialCode({
+  initial,
+  intent,
+  onMiss,
+}: {
+  initial: string;
+  intent: string | null;
+  onMiss: (miss: Miss) => void;
+}): React.JSX.Element {
+  const [boxes, setBoxes] = useState<CodeBoxes>(() => boxesFromCode(initial));
   const [focused, setFocused] = useState<number | null>(null);
   const [lookup, setLookup] = useState<Lookup>({ kind: "idle" });
-  const [intent, setIntent] = useState<string | null>(null);
-  const [fakeOpen, setFakeOpen] = useState(false);
   const [retry, setRetry] = useState(0);
   const inputs = useRef<Array<HTMLInputElement | null>>([null, null, null]);
   const seq = useRef(0);
@@ -79,21 +138,16 @@ export default function CodeScreen(): React.JSX.Element {
     }
   }, []);
 
-  // Prefill from ?code= and keep ?intent=; with nothing to prefill, the
-  // cursor starts in box 1.
+  // The cursor starts in the first box that still has room.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setIntent(currentIntent());
-    const pre = params.get("code");
-    if (pre) {
-      const next = boxesFromCode(pre);
-      setBoxes(next);
-      const firstShort = next.findIndex((b) => b.length < BOX_LENGTH);
-      if (firstShort !== -1) focusBox(firstShort);
-    } else {
-      focusBox(0);
-    }
-  }, [focusBox]);
+    const firstShort = boxes.findIndex((b) => b.length < BOX_LENGTH);
+    focusBox(firstShort === -1 ? 2 : firstShort);
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onMissRef = useRef(onMiss);
+  onMissRef.current = onMiss;
 
   const query = queryFromBoxes(boxes);
   const known = knownCount(query);
@@ -130,7 +184,7 @@ export default function CodeScreen(): React.JSX.Element {
           window.location.assign(destinationFor({ slug: res.exact.slug, sig: null }, currentIntent()));
           return;
         }
-        setLookup({ kind: "miss", code: query, suggestions: res.suggestions ?? [] });
+        onMissRef.current({ code: query, suggestions: res.suggestions ?? [] });
         return;
       }
       setLookup({ kind: "matches", dogs: res.matches ?? [] });
@@ -180,58 +234,8 @@ export default function CodeScreen(): React.JSX.Element {
     }
   };
 
-  const typeAgain = () => {
-    setBoxes(EMPTY_BOXES);
-    setLookup({ kind: "idle" });
-    // Focus after the boxes are back on screen.
-    setTimeout(() => focusBox(0), 0);
-  };
-
   const findHref = withIntent("/scan/find", intent);
   const dogHref = (dog: DogCard) => destinationFor({ slug: dog.slug, sig: null }, intent);
-
-  if (lookup.kind === "miss") {
-    const s = lookup.suggestions;
-    return (
-      <div className={styles.screen}>
-        <ScanHeader href={withIntent("/scan", intent)} />
-        <div className={styles.missBody}>
-          <p className={styles.missCode} aria-label={`Code ${prettyCode(lookup.code)}`}>
-            {prettyCode(lookup.code)}
-          </p>
-          <h1 className={styles.missTitle}>No dog has this code.</h1>
-          {s.length > 0 ? (
-            <>
-              <p className={styles.missLead}>
-                {s.length === 1
-                  ? "Two digits may be swapped. Did you mean this dog?"
-                  : "Two digits may be swapped. Did you mean one of these dogs?"}
-              </p>
-              <DogList label="Did you mean">
-                {s.map((dog) => (
-                  <DogRow key={dog.slug} dog={dog} href={dogHref(dog)} />
-                ))}
-              </DogList>
-            </>
-          ) : (
-            <p className={styles.missLead}>
-              No code on Hetja is one swap or one letter away from it either. Check the tag in better light, or find
-              the dog by photo.
-            </p>
-          )}
-          <ChoiceRows
-            size="plain"
-            items={[
-              { title: "Type it again", onClick: typeAgain },
-              { title: "Find by ward and photo", href: findHref },
-              { title: "Tag looks fake", onClick: () => setFakeOpen(true) },
-            ]}
-          />
-        </div>
-        {fakeOpen && <FakeTagSheet findHref={findHref} onClose={() => setFakeOpen(false)} />}
-      </div>
-    );
-  }
 
   return (
     <div className={styles.screen}>
@@ -364,49 +368,5 @@ function Results({
       </DogList>
       <p className={styles.check}>Check the photo before you log anything.</p>
     </>
-  );
-}
-
-/** N8 "Tag looks fake": there is no report API for a code that is no dog, so this explains what to do. */
-function FakeTagSheet({ findHref, onClose }: { findHref: string; onClose: () => void }): React.JSX.Element {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    ref.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div className={styles.scrim} onClick={onClose}>
-      <div
-        ref={ref}
-        className={styles.fakeSheet}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="fake-title"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="fake-title" className={styles.fakeTitle}>
-          If the tag looks fake
-        </h2>
-        <p className={styles.fakeText}>
-          A Hetja tag has a QR, the 9-character code printed under it, and the dog&apos;s name. A code that finds no
-          dog was misread, or the tag is not ours.
-        </p>
-        <p className={styles.fakeText}>
-          Don&apos;t log a feed on it, and don&apos;t pay anyone because of it. If the dog is on Hetja, find them by
-          ward and photo, then report the tag from their page so their feeders can reprint it.
-        </p>
-        <Button href={findHref} fullWidth shadow={false}>
-          Find by ward and photo
-        </Button>
-        <Button variant="link" fullWidth onClick={onClose}>
-          Close
-        </Button>
-      </div>
-    </div>
   );
 }

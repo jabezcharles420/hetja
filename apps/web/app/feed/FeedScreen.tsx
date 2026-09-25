@@ -10,8 +10,12 @@ import {
   bestEffortDeviceToken,
   getAccessToken,
   type DogProfile,
+  type DogProfileV5,
   type FeedOutcomeValue,
 } from "@/lib/api";
+import { pronouns, sexOf } from "@/lib/care-copy";
+import { FeedDone } from "./FeedDone";
+import { FeedRound } from "./FeedRound";
 import { parseCollarCode } from "@/lib/collar";
 import {
   blobToBase64,
@@ -120,6 +124,50 @@ export function feedNote(result: { photoAccepted?: boolean; geoAccepted?: boolea
   return lines.length ? lines.join(" ") : null;
 }
 
+/** L2 note cap (POST /scans `note`). */
+export const NOTE_MAX = 280;
+
+/**
+ * L2 "Tell Arjun": the dog's OTHER feeders, from the profile's `feeders`
+ * (first names, null for anyone who opted out). One entry matching the
+ * caller's own first name is taken out as the caller.
+ */
+export function coFeeders(
+  feeders: { firstName: string | null }[] | undefined,
+  myFirstName: string | null,
+): { firstName: string | null }[] {
+  const list = [...(feeders ?? [])];
+  const i = myFirstName ? list.findIndex((f) => f.firstName === myFirstName) : -1;
+  if (i >= 0) list.splice(i, 1);
+  return list;
+}
+
+/** "Arjun", "Arjun and Meera", or null when the others are not all named (then "them"). */
+export function coFeederNames(co: { firstName: string | null }[]): string | null {
+  const named = co.map((c) => c.firstName).filter((n): n is string => !!n);
+  if (named.length !== co.length || co.length === 0 || co.length > 2) return null;
+  return named.join(" and ");
+}
+
+/** "Log feed", "Log feed and tell Arjun", "Log feed and tell them". */
+export function logLabel(tell: boolean, names: string | null): string {
+  if (!tell) return "Log feed";
+  return `Log feed and tell ${names ?? "them"}`;
+}
+
+/** localStorage: feeds this phone has logged, for V23 after the FIRST one. */
+export const FEEDS_LOGGED_KEY = "hetja.feedsLogged";
+
+function countFeed(): number {
+  try {
+    const n = (Number(localStorage.getItem(FEEDS_LOGGED_KEY)) || 0) + 1;
+    localStorage.setItem(FEEDS_LOGGED_KEY, String(n));
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 type Load =
   | { kind: "loading" }
   | { kind: "no-dog" }
@@ -157,6 +205,10 @@ export default function FeedScreen(): React.JSX.Element {
   const [waiting, setWaiting] = useState<WaitingFeed[]>([]);
   const [careNumbers, setCareNumbers] = useState<CareNumber[]>([]);
   const [offlineNow, setOfflineNow] = useState(false);
+  const [fed, setFed] = useState<{ streak: number | null; note: string | null; first: boolean } | null>(null);
+  const [tellCo, setTellCo] = useState(true);
+  const [unwellNote, setUnwellNote] = useState("");
+  const [myFirstName, setMyFirstName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -179,6 +231,13 @@ export default function FeedScreen(): React.JSX.Element {
     let cancelled = false;
     // Online: keep this feeder's ward care numbers on the phone for N7.
     if (!browserOffline()) void refreshCareNumbers();
+    // L2 needs to know which of the dog's feeders is the caller.
+    api
+      .getFeederMe()
+      .then((me) => {
+        if (!cancelled) setMyFirstName((me.publicName ?? me.displayName ?? "").trim().split(/\s+/)[0] || null);
+      })
+      .catch(() => undefined);
     (async () => {
       try {
         const dog = await api.getDog(parsed.slug);
@@ -294,6 +353,8 @@ export default function FeedScreen(): React.JSX.Element {
       // Minted at CAPTURE time and stored with the queued record, so a flush
       // days later presents a credential from when the feed happened.
       const deviceToken = await bestEffortDeviceToken();
+      const unwell = outcome === "unwell";
+      const telling = unwell && tellCo && coFeeders((load.dog as DogProfileV5).feeders, myFirstName).length > 0;
       const res = await enqueueFeed({
         dogSlug: load.dog.slug,
         photo,
@@ -301,6 +362,8 @@ export default function FeedScreen(): React.JSX.Element {
         deviceToken,
         ...(outcome ? { outcome } : {}),
         ...(load.dog.name ? { dogName: load.dog.name } : {}),
+        ...(unwell && unwellNote.trim() ? { note: unwellNote.trim().slice(0, NOTE_MAX) } : {}),
+        ...(telling ? { tellCoFeeders: true as const } : {}),
       });
       if (res.dropped) {
         // Refused for good (recordDroppedFeed has it). Say so; do not pretend.
@@ -316,6 +379,12 @@ export default function FeedScreen(): React.JSX.Element {
         return;
       }
       const quiet = feedNote(res.result);
+      if (res.result) {
+        // Delivered while the feeder watched: V10. The first feed on this
+        // phone is where V23 (add to home screen) belongs.
+        setFed({ streak: res.result.streak?.streakDays ?? streakDays, note: quiet, first: countFeed() === 1 });
+        return;
+      }
       setToast(
         res.offline
           ? QUEUED_TOAST
@@ -333,7 +402,7 @@ export default function FeedScreen(): React.JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [busy, done, file, load, outcome]);
+  }, [busy, done, file, load, myFirstName, outcome, streakDays, tellCo, unwellNote]);
 
   const changeHref = `/scan?intent=feed${slug ? `&dog=${encodeURIComponent(slug)}` : ""}`;
 
@@ -386,15 +455,48 @@ export default function FeedScreen(): React.JSX.Element {
     );
   }
 
+  if (fed && load.kind === "ready") {
+    const d = load.dog as DogProfileV5;
+    return (
+      <div data-first-feed={fed.first ? "true" : undefined}>
+        <FeedDone
+          dogs={[{ slug: d.slug, name: dogName(d.name), photoUrl: d.photoUrl ?? null, sex: d.sex ?? null }]}
+          streakDays={fed.streak}
+          note={fed.note}
+        />
+      </div>
+    );
+  }
+
+  const noDogView = (): React.JSX.Element => (
+    <div className={styles.page}>
+      <div className={styles.top}>
+        <Link href="/me" className={styles.cancel}>
+          Cancel
+        </Link>
+      </div>
+      <div className={styles.body}>
+        <h1 className={styles.title}>Log a feed</h1>
+        <p className={styles.state}>Scan the collar of the dog you fed.</p>
+      </div>
+      <StickyFooter background="mist" className={styles.footer}>
+        <Button href={changeHref} fullWidth>
+          Scan a collar
+        </Button>
+      </StickyFooter>
+    </div>
+  );
+
+  // V11: no dog in the link, so ask who was fed on this round.
+  if (load.kind === "no-dog") return <FeedRound onEmpty={noDogView} />;
+
   if (load.kind !== "ready") {
     const msg =
       load.kind === "loading"
         ? null
-        : load.kind === "no-dog"
-          ? "Scan the collar of the dog you fed."
-          : load.kind === "not-found"
-            ? "No dog with that code. Check the letters and try again."
-            : load.message;
+        : load.kind === "not-found"
+          ? "No dog with that code. Check the letters and try again."
+          : load.message;
     return (
       <div className={styles.page}>
         <div className={styles.top}>
@@ -405,7 +507,7 @@ export default function FeedScreen(): React.JSX.Element {
         <div className={styles.body}>
           <h1 className={styles.title}>Log a feed</h1>
           {msg && (
-            <p className={styles.state} role={load.kind === "no-dog" ? undefined : "alert"}>
+            <p className={styles.state} role="alert">
               {msg}
             </p>
           )}
@@ -423,6 +525,10 @@ export default function FeedScreen(): React.JSX.Element {
 
   const dog = load.dog;
   const name = dogName(dog.name);
+  const p = pronouns(sexOf(dog));
+  const co = coFeeders((dog as DogProfileV5).feeders, myFirstName);
+  const coNames = coFeederNames(co);
+  const telling = outcome === "unwell" && tellCo && co.length > 0;
 
   return (
     <div className={styles.page}>
@@ -433,7 +539,7 @@ export default function FeedScreen(): React.JSX.Element {
       </div>
 
       <div className={styles.body}>
-        <h1 className={styles.title}>Log a feed</h1>
+        <h1 className={styles.title}>Feeding {name}</h1>
 
         <div className={styles.dogCard}>
           <DogAvatar id={dog.slug} name={name} photoUrl={dog.photoUrl ?? null} size={56} />
@@ -478,7 +584,7 @@ export default function FeedScreen(): React.JSX.Element {
 
         <div className={styles.outcome}>
           <div className={styles.outcomeLabel} id="feed-outcome-label">
-            How did it go? (optional)
+            {p.subject === "they" ? "How were they?" : `How was ${p.subject}?`}
           </div>
           <div className={styles.chips} role="group" aria-labelledby="feed-outcome-label">
             {OUTCOMES.map((o) => {
@@ -498,12 +604,42 @@ export default function FeedScreen(): React.JSX.Element {
             })}
           </div>
           {outcome === "unwell" && (
-            <p className={styles.unwell} data-testid="unwell-hint">
-              If {name} needs a vet, raise an SOS from the profile. It alerts the feeders and a vet nearby.{" "}
-              <a href={`/d/${dog.slug}`} className={styles.unwellLink}>
-                Open {name}&rsquo;s profile ›
+            <div className={styles.unwellCard} data-testid="unwell-hint">
+              {co.length > 0 && (
+                <div className={styles.tellRow}>
+                  <span className={styles.tellText}>
+                    <span className={styles.tellTitle} id="tell-co">
+                      {coNames ? `Tell ${coNames}` : `Tell ${p.possessive} other feeders`}
+                    </span>
+                    <span className={styles.tellSub}>
+                      {coNames ? `${coNames} ${co.length === 1 ? "feeds" : "feed"}` : "They feed"} {p.object} too. A
+                      note, not an alarm.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={tellCo}
+                    aria-labelledby="tell-co"
+                    className={tellCo ? `${styles.switch} ${styles.switchOn}` : styles.switch}
+                    onClick={() => setTellCo((t) => !t)}
+                  >
+                    <span className={styles.knob} />
+                  </button>
+                </div>
+              )}
+              <input
+                className={styles.noteInput}
+                placeholder="What did you notice? (optional)"
+                aria-label="What did you notice? (optional)"
+                value={unwellNote}
+                maxLength={NOTE_MAX}
+                onChange={(e) => setUnwellNote(e.target.value)}
+              />
+              <a href={`/d/${dog.slug}`} className={styles.sosLink}>
+                It&rsquo;s serious. Raise an SOS ›
               </a>
-            </p>
+            </div>
           )}
         </div>
       </div>
@@ -530,7 +666,7 @@ export default function FeedScreen(): React.JSX.Element {
           </p>
         )}
         <Button fullWidth onClick={() => void submit()} disabled={busy || done} aria-busy={busy || undefined}>
-          Log feed
+          {logLabel(telling, coNames)}
         </Button>
       </StickyFooter>
     </div>

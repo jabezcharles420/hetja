@@ -789,6 +789,286 @@ export interface DogProfileV5 extends DogProfile {
 }
 
 // ---------------------------------------------------------------------------
+// Design v6 types (docs/design/v6-handoff/CONTRACT.md, "API additions")
+//
+// Additions to existing shapes use interface merging, so every consumer of
+// FeederMe / FeederPatch / DogProfileV5 sees them. All optional: an older
+// server still type-checks, and absence means the v5 behaviour.
+// ---------------------------------------------------------------------------
+
+export interface FeederMe {
+  /** Settings "Show my first name on dogs' pages" (default true). */
+  showFirstName?: boolean;
+  /** L1 alerts pause: not paged for SOS until this ISO time. null = not paused. */
+  sosPausedUntil?: string | null;
+}
+
+export interface FeederPatch {
+  showFirstName?: boolean;
+  /** ISO time in the future (at most 30 days ahead), or null to resume. */
+  sosPausedUntil?: string | null;
+}
+
+export interface DogProfileV5 {
+  /** One entry per feeder of the dog; firstName null when they opted out. */
+  feeders?: { firstName: string | null }[];
+  /** First name of whoever fed her last, or null (anonymous, opted out). */
+  lastFedBy?: string | null;
+  /** Every scan of the dog that was not an SOS. */
+  scanCount?: number;
+}
+
+/** P11 outcomes. `resolved` / `false_alarm` are the v5 values and still accepted. */
+export type SosOutcome =
+  | "taken_to_vet"
+  | "treated_on_spot"
+  | "not_found"
+  | "died"
+  | "resolved"
+  | "false_alarm";
+
+export interface ResolveSosInput {
+  outcome: SosOutcome;
+  /** Free text; defaults to the outcome when omitted. */
+  resolution?: string;
+  /** With taken_to_vet: the clinic or vet, <= 80 chars. */
+  vetName?: string;
+}
+
+export type SosTimelineKind =
+  | "raised"
+  | "told"
+  | "escalation_due"
+  | "escalated"
+  | "taken"
+  | "close_by"
+  | "arrived"
+  | "reporter_update"
+  | "reporter_left"
+  | "released"
+  | "resolved";
+
+export interface SosTimelineEntry {
+  at: string;
+  kind: SosTimelineKind;
+  /** e.g. "3 feeders", a first name, the reporter's note, the outcome. */
+  detail: string | null;
+}
+
+/** Why the viewer cannot take the case (V22), most important first. */
+export type SosForbiddenReason = "not_opted_in" | "paused" | "outside_wards" | "not_enough_trust" | "not_paged";
+
+/** V22 checklist: the caller's OWN standing against lib/sos-eligibility.ts. */
+export interface SosResponderChecklist {
+  sosOptIn: boolean;
+  paused: boolean;
+  /** null when the feeder chose no wards (no ward restriction). */
+  inMyWards: boolean | null;
+  trustScore: number;
+  /** Floor for this case's severity (40 minor/serious, 60 critical). */
+  trustFloor: number;
+  /** Credited feeds still needed to reach the floor (1 trust per feed). */
+  feedsToGo: number;
+}
+
+/**
+ * GET /sos/cases/:id, v6. A caller who may not see the case still gets 403
+ * SOS_CASE_FORBIDDEN; its ApiError.data is `{ forbiddenReason, checklist }`
+ * (SosCaseForbiddenData) so V22 can render.
+ */
+export interface SosCaseV6 extends SosCaseV5 {
+  timeline?: SosTimelineEntry[];
+  feedersTold?: number;
+  vetsTold?: number;
+  ngosTold?: number;
+  /** When the escalation job is due (null once escalated or closed). */
+  escalatesAt?: string | null;
+  /** Caller's last geotagged scan to the dog, rounded to 100 m; eligible responders only. */
+  distanceM?: number | null;
+  outcome?: SosOutcome | null;
+  vetName?: string | null;
+  closeByAt?: string | null;
+  arrivedAt?: string | null;
+  /** Notes the reporter sent after raising it (L7), oldest first. */
+  reporterUpdates?: { at: string; note: string }[];
+  reporterLeftAt?: string | null;
+  /** Dogless SOS (P8): the case has a ward and no dog; `dog` is null. */
+  dogless?: boolean;
+}
+
+export interface SosCaseForbiddenData {
+  forbiddenReason: SosForbiddenReason;
+  checklist: SosResponderChecklist;
+}
+
+/** GET /reports/:caseId/status (reporter's device token), v6. */
+export interface ReportStatusV6 {
+  state: SosCaseState;
+  ackedAt: string | null;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  responderFirstName: string | null;
+  takenAt: string | null;
+  closeByAt: string | null;
+  arrivedAt: string | null;
+  outcome: SosOutcome | null;
+  vetName: string | null;
+  /** First names of the feeders paged; opted-out feeders are counted, not named. */
+  feedersNotifiedNames: string[];
+  feedersNotified: number;
+  vetsNotified: number;
+  /** The reporter's own updates, oldest first. */
+  updates: { at: string; note: string }[];
+  leftAt: string | null;
+}
+
+/**
+ * POST /reports 429 (per-dog cap or rate limit) when this device already has
+ * an open case on the dog: ApiError.data.openCase.
+ */
+export interface OpenCaseRef {
+  caseId: string;
+  raisedAt: string;
+  responderFirstName: string | null;
+  takenAt: string | null;
+}
+
+/** POST /reports, v6: dogSlug optional (P8 dogless); geo REQUIRED when it is absent, Mumbai only. */
+export interface CreateReportInputV6 {
+  dogSlug?: string;
+  severity: SosSeverity;
+  note?: string;
+  geo?: GeoPoint;
+  photoBase64?: string;
+}
+
+export interface SosReportResultV6 extends SosReportResult {
+  /** The case's ward (the dog's, or the one `geo` falls in for a dogless report). */
+  wardId?: string | null;
+}
+
+/** POST /scans additions (L2). */
+export interface ScanExtrasV6 {
+  /** <= 280 chars, feeds only. */
+  note?: string;
+  /** With outcome "unwell": one push to the dog's other feeders. */
+  tellCoFeeders?: true;
+}
+
+/** POST /scans, v6: the v5 input plus note / tellCoFeeders. */
+export interface CreateScanInputV6 extends ScanExtrasV6 {
+  clientUuid: string;
+  dogSlug: string;
+  type: "feed" | "retag" | "view";
+  geo?: GeoPoint;
+  photoBase64?: string;
+  capturedAt: string;
+  outcome?: FeedOutcomeValue;
+}
+
+/** POST /scans/batch (V11): up to 12 feeds, each with the single-feed rules. */
+export interface ScanBatchItem {
+  clientUuid: string;
+  dogSlug: string;
+  capturedAt: string;
+  geo?: GeoPoint;
+  outcome?: FeedOutcomeValue;
+  note?: string;
+}
+
+export interface ScanBatchResult {
+  results: {
+    clientUuid: string;
+    dogSlug: string;
+    created: boolean;
+    scanId?: string;
+    /** Present when this feed was refused; the others still went in. */
+    error?: { code: string; message: string };
+  }[];
+  streak?: { streakDays: number; lastFeedDate: string | null };
+}
+
+/** GET /dogs/:slug/week (N15, feeder of the dog). */
+export interface DogWeek {
+  /** Last 7 Asia/Kolkata days, oldest first. */
+  days: { date: string; fed: boolean; outcome: FeedOutcomeValue | null; byFirstName: string | null }[];
+  feederNames: string[];
+  /** YYYY-MM-DD; dueDate is the first of the due month. */
+  rabiesDue: { lastGiven: string | null; dueDate: string } | null;
+  vetRecordCount: number;
+}
+
+/** GET /registrations and /registrations/:slug, v6 fields. */
+export interface RegistrationV6Fields {
+  printedAt?: string | null;
+  /** Days until a pending registration expires; null once live. */
+  daysLeft?: number | null;
+  scanCount?: number;
+  liveSince?: string | null;
+  lastScanAt?: string | null;
+  feederNames?: string[];
+}
+
+export interface RegistrationBudgetHolder {
+  slug: string;
+  name: string | null;
+  printedAt: string | null;
+  daysLeft: number;
+}
+
+export interface RegistrationsV6 {
+  registrations: (RegistrationSummary & RegistrationV6Fields)[];
+  /** The pending slots and which dogs hold them (P6). */
+  budget: { pending: number; max: number; holders: RegistrationBudgetHolder[] };
+}
+
+/** POST /registrations/:slug/tag-check (P2): does the scanned code belong to this registration? */
+export type TagCheckResult =
+  | { match: true }
+  | {
+      match: false;
+      expected: { slug: string; name: string | null };
+      /** null when the scanned code is not a dog the caller may see. */
+      scanned: { slug: string; name: string | null } | null;
+    };
+
+/** GET /map/wards, v6 additions (M1). Public and cached: no case ids here. */
+export interface MapCitySummaryV6 {
+  dogs: number;
+  withCollars: number;
+  feeders: number;
+  fedToday: number;
+  notLoggedToday: number;
+}
+
+export interface MapCitySosV6 {
+  wardId: string;
+  wardCode: string;
+  severity: SosSeverity;
+  raisedAt: string;
+  dogName: string | null;
+  /** Someone has taken it. */
+  taken: boolean;
+}
+
+export interface MapWardsV6 {
+  summary?: MapCitySummaryV6;
+  sos?: MapCitySosV6[];
+}
+
+/** GET /map/wards/:wardId, v6 additions (M2, M6). Ward level only. */
+export interface MapWardDetailV6 {
+  dogNames?: string[];
+  notLoggedToday?: { slug: string; name: string | null; lastLoggedAt: string | null }[];
+}
+
+/** v6 fields on each row of the ward detail's `sos` list (MapSos in app/map). */
+export interface MapSosV6Fields {
+  dogName?: string | null;
+  taken?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Typed endpoints
 // ---------------------------------------------------------------------------
 
@@ -1065,4 +1345,98 @@ export const api = {
   /** N2 "I can't go right now". Never affects escalation. */
   declineSosCase: (id: string) =>
     request<{ declined: true }>(`/sos/cases/${encodeURIComponent(id)}/decline`, { method: "POST" }),
+
+  // -------------------------------------------------------------------------
+  // Design v6 endpoints (docs/design/v6-handoff/CONTRACT.md). Profile fields
+  // (showFirstName, sosPausedUntil) go through patchFeederMe above.
+  // -------------------------------------------------------------------------
+
+  /** P11: close a taken case with an outcome. `died` also opens the N9 passed-away report. */
+  resolveSosCaseV6: (id: string, input: ResolveSosInput) =>
+    request<{ id: string; state: SosCaseState; resolvedAt: string; resolution: string; outcome: SosOutcome }>(
+      `/sos/cases/${encodeURIComponent(id)}/resolve`,
+      { method: "POST", body: input },
+    ),
+
+  /** P10 "I can't make it after all": back to open, re-pages; escalation clock unchanged. */
+  releaseSosCase: (id: string) =>
+    request<{ id: string; state: "open" }>(`/sos/cases/${encodeURIComponent(id)}/release`, { method: "POST" }),
+
+  /** V21 "With Rani". Acker only. */
+  arrivedSosCase: (id: string) =>
+    request<{ id: string; arrivedAt: string }>(`/sos/cases/${encodeURIComponent(id)}/arrived`, { method: "POST" }),
+
+  /** "Tell the reporter you're close". Acker only. */
+  closeBySosCase: (id: string) =>
+    request<{ id: string; closeByAt: string }>(`/sos/cases/${encodeURIComponent(id)}/close-by`, { method: "POST" }),
+
+  /** P9 / L4 / L5 / V21 case page. 403 carries SosCaseForbiddenData for V22. */
+  getSosCaseV6: (id: string) => request<SosCaseV6>(`/sos/cases/${encodeURIComponent(id)}`),
+
+  /**
+   * POST /reports v6: dogless when dogSlug is absent (geo required, Mumbai
+   * only). A 429 may carry `data.openCase` (OpenCaseRef) and `data.nearbyCare`.
+   */
+  createReportV6: async (input: CreateReportInputV6) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<SosReportResultV6>(`/reports`, {
+      method: "POST",
+      body: deviceToken ? { ...input, deviceToken } : input,
+    });
+  },
+
+  /** N10 / N11 / V19 / L7: the reporter's view; needs the device token that filed it (or the account). */
+  getReportStatus: async (caseId: string) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<ReportStatusV6>(`/reports/${encodeURIComponent(caseId)}/status`, { deviceToken });
+  },
+
+  /** L7 "Send Priya an update" / "Add an update": <= 280 chars. */
+  postReportUpdate: async (caseId: string, note: string) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<{ at: string }>(`/reports/${encodeURIComponent(caseId)}/updates`, {
+      method: "POST",
+      body: { note },
+      deviceToken,
+    });
+  },
+
+  /** "I had to leave". */
+  reportLeft: async (caseId: string) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<{ leftAt: string }>(`/reports/${encodeURIComponent(caseId)}/left`, {
+      method: "POST",
+      deviceToken,
+    });
+  },
+
+  /** L2 single feed with a note / tell co-feeders (same route as createScan). */
+  createScanV6: (
+    input: CreateScanInputV6,
+    opts: { deviceToken?: string } = {},
+  ) => request<ScanResult & { coFeedersTold?: number }>(`/scans`, { method: "POST", body: input, deviceToken: opts.deviceToken }),
+
+  /** V11 round: up to 12 feeds in one call. */
+  createScanBatch: (feeds: ScanBatchItem[], opts: { deviceToken?: string } = {}) =>
+    request<ScanBatchResult>(`/scans/batch`, { method: "POST", body: { feeds }, deviceToken: opts.deviceToken }),
+
+  /** N16 "Save story": a new story version (moderated before it shows). 429 after 5 a day. */
+  createStory: (slug: string, paragraph: string) =>
+    request<Story>(`/dogs/${encodeURIComponent(slug)}/stories`, { method: "POST", body: { paragraph } }),
+
+  /** N15 a dog's week (feeder of the dog). */
+  getDogWeek: (slug: string) => request<DogWeek>(`/dogs/${encodeURIComponent(slug)}/week`),
+
+  /** P6 / V12: registrations with v6 fields and the budget holders. */
+  getRegistrationsV6: () => request<RegistrationsV6>(`/registrations`),
+
+  getRegistrationV6: (slug: string) =>
+    request<RegistrationDetail & RegistrationV6Fields>(`/registrations/${encodeURIComponent(slug)}`),
+
+  /** P2: check a scanned code against the registration before activating. */
+  checkRegistrationTag: (slug: string, code: string) =>
+    request<TagCheckResult>(`/registrations/${encodeURIComponent(slug)}/tag-check`, {
+      method: "POST",
+      body: { code },
+    }),
 };

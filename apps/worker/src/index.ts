@@ -322,15 +322,19 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       // a dog with no recorded position no longer produces a NULL sort key that
       // orders arbitrarily. It is excluded, because paging the wrong clinic is
       // worse than paging none and is indistinguishable from success.
+      // Design v6: a dogless case (P8) has no dog; its point is the case's
+      // own geo (the reporter's, Mumbai only). A dog case still uses the dog.
       const vets = await client.query(
         `SELECT v.id, v.signing_key_pub
-           FROM vets v, dogs d
-          WHERE d.id = $1
-            AND d.last_seen_geo IS NOT NULL
+           FROM vets v,
+                (SELECT COALESCE(d.last_seen_geo, c.geo) AS at
+                   FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id
+                  WHERE c.id = $1) here
+          WHERE here.at IS NOT NULL
             AND v.geo IS NOT NULL
-          ORDER BY v.geo <-> d.last_seen_geo
+          ORDER BY v.geo <-> here.at
           LIMIT 3`,
-        [p.dogId],
+        [p.caseId],
       );
       for (const v of vets.rows) {
         await client.query(
@@ -357,10 +361,20 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    */
   send_sos_push: async (p) => {
     if (!PUSH_ENABLED) return;
+    // `repage` (design v6, POST /sos/cases/:id/release): the case is open
+    // again, so every paged responder who has not declined is told again,
+    // delivered or not, except the one who released it. Otherwise, as ever,
+    // only the pages not yet delivered.
+    const repage = p?.repage === true;
+    const exclude = typeof p?.exclude === "string" ? p.exclude : null;
     const notifs = await query<{ id: string; feeder_id: string }>(
-      `SELECT id, feeder_id FROM sos_notifications
-        WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
-      [p.caseId],
+      repage
+        ? `SELECT id, feeder_id FROM sos_notifications
+            WHERE case_id = $1 AND channel = 'push' AND feeder_id IS NOT NULL AND declined_at IS NULL
+              AND ($2::uuid IS NULL OR feeder_id <> $2::uuid)`
+        : `SELECT id, feeder_id FROM sos_notifications
+            WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
+      repage ? [p.caseId, exclude] : [p.caseId],
     );
     if (notifs.rowCount === 0) return;
 
@@ -930,7 +944,7 @@ export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise
 export const JOB_PRODUCERS: Record<string, string> = {
   validate_scan: "NONE -- see docs/INVARIANTS.md",
   escalate_sos: "apps/api/src/routes/sos.ts (POST /api/v1/reports)",
-  send_sos_push: "apps/api/src/routes/sos.ts (dispatchFanout enqueues send_sos_push)",
+  send_sos_push: "apps/api/src/routes/sos.ts (dispatchFanout enqueues send_sos_push; POST /sos/cases/:id/release re-pages with repage: true)",
   retention: "apps/worker/src/index.ts (enqueueRetentionJobIfDue via tick)",
   anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
   expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",

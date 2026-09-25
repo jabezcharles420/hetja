@@ -139,6 +139,38 @@ answers 404 for both, except to the registrator who filed it
   name, identity HMAC, consent, wards, sessions and push subscriptions go;
   dogs, scans and ledger references stay.
 
+### New surfaces in design v6 (2026-09-25), checked against 2, 3, 6 and 7
+
+- **Feeders' first names on public pages (3), with an opt-out.** By the
+  owner's decision, `GET /api/v1/dogs/:slug` now carries
+  `feeders: { firstName }[]` and `lastFedBy`, the memorial names, the dog
+  week and the reporter's status page name feeders. Public copy is the FIRST
+  WORD of the display name only (`lib/public-name.ts` `firstName`): never a
+  surname, an initial, an account id or contact data. Every feeder can switch
+  it off ("Show my first name on dogs' pages", `feeders.show_first_name`,
+  default on); an opted-out feeder is counted ("Rani has 2 feeders") and
+  never named, and the profile cache is dropped when anyone changes it. This
+  is a deliberate widening of what INVARIANT 3 protects (it was counts only
+  through v5, first name and initial for a memorial): a first name alone,
+  beside a ward, is the most that is ever public.
+- **Dogless SOS (7, 2, 6).** `POST /api/v1/reports` without a dog needs a
+  point inside Mumbai; the case is located to the nearest ward centre and
+  pages that ward's feeders (and, at escalation, the vets nearest the point).
+  Every INVARIANT 7 rule for a dog report applies unchanged, plus
+  `doglessReportPerSubject` (burst 2, then 3 a day per account or device),
+  `doglessReportPerIp` (burst 3, then 6 a day per address: the fourth
+  IP-keyed limit, recorded here as #6 requires) and one open dogless case per
+  reporter per ward. The point is stored on the case (`sos_cases.geo`), given
+  only to the responder who takes it, and never logged. A paged responder
+  sees the ward and, if eligible, a distance rounded to 100 m from their own
+  last scan.
+- **The reporter's status page** (`GET /reports/:caseId/status`, the filing
+  device's token or account only) now names the responder and the paged
+  feeders by first name (opt-out respected) and counts vets. Never who
+  anyone is beyond that, never where the responder is.
+- **Alerts pause** (`feeders.sos_paused_until`, at most 30 days): a paused
+  feeder is not paged. Consent (`sos_opt_in`) is unchanged by it.
+
 ## Why this exists
 
 The reasoning below used to live only in the build guide, which cites the

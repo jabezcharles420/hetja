@@ -229,7 +229,8 @@ function tagSub(detail: string | null): string {
 /** Everything a My dogs row shows, derived from the v5 payload. */
 export function myDogRow(d: MyDogV5, now: number = Date.now()): MyDogRow {
   const a = d.attention ?? null;
-  const profile = `/d/${d.slug}`;
+  // v6: a feeder's own dog opens N15 (the private week view), not the public page.
+  const profile = `/me/dogs/${d.slug}`;
   if (a?.kind === "sos") {
     return {
       tag: "SOS",

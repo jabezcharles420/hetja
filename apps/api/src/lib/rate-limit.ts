@@ -407,3 +407,19 @@ export function enforceLimits(
   for (const c of checks) c.limiter.consume(c.key);
   return true;
 }
+
+/**
+ * Dogless SOS (design v6, P8): a report naming no dog, located to the
+ * reporter's ward, pages that ward's feeders. Per account or device: burst 2,
+ * then 3 a day. Per client IP (docs/INVARIANTS.md #6): burst 3, then 6 a day.
+ * Both on top of reportPerSubject and INVARIANT 7's case caps, which still
+ * apply unchanged, and the one-open-case-per-ward dedupe in routes/sos.ts.
+ */
+export const doglessReportPerSubject = new RateLimiter({ refillPerSec: 3 / 86_400, burst: 2 });
+export const doglessReportPerIp = new RateLimiter({ refillPerSec: 6 / 86_400, burst: 3 });
+
+/**
+ * "Tell her other feeders" on an unwell feed (design v6, L2), per DOG: burst
+ * 2, then 4 a day, however many feeders file it. Keyed `dog:<id>`.
+ */
+export const unwellPushPerDog = new RateLimiter({ refillPerSec: 4 / 86_400, burst: 2 });

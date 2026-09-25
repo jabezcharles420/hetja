@@ -219,7 +219,9 @@ export function AlertsSheet({
   open,
   onClose,
   mode,
-  sosOptIn,
+  sosOn,
+  sosSub = "Hurt dogs in your wards",
+  onSosToggle,
   quietHours,
   onSave,
   onEditQuiet,
@@ -230,22 +232,27 @@ export function AlertsSheet({
   open: boolean;
   onClose: () => void;
   mode: AlertsMode;
-  sosOptIn: boolean;
+  /** SOS paging is on and not paused. */
+  sosOn: boolean;
+  sosSub?: string;
+  /**
+   * The SOS switch never flips silently: off opens L1 (pause), on opens N13
+   * (the alerts ask). The caller owns both.
+   */
+  onSosToggle: (next: boolean) => void;
   quietHours: string;
-  onSave: (next: { alertsMode: AlertsMode; sosOptIn: boolean }) => void;
+  onSave: (next: { alertsMode: AlertsMode }) => void;
   onEditQuiet: () => void;
   trustNote?: string | null;
   busy?: boolean;
   error?: string | null;
 }): React.JSX.Element {
   const [m, setM] = useState<AlertsMode>(mode);
-  const [sos, setSos] = useState(sosOptIn);
   const id = useId();
   useEffect(() => {
     if (!open) return;
     setM(mode);
-    setSos(sosOptIn);
-  }, [open, mode, sosOptIn]);
+  }, [open, mode]);
 
   return (
     <Sheet
@@ -253,7 +260,7 @@ export function AlertsSheet({
       onClose={onClose}
       title="Alerts"
       footer={
-        <Button fullWidth disabled={busy} aria-busy={busy || undefined} onClick={() => onSave({ alertsMode: m, sosOptIn: sos })}>
+        <Button fullWidth disabled={busy} aria-busy={busy || undefined} onClick={() => onSave({ alertsMode: m })}>
           Save
         </Button>
       }
@@ -279,10 +286,10 @@ export function AlertsSheet({
               SOS alerts
             </span>
             <span id={`${id}-d`} className={styles.rowSub}>
-              Hurt dogs in your wards
+              {sosSub}
             </span>
           </div>
-          <Switch checked={sos} onChange={setSos} labelledBy={`${id}-l`} describedBy={`${id}-d`} />
+          <Switch checked={sosOn} onChange={onSosToggle} labelledBy={`${id}-l`} describedBy={`${id}-d`} />
         </div>
         <button type="button" className={styles.linkRow} onClick={onEditQuiet}>
           <span className={styles.switchText}>

@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import styles from "./TabBar.module.css";
 
 /**
- * Bottom tab bar (design v5 audit, "Tab bar active state"): five tabs, Home,
- * Scan, Map, Alerts, Me (owner decision, 2026-09-25). Every tab is a filled
+ * Bottom tab bar (design v5 audit, "Tab bar active state"): four tabs, Home,
+ * Map, Scan, Me (v6 owner decision, 2026-09-25; Alerts moved off the bar to a
+ * row on Me). Every tab is a filled
  * icon over an always-visible label; the active tab paints both in blue and
  * carries aria-current="page". 83px tall with the home-indicator area
  * (--h-tab-clear). Only the five tab roots render it (ChromeShell); focused
@@ -23,9 +24,8 @@ export interface TabItem {
 
 export const DEFAULT_TABS: TabItem[] = [
   { key: "home", href: "/", label: "Home" },
-  { key: "scan", href: "/scan", label: "Scan" },
   { key: "map", href: "/map", label: "Map" },
-  { key: "alerts", href: "/alerts", label: "Alerts" },
+  { key: "scan", href: "/scan", label: "Scan" },
   { key: "me", href: "/me", label: "Me" },
 ];
 

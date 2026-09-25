@@ -35,7 +35,7 @@ import { MedicalRecordInput, wardDisplay } from "@hetja/contracts";
 import { isValidSlug, query, withTx } from "@hetja/db";
 import { deviceSubjectOf } from "../lib/anon-subject.js";
 import { parseUuidParam } from "../lib/params.js";
-import { publicName } from "../lib/public-name.js";
+import { firstName, publicName } from "../lib/public-name.js";
 import { enforceLimits, feederWritePerAccount } from "../lib/rate-limit.js";
 import { requireFeeder, type RoleAuth } from "../lib/require-role.js";
 import {
@@ -382,6 +382,80 @@ export default async function dogStatusRoutes(app: FastifyInstance): Promise<voi
           reportedByName: publicName(r.name, r.deleted_at),
           mine: r.reported_by === auth.feederId,
         })),
+      },
+    };
+  });
+
+  /**
+   * GET /api/v1/dogs/:slug/week (design v6, N15): a feeder's private view of
+   * a dog's last 7 Asia/Kolkata days, from EVERYONE's logs: was she fed, the
+   * last outcome that day, and who (first name only, opt-out respected). Plus
+   * her feeders' first names, when the next rabies shot is due, and how many
+   * vet records she has. Feeders of the dog only. No positions.
+   */
+  app.get("/api/v1/dogs/:slug/week", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const dog = await dogOf(req, reply);
+    if (!dog) return reply;
+    if (!(await isFeederOfDog(auth.feederId, dog))) {
+      return reply.status(403).send({
+        ok: false,
+        error: { message: "only a feeder of this dog may do this", code: "NOT_A_FEEDER_OF_DOG" },
+      });
+    }
+    const [days, feeders, vax, due, records] = await Promise.all([
+      query<{ day: string; fed: boolean; outcome: string | null; name: string | null; show: boolean | null; deleted_at: Date | null }>(
+        `SELECT to_char(g.day, 'YYYY-MM-DD') AS day, last.captured_at IS NOT NULL AS fed, last.feed_outcome AS outcome,
+                last.display_name AS name, last.show_first_name AS show, last.deleted_at
+           FROM generate_series((now() AT TIME ZONE 'Asia/Kolkata')::date - 6,
+                                (now() AT TIME ZONE 'Asia/Kolkata')::date, interval '1 day') AS g(day)
+           LEFT JOIN LATERAL (
+             SELECT s.captured_at, s.feed_outcome, f.display_name, f.show_first_name, f.deleted_at
+               FROM scans s LEFT JOIN feeders f ON f.id = s.feeder_id
+              WHERE s.dog_id = $1 AND s.scan_type = 'feed' AND s.review_status <> 'rejected'
+                AND (s.captured_at AT TIME ZONE 'Asia/Kolkata')::date = g.day::date
+              ORDER BY s.captured_at DESC LIMIT 1) last ON true
+          ORDER BY g.day`,
+        [dog.id],
+      ),
+      query<{ display_name: string; show_first_name: boolean }>(
+        `SELECT f.display_name, f.show_first_name FROM feeders f
+          WHERE f.id = ANY($1::uuid[]) ORDER BY f.created_at`,
+        [await feederIdsOfDog(dog.id, null)],
+      ),
+      query<{ vaccine_date: Date | null }>(
+        `SELECT vaccine_date FROM medical_records
+          WHERE dog_id = $1 AND is_verified AND record_type IN ('vaccination', 'vaccine') AND vaccine_date IS NOT NULL
+          ORDER BY vaccine_date DESC LIMIT 1`,
+        [dog.id],
+      ),
+      query<{ vaccine_due_month: string | null }>(`SELECT vaccine_due_month FROM dogs WHERE id = $1`, [dog.id]),
+      query<{ n: number }>(`SELECT count(*)::int AS n FROM medical_records WHERE dog_id = $1 AND is_verified`, [dog.id]),
+    ]);
+    const lastGivenRaw = vax.rows[0]?.vaccine_date ?? null;
+    const lastGiven = lastGivenRaw ? kolkataDate(new Date(lastGivenRaw.getTime() + 12 * 3600 * 1000)).slice(0, 10) : null;
+    const dueMonth = due.rows[0]?.vaccine_due_month ?? null;
+    const dueDate = dueMonth
+      ? `${dueMonth}-01`
+      : lastGiven
+        ? `${Number(lastGiven.slice(0, 4)) + 1}${lastGiven.slice(4)}`
+        : null;
+    reply.header("Cache-Control", "no-store");
+    return {
+      ok: true,
+      data: {
+        days: days.rows.map((d) => ({
+          date: d.day,
+          fed: d.fed,
+          outcome: d.outcome ?? null,
+          byFirstName: d.fed ? firstName(d.name, d.show, d.deleted_at) : null,
+        })),
+        feederNames: feeders.rows
+          .map((f) => firstName(f.display_name, f.show_first_name))
+          .filter((n): n is string => n !== null),
+        rabiesDue: dueDate ? { lastGiven, dueDate } : null,
+        vetRecordCount: records.rows[0]?.n ?? 0,
       },
     };
   });

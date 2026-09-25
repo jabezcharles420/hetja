@@ -95,7 +95,7 @@ export async function feederIdsOfDog(dogId: string, exclude: string | null, clie
 
 export interface FeederPush {
   /** Alert kind, for the log and the service worker's tag. */
-  kind: "tag" | "not_seen" | "status";
+  kind: "tag" | "not_seen" | "status" | "unwell";
   title: string;
   body: string;
   /** Web route the notification opens. */

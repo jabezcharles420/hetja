@@ -1035,7 +1035,8 @@ describe("status reports", () => {
 
     const profile = (await app.inject({ method: "GET", url: `/api/v1/dogs/${dog.slug}` })).json().data;
     expect(profile.status).toBe("deceased");
-    expect([...profile.memorial.feederNames].sort()).toEqual(["Anil K.", "Priya S."]);
+    // Since v6: first names only (opt-out respected).
+    expect([...profile.memorial.feederNames].sort()).toEqual(["Anil", "Priya"]);
     expect(JSON.stringify(profile)).not.toContain("Anil Kumar");
 
     const after = await app.inject({

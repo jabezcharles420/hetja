@@ -37,6 +37,9 @@ export interface QueuedScan {
    * so no DB_VERSION bump for this field.
    */
   dogName?: string | null;
+  /** v6 L2: "What did you notice?" (<= 280) and "Tell Arjun" on an unwell feed. Replayed as-is. */
+  note?: string;
+  tellCoFeeders?: true;
 }
 
 const DB_NAME = "hetja-feeder";

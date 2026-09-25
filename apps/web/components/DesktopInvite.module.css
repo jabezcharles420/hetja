@@ -1,0 +1,236 @@
+/* D1 (v6 "Desktop is an invitation"), from the 1440 x 900 mock: 180px side
+ * padding at 1440, a 1fr / 360 grid 80 apart, the home aurora. */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--h-ink);
+  background:
+    radial-gradient(40% 60% at 0% 0%, var(--h-aurora-pink) 0%, rgba(255, 179, 220, 0) 70%),
+    radial-gradient(40% 55% at 100% 10%, var(--h-aurora-peach) 0%, rgba(255, 203, 184, 0) 70%),
+    radial-gradient(45% 50% at 70% 100%, var(--h-aurora-rose) 0%, rgba(255, 194, 236, 0) 70%),
+    var(--h-aurora-base);
+  --side: clamp(40px, 12.5vw, 180px);
+}
+
+.nav {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--side);
+  background: var(--h-frost);
+  border-bottom: 1px solid var(--h-frost-line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--h-ink);
+  text-decoration: none;
+  min-height: var(--h-target);
+}
+
+.links {
+  display: flex;
+  gap: 28px;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--h-ink);
+  text-decoration: none;
+  min-height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 80px;
+  align-items: center;
+  padding: 40px var(--side);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+.chip {
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(64px, 6.7vw, 96px);
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  text-wrap: wrap;
+}
+
+.lead {
+  margin: 0;
+  font-size: 23px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+  max-width: 560px;
+}
+
+.ink {
+  color: var(--h-ink);
+}
+
+.card {
+  align-self: flex-start;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  background: var(--h-white);
+  border-radius: var(--h-r-card-lg);
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+.qr {
+  flex: none;
+  display: block;
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 240px;
+}
+
+.cardTitle {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cardSub {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.cardSub b {
+  color: var(--h-ink);
+  font-weight: 600;
+}
+
+.phoneWrap {
+  margin: 0;
+  justify-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.phone {
+  width: 300px;
+  height: 620px;
+  box-sizing: border-box;
+  border-radius: 48px;
+  background: var(--h-white);
+  box-shadow: 0 0 0 9px var(--h-ink), 0 40px 80px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 44px 18px 0;
+}
+
+.found {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.photo {
+  height: 170px;
+  flex: none;
+  border-radius: 22px;
+  background: var(--h-av-apricot-bg);
+}
+
+.name {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.ward {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fed {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--h-text-mid);
+}
+
+.sos {
+  margin-top: auto;
+  margin-bottom: 24px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--h-r-pill);
+  background: var(--h-sos);
+  color: var(--h-white);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.caption {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .phoneWrap {
+    display: none;
+  }
+}

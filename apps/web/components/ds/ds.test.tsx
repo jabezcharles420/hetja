@@ -190,13 +190,13 @@ describe("TabBar", () => {
     expect(screen.getByRole("link", { name: "Scan" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("has the owner's five tabs, in order, each a filled icon over its label", () => {
+  it("has the owner's four tabs, in order, each a filled icon over its label", () => {
     const { container } = render(createElement(TabBar, {}));
     const links = screen.getAllByRole("link");
-    expect(links.map((l) => l.textContent)).toEqual(["Home", "Scan", "Map", "Alerts", "Me"]);
-    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/scan", "/map", "/alerts", "/me"]);
+    expect(links.map((l) => l.textContent)).toEqual(["Home", "Map", "Scan", "Me"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/map", "/scan", "/me"]);
     const icons = Array.from(container.querySelectorAll("svg[data-icon]"));
-    expect(icons.map((i) => i.getAttribute("data-icon"))).toEqual(["home", "scan", "map", "alerts", "me"]);
+    expect(icons.map((i) => i.getAttribute("data-icon"))).toEqual(["home", "map", "scan", "me"]);
     expect(icons.every((i) => i.getAttribute("aria-hidden") === "true")).toBe(true);
   });
 });

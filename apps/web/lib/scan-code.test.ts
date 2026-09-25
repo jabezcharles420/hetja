@@ -4,6 +4,7 @@ import {
   careLine,
   codeLine,
   destinationFor,
+  diffPositions,
   isFullCode,
   knownCount,
   matchCountLabel,
@@ -12,6 +13,7 @@ import {
   normaliseCodeChar,
   prettyCode,
   queryFromBoxes,
+  remainingLabel,
   telHref,
   withIntent,
 } from "./scan-code";
@@ -109,5 +111,19 @@ describe("routing", () => {
     expect(withIntent("/scan/code", null)).toBe("/scan/code");
     expect(withIntent("/scan/code", "feed")).toBe("/scan/code?intent=feed");
     expect(withIntent("/scan/code?code=abc", "feed")).toBe("/scan/code?code=abc&intent=feed");
+  });
+});
+
+describe("V2 counter and V3 marking", () => {
+  it("counts down in words", () => {
+    expect(remainingLabel(0)).toBe("");
+    expect(remainingLabel(8)).toBe("One more to go");
+    expect(remainingLabel(5)).toBe("Four more to go");
+    expect(remainingLabel(9)).toBe("That's all nine");
+  });
+
+  it("marks the characters a suggestion changes, one letter or a swap", () => {
+    expect([...diffPositions("r4n7kw2ar", "r4n7kw2ab")]).toEqual([8]);
+    expect([...diffPositions("rni428pq7", "rni482pq7")]).toEqual([4, 5]);
   });
 });

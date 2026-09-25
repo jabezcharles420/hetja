@@ -71,6 +71,30 @@ export const dogCopy = {
   },
 };
 
+/** A dog's name for a sentence: "Kalu", or "Your dog" when it has none. */
+export function nameOr(name: string | null | undefined): string {
+  return name?.trim() || "Your dog";
+}
+
+/** "Kalu's", "Your dog's". */
+export function possessive(name: string | null | undefined): string {
+  return `${nameOr(name)}'s`;
+}
+
+/** Design v6 lines (V12, V14, P1 to P6). */
+export const dogCopyV6 = {
+  /** V12 row: "Kalu needs his collar". */
+  needsCollar: (name: string | null | undefined, s?: DogSex | null) => `${nameOr(name)} needs ${pr(s).poss} collar`,
+  /** V14 title. */
+  almostOn: (name: string | null | undefined) => `${nameOr(name)} is almost on Hetja.`,
+  /** V14 lead. */
+  almostLead: (s?: DogSex | null) => {
+    const p = pr(s);
+    const code = p.plural ? "This is their code, for good." : `This is ${p.poss} code, for good.`;
+    return `${code} Print the tag, put it on, and scan it once to switch ${p.poss} page on.`;
+  },
+};
+
 /** "Female" / "Male" / "Not sure" for the summary card. */
 export function sexLabel(s: DogSex | null | undefined): string {
   if (s === "female") return "Female";
@@ -127,4 +151,27 @@ export function sinceLabel(iso: string | null | undefined, now: number = Date.no
   if (days < 14) return `${days} days ago`;
   if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
   return `${Math.floor(days / 30)} months ago`;
+}
+
+const MONTHS_LONG = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "23 Sep" (P1 "Printed 23 Sep", P4 "Live since 27 Jul"). */
+export function dayMonth(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** "Scanned 14 times since July" (V12). */
+export function scanTally(count: number | undefined, liveSince: string | null | undefined): string {
+  const n = count ?? 0;
+  if (n === 0) return "Not scanned yet";
+  const times = n === 1 ? "once" : `${n} times`;
+  const d = liveSince ? new Date(liveSince) : null;
+  const since = d && Number.isFinite(d.getTime()) ? ` since ${MONTHS_LONG[d.getMonth()]}` : "";
+  return `Scanned ${times}${since}`;
 }

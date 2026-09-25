@@ -52,6 +52,7 @@ import {
   createDogWithCollar,
 } from "../lib/enrol.js";
 import { logRateLimited, photoPerSubject } from "../lib/rate-limit.js";
+import { firstName } from "../lib/public-name.js";
 
 /**
  * Advisory-lock namespace, kept beside the rest of the family so the next key
@@ -156,6 +157,53 @@ interface RegistrationRow {
   ward_id: string;
   registered_at: Date | null;
   registered_by: string | null;
+}
+
+/**
+ * Design v6 (P1, P4, P6, V12) fields for one registration: when its tag was
+ * last printed, days left before a pending one expires, how often it has been
+ * scanned and when last, when it went live, and its feeders' first names
+ * (opt-out respected, lib/public-name.ts). Counts and times only; no position.
+ */
+const V6_COLUMNS = `
+  (SELECT max(p.printed_at) FROM tag_prints p WHERE p.dog_id = d.id) AS printed_at,
+  (SELECT count(*)::int FROM scans s WHERE s.dog_id = d.id AND s.scan_type <> 'sos') AS scan_count,
+  (SELECT max(s.captured_at) FROM scans s WHERE s.dog_id = d.id AND s.scan_type <> 'sos') AS last_scan_at,
+  d.activated_at,
+  (SELECT coalesce(array_agg(f.display_name ORDER BY f.created_at) FILTER (WHERE f.show_first_name), '{}')
+     FROM feeders f
+    WHERE f.deleted_at IS NULL
+      AND (f.id = d.registered_by
+           OR EXISTS (SELECT 1 FROM scans s
+                       WHERE s.dog_id = d.id AND s.feeder_id = f.id AND s.scan_type = 'feed'
+                         AND s.review_status <> 'rejected'
+                         AND s.received_at >= now() - interval '60 days'))) AS feeder_display_names`;
+
+interface V6Row {
+  printed_at: Date | null;
+  scan_count: number;
+  last_scan_at: Date | null;
+  activated_at: Date | null;
+  feeder_display_names: string[];
+}
+
+function daysLeftOf(status: string, registeredAt: Date | null): number | null {
+  if (status !== "pending_activation" || !registeredAt) return null;
+  const ms = registeredAt.getTime() + PENDING_REGISTRATION_TTL_DAYS * 86_400_000 - Date.now();
+  return Math.max(0, Math.ceil(ms / 86_400_000));
+}
+
+function v6Fields(row: RegistrationRow & V6Row) {
+  return {
+    printedAt: row.printed_at ? row.printed_at.toISOString() : null,
+    daysLeft: daysLeftOf(row.status, row.registered_at),
+    scanCount: row.scan_count,
+    liveSince: row.activated_at ? row.activated_at.toISOString() : null,
+    lastScanAt: row.last_scan_at ? row.last_scan_at.toISOString() : null,
+    feederNames: (row.feeder_display_names ?? [])
+      .map((n) => firstName(n, true))
+      .filter((n): n is string => n !== null),
+  };
 }
 
 function expiresAtOf(registeredAt: Date): string {
@@ -451,14 +499,25 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
     const auth = await requireFeeder(req, reply);
     if (!auth) return reply;
 
-    const res = await query<RegistrationRow>(
-      `SELECT slug, name, status, ward_id, registered_at, registered_by
-         FROM dogs
-        WHERE registered_by = $1
-        ORDER BY registered_at DESC NULLS LAST
+    const res = await query<RegistrationRow & V6Row>(
+      `SELECT d.slug, d.name, d.status, d.ward_id, d.registered_at, d.registered_by, ${V6_COLUMNS}
+         FROM dogs d
+        WHERE d.registered_by = $1
+        ORDER BY d.registered_at DESC NULLS LAST
         LIMIT 100`,
       [auth.feederId],
     );
+
+    // P6: which of the caller's registrations hold the pending slots, so the
+    // form can say so on open instead of failing on Save.
+    const holders = res.rows
+      .filter((r) => r.status === "pending_activation")
+      .map((r) => ({
+        slug: r.slug,
+        name: r.name ?? null,
+        printedAt: r.printed_at ? r.printed_at.toISOString() : null,
+        daysLeft: daysLeftOf(r.status, r.registered_at) ?? 0,
+      }));
 
     return {
       ok: true,
@@ -474,7 +533,9 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
                 expiresAt: expiresAtOf(row.registered_at),
               }
             : {}),
+          ...v6Fields(row),
         })),
+        budget: { pending: holders.length, max: REGISTRATION_BUDGET_MAX, holders },
       },
     };
   });
@@ -496,9 +557,11 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
         .send({ ok: false, error: { message: "invalid slug", code: "INVALID_SLUG" } });
     }
 
-    const res = await query<RegistrationRow>(`SELECT slug, name, status, ward_id, registered_at, registered_by FROM dogs WHERE slug = $1`, [
-      slug,
-    ]);
+    const res = await query<RegistrationRow & V6Row>(
+      `SELECT d.slug, d.name, d.status, d.ward_id, d.registered_at, d.registered_by, ${V6_COLUMNS}
+         FROM dogs d WHERE d.slug = $1`,
+      [slug],
+    );
     const row = res.rows[0];
     if (!row) {
       return reply
@@ -530,6 +593,60 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
         registeredAt: row.registered_at?.toISOString() ?? null,
         ...(row.registered_at ? { expiresAt: expiresAtOf(row.registered_at) } : {}),
         collarUrl: collarUrl(slug, sig),
+        ...v6Fields(row),
+      },
+    };
+  });
+
+  /**
+   * POST /api/v1/registrations/:slug/tag-check { code } (design v6, P2):
+   * before activating, does the tag the registrator just scanned belong to
+   * THIS registration? A wrong tag is answered with both dogs' names and
+   * codes, but the scanned one only when the caller may see it: their own
+   * registration, or a dog any public surface shows. Anything else is
+   * `scanned: null`, so this cannot be used to learn about pending dogs of
+   * other people. Activation itself is still the geotagged scan (routes/scans.ts).
+   */
+  app.post("/api/v1/registrations/:slug/tag-check", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const { slug } = req.params as { slug: string };
+    const parsed = z.strictObject({ code: z.string().min(1).max(200) }).safeParse(req.body ?? {});
+    if (!isValidSlug(slug) || !parsed.success) {
+      return reply.status(400).send({ ok: false, error: { message: "body must be { code }", code: "INVALID_TAG_CHECK" } });
+    }
+    const own = await query<{ slug: string; name: string | null; registered_by: string | null }>(
+      `SELECT slug, name, registered_by FROM dogs WHERE slug = $1`,
+      [slug],
+    );
+    const mine = own.rows[0];
+    if (!mine) {
+      return reply.status(404).send({ ok: false, error: { message: "not found", code: "DOG_NOT_FOUND" } });
+    }
+    if (mine.registered_by !== auth.feederId && !capabilitiesFor(auth.role).has("enrol")) {
+      return reply.status(403).send({ ok: false, error: { message: "not your registration", code: "NOT_YOUR_REGISTRATION" } });
+    }
+    // Accept a full collar URL (…/d/<slug>?s=…) or a typed code.
+    const raw = parsed.data.code.trim();
+    const fromUrl = /\/d\/([a-z0-9]{9})(?:[?#/]|$)/i.exec(raw)?.[1];
+    const scannedSlug = (fromUrl ?? raw).toLowerCase().replace(/[\s-]+/g, "").replace(/0/g, "o").replace(/[1l]/g, "i");
+    if (scannedSlug === slug) return { ok: true, data: { match: true } };
+    const other = isValidSlug(scannedSlug)
+      ? (
+          await query<{ slug: string; name: string | null; status: string; registered_by: string | null }>(
+            `SELECT slug, name, status::text AS status, registered_by FROM dogs WHERE slug = $1`,
+            [scannedSlug],
+          )
+        ).rows[0]
+      : undefined;
+    const visible =
+      other && (other.registered_by === auth.feederId || !["pending_activation", "expired"].includes(other.status));
+    return {
+      ok: true,
+      data: {
+        match: false,
+        expected: { slug: mine.slug, name: mine.name ?? null },
+        scanned: visible ? { slug: other.slug, name: other.name ?? null } : null,
       },
     };
   });

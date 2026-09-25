@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button, StickyFooter } from "@/components/ds";
+import { AppHeader } from "@/components/ds/AppHeader";
 import { api, ApiError, getAccessToken, type Alert } from "@/lib/api";
 import { groupAlerts, relativeTime, type AlertDot } from "@/lib/alerts";
+import { markAlertsSeen } from "@/lib/me-hub";
 import styles from "./alerts.module.css";
 
 /**
- * N5 Alerts (design v5), a tab root: the last 14 days of what happened to the
+ * N5 Alerts (design v5), a focused screen reached from Me since v6 (Alerts
+ * left the tab bar): the last 14 days of what happened to the
  * dogs this feeder looks after, newest first, grouped by day. Every row opens
  * the screen that deals with it (alert.href).
  */
@@ -45,6 +48,8 @@ export default function AlertsPage(): React.JSX.Element {
     try {
       const res = await api.getAlerts();
       setState({ kind: "ready", items: Array.isArray(res?.items) ? res.items : [], now: new Date() });
+      // Me's Alerts row counts what arrived after this visit.
+      markAlertsSeen();
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.code === "UNAUTHENTICATED")) {
         setState({ kind: "signed-out" });
@@ -64,6 +69,7 @@ export default function AlertsPage(): React.JSX.Element {
   if (state.kind === "signed-out") {
     return (
       <div className={styles.page}>
+        <AppHeader back={{ href: "/me", label: "Me", history: true }} surface="mist" />
         <div className={`h-container ${styles.body}`}>
           <h1 className={styles.title}>Alerts</h1>
           <p className={styles.lead}>
@@ -87,6 +93,7 @@ export default function AlertsPage(): React.JSX.Element {
   if (state.kind !== "ready") {
     return (
       <div className={styles.page}>
+        <AppHeader back={{ href: "/me", label: "Me", history: true }} surface="mist" />
         <div className={`h-container ${styles.body}`}>
           <h1 className={styles.title}>Alerts</h1>
           {state.kind === "error" ? (
@@ -114,6 +121,7 @@ export default function AlertsPage(): React.JSX.Element {
 
   return (
     <div className={styles.page}>
+      <AppHeader back={{ href: "/me", label: "Me", history: true }} surface="mist" />
       <div className={`h-container ${styles.body}`}>
         <h1 className={styles.title}>Alerts</h1>
         {sections.length === 0 ? (

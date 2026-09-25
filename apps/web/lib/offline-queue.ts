@@ -35,6 +35,10 @@ export interface EnqueueInput {
   outcome?: FeedOutcomeValue;
   /** The dog's name, kept with the record for the N7 waiting list. Never sent. */
   dogName?: string | null;
+  /** v6 L2: the feeder's note (<= 280), sent with the feed. */
+  note?: string;
+  /** v6 L2: with an "unwell" outcome, one push to the dog's other feeders. */
+  tellCoFeeders?: true;
 }
 
 export interface FeedOutcome {
@@ -110,6 +114,8 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     deviceToken: input.deviceToken,
     ...(input.outcome ? { outcome: input.outcome } : {}),
     ...(input.dogName ? { dogName: input.dogName } : {}),
+    ...(input.note ? { note: input.note } : {}),
+    ...(input.tellCoFeeders ? { tellCoFeeders: true as const } : {}),
   });
 
   const offline = !isOnLine();
@@ -295,7 +301,7 @@ async function flushDetailed(onDrop?: (item: QueuedScan, err: ApiError) => void)
       continue;
     }
     try {
-      const result = await api.createScan(
+      const result = await api.createScanV6(
         {
           clientUuid: item.clientUuid,
           dogSlug: item.dogSlug,
@@ -304,6 +310,8 @@ async function flushDetailed(onDrop?: (item: QueuedScan, err: ApiError) => void)
           photoBase64: item.photo,
           capturedAt: item.capturedAt,
           ...(item.outcome ? { outcome: item.outcome } : {}),
+          ...(item.note ? { note: item.note } : {}),
+          ...(item.tellCoFeeders && item.outcome === "unwell" ? { tellCoFeeders: true as const } : {}),
         },
         // The capture-time credential. Harmless alongside a Bearer: the route
         // prefers the Bearer for attribution, and this token is what makes an

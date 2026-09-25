@@ -49,9 +49,9 @@ afterEach(() => {
 
 describe("pronouns", () => {
   it("her / his from the record, they / them without one", () => {
-    expect(pronouns("female")).toEqual({ obj: "her", poss: "her" });
-    expect(pronouns("m")).toEqual({ obj: "him", poss: "his" });
-    expect(pronouns(undefined)).toEqual({ obj: "them", poss: "their" });
+    expect(pronouns("female")).toEqual({ subj: "she", obj: "her", poss: "her" });
+    expect(pronouns("m")).toEqual({ subj: "he", obj: "him", poss: "his" });
+    expect(pronouns(undefined)).toEqual({ subj: "they", obj: "them", poss: "their" });
   });
 });
 

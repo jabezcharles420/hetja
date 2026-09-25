@@ -25,7 +25,7 @@
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(var(--tab-count, 5), 1fr);
+  grid-template-columns: repeat(var(--tab-count, 4), 1fr);
   align-items: stretch;
 }
 

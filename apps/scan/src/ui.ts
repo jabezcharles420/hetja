@@ -1,27 +1,32 @@
 /**
- * Screen 03 (dog profile) plus the small shared bits every view uses: the
- * status pill, the icons, view switching and the toast.
+ * The dog profile plus the small shared bits every view uses: the status
+ * pill, the icons, view switching, the bottom sheet and the toast.
  *
- * Design v4 (docs/design/v4-handoff, "03 Dog profile"): plain white, no
- * motion, the photo, the name and ward line, three status pills, the collar
- * code card, the story, and one red button pinned in the footer. Every pill
- * carries an icon AND words (hard rule 2); an unknown status is a neutral
- * "unknown" pill, never a blank.
+ * Design v6 (docs/design/v6-handoff): V15 "You found Rani." with her feeders
+ * by first name, V16 the invitation when nobody feeds the dog, V17 the saved
+ * copy offline, P8 an unknown collar (SOS stays live), and D2 a dog's link
+ * opened on a desktop. v5 states stay: Unverified, Tag under review, the
+ * sturdier-collar line and the memorial page. Plain white, no motion. Every
+ * pill carries an icon AND words; an unknown status is a neutral "unknown"
+ * pill, never a blank.
  */
-import type { DogCard, DogProfile } from "./api";
+import type { DogProfile } from "./api";
 import {
+  clock,
   collarGroups,
+  dayWord,
+  feederLine,
+  helpCap,
   lastFedText,
   memorialLine,
   pronouns,
   sturdierLine,
   pastelIndex,
   PASTELS,
-  possessive,
   sayCollarCode,
   wardLine,
-  writtenByLine,
 } from "./format";
+import { qrSvg } from "./qr";
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -30,7 +35,7 @@ const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel)
  * painted with currentColor. The alert "!" is drawn, not typed, so it cannot
  * fall back to a different font's glyph.
  * ------------------------------------------------------------------------- */
-export type IconName = "check" | "clock" | "cross" | "alert";
+export type IconName = "check" | "clock" | "cross" | "alert" | "pin";
 
 export function icon(name: IconName, size = 16, stroke = 2.2): string {
   const inner =
@@ -40,7 +45,9 @@ export function icon(name: IconName, size = 16, stroke = 2.2): string {
         ? '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
         : name === "cross"
           ? '<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
-          : '<circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2v4.6" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/><circle cx="8" cy="11.6" r="1.15" fill="#fff"/>';
+          : name === "pin"
+            ? '<g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 14.5s5-4.3 5-8.2A5 5 0 0 0 3 6.3c0 3.9 5 8.2 5 8.2z"/><circle cx="8" cy="6.3" r="1.8"/></g>'
+            : '<circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2v4.6" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/><circle cx="8" cy="11.6" r="1.15" fill="#fff"/>';
   return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${inner}</svg>`;
 }
 
@@ -52,15 +59,17 @@ export function pill(tone: Tone, name: IconName, text: string, small = false): s
 }
 
 /* ---------------------------------------------------------------------------
- * Views. The three screens are sections of one static page; switching is a
- * class toggle, not a navigation, so SOS never waits on a network round trip.
+ * Views. The screens are sections of one static page; switching is a class
+ * toggle, not a navigation, so SOS never waits on a network round trip. On
+ * a desktop (D2) the profile view is the wide "desk" view instead.
  * ------------------------------------------------------------------------- */
-export type View = "profile" | "sos" | "sent" | "tag";
+export type View = "profile" | "sos" | "sent" | "tag" | "desk";
 let current: View = "profile";
 
 export function showView(v: View): void {
+  if (v === "profile" && document.body.classList.contains("desk")) v = "desk";
   current = v;
-  for (const id of ["profile", "sos", "sent", "tag"] as const) $(`#v-${id}`).classList.toggle("hidden", id !== v);
+  for (const id of ["profile", "sos", "sent", "tag", "desk"] as const) $(`#v-${id}`).classList.toggle("hidden", id !== v);
   window.scrollTo(0, 0);
   // Move focus to the new screen's heading so a screen reader announces it.
   document.querySelector<HTMLElement>(`#v-${v} [data-focus]`)?.focus();
@@ -70,111 +79,79 @@ export function currentView(): View {
   return current;
 }
 
-export function setStatus(text: string): void {
-  $("#status").textContent = text;
-}
-
-export function setSub(text: string): void {
-  $("#sub").textContent = text;
-}
-
 /** A dog who has passed: the page stays, calm, with no feed or SOS actions. */
 export function isMemorial(p: DogProfile): boolean {
   return p.status === "deceased";
+}
+
+function setCta(label: string, capText: string): void {
+  $("#cta-t").textContent = label;
+  $("#cta-cap").textContent = capText;
 }
 
 export function renderProfile(p: DogProfile, stale: boolean): void {
   $("#state").classList.add("hidden");
   const app = $("#profile");
   app.classList.remove("hidden");
-  app.innerHTML = buildProfile(p);
-  $("#v-profile").classList.remove("mist");
+  app.innerHTML = buildProfile(p, stale);
   $("#main-foot").classList.toggle("hidden", isMemorial(p));
   if (isMemorial(p)) return;
-  // A dog nobody feeds on Hetja has no feeders to alert; say only what happens.
-  $("#cta-cap").textContent =
-    p.feederCount === 0 ? "Alerts a vet nearby." : `Alerts ${possessive(p.name, p.sex)} feeders and a vet nearby.`;
+  setCta(`${p.name} needs help`, stale ? "Works offline." : helpCap(p));
   // Feeders who scan with the phone camera land here, not in the app: give
   // them a quiet way to log a feed. Signed-in only (same origin as the web
   // app, so its session key is readable). The SOS stays the one loud action.
   const feed = $<HTMLAnchorElement>("#feed-link");
   if (hasFeederSession()) {
-    feed.href = `/feed?dog=${encodeURIComponent(p.slug)}`;
+    feed.href = feedHref(p.slug);
     feed.textContent = `Feeding ${p.name}? Log a feed ›`;
     feed.classList.remove("hidden");
   }
   const copy = app.querySelector<HTMLButtonElement>("#copy");
-  copy?.addEventListener("click", () => void copyCode(p.slug, copy));
-  if (stale) {
-    setNote("You're offline. Showing a saved profile. Vaccination and sterilisation status may be outdated.");
-  }
+  copy?.addEventListener("click", () => void copyText(collarGroups(p.slug).join(" "), copy));
 }
+
+const feedHref = (slug: string): string => `/feed?dog=${encodeURIComponent(slug)}`;
 
 /**
- * N8 "No dog has this code." on the collar page. The rows always show; the
- * "Did you mean" card only when the lookup found a near miss.
+ * P8 "Hetja doesn't know this collar." The red button stays live: with no
+ * dog it becomes a dogless SOS to the visitor's ward (sos.ts).
  */
-export function renderNotFound(code: string, suggestions: DogCard[]): void {
+export function renderUnknown(code: string): void {
   $("#state").classList.add("hidden");
-  $("#v-profile").classList.add("mist");
   const app = $("#profile");
   app.classList.remove("hidden");
-  app.innerHTML = notFoundMarkup(code, suggestions);
-  // The red button stays (a tampered QR can still belong to a real dog), but
-  // with no known dog it can only promise what it will certainly do.
-  $("#cta-cap").textContent = "Shows vets and NGOs near you.";
-  // A code that is not even well-formed has nothing to report on (panel.ts
-  // leaves the button disabled): hide it rather than show a dead red button.
-  $("#main-foot").classList.toggle("hidden", $<HTMLButtonElement>("#primary-cta").disabled);
+  app.innerHTML = unknownMarkup(code);
+  $("#main-foot").classList.remove("hidden");
+  setCta("This dog needs help", "Alerts vets and feeders in your ward. No code needed.");
 }
 
-export function notFoundMarkup(code: string, suggestions: DogCard[]): string {
-  const groups = collarGroups(code.slice(0, 12)).join(" ");
-  const mail = `mailto:hello@hetja.in?subject=${encodeURIComponent("Tag looks fake")}&body=${encodeURIComponent(
-    `Code on the tag: ${groups}`,
-  )}`;
-  const near = suggestions.length
-    ? `<p class="lead">Two digits may be swapped. Did you mean this dog?</p><div class="card">${suggestions
-        .map(suggestionRow)
-        .join("")}</div>`
-    : `<p class="lead">Check the collar and scan again.</p>`;
-  return `
-    <div class="nf-top"><a class="back" href="/scan">‹ Scan</a></div>
-    ${groups ? `<p class="nf-code">${escapeHtml(groups)}</p>` : ""}
-    <h1 class="title" tabindex="-1" data-focus>No dog has this code.</h1>
-    ${near}
-    <div class="card">
-      ${navRow("/scan/code", "Type it again")}
-      ${navRow("/scan/find", "Find by ward and photo")}
-      ${navRow(mail, "Tag looks fake")}
-    </div>`;
+export function unknownMarkup(code: string): string {
+  return `<div class="p8">
+    <h1 class="title" tabindex="-1" data-focus>Hetja doesn't know this collar.</h1>
+    <p class="lead2">It may be new and not switched on yet, or a letter was misread. The dog is still someone's.</p>
+    ${code ? `<div class="code-card"><p class="label">You scanned</p>${codeSpans(code.slice(0, 12))}</div>` : ""}
+    <div class="card line">
+      <a class="nav" href="/scan/code"><span>Type the code again</span>${CHEV}</a>
+      <a class="nav" href="/scan/find"><span class="gtx"><span>Find the dog by photo</span><span class="g-s">Dogs in the ward you're in</span></span>${CHEV}</a>
+    </div></div>`;
 }
 
-function navRow(href: string, text: string): string {
-  return `<a class="nav" href="${escapeHtml(href)}"><span>${escapeHtml(text)}</span><span class="chev" aria-hidden="true">›</span></a>`;
-}
+const CHEV = '<span class="chev" aria-hidden="true">›</span>';
 
-function suggestionRow(c: DogCard): string {
-  const name = c.name ?? "No name yet";
-  const [bg, ink] = PASTELS[pastelIndex(c.slug)]!;
-  const av = c.photoUrl
-    ? `<img src="${escapeHtml(c.photoUrl)}" alt="" />`
-    : `<span style="background:${bg};color:${ink}">${escapeHtml((name.charAt(0) || "?").toUpperCase())}</span>`;
-  const meta = [collarGroups(c.slug).join(" "), c.wardCode || c.wardId].filter(Boolean).join(" · ");
-  return `<a class="sugg" href="/d/${encodeURIComponent(c.slug)}"><span class="av">${av}</span><span class="gtx"><span class="row-t">${escapeHtml(
-    name,
-  )}</span><span class="sugg-m">${escapeHtml(meta)}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
+function codeSpans(code: string): string {
+  return `<p class="code">${collarGroups(code)
+    .map((g) => `<span>${escapeHtml(g)}</span>`)
+    .join("")}</p>`;
 }
 
 export function renderError(message: string): void {
-  $("#state").classList.remove("hidden");
+  const st = $("#state");
+  st.classList.remove("hidden");
+  st.innerHTML = `<p class="title">Unavailable</p><p class="lead">${escapeHtml(message)}</p>`;
   const app = $("#profile");
   app.classList.add("hidden");
   app.innerHTML = "";
-  $("#v-profile").classList.remove("mist");
   $("#main-foot").classList.remove("hidden");
-  setStatus("Unavailable");
-  setSub(message);
 }
 
 export function setNote(text: string): void {
@@ -194,18 +171,57 @@ export function toast(message: string, ms = 4000): void {
   toastTimer = setTimeout(() => el.classList.add("hidden"), ms);
 }
 
-export function buildProfile(p: DogProfile): string {
+/* ---------------------------------------------------------------------------
+ * Bottom sheet (F4 tag problems, N12 location ask, N10 update). One at a
+ * time, over a view made inert while it is open.
+ * ------------------------------------------------------------------------- */
+let under: HTMLElement | undefined;
+let returnFocus: HTMLElement | null = null;
+
+export function openSheet(html: string, underView: string, onScrim: () => void): void {
+  const el = $("#sheet");
+  returnFocus = document.activeElement as HTMLElement | null;
+  el.innerHTML = `<div class="scrim" id="scrim"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t"><span class="grab" aria-hidden="true"></span>${html}</div>`;
+  el.classList.remove("hidden");
+  under = $(underView);
+  under.inert = true;
+  $("#scrim").addEventListener("click", onScrim);
+  $("#sheet-t").focus();
+}
+
+export function closeSheet(): void {
+  const el = $("#sheet");
+  if (el.classList.contains("hidden")) return;
+  el.classList.add("hidden");
+  el.innerHTML = "";
+  if (under) under.inert = false;
+  returnFocus?.focus();
+}
+
+export function sheetOpen(): boolean {
+  return !$("#sheet").classList.contains("hidden");
+}
+
+/* ---------------------------------------------------------------------------
+ * Profile (V15, V16, V17 and the v5 states).
+ * ------------------------------------------------------------------------- */
+
+export function buildProfile(p: DogProfile, stale = false, now: number = Date.now()): string {
   const ward = wardLine(p.wardId, p.wardName);
-  const groups = collarGroups(p.slug);
   const pr = pronouns(p.sex);
+  const mem = isMemorial(p);
+  const saved = stale ? p.savedAt : undefined;
   const head = `
-    <div class="photo">${photoMarkup(p)}</div>
+    <div class="photo">${photoMarkup(p)}${
+      stale ? `<span class="saved">${icon("clock", 14)}${saved ? `Saved ${dayWord(saved, now)}, ${clock(saved)}` : "Saved copy"}</span>` : ""
+    }</div>
     <div class="name-blk">
-      <h1 class="name" tabindex="-1" data-focus>${escapeHtml(p.name)}</h1>
+      ${mem ? "" : `<p class="label">You found</p>`}
+      <h1 class="name" tabindex="-1" data-focus>${escapeHtml(mem ? p.name : `${p.name}.`)}</h1>
       ${ward ? `<p class="ward">${escapeHtml(ward)}</p>` : ""}
-      ${p.verified === false && !isMemorial(p) ? `<span class="badge">Unverified</span>` : ""}
+      ${p.verified === false && !mem ? `<span class="badge">Unverified</span>` : ""}
     </div>`;
-  if (isMemorial(p)) {
+  if (mem) {
     const names = p.memorial?.feederNames ?? [];
     return `${head}
     <p class="lead">${escapeHtml(memorialLine(p.name, pr))}</p>
@@ -218,44 +234,67 @@ export function buildProfile(p: DogProfile): string {
     }
     ${p.microStory ? `<p class="story">${escapeHtml(p.microStory)}</p>` : ""}`;
   }
+  const asOf = saved ? `, as of ${dayWord(saved, now)}` : "";
+  const line = p.feederCount === undefined ? undefined : feederLine(p.name, p, now);
   return `${head}
     ${
       p.tagUnderReview
         ? `<div class="review" role="note">${icon("alert", 18)}<p><b>Tag under review</b><br>Someone said this tag is on a different dog. A feeder will check it. SOS still works.</p></div>`
         : ""
     }
-    <div class="pills">${statusPills(p)}</div>
-    <div class="code-card">
-      <div class="code-row">
-        <div class="code-col">
-          <p class="label">Collar code</p>
-          <p class="code">${groups.map((g) => `<span>${escapeHtml(g)}</span>`).join("")}</p>
-        </div>
-        <button type="button" id="copy" class="quiet">Copy</button>
-      </div>
-      <p class="say">Say it: ${escapeHtml(sayCollarCode(p.slug))}</p>
-    </div>
+    <div class="pills">${statusPills(p, asOf, p.feederCount === undefined)}</div>
+    ${stale ? `<p class="by">You're offline, so this is the last copy your phone saw. The SOS button still works. It sends when there's signal, or by text.</p>` : ""}
+    ${
+      p.feederCount === 0
+        ? `<div class="invite"><p class="inv-t">${escapeHtml(`Nobody feeds ${p.name} on Hetja yet.`)}</p><p class="inv-s">${escapeHtml(
+            `If you give ${p.name} a biscuit on your way to work, that counts. Become ${pr.poss} first feeder and ${pr.poss} page will say so.`,
+          )}</p><a class="inv-l" href="${feedHref(p.slug)}">${escapeHtml(`I feed ${p.name} ›`)}</a></div>`
+        : line
+          ? `<div class="fcard">${avatars(p.feederNames ?? [])}<p>${escapeHtml(line)}</p></div>`
+          : ""
+    }
     ${p.sturdierCollarSuggested ? `<p class="by">${escapeHtml(sturdierLine(p.name, pr))}</p>` : ""}
-    ${storyMarkup(p)}
+    ${p.microStory ? `<p class="story">${escapeHtml(p.microStory)}</p>` : ""}
+    ${
+      // The big code card stays for feeders; a stranger rarely needs it (V15).
+      hasFeederSession()
+        ? `<div class="code-card"><div class="code-row"><div class="code-col"><p class="label">Collar code</p>${codeSpans(
+            p.slug,
+          )}</div><button type="button" id="copy" class="quiet">Copy</button></div><p class="say">Say it: ${escapeHtml(
+            sayCollarCode(p.slug),
+          )}</p></div>`
+        : `<p class="cline">Collar ${escapeHtml(collarGroups(p.slug).join(" "))} · <button type="button" id="copy" class="clink">Copy</button></p>`
+    }
     <button type="button" id="tag-open" class="feedlink">Report a tag problem</button>
   `;
 }
 
-function statusPills(p: DogProfile): string {
+/** Overlapping first-name initials (V15), at most three. */
+function avatars(names: string[]): string {
+  return names.length
+    ? `<span class="avs" aria-hidden="true">${names
+        .slice(0, 3)
+        .map((n) => `<span>${escapeHtml(n.charAt(0).toUpperCase())}</span>`)
+        .join("")}</span>`
+    : "";
+}
+
+function statusPills(p: DogProfile, asOf = "", withFed = true): string {
   // The v4 fields when the API sends them, the legacy ones otherwise: a
   // vaccineStatus string only exists for a VERIFIED record (see api.ts).
   const vacc = p.vaccinated ?? (p.vaccine ? "yes" : "unknown");
   const ster = p.sterilised ?? legacySterilised(p.abcStatus);
   const out = [
-    vacc === "yes" ? pill("ok", "check", "Vaccinated") : pill("neutral", "alert", "Vaccination unknown"),
+    vacc === "yes" ? pill("ok", "check", `Vaccinated${asOf}`) : pill("neutral", "alert", "Vaccination unknown"),
     ster === "yes"
-      ? pill("ok", "check", "Sterilised")
+      ? pill("ok", "check", `Sterilised${asOf}`)
       : ster === "no"
         ? pill("neutral", "cross", "Not sterilised")
         : pill("neutral", "alert", "Sterilisation unknown"),
   ];
-  if (p.lastFedAt === null) out.push(pill("neutral", "clock", "No feeds logged yet"));
-  else if (p.lastFedAt) {
+  // v6 moves "Last fed" into the feeder line; an older API without feeder
+  // counts (and the desktop D2) keep the pill.
+  if (withFed && p.lastFedAt) {
     const t = lastFedText(p.lastFedAt);
     if (t) out.push(pill("neutral", "clock", t));
   }
@@ -267,19 +306,7 @@ function legacySterilised(abc?: string): "yes" | "unknown" {
   return low === "sterilized" || low === "sterilised" || low === "done" || low === "abc_done" ? "yes" : "unknown";
 }
 
-function storyMarkup(p: DogProfile): string {
-  if (p.microStory) {
-    return `<p class="story">${escapeHtml(p.microStory)}</p><p class="by">${escapeHtml(
-      writtenByLine(p.name, p.sex, p.storyAuthorCount),
-    )}</p>`;
-  }
-  const who = possessive(p.name, p.sex);
-  const by =
-    p.feederCount === 0 ? "Nobody has written one yet." : `${who.charAt(0).toUpperCase()}${who.slice(1)} feeders haven't written one yet.`;
-  return `<p class="story">No story yet.</p><p class="by">${escapeHtml(by)}</p>`;
-}
-
-function photoMarkup(p: DogProfile): string {
+export function photoMarkup(p: { slug: string; name: string; photoUrl?: string }): string {
   if (p.photoUrl) return `<img src="${escapeHtml(p.photoUrl)}" alt="Photo of ${escapeHtml(p.name)}" />`;
   // DogAvatar fallback from the handoff: the dog's initial on its stable
   // pastel. No emoji and no image bytes on this hot path.
@@ -290,15 +317,50 @@ function photoMarkup(p: DogProfile): string {
   )} yet">${escapeHtml(initial)}</div>`;
 }
 
-async function copyCode(slug: string, btn: HTMLButtonElement): Promise<void> {
-  const text = collarGroups(slug).join(" ");
+/* ---------------------------------------------------------------------------
+ * D2: a dog's link opened on a desktop (wider than 744 px). The dog, a QR
+ * handoff to the phone, and SOS still one click away (the SOS form itself
+ * is the mobile one centred at 480 px).
+ * ------------------------------------------------------------------------- */
+
+export const isDesk = (): boolean => matchMedia("(min-width: 745px)").matches;
+
+export function deskMarkup(p: DogProfile, url: string): string {
+  const pr = pronouns(p.sex);
+  const n = p.feederCount;
+  const ward = [wardLine(p.wardId, p.wardName), n ? `fed by ${n === 1 ? "1 person" : `${n} people`}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return `<header class="dk-h"><span class="dk-dot"></span>Hetja</header>
+  <div class="dk">
+    <div class="dk-l">
+      <div class="photo dk-ph">${photoMarkup(p)}</div>
+      <div class="name-blk"><h1 class="dk-n" tabindex="-1" data-focus>${escapeHtml(`${p.name} is on Hetja.`)}</h1><p class="dk-w">${escapeHtml(ward)}</p></div>
+      <div class="pills">${statusPills(p)}</div>
+    </div>
+    <div class="dk-r">
+      <p class="dk-t">Standing next to ${pr.obj}?<br>Use your phone.</p>
+      <div class="dk-q">${qrSvg(url)}<p class="lead">${escapeHtml(
+        `Scan to open ${p.name}'s page on your phone. It can share your location with whoever comes to help.`,
+      )}</p></div>
+      <div class="dk-s"><p>${escapeHtml(
+        `${pr.subj === "they" ? "Are" : "Is"} ${pr.subj} hurt right now? You can still raise an SOS from here.`,
+      )}</p><button type="button" class="btn sos dk-b" id="dk-sos">${icon("alert", 20)}${escapeHtml(`${p.name} needs help`)}</button></div>
+    </div>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/** Copies text, and says so on the button. No clipboard (http, old WebView): a toast. */
+export async function copyText(text: string, btn: HTMLButtonElement, fail = `Collar code ${text}`): Promise<void> {
+  const was = btn.textContent;
   try {
     await navigator.clipboard.writeText(text);
     btn.textContent = "Copied";
-    setTimeout(() => (btn.textContent = "Copy"), 2000);
+    setTimeout(() => (btn.textContent = was), 2000);
   } catch {
-    // No clipboard (http, old WebView): show the code so it can be read out.
-    toast(`Collar code ${text}`);
+    toast(fail);
   }
 }
 

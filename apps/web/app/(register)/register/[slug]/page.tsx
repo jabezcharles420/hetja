@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import ActivateClient from "./ActivateClient";
+import RegistrationClient from "./RegistrationClient";
 
 export const metadata: Metadata = {
   title: "Registration · Hetja",
-  description: "What to do next: print the sheet, attach the collar, and scan to activate.",
+  description: "Put the collar on and scan it once to switch the dog's page on; then reprint, edit and invite feeders.",
 };
 
 export default function RegisterSlugPage({ params }: { params: { slug: string } }): React.JSX.Element {
-  return <ActivateClient slug={params.slug} />;
+  return <RegistrationClient slug={params.slug} />;
 }

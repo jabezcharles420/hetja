@@ -275,3 +275,161 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ---- design v6 (V12, V13, L3, P1 to P6) --------------------------------- */
+
+/* The light aurora over mist (V13, V14, L3, P3). */
+.aurora {
+  background: radial-gradient(70% 40% at 0% 0%, var(--h-aurora-light-pink) 0%, transparent 70%),
+    radial-gradient(60% 35% at 100% 5%, var(--h-aurora-light-peach) 0%, transparent 70%), var(--h-mist);
+  background-repeat: no-repeat;
+  background-size: 100% 844px;
+  background-color: var(--h-mist);
+}
+
+.hero {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.heroLead {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+}
+
+.v6Body {
+  gap: 18px;
+  padding-top: 12px;
+}
+
+.sectionHead {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.group {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 20px;
+  padding: 0 16px;
+}
+
+.group > * + * {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+/* A whole-row link with a chevron (P3, P4, V12). */
+.linkRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.linkRowTall {
+  min-height: 64px;
+}
+
+.linkRow:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+.linkText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linkTitle {
+  font-size: 17px;
+}
+
+.linkSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.linkWarn {
+  color: var(--h-warn);
+}
+
+.chev {
+  flex: none;
+  color: var(--h-tertiary);
+  font-size: 20px;
+}
+
+.inlineLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--h-link);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dogHead {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.dogHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dogName {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.dogSub {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.dogCode {
+  font-family: var(--h-mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--h-secondary);
+}
+
+.pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.footerTight {
+  gap: 4px;
+}

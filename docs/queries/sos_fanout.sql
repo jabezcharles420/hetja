@@ -21,6 +21,10 @@
 -- scanned here yesterday is a better page than one whose last local scan was
 -- four weeks ago. Supported by scans_feeder_recent_ix (migration 0020).
 --
+-- Design v6: a feeder who paused alerts (feeders.sos_paused_until in the
+-- future, L1) is never paged, and a dogless case (P8) runs this same query
+-- with the reporter's point and ward in place of the dog's.
+--
 -- Design v5 ward rule (lib/sos-eligibility.ts wardAllows; migration 0026):
 -- a feeder who chose wards (feeders.wards, non-empty) is paged ONLY for dogs
 -- in those wards and for ANY dog in them, with or without a recent nearby
@@ -51,6 +55,7 @@ CROSS JOIN LATERAL (
 ) recent
 WHERE f.sos_opt_in
   AND f.deleted_at IS NULL
+  AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())
   AND f.trust_score >= 40            -- 40 normally, 60 for critical
   AND ((cardinality(f.wards) = 0 AND recent.last_nearby_scan IS NOT NULL)
        OR ('K-West'::text IS NOT NULL AND f.wards @> ARRAY['K-West'::text]))

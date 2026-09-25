@@ -195,6 +195,10 @@ export const ScanInput = z.object({
   // Stored in scans.feed_outcome (migration 0024). 'unwell' is a flag for a
   // human to follow up; it never opens an SOS on its own (INVARIANT 14).
   outcome: FeedOutcome.optional(),
+  // Design v6 (L2): a short note on a feed, and on an 'unwell' outcome the
+  // choice to tell the dog's other feeders (one push; signed-in feeds only).
+  note: z.string().max(280).optional(),
+  tellCoFeeders: z.literal(true).optional(),
 });
 export type ScanInput = z.infer<typeof ScanInput>;
 
@@ -204,13 +208,22 @@ export type ScanInput = z.infer<typeof ScanInput>;
 // required where the route accepts none. deviceToken is optional because a
 // signed-in feeder reports with a Bearer token instead. `photoBase64` is the
 // optional EXIF-stripped photo of the dog, capped like a scan's.
-export const SosReport = z.object({
-  dogSlug: z.string().regex(SLUG_REGEX),
-  severity: SosSeverity,
-  note: z.string().max(500).optional(),
-  deviceToken: z.string().min(1).max(256).optional(),
-  photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
-});
+//
+// Design v6 (P8): `dogSlug` is optional. Without it the report is DOGLESS and
+// `geo` is required (the route also requires it inside Mumbai): the case is
+// located to the reporter's ward and pages that ward's feeders.
+export const SosReport = z
+  .object({
+    dogSlug: z.string().regex(SLUG_REGEX).optional(),
+    severity: SosSeverity,
+    note: z.string().max(500).optional(),
+    deviceToken: z.string().min(1).max(256).optional(),
+    photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
+    geo: GeoPoint.optional(),
+  })
+  .refine((r) => r.dogSlug !== undefined || r.geo !== undefined, {
+    message: "a report without dogSlug needs geo",
+  });
 export type SosReport = z.infer<typeof SosReport>;
 
 export const MedicalRecordInput = z.object({

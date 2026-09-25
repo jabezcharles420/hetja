@@ -150,10 +150,10 @@ export function resolveReprinted(slug: string, reportId: string | null): Promise
  * POST /dogs/:slug/prints for each dog on the sheet. Best effort: never
  * awaited by the download, never surfaced as an error.
  */
-export function recordPrints(layout: SheetLayout, paper: Paper, dogs: SheetDog[]): void {
+export function recordPrints(layout: SheetLayout, paper: Paper, dogs: SheetDog[], tagCount?: number): void {
   const slugs = dogs.map((d) => d.slug);
   markPrinted(slugs);
   for (const slug of slugs) {
-    void api.recordPrint(slug, { layout, paper, tagCount: tagCountFor(layout) }).catch(() => {});
+    void api.recordPrint(slug, { layout, paper, tagCount: tagCount ?? tagCountFor(layout) }).catch(() => {});
   }
 }

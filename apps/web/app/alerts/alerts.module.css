@@ -2,7 +2,7 @@
  * 12px between blocks, rows 72 tall in a white r20 card. */
 
 .page {
-  min-height: calc(100dvh - var(--tab-clear, 0px));
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--h-mist);
@@ -15,7 +15,7 @@
   flex-direction: column;
   gap: 12px;
   /* Side gutters come from .h-container. */
-  padding-block: calc(24px + env(safe-area-inset-top, 0px)) 24px;
+  padding-block: 0 24px;
   max-width: 720px;
 }
 
@@ -152,10 +152,8 @@
   letter-spacing: -0.02em;
 }
 
-/* Sign in sits above the tab bar. */
 .page .footer {
-  bottom: var(--tab-clear, 0px);
-  padding-bottom: 16px;
+  padding-bottom: max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
 }
 
 @media (hover: hover) and (pointer: fine) {

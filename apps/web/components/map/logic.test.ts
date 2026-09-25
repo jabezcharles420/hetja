@@ -31,6 +31,21 @@ import {
   type MapPlace,
   type MapWard,
   wardNudge,
+  autoTrip,
+  cityWords,
+  citySosRows,
+  clockIST,
+  countWord,
+  distanceLabel,
+  lastLoggedLabel,
+  notLoggedLead,
+  openNow,
+  readWardsCache,
+  sosCardSub,
+  sosCardTitle,
+  wardDogsLine,
+  writeWardsCache,
+  WARDS_CACHE_KEY,
 } from "./logic";
 
 const NOW = Date.parse("2026-09-24T12:00:00Z");
@@ -148,7 +163,7 @@ describe("places", () => {
     expect(placeSub(place({ wardId: null, locality: "Mumbai" }))).toBe("Vet · Open till 9 pm");
   });
   it("lead is truthful about who listed it and who gets alerts", () => {
-    expect(placeLead(place(), "K/W")).toBe("Listed by the clinic. Hetja sends them SOS alerts for dogs in K/W and neighbouring wards.");
+    expect(placeLead(place(), "K/W")).toBe("Listed by the clinic. Hetja sends them SOS alerts for K/W.");
     expect(placeLead(place({ kind: "ngo", partner: false }), null)).toBe(
       "Listed by the NGO. They do not get Hetja's SOS alerts, so call them yourself.",
     );
@@ -260,5 +275,92 @@ describe("wardNudge", () => {
     expect(dy).toBe(112 - 100 + 4);
     const moved = { ...ward, top: ward.top + dy, bottom: ward.bottom + dy };
     expect(wardNudge(moved, [high])).toBe(0);
+  });
+});
+
+describe("design v6 words", () => {
+  it("M1 headline: not logged, never 'waiting for dinner'", () => {
+    const w = [ward({ sosOpen: 2, notFedToday: 17 })];
+    expect(cityWords(w, null, NOW).h1).toBe("Two dogs need help. 17 haven't been logged today.");
+    expect(cityWords([ward({ sosOpen: 1, notFedToday: 1 })], null, NOW).h1).toBe(
+      "One dog needs help. 1 hasn't been logged today.",
+    );
+    expect(cityWords(w, null, NOW).h1).not.toMatch(/dinner/);
+  });
+
+  it("V20: zero SOS, the empty city and 'mostly in'", () => {
+    // 12:00 UTC is 17:30 in Mumbai.
+    const calm = cityWords(
+      [ward({ id: "P-North", name: "Malad", notFedToday: 3 }), ward({ id: "A", notFedToday: 1 })],
+      null,
+      NOW,
+    );
+    expect(calm.h1).toBe("A quiet evening. No dog needs help.");
+    expect(calm.lead).toBe("4 haven't been logged today, mostly in Malad. They've probably eaten. Nobody has said so.");
+    expect(cityWords([ward({ dogs: 0 })], null, NOW).h1).toBe("Hetja is new here. The first collars go on in K/W.");
+    expect(countWord(4, true)).toBe("four");
+    expect(countWord(12)).toBe("12");
+  });
+
+  it("city SOS rows lead with the dog and fall back to the ward", () => {
+    const w = [ward({ id: "K-West", code: "K/W", name: "Andheri West", sosOpen: 1, latestSos: { severity: "critical", raisedAt: ago(5) } })];
+    expect(citySosRows(w, null)[0]!.title).toBe("K/W ward · Andheri West");
+    const rows = citySosRows(w, {
+      sos: [{ caseId: "c", wardId: "K-West", dogName: "Rani", severity: "critical", raisedAt: ago(13), taken: true }],
+    });
+    expect(rows[0]).toMatchObject({ title: "Rani · Andheri West", taken: true, initial: "R" });
+  });
+
+  it("M2 dogs line and SOS card", () => {
+    expect(wardDogsLine(["Rani", "Kalu", "Bruno"], 14, 5)).toBe("Rani, Kalu, Bruno and 11 others live here. 5 not logged today.");
+    expect(wardDogsLine(["Rani", "Kalu"], 2, 0)).toBe("Rani and Kalu live here.");
+    expect(wardDogsLine(["Rani"], 1, 0)).toBe("Rani lives here.");
+    expect(wardDogsLine([], 3, 1)).toBeNull();
+    const s = { caseId: "c", severity: "critical" as const, raisedAt: ago(13), state: "open" as const, feedersTold: true, mine: false };
+    expect(sosCardTitle({ ...s, dogName: "Rani" })).toBe("Rani can't get up");
+    expect(sosCardTitle({ ...s, severity: "serious", dogName: null })).toBe("A dog is hurt");
+    expect(sosCardSub({ ...s, dogSex: "female", feedersToldCount: 2 }, NOW)).toBe("13 min · her 2 feeders told · nobody yet");
+    expect(sosCardSub({ ...s, feedersToldCount: 1 }, NOW)).toBe("13 min · 1 feeder told · nobody yet");
+    expect(sosCardSub({ ...s, feedersTold: false, state: "acked" }, NOW)).toBe("13 min · someone is going");
+  });
+
+  it("M6 lead and last logged", () => {
+    expect(notLoggedLead([{ name: "A", lastLoggedAt: null }, { name: "B", lastLoggedAt: null }, { name: "C", lastLoggedAt: null }, { name: "D", lastLoggedAt: null }])).toBe(
+      "Nobody's logged these four today. They've probably eaten. Nobody has said so.",
+    );
+    expect(notLoggedLead([{ name: "Tiger", lastLoggedAt: null }])).toBe(
+      "Nobody's logged Tiger today. Tiger has probably eaten. Nobody has said so.",
+    );
+    expect(lastLoggedLabel(ago(24 * 60), NOW)).toEqual({ text: "yesterday", warn: false });
+    expect(lastLoggedLabel(ago(3 * 24 * 60), NOW)).toEqual({ text: "3 days", warn: true });
+    expect(lastLoggedLabel(null, NOW)).toEqual({ text: "not yet", warn: true });
+  });
+
+  it("M4 and M5 distances", () => {
+    expect(distanceLabel(900)).toBe("900 m");
+    expect(distanceLabel(1400)).toBe("1.4 km");
+    expect(distanceLabel(2000)).toBe("2 km");
+    expect(autoTrip(1400)).toBe("1.4 km · about 6 min by auto");
+  });
+
+  it("M5 open now only from structured hours; otherwise the clinic's note", () => {
+    expect(openNow(place({ is24x7: true }), NOW)).toEqual({ open: true, text: "Open now · 24 hours", short: "open now, 24 hours" });
+    // 17:30 in Mumbai.
+    expect(openNow(place({ hoursNote: "9 am to 9 pm" }), NOW)?.text).toBe("Open now · till 9 pm");
+    expect(openNow(place({ hoursNote: "9am - 5pm" }), NOW)?.text).toBe("Closed now · opens 9 am");
+    expect(openNow(place({ hoursNote: "Open till 9 pm" }), NOW)).toEqual({ open: null, text: "Open till 9 pm", short: "open till 9 pm" });
+    expect(openNow(place({ hoursNote: null }), NOW)).toBeNull();
+  });
+
+  it("M7 cache round trip, clock and a storage that throws", () => {
+    const mem = new Map<string, string>();
+    const st = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    writeWardsCache(st, [ward({})], { withCollars: 10 }, NOW);
+    expect(mem.has(WARDS_CACHE_KEY)).toBe(true);
+    expect(readWardsCache(st)).toEqual({ at: NOW, wards: [ward({})], summary: { withCollars: 10 } });
+    const broken = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    expect(readWardsCache(broken)).toBeNull();
+    expect(() => writeWardsCache(broken, [], null)).not.toThrow();
+    expect(clockIST(Date.parse("2026-09-25T10:10:00Z"))).toBe("3:40 pm");
   });
 });

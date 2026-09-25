@@ -25,7 +25,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BMC_WARD_CENTROIDS, isInMumbai } from "@hetja/contracts";
 import { Button, StickyFooter } from "@/components/ds";
-import { api, ApiError, type CreateRegistrationInput, type FeederMe, type Ward } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type CreateRegistrationInput,
+  type FeederMe,
+  type RegistrationBudgetHolder,
+  type Ward,
+} from "@/lib/api";
 import { deviceTokenFailureMessage, getDeviceToken, readCachedDeviceToken } from "@/lib/device";
 import { rememberDogSex, type DogSex } from "@/lib/dog-copy";
 import { blobToBase64, captureGeo, stripDataPrefix } from "@/lib/offline-queue";
@@ -36,6 +43,7 @@ import PhotoStep from "./PhotoStep";
 import DuplicateStep from "./DuplicateStep";
 import AboutStep, { type Tri } from "./AboutStep";
 import ConfirmStep from "./ConfirmStep";
+import SlotsFull from "./SlotsFull";
 import s from "../register.module.css";
 import styles from "./flow.module.css";
 
@@ -110,6 +118,10 @@ function FlowInner(): React.JSX.Element {
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** P6: checked on open. null while checking, false when a slot is free. */
+  const [slots, setSlots] = useState<
+    { holders: RegistrationBudgetHolder[]; pending: number; max: number } | false | null
+  >(null);
 
   useEffect(() => {
     if (!readCachedDeviceToken()) void getDeviceToken();
@@ -122,6 +134,41 @@ function FlowInner(): React.JSX.Element {
       if (cancelled) return;
       if (list) setWards(list.wards);
       setMe(who);
+      const budget = who?.registrationBudget;
+      if (!budget || budget.pending < budget.max) {
+        setSlots(false);
+        return;
+      }
+      // The limit, checked now rather than after the form (P6).
+      try {
+        const r = await api.getRegistrationsV6();
+        if (cancelled) return;
+        if (r.budget && r.budget.pending < r.budget.max) setSlots(false);
+        else
+          setSlots({
+            holders: r.budget?.holders ?? [],
+            pending: r.budget?.pending ?? budget.pending,
+            max: r.budget?.max ?? budget.max,
+          });
+      } catch {
+        try {
+          const r = await api.getRegistrations();
+          if (cancelled) return;
+          const holders = r.registrations
+            .filter((x) => x.status === "pending_activation")
+            .map((x) => ({
+              slug: x.slug,
+              name: x.name ?? null,
+              printedAt: null,
+              daysLeft: x.expiresAt
+                ? Math.max(0, Math.ceil((new Date(x.expiresAt).getTime() - Date.now()) / 86_400_000))
+                : 0,
+            }));
+          setSlots({ holders, pending: budget.pending, max: budget.max });
+        } catch {
+          if (!cancelled) setSlots(false);
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -243,6 +290,30 @@ function FlowInner(): React.JSX.Element {
       setBusy(false);
     }
   };
+
+  if (slots === null) {
+    return (
+      <div className={s.page}>
+        <div className={s.body}>
+          <p className={s.status} role="status">
+            Loading…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (slots) {
+    const home = wards.find((w) => w.id === me?.homeWard) ?? null;
+    return (
+      <SlotsFull
+        holders={slots.holders}
+        pending={slots.pending}
+        max={slots.max}
+        wardLabel={home ? `${home.code} · ${home.name}` : null}
+      />
+    );
+  }
 
   if (step === 1) {
     return <PhotoStep busy={photoBusy} error={photoError} onPhoto={(f) => void takePhoto(f)} />;

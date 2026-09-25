@@ -1,54 +1,43 @@
 "use client";
 
 /**
- * R6 Code ready (design v5, "Rani is on Hetja."). Route protection is a UX
- * boundary, not a security boundary (see RequireCapability); the API is the
- * boundary.
+ * V14 "Kalu is almost on Hetja." (design v6, replacing v5 R6 on this route).
+ * Route protection is a UX boundary, not a security boundary (see
+ * RequireCapability); the API is the boundary.
  *
  * The signed collar URL comes from GET /registrations/:slug (behind auth), so
- * the signature never sits in a URL bar. The QR is the real one (lib/qr.ts,
- * version 5 ECC M, byte for byte the collar URL), drawn at 180 px with the
- * card's white padding as its quiet zone.
- *
- * Adapted from the mock (CONTRACT.md): a pending registration also shows the
- * existing activation line, because the first scan on the collar is what
- * switches the profile on (an abuse control, INVARIANTS: registrations).
- *
- * "Ask a vet to confirm" hands the phone's share sheet a short message for a
- * vet and a link to the dog's page (/d/<slug>, no signature: the code's check
- * character is enough for a typed or linked visit). Without a share sheet it
- * copies the same text and says so.
+ * the signature never sits in a URL bar. Kept from R6 (v6 CONTRACT.md): the
+ * real QR (lib/qr.ts, version 5 ECC M, byte for byte the collar URL), drawn
+ * at 150 px with the card's white padding as its quiet zone, and the grey
+ * Unverified pill. The lead now says what happens next ("scan it once to
+ * switch his page on"), which is the activation line R6 carried. The
+ * material advice lives on the print screen (P5).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, StickyFooter } from "@/components/ds";
 import { api, ApiError, type RegistrationDetail } from "@/lib/api";
-import { dogCopy, prettyCode, recallDogSex, type DogSex } from "@/lib/dog-copy";
+import { dogCopyV6, possessive, prettyCode, recallDogSex, type DogSex } from "@/lib/dog-copy";
 import { buildCollarQrSvg } from "@/lib/qr";
 import RequireCapability from "@/components/RequireCapability";
 import s from "../../register.module.css";
 import styles from "./ready.module.css";
 
 export function readyTitle(name: string | null | undefined): string {
-  const n = (name ?? "").trim();
-  return n ? `${n} is on Hetja.` : "Your dog is on Hetja.";
+  return dogCopyV6.almostOn(name);
 }
 
-/** The dog's public page, from the collar URL's own origin. */
-export function dogPageUrl(collarUrl: string, slug: string): string {
-  try {
-    return `${new URL(collarUrl).origin}/d/${slug}`;
-  } catch {
-    return `https://hetja.in/d/${slug}`;
-  }
+/** The line under the code, as on the printed tag. */
+export function tagLine(name: string | null | undefined): string {
+  const n = (name ?? "").trim();
+  return n ? `${n} · Scan me if I look lost` : "Scan me if I look lost";
 }
 
 function ReadyInner({ slug }: { slug: string }): React.JSX.Element {
   const [detail, setDetail] = useState<RegistrationDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sex, setSex] = useState<DogSex | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -72,9 +61,9 @@ function ReadyInner({ slug }: { slug: string }): React.JSX.Element {
   if (!detail || !qr) {
     return (
       <div className={s.page}>
-        <div className={[s.top, s.topEnd].join(" ")}>
-          <Link href="/me" className={s.topLink}>
-            Done
+        <div className={s.top}>
+          <Link href="/register" className={s.topLink}>
+            ‹ Registrations
           </Link>
         </div>
         <div className={s.body}>
@@ -100,68 +89,31 @@ function ReadyInner({ slug }: { slug: string }): React.JSX.Element {
 
   const code = prettyCode(detail.slug);
 
-  const askVet = async () => {
-    setShareNote(null);
-    const url = dogPageUrl(detail.collarUrl, detail.slug);
-    const text = dogCopy.vetMessage(detail.name, code, sex);
-    const nav = typeof navigator !== "undefined" ? navigator : null;
-    if (nav && typeof nav.share === "function") {
-      try {
-        await nav.share({ title: readyTitle(detail.name), text, url });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        /* fall through to copy */
-      }
-    }
-    try {
-      await nav?.clipboard?.writeText(`${text} ${url}`);
-      setShareNote("Message and link copied. Paste them to a vet: once they check the dog, the Unverified badge goes.");
-    } catch {
-      setShareNote(`Send a vet this link: ${url}`);
-    }
-  };
-
   return (
-    <div className={[s.page, styles.page].join(" ")}>
-      <div className={[s.top, s.topEnd].join(" ")}>
-        <Link href="/me" className={s.topLink}>
-          Done
-        </Link>
-      </div>
+    <div className={[s.page, s.aurora].join(" ")}>
       <div className={[s.body, styles.body].join(" ")}>
-        <h1 className={s.titleXL}>{readyTitle(detail.name)}</h1>
-        <p className={s.lead}>{dogCopy.readyLead(sex)}</p>
+        <h1 className={s.hero}>{dogCopyV6.almostOn(detail.name)}</h1>
+        <p className={s.heroLead}>{dogCopyV6.almostLead(sex)}</p>
 
         <div className={styles.tag}>
           <div className={styles.qr} dangerouslySetInnerHTML={{ __html: qr.svg }} />
-          <div className={styles.code} aria-label={`Collar code ${detail.slug.split("").join(" ")}`}>
+          <div className={styles.code} aria-label={`Collar code ${code}`}>
             {code.split(" ").map((g, i) => (
               <span key={i}>{g}</span>
             ))}
           </div>
+          <div className={styles.tagLine}>{tagLine(detail.name)}</div>
           <div className={styles.pill}>Unverified · needs one confirmation</div>
         </div>
-
-        {detail.status === "pending_activation" && (
-          <Link href={`/register/${slug}`} className={styles.activate}>
-            Collar on the dog? Switch the profile on ›
-          </Link>
-        )}
-        {shareNote && (
-          <p className={styles.shareNote} role="status">
-            {shareNote}
-          </p>
-        )}
       </div>
 
-      <StickyFooter background="none" className={styles.footer}>
+      <StickyFooter background="none" className={s.footerTight}>
         <Button href={`/register/${slug}/print`} fullWidth>
-          {dogCopy.printTag(sex)}
+          Print {possessive(detail.name)} tag
         </Button>
-        <button type="button" className={s.linkBtn} onClick={() => void askVet()}>
-          Ask a vet to confirm
-        </button>
+        <Link href="/register" className={s.linkBtn}>
+          I&apos;ll print it later
+        </Link>
       </StickyFooter>
     </div>
   );

@@ -197,3 +197,20 @@ export function currentIntent(): string | null {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search).get("intent");
 }
+
+const COUNT_WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+
+/** V2's counter, left side: "One more to go" with 8 typed; empty before the first. */
+export function remainingLabel(typed: number): string {
+  const left = CODE_LENGTH - typed;
+  if (left <= 0) return "That's all nine";
+  if (left >= CODE_LENGTH) return "";
+  return `${COUNT_WORDS[left]} more to go`;
+}
+
+/** Positions where a suggestion differs from what was typed (V3 marks them). */
+export function diffPositions(typed: string, slug: string): Set<number> {
+  const out = new Set<number>();
+  for (let i = 0; i < Math.max(typed.length, slug.length); i++) if (typed[i] !== slug[i]) out.add(i);
+  return out;
+}

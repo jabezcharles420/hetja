@@ -10,7 +10,7 @@
  * share lib/api's single-flight refresh instead of racing it with its own.
  */
 import { parseRetryAfter, refreshSession } from "@/lib/api";
-import type { MapPlace, MapSos, MapWard, Severity } from "@/components/map/logic";
+import type { CitySummary, MapPlace, MapSos, MapWard, NotLoggedDog, Severity } from "@/components/map/logic";
 
 export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
 const API_BASE = `${API_ORIGIN}/api/v1`;
@@ -84,6 +84,8 @@ export interface WardDetail extends MapWard {
   sos: MapSos[];
   nearby: MapPlace[];
   viewer: { sosOptIn: boolean; trustScore: number; canRespond: Severity[] } | null;
+  /** v6: the ward's dogs nobody has logged today, first names only (M6). */
+  notLogged?: NotLoggedDog[];
 }
 
 export interface Me {
@@ -91,10 +93,23 @@ export interface Me {
   homeWard: string | null;
   sosOptIn: boolean;
   trustScore: number;
+  /** v5: the wards the feeder is alerted for. */
+  wards?: string[];
+}
+
+/** The bits of GET /sos/cases/:id the map uses after taking a case (M4). */
+export interface TakenCase {
+  id: string;
+  dog?: { slug: string; name: string | null } | null;
+  /** Filled only for the responder who took the case. */
+  location?: { lat: number; lng: number } | null;
+  /** v6: from the caller's last known position, rounded to 100 m. */
+  distanceM?: number | null;
 }
 
 export const mapApi = {
-  wards: () => call<{ wards: MapWard[] }>("/map/wards"),
+  /** v6 adds `summary` (M1); an older API sends only the wards. */
+  wards: () => call<{ wards: MapWard[]; summary?: CitySummary | null }>("/map/wards"),
   /** Sends the session when there is one: an eligible responder gets case ids. */
   ward: (id: string) => call<WardDetail>(`/map/wards/${encodeURIComponent(id)}`, { auth: true }),
   places: (bbox: string, kind: "vet" | "ngo" | null) =>
@@ -112,15 +127,6 @@ export const mapApi = {
       method: "POST",
       auth: true,
     }),
-  /**
-   * "Get alerts for {code} ward": sets the home ward AND turns SOS paging on.
-   * Paging still follows where the feeder recently fed, not the home ward
-   * (audit B-03), which the button's caption says in so many words.
-   */
-  alerts: (homeWard: string) =>
-    call<{ homeWard: string; sosOptIn: boolean }>("/feeders/me", {
-      method: "PATCH",
-      auth: true,
-      body: { homeWard, sosOptIn: true },
-    }),
+  /** M4: the taken case, for its exact spot (acker only) and the distance. */
+  takenCase: (caseId: string) => call<TakenCase>(`/sos/cases/${encodeURIComponent(caseId)}`, { auth: true }),
 };

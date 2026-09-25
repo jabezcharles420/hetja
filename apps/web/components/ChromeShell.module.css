@@ -10,22 +10,12 @@
   --page-top: var(--h-nav-h);
 }
 
-@media (min-width: 1024px) {
-  .overlay {
-    --page-top: 52px;
-  }
-}
 
 /* A fixed TabBar is on screen: pages pad their bottom by --tab-clear. */
 .withTabs {
   --tab-clear: var(--h-tab-clear);
 }
 
-@media (min-width: 1024px) {
-  .withTabsMobile {
-    --tab-clear: 0px;
-  }
-}
 
 /* Print hook; the ds TopNav owns every visual. */
 .nav {
@@ -53,15 +43,34 @@
   height: var(--h-tab-clear);
 }
 
-@media (min-width: 1024px) {
-  .mobileOnly {
-    display: none;
-  }
+/* --- Wider than 744px (v6 D1) --------------------------------------------
+ * App routes swap their phone screen for the D1 invitation. Reading pages,
+ * /hetja, the SOS responder page and 404s keep the phone layout, centred at
+ * 480px on mist. */
+.invite {
+  display: none;
 }
 
-@media (max-width: 1023.98px) {
-  .desktopOnly {
+@media (min-width: 745px) {
+  .shell[data-desktop="invite"] > .app {
     display: none;
+  }
+
+  .shell[data-desktop="invite"] > .invite {
+    display: flex;
+  }
+
+  .shell[data-desktop="frame"] {
+    background: var(--h-mist);
+  }
+
+  .shell[data-desktop="frame"] > .app {
+    position: relative;
+    max-width: 480px;
+    min-height: 100vh;
+    margin-inline: auto;
+    background: var(--h-white);
+    box-shadow: 0 0 0 1px var(--h-divider);
   }
 }
 

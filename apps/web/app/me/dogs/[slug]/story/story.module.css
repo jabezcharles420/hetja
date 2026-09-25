@@ -1,0 +1,136 @@
+/* N16 Write the story (design v6). Mist, plain. */
+
+.top {
+  flex: none;
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+}
+
+.body {
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.lead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.editor {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  padding: 16px;
+  min-height: 170px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor:focus-within {
+  box-shadow: inset 0 0 0 2px var(--h-blue);
+}
+
+.area {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  resize: none;
+  background: none;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.47;
+  color: var(--h-ink);
+  min-height: 100px;
+  width: 100%;
+}
+
+.area:focus {
+  outline: none;
+}
+
+.count {
+  align-self: flex-end;
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.promptLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  appearance: none;
+  border: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-line);
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-ink);
+  cursor: pointer;
+}
+
+.chip:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.place {
+  margin: 0;
+  padding: 0 4px;
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.place svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.warn {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+  font-size: 14px;
+  line-height: 1.4;
+}

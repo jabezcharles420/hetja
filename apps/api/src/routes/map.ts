@@ -92,6 +92,8 @@ export interface MapSos {
   feedersTold: boolean;
   /** The caller holds this case (only ever true for a signed-in caller). */
   mine: boolean;
+  dogName: string | null;
+  taken: boolean;
 }
 
 export interface MapPlace {
@@ -146,10 +148,11 @@ WITH dog_counts AS (
    GROUP BY d.ward_id
 ),
 open_cases AS (
-  SELECT d.ward_id, c.severity::text AS severity, c.opened_at
+  -- LEFT JOIN + COALESCE (design v6): a dogless SOS has a ward and no dog.
+  SELECT COALESCE(c.ward_id, d.ward_id) AS ward_id, c.severity::text AS severity, c.opened_at
     FROM sos_cases c
-    JOIN dogs d ON d.id = c.dog_id
-   WHERE c.state IN ('open', 'acked', 'escalated') AND d.ward_id = ANY($1::text[])
+    LEFT JOIN dogs d ON d.id = c.dog_id
+   WHERE c.state IN ('open', 'acked', 'escalated') AND COALESCE(c.ward_id, d.ward_id) = ANY($1::text[])
 ),
 sos_counts AS (
   SELECT ward_id, count(*)::int AS sos_open FROM open_cases GROUP BY ward_id
@@ -182,11 +185,12 @@ interface WardCountRow {
 
 const WARD_CASES_SQL = `
 SELECT c.id, c.severity::text AS severity, c.state::text AS state, c.opened_at, c.acked_by,
+       d.name AS dog_name,
        EXISTS (SELECT 1 FROM sos_notifications n
                 WHERE n.case_id = c.id AND n.feeder_id IS NOT NULL) AS feeders_told
   FROM sos_cases c
-  JOIN dogs d ON d.id = c.dog_id
- WHERE d.ward_id = $1 AND c.state IN ('open', 'acked', 'escalated')
+  LEFT JOIN dogs d ON d.id = c.dog_id
+ WHERE COALESCE(c.ward_id, d.ward_id) = $1 AND c.state IN ('open', 'acked', 'escalated')
  ORDER BY (c.severity = 'critical') DESC, c.opened_at DESC
  LIMIT 20
 `;
@@ -198,7 +202,50 @@ interface WardCaseRow {
   opened_at: Date;
   acked_by: string | null;
   feeders_told: boolean;
+  dog_name: string | null;
 }
+
+// Design v6 (M1): the city summary line. Counts only, never a position.
+// "Not logged today" rather than "not fed": Hetja knows what was logged.
+const CITY_SUMMARY_SQL = `
+SELECT count(*)::int AS dogs,
+       count(*) FILTER (WHERE EXISTS (SELECT 1 FROM collars k WHERE k.dog_id = d.id AND k.status = 'active'))::int
+         AS with_collars,
+       count(*) FILTER (WHERE EXISTS (
+         SELECT 1 FROM scans s
+          WHERE s.dog_id = d.id AND s.scan_type = 'feed' AND s.review_status <> 'rejected'
+            AND s.captured_at >= ${IST_MIDNIGHT_SQL}))::int AS fed_today,
+       (SELECT count(DISTINCT s.feeder_id)::int FROM scans s
+         WHERE s.scan_type = 'feed' AND s.feeder_id IS NOT NULL AND s.review_status <> 'rejected'
+           AND s.received_at >= now() - interval '60 days') AS feeders
+  FROM dogs d
+ WHERE d.status = 'active'
+`;
+
+// M1 SOS rows: the dog's name and whether someone took it. No case id on
+// this public, cached read (case ids are handed out per viewer on the ward
+// detail only), no note, no reporter, no position.
+const CITY_SOS_SQL = `
+SELECT COALESCE(c.ward_id, d.ward_id) AS ward_id, c.severity::text AS severity, c.opened_at,
+       d.name AS dog_name, c.acked_by IS NOT NULL AS taken
+  FROM sos_cases c
+  LEFT JOIN dogs d ON d.id = c.dog_id
+ WHERE c.state IN ('open', 'acked', 'escalated')
+ ORDER BY (c.severity = 'critical') DESC, c.opened_at DESC
+ LIMIT 20
+`;
+
+// M2 / M6: the ward's dogs by name, and the ones nobody logged today with
+// when they were last logged. Names and times: ward level (INVARIANT 2).
+const WARD_DOGS_SQL = `
+SELECT d.slug, d.name,
+       (SELECT max(s.captured_at) FROM scans s
+         WHERE s.dog_id = d.id AND s.scan_type = 'feed' AND s.review_status <> 'rejected') AS last_logged_at
+  FROM dogs d
+ WHERE d.status = 'active' AND d.ward_id = $1
+ ORDER BY d.name NULLS LAST, d.slug
+ LIMIT 200
+`;
 
 // Columns every provider read selects. Same public fields as GET /api/v1/care.
 const PROVIDER_COLUMNS = `
@@ -387,6 +434,8 @@ interface WardDetailBase {
   ward: MapWard;
   cases: WardCaseRow[];
   nearby: ReturnType<typeof toNearby>[];
+  dogNames: string[];
+  notLoggedToday: { slug: string; name: string | null; lastLoggedAt: string | null }[];
 }
 
 const BboxQuery = z.object({
@@ -432,8 +481,35 @@ function inBox(p: MapPlace, box: readonly [number, number, number, number]): boo
 export default async function mapRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/map/wards", async (_req: FastifyRequest, reply: FastifyReply) => {
     const data = await readThrough(mapCache, "wards", async () => {
-      const counts = await wardCounts(BMC_WARD_CODES);
-      return { wards: BMC_WARD_CODES.map((id) => toWard(id, counts.get(id))) };
+      const [counts, summary, sos] = await Promise.all([
+        wardCounts(BMC_WARD_CODES),
+        query<{ dogs: number; with_collars: number; fed_today: number; feeders: number }>(CITY_SUMMARY_SQL),
+        query<{ ward_id: string | null; severity: string; opened_at: Date; dog_name: string | null; taken: boolean }>(
+          CITY_SOS_SQL,
+        ),
+      ]);
+      const sum = summary.rows[0];
+      return {
+        wards: BMC_WARD_CODES.map((id) => toWard(id, counts.get(id))),
+        // Design v6 (M1).
+        summary: {
+          dogs: sum?.dogs ?? 0,
+          withCollars: sum?.with_collars ?? 0,
+          feeders: sum?.feeders ?? 0,
+          fedToday: sum?.fed_today ?? 0,
+          notLoggedToday: Math.max(0, (sum?.dogs ?? 0) - (sum?.fed_today ?? 0)),
+        },
+        sos: sos.rows
+          .filter((r) => r.ward_id && isBmcWardCode(r.ward_id))
+          .map((r) => ({
+            wardId: r.ward_id as string,
+            wardCode: wardDisplay(r.ward_id as string).code,
+            severity: asSeverity(r.severity),
+            raisedAt: new Date(r.opened_at).toISOString(),
+            dogName: r.dog_name ?? null,
+            taken: r.taken,
+          })),
+      };
     });
     reply.header("Cache-Control", "public, max-age=60");
     return { ok: true, data };
@@ -452,15 +528,27 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
     // The base is the same for every caller and shared through the 30 s cache;
     // only the overlay below (which case ids THIS caller may see) is per viewer.
     const base = await readThrough(wardDetailCache, wardId, async (): Promise<WardDetailBase> => {
-      const [counts, cases, nearby] = await Promise.all([
+      const [counts, cases, nearby, wardDogs, midnight] = await Promise.all([
         wardCounts([wardId]),
         query<WardCaseRow>(WARD_CASES_SQL, [wardId]),
         query<ProviderRow>(NEARBY_SQL, [wardId, `SRID=4326;POINT(${centre.lng} ${centre.lat})`]),
+        query<{ slug: string; name: string | null; last_logged_at: Date | null }>(WARD_DOGS_SQL, [wardId]),
+        query<{ at: Date }>(`SELECT ${IST_MIDNIGHT_SQL} AS at`),
       ]);
+      const since = midnight.rows[0].at.getTime();
       return {
         ward: toWard(wardId, counts.get(wardId)),
         cases: cases.rows,
         nearby: nearby.rows.map(toNearby),
+        dogNames: wardDogs.rows.map((d) => d.name).filter((n): n is string => !!n),
+        notLoggedToday: wardDogs.rows
+          .filter((d) => !d.last_logged_at || d.last_logged_at.getTime() < since)
+          .slice(0, 30)
+          .map((d) => ({
+            slug: d.slug,
+            name: d.name ?? null,
+            lastLoggedAt: d.last_logged_at ? d.last_logged_at.toISOString() : null,
+          })),
       };
     });
     reply.header("Cache-Control", viewer ? "private, no-store" : "public, max-age=30");
@@ -476,6 +564,9 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         state: c.state as MapSos["state"],
         feedersTold: c.feeders_told,
         mine,
+        // Design v6 (M2): the dog's name and whether someone took it.
+        dogName: c.dog_name ?? null,
+        taken: c.acked_by !== null,
       };
     });
 
@@ -485,6 +576,8 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         ...base.ward,
         sos,
         nearby: base.nearby,
+        dogNames: base.dogNames,
+        notLoggedToday: base.notLoggedToday,
         viewer: viewer
           ? {
               sosOptIn: viewer.sosOptIn,

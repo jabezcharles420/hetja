@@ -89,16 +89,31 @@ export function possessive(name: string, sex?: string): string {
  * date so the caller can drop the pill rather than print "NaN".
  */
 export function lastFedText(iso: string, now: number = Date.now()): string | undefined {
+  const a = ago(iso, now);
+  return a && `Last fed ${a}`;
+}
+
+/** "just now", "5 minutes ago", "2 hours ago", "yesterday", "5 days ago". */
+export function ago(iso: string, now: number = Date.now()): string | undefined {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return undefined;
   const mins = Math.max(0, Math.floor((now - t) / 60000));
-  if (mins < 1) return "Last fed just now";
-  if (mins < 60) return `Last fed ${mins} minute${mins === 1 ? "" : "s"} ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Last fed ${hours} hour${hours === 1 ? "" : "s"} ago`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "Last fed yesterday";
-  return `Last fed ${days} days ago`;
+  return mins < 1
+    ? "just now"
+    : mins < 60
+      ? `${plural(mins, "minute")} ago`
+      : hours < 24
+        ? `${plural(hours, "hour")} ago`
+        : days === 1
+          ? "yesterday"
+          : `${days} days ago`;
+}
+
+/** "1 feeder", "3 feeders". */
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 /**
@@ -200,11 +215,28 @@ export function careMeta(p: CareMetaInput): string {
   return bits.filter(Boolean).join(" · ");
 }
 
+/**
+ * V19 care row: "Vet · open now, 24 hours · 900 m". A place the API says is
+ * closed loses its Call button ("Closed now · opens 10 am"). "Open now" is
+ * only claimed from 24 x 7 or the API's own openNow, never guessed from a note.
+ */
+export function careRow(
+  p: CareMetaInput & { openNow?: boolean; opensNote?: string; distanceKm?: number },
+): { meta: string; closed: boolean } {
+  if (p.openNow === false) return { meta: ["Closed now", p.opensNote].filter(Boolean).join(" · "), closed: true };
+  const hours = p.is24x7 ? "open now, 24 hours" : p.openNow ? ["open now", p.hoursNote].filter(Boolean).join(", ") : p.hoursNote;
+  const km = p.distanceKm;
+  const dist = km == null ? "" : km < 1 ? `${Math.max(100, Math.round(km * 10) * 100)} m` : `${km.toFixed(1)} km`;
+  return { meta: [p.kind ? KIND_LABEL[p.kind] ?? p.kind : "", hours, dist].filter(Boolean).join(" · "), closed: false };
+}
+
 /* ---------------------------------------------------------------------------
  * Design v5: pronouns, tag problems (F4, F5) and the memorial line.
  * ------------------------------------------------------------------------- */
 
 export interface Pronouns {
+  /** she / he / they */
+  subj: string;
   /** her / him / them */
   obj: string;
   /** her / his / their */
@@ -217,9 +249,9 @@ export interface Pronouns {
  */
 export function pronouns(sex?: string): Pronouns {
   const s = sex?.toLowerCase();
-  if (s === "female" || s === "f") return { obj: "her", poss: "her" };
-  if (s === "male" || s === "m") return { obj: "him", poss: "his" };
-  return { obj: "them", poss: "their" };
+  if (s === "female" || s === "f") return { subj: "she", obj: "her", poss: "her" };
+  if (s === "male" || s === "m") return { subj: "he", obj: "him", poss: "his" };
+  return { subj: "they", obj: "them", poss: "their" };
 }
 
 export function cap(s: string): string {
@@ -304,4 +336,163 @@ export function sturdierLine(name: string, p: Pronouns): string {
 /** Memorial lead for a dog who has passed (N9: the page stays). */
 export function memorialLine(name: string, p: Pronouns): string {
   return `${name} has passed away. ${cap(p.poss)} page stays, with the names of everyone who fed ${p.obj}.`;
+}
+
+/* ---------------------------------------------------------------------------
+ * Design v6: every dog by name (V15 to V19, P12, P13, N10, N11, L7).
+ * Feeders are named by first name only, and only those who have not opted
+ * out; the rest are counted, never named.
+ * ------------------------------------------------------------------------- */
+
+/** "Priya", "Priya and Arjun", "Priya, Arjun and a vet". */
+export function nameList(names: string[]): string {
+  return names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+export interface Feeders {
+  sex?: string;
+  /** First names of feeders who show them (opt-outs are absent). */
+  feederNames?: string[];
+  feederCount?: number;
+}
+
+/**
+ * Who an SOS reaches besides a vet: up to three first names, then the rest
+ * counted ("Priya, Arjun, 2 other feeders"), or "her 2 feeders" when nobody
+ * is named. Empty when the dog has no feeders.
+ */
+export function feederWho(p: Feeders): string[] {
+  const n = p.feederCount;
+  if (n === 0) return [];
+  const names = (p.feederNames ?? []).slice(0, 3);
+  const poss = pronouns(p.sex).poss;
+  if (!names.length) return [n ? `${poss} ${plural(n, "feeder")}` : `${poss} feeders`];
+  const others = n === undefined ? 0 : n - names.length;
+  return others > 0 ? [...names, `${plural(others, "other feeder")}`] : names;
+}
+
+/** Under the red button (V15, V16): "Tells Priya, Arjun and a vet nearby." */
+export function helpCap(p: Feeders): string {
+  return `Tells ${nameList([...feederWho(p), "a vet nearby"])}.`;
+}
+
+/** Above "Send SOS" (V18): "Priya, Arjun and a vet will see K/W ward. Never your exact spot." */
+export function sosSeeCap(p: Feeders, wardId?: string): string {
+  return `${cap(nameList([...feederWho(p), "a vet"]))} will see ${wardId ? `${wardShort(wardId)} ward` : "the ward"}. Never your exact spot.`;
+}
+
+/**
+ * V15 feeder line: "Priya fed her 2 hours ago. Rani has 2 feeders."
+ * undefined when there is nothing true to say.
+ */
+export function feederLine(
+  name: string,
+  p: Feeders & { lastFedAt?: string | null; lastFedBy?: string | null },
+  now: number = Date.now(),
+): string | undefined {
+  const a = p.lastFedAt ? ago(p.lastFedAt, now) : undefined;
+  const fed = a ? (p.lastFedBy ? `${p.lastFedBy} fed ${pronouns(p.sex).obj} ${a}.` : `Last fed ${a}.`) : "";
+  const n = p.feederCount;
+  const has = n ? `${name} has ${plural(n, "feeder")}.` : "";
+  return [fed, has].filter(Boolean).join(" ") || undefined;
+}
+
+/** "4:02 pm" (or "4:02" short), Asia/Kolkata wall time as the phone shows it. */
+export function clock(iso: string | undefined, short = false): string {
+  const t = iso ? new Date(iso) : undefined;
+  if (!t || !Number.isFinite(t.getTime())) return "";
+  const h = t.getHours();
+  const hm = `${h % 12 || 12}:${String(t.getMinutes()).padStart(2, "0")}`;
+  return short ? hm : `${hm} ${h < 12 ? "am" : "pm"}`;
+}
+
+/** "today", "yesterday", "3 Sep": for "Saved yesterday, 8:14 pm". */
+export function dayWord(iso: string, now: number = Date.now()): string {
+  const d = new Date(iso);
+  const day = (x: Date): number => Math.floor((x.getTime() - x.getTimezoneOffset() * 60000) / 86400000);
+  const diff = day(new Date(now)) - day(d);
+  return diff <= 0 ? "today" : diff === 1 ? "yesterday" : `${d.getDate()} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getMonth()]}`;
+}
+
+/**
+ * The SOS as text a person can pass on (P12 "Copy details", P13 SMS):
+ * "SOS for Rani (collar R4N 7KW 2AB), K/W ward. Can't get up, or bleeding. <note>"
+ */
+export function sosText(
+  sms: boolean,
+  d: { name?: string; slug?: string; wardId?: string; wardName?: string },
+  choiceTitle: string,
+  note?: string,
+): string {
+  const who = d.name ? `${d.name}${d.slug ? ` (collar ${collarGroups(d.slug).join(" ")})` : ""}` : "a dog";
+  const ward = d.wardId ? `, ${wardShort(d.wardId)} ward${sms && d.wardName ? `, ${d.wardName}` : ""}` : "";
+  return `${sms ? "Hetja SOS:" : "SOS for"} ${who}${ward}. ${choiceTitle}.${note ? ` ${note}` : ""}`;
+}
+
+/** The dog as the SOS screens name it. */
+export interface SosDog {
+  name?: string;
+  sex?: string;
+  dogless?: boolean;
+  feederCount?: number;
+  feederNames?: string[];
+}
+
+/**
+ * V19 headline and lead. Names come from the reporter's case status
+ * (`feedersNotifiedNames`, opt-outs respected); until they arrive, or when
+ * nobody is named, the words claim only what is known.
+ */
+export function sentCopy(d: SosDog, names?: string[], vets?: number): { title: string; lead: string } {
+  const tail = " This page updates when someone's on the way.";
+  const withVet = vets === 0 ? "" : ", along with a vet nearby";
+  if (d.dogless) return { title: "Your SOS is out.", lead: `Feeders and vets in your ward got it just now.${tail}` };
+  const dog = d.name ?? "this dog";
+  if (names?.length) {
+    return {
+      title: `${nameList(names)} know${names.length === 1 ? "s" : ""}.`,
+      lead: `${names.length === 1 ? `${names[0]} feeds` : "They feed"} ${dog} and got your message just now${withVet}.${tail}`,
+    };
+  }
+  if (d.feederCount === 0) {
+    return vets === 0
+      ? { title: "Nobody nearby was reached.", lead: "Please call someone below." }
+      : { title: "A vet nearby knows.", lead: `They got your message just now.${tail}` };
+  }
+  return { title: `${d.name ? `${d.name}'s` : "This dog's"} feeders know.`, lead: `They got your message just now${withVet}.${tail}` };
+}
+
+export type Outcome = "taken_to_vet" | "treated_on_spot" | "not_found" | "died";
+
+/** N11 "What happened": the outcome the responder closed the case with. */
+export function doneCopy(
+  outcome: string | undefined,
+  d: SosDog,
+  first: string | undefined,
+  vetName: string | undefined,
+  at: string,
+): { title: string; lead: string; pill: string; ok: boolean } {
+  const p = pronouns(d.sex);
+  const dog = d.name ?? "The dog";
+  const who = first ?? "A feeder";
+  const thanks = " You stopped when most people walk past. Thank you.";
+  if (outcome === "taken_to_vet")
+    return {
+      title: `${dog} is with a vet.`,
+      lead: `${who} took ${p.obj} to ${vetName ?? "a vet"}${at ? ` at ${at}` : ""}.${thanks}`,
+      pill: "Taken to a vet",
+      ok: true,
+    };
+  if (outcome === "treated_on_spot")
+    return { title: `${dog} was looked after.`, lead: `${who} treated ${p.obj} where you found ${p.obj}.${thanks}`, pill: "Treated on the spot", ok: true };
+  if (outcome === "not_found")
+    return {
+      title: `${dog} wasn't found.`,
+      lead: `${who} looked but couldn't find ${p.obj}. ${cap(p.poss)} feeders will keep watching. Thank you for stopping.`,
+      pill: "Not found",
+      ok: false,
+    };
+  if (outcome === "died")
+    return { title: `${dog} didn't make it.`, lead: `${who} was with ${p.obj}. Thank you for stopping for ${p.obj}.`, pill: "Passed away", ok: false };
+  return { title: "This SOS is closed.", lead: "Thank you for stopping.", pill: "Closed", ok: false };
 }

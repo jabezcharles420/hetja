@@ -15,6 +15,7 @@ export {
   COLLAR_ALPHABET,
   COLLAR_LENGTH,
   collarGroups,
+  foldConfusables,
   sanitizeCollarCode,
   sayCollarCode,
 } from "./collar";

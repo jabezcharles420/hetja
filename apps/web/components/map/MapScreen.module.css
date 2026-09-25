@@ -38,10 +38,22 @@
   z-index: 650;
 }
 
+/* v6: the attribution strip ate 50px of map. It lives behind the sheet's
+ * "i" button now (still one tap away, as Esri, CARTO and Leaflet require). */
 .root :global(.leaflet-control-attribution) {
-  background: rgba(255, 255, 255, 0.75) !important;
+  display: none;
+  background: rgba(255, 255, 255, 0.96) !important;
   font-size: 11px;
-  border-radius: 8px 0 0 0;
+  line-height: 1.35;
+  border-radius: 12px;
+  padding: 8px 10px !important;
+  margin: 0 12px 12px 12px !important;
+  max-width: 320px;
+  box-shadow: var(--h-sh-chip);
+}
+
+.attrOpen :global(.leaflet-control-attribution) {
+  display: block;
 }
 
 .root :global(.leaflet-control-zoom) {
@@ -64,10 +76,12 @@
  * "Sign in"; the attribution rides on top of the sheet instead of under the
  * tab labels. --top-h / --sheet-h are measured by MapScreen. */
 @media (max-width: 899px) {
-  .root :global(.leaflet-control-attribution) {
-    font-size: 10px;
-    line-height: 1.3;
-    padding: 1px 6px;
+  /* v6: no +/- on phones; pinch works. */
+  .root :global(.leaflet-control-zoom) {
+    display: none;
+  }
+  .root :global(.leaflet-bottom.leaflet-right) {
+    bottom: calc(var(--sheet-h, 0px) + 44px);
   }
   .root :global(.leaflet-top.leaflet-right) {
     top: calc(var(--top-h, 120px) - 4px);
@@ -245,9 +259,7 @@
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-  /* --nudge: set by MapScreen's declutter so a ward label never covers a
-   * vet or NGO pin (logic.ts wardNudge). */
-  transform: translate(-50%, calc(-50% + var(--nudge, 0px)));
+  transform: translate(-50%, -50%);
   position: absolute;
   left: 0;
   top: 0;
@@ -313,11 +325,13 @@
   justify-content: center;
 }
 
+/* --px / --py: set by MapScreen's declutter so a pin never covers a ward
+ * label or another pin (logic.ts pinOffset). */
 .place {
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate(-50%, -100%);
+  transform: translate(calc(-50% + var(--px, 0px)), calc(-100% + var(--py, 0px)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -372,7 +386,7 @@
 }
 
 .place.mini {
-  transform: translate(-50%, -50%);
+  transform: translate(calc(-50% + var(--px, 0px)), calc(-50% + var(--py, 0px)));
 }
 
 .place.mini .pin {
@@ -501,17 +515,39 @@
 
 .body {
   overflow-y: auto;
-  padding: 14px 20px 12px;
+  padding: 14px 20px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   overscroll-behavior: contain;
 }
 
+/* v6: the content fades out above the pinned button instead of being
+ * sliced mid-sentence by a line. */
 .foot {
   flex: none;
-  padding: 10px 20px 8px;
-  border-top: 1px solid var(--h-divider);
+  position: relative;
+  z-index: 1;
+  margin-top: -24px;
+  padding: 24px 20px 8px;
+  background: linear-gradient(rgba(255, 255, 255, 0), var(--h-white) 28px);
+  pointer-events: none;
+}
+
+.foot > * {
+  pointer-events: auto;
+}
+
+/* M4: no tab bar under the task's buttons, so clear the home indicator. */
+.footTask {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.footLink {
+  align-self: center;
 }
 
 .peek .body {
@@ -526,7 +562,7 @@
 }
 
 .peek .foot {
-  border-top: 0;
+  margin-top: 0;
   padding-top: 6px;
 }
 
@@ -657,7 +693,8 @@ div.row {
 
 .t span {
   display: block;
-  font-size: 15px;
+  /* v6 mocks: 14px sub-lines, so "Can't get up, or bleeding · 13 min" fits one line. */
+  font-size: 14px;
   color: var(--h-secondary);
   margin-top: 1px;
 }
@@ -809,14 +846,37 @@ div.row {
   background: var(--h-ink);
 }
 
+/* M2: the case, on the danger tint, tapping through to the case page. */
 .sosCard {
   border-radius: var(--h-r-inner);
-  box-shadow: inset 0 0 0 1.5px #f3c2c8;
-  background: #fff7f8;
-  padding: 14px 16px;
+  background: var(--h-danger-bg);
+  padding: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 12px;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.sosCard .t span {
+  font-size: 14px;
+  color: var(--h-text-mid);
+  margin-top: 3px;
+}
+
+a.sosCard:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.sosAv {
+  box-shadow: 0 0 0 2px var(--h-white);
+}
+
+.sosChev {
+  color: var(--h-danger);
+  font-size: 20px;
+  flex: none;
 }
 
 .sosTitle {
@@ -977,5 +1037,386 @@ div.row {
   }
   .h1 {
     font-size: 36px;
+  }
+}
+
+
+/* --- design v6 (M1 to M7) ---------------------------------------------------- */
+
+/* M1: the three stat tiles become one line of text. */
+.statLine {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 15px;
+  color: var(--h-text-mid);
+}
+
+.statLine b {
+  color: var(--h-ink);
+  font-weight: 700;
+}
+
+.wardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wardH1 {
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+/* M2: the ward, introduced by its dogs. */
+.dogsLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--h-text-mid);
+}
+
+.stack {
+  display: flex;
+  flex: none;
+}
+
+.stack .stackAv {
+  box-shadow: 0 0 0 2px var(--h-white);
+}
+
+.stack .stackAv + .stackAv {
+  margin-left: -8px;
+}
+
+/* M6: the dogs nobody has logged today, by name. */
+.dogGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 8px;
+  text-align: center;
+}
+
+.dogCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dogName {
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dogWhen,
+.dogWhenWarn {
+  font-size: 12px;
+  color: var(--h-secondary);
+}
+
+.dogWhenWarn {
+  color: var(--h-warn);
+}
+
+.tBtn {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 8px 0;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+/* M3 and the alerts ask: a sheet over the map. */
+.dialogRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.dialog {
+  position: relative;
+  background: var(--h-white);
+  border-radius: var(--h-r-sheet) var(--h-r-sheet) 0 0;
+  padding: 10px 20px max(16px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  outline: none;
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+}
+
+.handle {
+  align-self: center;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--h-line);
+}
+
+.dialogText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: wrap;
+}
+
+.dialogLead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+  text-wrap: wrap;
+}
+
+.waitCard {
+  background: var(--h-mist);
+  border-radius: var(--h-r-inner);
+  padding: 4px 16px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.waitCard .t .waitLabel {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+
+.waitValue {
+  font-size: 17px;
+  color: var(--h-secondary);
+}
+
+.dialogActions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.dialogActions .linkBtn {
+  font-size: 17px;
+}
+
+/* M4: the case is yours. */
+.okCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--h-ok);
+  color: var(--h-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.trip {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--h-text-mid);
+}
+
+.casePin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-11px, -11px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  pointer-events: none;
+}
+
+.caseDot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--h-sos);
+  box-shadow: 0 0 0 6px rgba(215, 0, 21, 0.2);
+}
+
+.caseTag {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transform: translateX(calc(-50% + 11px));
+}
+
+/* M5: the phone number once, with Copy, and Directions. */
+.infoCard {
+  background: var(--h-mist);
+  border-radius: var(--h-r-inner);
+  padding: 0 16px;
+}
+
+.infoRow {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 17px;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+.infoRow + .infoRow {
+  border-top: 1px solid var(--h-divider);
+}
+
+a.infoRow:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--h-mono);
+}
+
+.chev {
+  color: var(--h-tertiary);
+  font-size: 20px;
+}
+
+.inlineLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-link);
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.small {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+/* The "i" for map credits, riding on the sheet's top edge. */
+.attrBtn {
+  position: absolute;
+  right: 12px;
+  top: -44px;
+  width: 44px;
+  height: 44px;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--h-font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-text-mid);
+}
+
+.attrBtn::before {
+  content: "";
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: -1;
+}
+
+.attrBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: -4px;
+  border-radius: 50%;
+}
+
+/* M7: cached counts, greyed out so nobody mistakes them for live ones. */
+.stale .ward {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--h-tertiary);
+  box-shadow: none;
+}
+
+.stale .ward .badge {
+  background: transparent;
+  color: var(--h-tertiary);
+}
+
+.stale .ward .badge .dot {
+  background: var(--h-tertiary);
+  color: var(--h-white);
+}
+
+@media (min-width: 900px) {
+  .attrBtn {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+  }
+  .root :global(.leaflet-bottom.leaflet-right) {
+    bottom: 48px;
+  }
+  .foot {
+    padding-top: 24px;
+  }
+  .peek .foot {
+    border-top: 0;
+    margin-top: -24px;
+    padding-top: 24px;
   }
 }

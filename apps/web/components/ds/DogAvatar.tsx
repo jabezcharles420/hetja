@@ -9,7 +9,7 @@ import styles from "./DogAvatar.module.css";
 
 export const AVATAR_PALETTES = ["apricot", "lilac", "mint", "rose", "sky"] as const;
 export type AvatarPalette = (typeof AVATAR_PALETTES)[number];
-export type DogAvatarSize = 36 | 44 | 52 | 56 | 104 | 120;
+export type DogAvatarSize = 36 | 44 | 48 | 52 | 56 | 64 | 104 | 120;
 
 /** FNV-1a 32-bit: tiny, stable across runtimes, good spread on short ids. */
 export function avatarPalette(seed: string): AvatarPalette {
@@ -37,7 +37,7 @@ export interface DogAvatarProps {
   className?: string;
 }
 
-const FONT: Record<DogAvatarSize, number> = { 36: 15, 44: 18, 52: 20, 56: 22, 104: 42, 120: 48 };
+const FONT: Record<DogAvatarSize, number> = { 36: 15, 44: 18, 48: 18, 52: 20, 56: 22, 64: 26, 104: 42, 120: 48 };
 
 export function DogAvatar({
   id,

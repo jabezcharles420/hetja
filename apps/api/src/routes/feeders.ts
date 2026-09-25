@@ -47,6 +47,7 @@ import { FEEDER_WINDOW_DAYS, dogSex } from "../lib/dog-feeders.js";
 import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
 import { FORMER_FEEDER_NAME, publicName } from "../lib/public-name.js";
 import { exportPerAccount, logRateLimited } from "../lib/rate-limit.js";
+import { forgetAllDogs } from "./dogs.js";
 
 interface MyDogRow {
   id: string;
@@ -86,6 +87,8 @@ interface MeRow {
   quiet_end: number | null;
   alerts_mode: string | null;
   onboarded_at: Date | null;
+  show_first_name: boolean;
+  sos_paused_until: Date | null;
 }
 
 /** "HH:MM" for minutes after midnight. */
@@ -141,6 +144,9 @@ function attentionOf(
   return null;
 }
 
+/** The longest alerts pause (L1): a pause is a holiday, not a way out of consent. */
+const SOS_PAUSE_MAX_MS = 30 * 24 * 60 * 60 * 1000;
+
 const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 const FeederPatchSchema = z
@@ -162,6 +168,21 @@ const FeederPatchSchema = z
       .optional(),
     alertsMode: z.enum(["sos_only", "all"]).optional(),
     onboarded: z.literal(true).optional(),
+    // Design v6: "Show my first name on dogs' pages", and the L1 alerts
+    // pause (an ISO time at most 30 days ahead, or null to resume).
+    showFirstName: z.boolean().optional(),
+    sosPausedUntil: z
+      .string()
+      .datetime({ offset: true })
+      .refine(
+        (v) => {
+          const t = Date.parse(v);
+          return t > Date.now() && t <= Date.now() + SOS_PAUSE_MAX_MS;
+        },
+        { message: "sosPausedUntil must be in the future and at most 30 days ahead" },
+      )
+      .nullable()
+      .optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: "body must contain at least one field",
@@ -177,7 +198,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     // which case answering FEEDER_GONE is again the honest response.
     const res = await query<MeRow>(
       `SELECT display_name, trust_score, verification_tier, home_ward, can_register, sos_opt_in,
-              wards, quiet_start, quiet_end, alerts_mode, onboarded_at
+              wards, quiet_start, quiet_end, alerts_mode, onboarded_at, show_first_name, sos_paused_until
          FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
       [auth.feederId],
     );
@@ -233,6 +254,12 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         alertsMode: feeder.alerts_mode === "sos_only" ? "sos_only" : "all",
         onboarded: feeder.onboarded_at !== null,
         publicName: publicName(feeder.display_name) ?? "",
+        // Design v6.
+        showFirstName: feeder.show_first_name,
+        sosPausedUntil:
+          feeder.sos_paused_until && feeder.sos_paused_until.getTime() > Date.now()
+            ? feeder.sos_paused_until.toISOString()
+            : null,
       },
     };
   });
@@ -504,7 +531,8 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
       await Promise.all([
         query(
           `SELECT display_name, role, trust_score, verification_tier, home_ward, wards, quiet_start, quiet_end,
-                  alerts_mode, sos_opt_in, onboarded_at, consent_version, is_minor, streak_days, badges,
+                  alerts_mode, sos_opt_in, onboarded_at, show_first_name, sos_paused_until,
+                  consent_version, is_minor, streak_days, badges,
                   last_feed_date, created_at
              FROM feeders WHERE id = $1`,
           [me],
@@ -694,7 +722,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         ok: false,
         error: {
           message:
-            "body must contain at least one of { sosOptIn, displayName (1..40), homeWard, wards (0..6 BMC ward ids), quietHours { start, end } | null, alertsMode, onboarded: true } and no unknown fields",
+            "body must contain at least one of { sosOptIn, displayName (1..40), homeWard, wards (0..6 BMC ward ids), quietHours { start, end } | null, alertsMode, onboarded: true, showFirstName, sosPausedUntil (ISO, <= 30 days ahead) | null } and no unknown fields",
           code: sosOptInFailed ? "INVALID_SOS_OPT_IN" : "INVALID_FEEDER_PATCH",
         },
       });
@@ -717,6 +745,8 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     }
     if (p.alertsMode !== undefined) set("alerts_mode", p.alertsMode);
     if (p.onboarded) sets.push(`onboarded_at = COALESCE(onboarded_at, now())`);
+    if (p.showFirstName !== undefined) set("show_first_name", p.showFirstName);
+    if (p.sosPausedUntil !== undefined) set("sos_paused_until", p.sosPausedUntil);
     await query(`UPDATE feeders SET ${sets.join(", ")} WHERE id = $1`, vals);
 
     const out: Record<string, unknown> = {};
@@ -730,6 +760,13 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     if (p.quietHours !== undefined) out.quietHours = p.quietHours;
     if (p.alertsMode !== undefined) out.alertsMode = p.alertsMode;
     if (p.onboarded) out.onboarded = true;
+    if (p.showFirstName !== undefined) out.showFirstName = p.showFirstName;
+    if (p.sosPausedUntil !== undefined) {
+      out.sosPausedUntil = p.sosPausedUntil ? new Date(p.sosPausedUntil).toISOString() : null;
+    }
+    // Names on public pages are cached for 5 s (routes/dogs.ts); an opt-out
+    // must not wait for that.
+    if (p.showFirstName !== undefined || p.displayName !== undefined) forgetAllDogs();
     return { ok: true, data: out };
   });
 

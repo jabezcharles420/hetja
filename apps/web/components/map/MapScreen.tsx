@@ -20,7 +20,12 @@ import {
   wardFromHash,
   wardHash,
   wardHtml,
-  wardNudge,
+  pinOffset,
+  type ScreenRect,
+  distanceM as metresBetween,
+  readWardsCache,
+  writeWardsCache,
+  type CitySummary,
   type ClassMap,
   type Filter,
   type Filters,
@@ -30,6 +35,7 @@ import {
 } from "./logic";
 import { addBaseLayer } from "./tiles";
 import { CityView, PlaceView, WardView, type FootState } from "./SheetViews";
+import { AlertsAsk } from "@/components/AlertsAsk";
 import styles from "./MapScreen.module.css";
 
 /**
@@ -50,7 +56,37 @@ const CITY_FALLBACK: [[number, number], [number, number]] = [
   [19.254, 72.955],
 ];
 
-type Selection = { type: "ward"; id: string } | { type: "place"; place: MapPlace } | null;
+type Selection =
+  | { type: "ward"; id: string }
+  /** `from`: the ward the place was opened from (M5's back link). */
+  | { type: "place"; place: MapPlace; from?: string | null }
+  | null;
+
+function storage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The visitor's position, only if they already allowed it: the map never asks. */
+async function grantedPosition(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    if (!navigator.geolocation || !navigator.permissions?.query) return null;
+    const st = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+    if (st.state !== "granted") return null;
+    return await new Promise((resolve) =>
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { maximumAge: 120_000, timeout: 8_000 },
+      ),
+    );
+  } catch {
+    return null;
+  }
+}
 
 const CHIPS: Array<{ f: Filter; label: string; k: string; icon: React.ReactNode }> = [
   { f: "sos", label: "Needs help", k: styles.kSos, icon: "!" },
@@ -90,7 +126,14 @@ export function MapScreen(): React.JSX.Element {
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<MarkerMode>("mini");
   const [wards, setWards] = useState<MapWard[] | null>(null);
+  const [summary, setSummary] = useState<CitySummary | null>(null);
   const [wardsError, setWardsError] = useState(false);
+  /** M7: the counts on the map are the cached ones, saved at this time. */
+  const [staleAt, setStaleAt] = useState<number | null>(null);
+  const [attrOpen, setAttrOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
+  const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
+  const caseMarker = useRef<Leaflet.Marker | null>(null);
   const [filters, setFilters] = useState<Filters>(ALL_ON);
   const [selection, setSelection] = useState<Selection>(null);
   const [detail, setDetail] = useState<WardDetail | null>(null);
@@ -113,8 +156,26 @@ export function MapScreen(): React.JSX.Element {
     setWardsError(false);
     mapApi
       .wards()
-      .then((d) => setWards(d.wards))
-      .catch(() => setWardsError(true));
+      .then((d) => {
+        setWards(d.wards);
+        setSummary(d.summary ?? null);
+        setStaleAt(null);
+        writeWardsCache(storage(), d.wards, d.summary ?? null);
+      })
+      .catch(() => {
+        setWardsError(true);
+        // M7: the last known counts, greyed out, rather than an empty map.
+        const cached = readWardsCache(storage());
+        if (cached) {
+          setWards((cur) => cur ?? cached.wards);
+          setSummary((cur) => cur ?? cached.summary);
+          setStaleAt(cached.at);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    void grantedPosition().then(setHere);
   }, []);
 
   useEffect(() => {
@@ -353,24 +414,61 @@ export function MapScreen(): React.JSX.Element {
 
   // --- markers ------------------------------------------------------------
 
-  /** Keep ward labels off the vet and NGO pins (see wardNudge). */
+  // M4: the taken case's exact spot, for the responder only.
+  useEffect(() => {
+    const L = LRef.current;
+    const map = mapRef.current;
+    caseMarker.current?.remove();
+    caseMarker.current = null;
+    if (!ready || !L || !map || foot.kind !== "acked" || !foot.location) return;
+    const name = foot.dogName?.trim();
+    const html = `<div class="${styles.casePin}"><span class="${styles.caseDot}"></span><span class="${styles.caseTag}">${
+      name ? `${name.replace(/[<>&"]/g, "")} is here` : "The dog is here"
+    }</span></div>`;
+    caseMarker.current = L.marker([foot.location.lat, foot.location.lng], {
+      icon: L.divIcon({ className: styles.icon, html, iconSize: [0, 0] }),
+      zIndexOffset: 2000,
+      keyboard: false,
+      interactive: false,
+    }).addTo(map);
+    return () => {
+      caseMarker.current?.remove();
+      caseMarker.current = null;
+    };
+  }, [ready, foot]);
+
+  /**
+   * Keep vet and NGO pins off the ward labels and off each other (v6 M2: the
+   * ward pin sat on top of the NGO pin). Ward labels stay on their centres;
+   * each pin moves the shortest way clear (logic.ts pinOffset).
+   */
   const declutter = useCallback(() => {
-    const rects = (prefix: string, sel: string) => {
-      const out: Array<{ el: HTMLElement; r: DOMRect }> = [];
+    const els = (prefix: string, sel: string) => {
+      const out: HTMLElement[] = [];
       for (const [key, { m }] of markers.current) {
         if (!key.startsWith(prefix)) continue;
         const el = m.getElement()?.querySelector<HTMLElement>(sel);
-        if (el) out.push({ el, r: el.getBoundingClientRect() });
+        if (el) out.push(el);
       }
       return out;
     };
-    const wardEls = rects("w:", `.${styles.ward}`);
-    for (const w of wardEls) w.el.style.removeProperty("--nudge");
-    const pins = rects("p:", `.${styles.pin}`).map((p) => p.r);
+    const pins = els("p:", `.${styles.place}`);
+    for (const el of pins) {
+      el.style.removeProperty("--px");
+      el.style.removeProperty("--py");
+    }
     if (pins.length === 0) return;
-    for (const w of rects("w:", `.${styles.ward}`)) {
-      const dy = wardNudge(w.r, pins);
-      if (dy !== 0) w.el.style.setProperty("--nudge", `${Math.round(dy)}px`);
+    const obstacles: ScreenRect[] = els("w:", `.${styles.ward}`).map((el) => el.getBoundingClientRect());
+    const placed = pins
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
+    for (const { el, r } of placed) {
+      const { dx, dy } = pinOffset(r, obstacles);
+      if (dx || dy) {
+        el.style.setProperty("--px", `${Math.round(dx)}px`);
+        el.style.setProperty("--py", `${Math.round(dy)}px`);
+      }
+      obstacles.push({ left: r.left + dx, right: r.right + dx, top: r.top + dy, bottom: r.bottom + dy });
     }
   }, []);
 
@@ -421,7 +519,7 @@ export function MapScreen(): React.JSX.Element {
         html: placeHtml(p, placeMini(zoom), selId === p.id, MARKER_CLASSES),
         label: p.name,
         z: 300 + (selId === p.id ? 1000 : 0),
-        onSelect: () => select({ type: "place", place: p }),
+        onSelect: () => select({ type: "place", place: p, from: selectedWardId }),
       });
     }
 
@@ -480,6 +578,28 @@ export function MapScreen(): React.JSX.Element {
     return `/login?next=${encodeURIComponent(back)}`;
   }, []);
 
+  /** After taking a case: its exact spot (acker only) and how far it is. */
+  const locateCase = useCallback(
+    async (caseId: string | null, dogName: string | null, dogSex: "female" | "male" | null) => {
+      if (!caseId) return;
+      try {
+        const c = await mapApi.takenCase(caseId);
+        const location = c.location ?? null;
+        const dist =
+          typeof c.distanceM === "number" ? c.distanceM : location && here ? metresBetween(here, location) : null;
+        setFoot((f) =>
+          f.kind === "acked" && f.caseId === caseId
+            ? { ...f, dogName: f.dogName ?? c.dog?.name ?? dogName, dogSex, location, distanceM: dist }
+            : f,
+        );
+        if (location) window.setTimeout(() => flyTo(location.lat, location.lng), 200);
+      } catch {
+        // The case page still has everything; the sheet keeps "Open the case".
+      }
+    },
+    [here, flyTo],
+  );
+
   const onHelp = useCallback(async () => {
     if (!detail) return;
     if (!hasSession() || me === null) {
@@ -488,7 +608,8 @@ export function MapScreen(): React.JSX.Element {
     }
     const held = detail.sos.find((s) => s.mine);
     if (held) {
-      setFoot({ kind: "acked", caseId: held.caseId });
+      setFoot({ kind: "acked", caseId: held.caseId, dogName: held.dogName ?? null, dogSex: held.dogSex ?? null });
+      void locateCase(held.caseId, held.dogName ?? null, held.dogSex ?? null);
       return;
     }
     const claimable = detail.sos.find((s) => s.caseId && s.state !== "acked");
@@ -500,7 +621,8 @@ export function MapScreen(): React.JSX.Element {
     setFoot({ kind: "busy" });
     try {
       await mapApi.ack(claimable.caseId);
-      setFoot({ kind: "acked", caseId: claimable.caseId });
+      setFoot({ kind: "acked", caseId: claimable.caseId, dogName: claimable.dogName ?? null, dogSex: claimable.dogSex ?? null });
+      void locateCase(claimable.caseId, claimable.dogName ?? null, claimable.dogSex ?? null);
       void loadDetail(detail.id);
     } catch (e) {
       // Same words as the case page (lib/sos-ack.ts): the server decides who
@@ -511,23 +633,19 @@ export function MapScreen(): React.JSX.Element {
         setFoot({ kind: "refused", msg: ackRefusal(e) });
       else setFoot({ kind: "error" });
     }
-  }, [detail, me, loadDetail]);
+  }, [detail, me, loadDetail, locateCase]);
 
-  const onAlerts = useCallback(async () => {
+  /**
+   * M6 "I feed in Malad": the alerts ask (N13) adds the ward and explains SOS
+   * alerts before any browser prompt, instead of jumping to a push prompt.
+   */
+  const onFeedHere = useCallback(() => {
     if (!detail) return;
     if (!hasSession() || me === null) {
       window.location.assign(loginHref(detail.code));
       return;
     }
-    setFoot({ kind: "busy" });
-    try {
-      await mapApi.alerts(detail.id);
-      setMe((m) => (m ? { ...m, homeWard: detail.id, sosOptIn: true } : m));
-      setFoot({ kind: "alertsOn" });
-    } catch (e) {
-      if (e instanceof MapApiError && e.status === 401) window.location.assign(loginHref(detail.code));
-      else setFoot({ kind: "error" });
-    }
+    setAskOpen(true);
   }, [detail, me, loginHref]);
 
   // --- render -------------------------------------------------------------
@@ -537,7 +655,16 @@ export function MapScreen(): React.JSX.Element {
 
   let view: React.ReactNode;
   if (selection?.type === "place") {
-    view = <PlaceView place={selection.place} onBack={() => select(null)} />;
+    const fromWard = selection.from ? (wards?.find((w) => w.id === selection.from) ?? null) : null;
+    const p = selection.place;
+    view = (
+      <PlaceView
+        place={p}
+        from={fromWard}
+        distanceM={here ? metresBetween(here, p) : null}
+        onBack={() => select(fromWard ? { type: "ward", id: fromWard.id } : null)}
+      />
+    );
   } else if (selectedWard) {
     view = (
       <WardView
@@ -549,15 +676,18 @@ export function MapScreen(): React.JSX.Element {
         loginHref={loginHref(selectedWard.code)}
         onBack={() => select(null)}
         onHelp={onHelp}
-        onAlerts={onAlerts}
+        onFeedHere={onFeedHere}
         onRetry={() => void loadDetail(selectedWard.id)}
         onDismiss={() => setFoot({ kind: "idle" })}
+        onPlace={(p) => select({ type: "place", place: p, from: selectedWard.id })}
       />
     );
   } else {
     view = (
       <CityView
         wards={wards}
+        summary={summary}
+        staleAt={staleAt}
         error={wardsError}
         peek={peek}
         onRetry={loadWards}
@@ -567,7 +697,10 @@ export function MapScreen(): React.JSX.Element {
   }
 
   return (
-    <div className={styles.root} ref={rootRef}>
+    <div
+      className={[styles.root, staleAt ? styles.stale : "", attrOpen ? styles.attrOpen : ""].filter(Boolean).join(" ")}
+      ref={rootRef}
+    >
       <div className={styles.map} ref={mapEl} aria-label="Map of Mumbai wards" role="region" />
       <div className={styles.aurora} aria-hidden="true" />
 
@@ -610,9 +743,34 @@ export function MapScreen(): React.JSX.Element {
           aria-expanded={!peek}
           onClick={() => setPeek(!peek)}
         />
+        <button
+          type="button"
+          className={styles.attrBtn}
+          aria-label="Map data and credits"
+          aria-expanded={attrOpen}
+          onClick={() => setAttrOpen((o) => !o)}
+        >
+          i
+        </button>
         {view}
-        <TabBar position="static" active="map" className={styles.tabs} />
+        {/* M4: taking a case is a focused task, so the tab bar steps aside. */}
+        {foot.kind !== "acked" && <TabBar position="static" active="map" className={styles.tabs} />}
       </section>
+      {selectedWard && (
+        <AlertsAsk
+          open={askOpen}
+          wardId={selectedWard.id}
+          wardName={selectedWard.code}
+          onClose={() => setAskOpen(false)}
+          onDone={(on) => {
+            setAskOpen(false);
+            setMe((m) =>
+              m ? { ...m, sosOptIn: on || m.sosOptIn, wards: [...new Set([...(m.wards ?? []), selectedWard.id])] } : m,
+            );
+            setFoot(on ? { kind: "alertsOn" } : { kind: "idle" });
+          }}
+        />
+      )}
     </div>
   );
 }

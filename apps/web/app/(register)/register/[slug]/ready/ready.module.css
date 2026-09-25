@@ -1,22 +1,13 @@
-/* R6 Code ready: the light aurora over mist, the QR card. */
-
-.page {
-  background: radial-gradient(70% 40% at 0% 0%, var(--h-aurora-light-pink) 0%, transparent 70%),
-    radial-gradient(60% 35% at 100% 5%, var(--h-aurora-light-peach) 0%, transparent 70%), var(--h-mist);
-  background-repeat: no-repeat;
-  background-size: 100% 844px;
-  background-color: var(--h-mist);
-}
+/* V14 Code ready ("Kalu is almost on Hetja."): the QR card. */
 
 .body {
-  gap: 14px;
-  padding-top: 8px;
+  gap: 18px;
+  padding-top: calc(40px + env(safe-area-inset-top, 0px));
 }
 
 .tag {
   align-self: center;
-  margin-top: 8px;
-  width: 270px;
+  width: 270px; /* V14 draws 250; 270 (R6) fits the kept Unverified pill */
   box-sizing: border-box;
   background: var(--h-white);
   border-radius: 28px;
@@ -28,31 +19,32 @@
   gap: 12px;
 }
 
-.qr {
-  width: 180px;
-  height: 180px;
-}
-
+.qr,
 .qr svg {
   display: block;
-  width: 180px;
-  height: 180px;
+  width: 150px;
+  height: 150px;
 }
 
 .code {
   font-family: var(--h-mono);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: 0.06em;
   display: flex;
-  gap: 10px;
-  font-variant-numeric: tabular-nums;
+  gap: 12px;
 }
 
+.tagLine {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Kept from R6: the grey Unverified pill. */
 .pill {
   display: flex;
   align-items: center;
-  gap: 6px;
   height: 28px;
   padding: 0 12px;
   border-radius: var(--h-r-pill);
@@ -61,37 +53,4 @@
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
-}
-
-/* The activation line, adapted onto R6: grey helper, not a second button. */
-.activate {
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--h-target);
-  margin-top: 4px;
-  font-size: 15px;
-  line-height: 1.35;
-  color: var(--h-secondary);
-  text-align: center;
-  text-decoration: none;
-}
-
-.activate:focus-visible {
-  outline: var(--h-focus);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.shareNote {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.4;
-  color: var(--h-secondary);
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
-.footer {
-  gap: 6px;
 }

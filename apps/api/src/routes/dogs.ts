@@ -6,8 +6,8 @@ import { query, isValidSlug } from "@hetja/db";
 import { verifySlugSig } from "../lib/hmac.js";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { photoUrlFor } from "../lib/photo-url.js";
-import { publicName } from "../lib/public-name.js";
-import { dogSex } from "../lib/dog-feeders.js";
+import { firstName } from "../lib/public-name.js";
+import { FEEDER_WINDOW_DAYS, dogSex } from "../lib/dog-feeders.js";
 
 interface DogRow {
   id: string;
@@ -148,6 +148,10 @@ interface DogPagePayload {
   tagUnderReview: boolean;
   sturdierCollarSuggested: boolean;
   memorial?: { feederNames: string[] };
+  // Design v6 (first names, opt-out respected).
+  feeders: { firstName: string | null }[];
+  lastFedBy: string | null;
+  scanCount: number;
 }
 
 // In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
@@ -170,6 +174,11 @@ export const dogCache = new LRUCache<string, DogPagePayload>({
  */
 export function forgetDog(slug: string): void {
   dogCache.delete(slug);
+}
+
+/** Drop every cached profile: a feeder's name or name opt-out changed, and it can be on many. */
+export function forgetAllDogs(): void {
+  dogCache.clear();
 }
 
 /** Distinct reporters in 7 days at which the profile asks for a sturdier collar (routes/tags.ts). */
@@ -388,14 +397,48 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       ),
     ]);
 
+    // DESIGN V6 NAMES (owner decision, 2026-09-25): a dog's page names its
+    // feeders by FIRST NAME ONLY, and only those who kept "Show my first name
+    // on dogs' pages" on (feeders.show_first_name). An opted-out feeder is in
+    // `feeders` with firstName null: counted, never named. Never a surname,
+    // never an id or contact detail (INVARIANT 3). "Feeders" is the
+    // lib/dog-feeders.ts rule: the registrator plus live accounts with a
+    // non-rejected feed in the last 60 days.
+    const [feederRows, lastFedRes, scanCountRes] = await Promise.all([
+      query<{ display_name: string; show_first_name: boolean }>(
+        `SELECT f.display_name, f.show_first_name
+           FROM feeders f
+          WHERE f.deleted_at IS NULL
+            AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1)
+                 OR EXISTS (SELECT 1 FROM scans s
+                             WHERE s.dog_id = $1 AND s.feeder_id = f.id AND s.scan_type = 'feed'
+                               AND s.review_status <> 'rejected'
+                               AND s.received_at >= now() - make_interval(days => $2)))
+          ORDER BY (f.id = (SELECT registered_by FROM dogs WHERE id = $1)) DESC, f.created_at, f.id
+          LIMIT 50`,
+        [dog.id, FEEDER_WINDOW_DAYS],
+      ),
+      query<{ display_name: string | null; show_first_name: boolean | null; deleted_at: Date | null }>(
+        `SELECT f.display_name, f.show_first_name, f.deleted_at
+           FROM scans s LEFT JOIN feeders f ON f.id = s.feeder_id
+          WHERE s.dog_id = $1 AND s.scan_type = 'feed' AND s.review_status <> 'rejected'
+          ORDER BY s.captured_at DESC LIMIT 1`,
+        [dog.id],
+      ),
+      query<{ n: number }>(`SELECT count(*)::int AS n FROM scans WHERE dog_id = $1 AND scan_type <> 'sos'`, [dog.id]),
+    ]);
+    const feedersList = feederRows.rows.map((f) => ({ firstName: firstName(f.display_name, f.show_first_name) }));
+    const lastFed = lastFedRes.rows[0];
+
     // Memorial (N9): only for a deceased dog, only signed-in feeders whose feed
-    // was not rejected, only live accounts, and only as public names.
+    // was not rejected, only live accounts. Since v6, first names only and
+    // only for those who did not opt out (was first name and initial in v5).
     const memorial =
       dog.status === "deceased"
         ? {
             feederNames: (
-              await query<{ display_name: string }>(
-                `SELECT f.display_name
+              await query<{ display_name: string; show_first_name: boolean }>(
+                `SELECT f.display_name, f.show_first_name
                    FROM feeders f
                    JOIN (SELECT s.feeder_id, min(s.captured_at) AS first_fed
                            FROM scans s
@@ -408,7 +451,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
                 [dog.id, MEMORIAL_NAMES_MAX],
               )
             ).rows
-              .map((r) => publicName(r.display_name))
+              .map((r) => firstName(r.display_name, r.show_first_name))
               .filter((n): n is string => n !== null),
           }
         : undefined;
@@ -440,13 +483,18 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       vaccinated: vaccine ? "yes" : "unknown",
       sterilised: sterilisedFrom(dog.abc_status, counts?.abc_verified === true),
       lastFedAt: counts?.last_fed_at ? new Date(counts.last_fed_at).toISOString() : null,
-      feederCount: counts?.feeder_count ?? 0,
+      // v6: the length of `feeders` (current feeders, named or not), so
+      // "Rani has 2 feeders" and the list always agree.
+      feederCount: feedersList.length,
       storyAuthorCount: counts?.story_author_count ?? 0,
       sex: dogSex(dog.sex),
       verified: dog.verified_at !== null,
       tagUnderReview: dog.tag_review_since !== null,
       sturdierCollarSuggested: (counts?.tag_reporters_week ?? 0) >= STURDIER_COLLAR_REPORTERS,
       ...(memorial ? { memorial } : {}),
+      feeders: feedersList,
+      lastFedBy: lastFed ? firstName(lastFed.display_name, lastFed.show_first_name, lastFed.deleted_at) : null,
+      scanCount: scanCountRes.rows[0]?.n ?? 0,
     };
     if (isPublic) dogCache.set(slug, payload);
 

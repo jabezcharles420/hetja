@@ -8,6 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
+// Fixtures below compute relative times at load, so the clock is pinned
+// before them (and again in beforeEach). See the note in beforeEach.
+vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
+vi.setSystemTime(new Date("2026-09-24T06:30:00Z"));
+
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
@@ -123,11 +128,17 @@ function profile(over: Partial<DogProfile> = {}): DogProfile {
 }
 
 beforeEach(() => {
+  // Pin the clock to midday in Mumbai: "8 hours ago" must stay "Today"
+  // whenever CI runs (it once ran at 00:01 IST and every relative time fell
+  // into "Yesterday").
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-24T06:30:00Z"));
   setAccessToken("tok");
   replace.mockReset();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   cleanup();
   setAccessToken(null);

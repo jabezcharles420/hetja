@@ -11,6 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
+// Fixtures below compute relative times at load, so the clock is pinned
+// before them (and again in beforeEach). See the note in beforeEach.
+vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
+vi.setSystemTime(new Date("2026-09-24T06:30:00Z"));
+
 vi.mock("next/link", async () => {
   const { createElement: el } = await import("react");
   return {
@@ -78,6 +83,11 @@ const DOGS = [
 ];
 
 beforeEach(() => {
+  // Pin the clock to midday in Mumbai: "8 hours ago" must stay "Today"
+  // whenever CI runs (it once ran at 00:01 IST and every relative time fell
+  // into "Yesterday").
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-24T06:30:00Z"));
   localStorage.clear();
   setAccessToken("tok");
   apiMock.getStreak.mockResolvedValue(STREAK);
@@ -127,8 +137,33 @@ describe("MePage: signed in", () => {
     render(<MePage />);
     const g = await rows();
     const links = g.getAllByRole("link");
-    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/me/dogs", "/alerts", "/register", "/settings"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([
+      "/me/dogs",
+      "/alerts",
+      "/register",
+      "/vet/apply",
+      "/ngo/register",
+      "/settings",
+    ]);
     expect(g.getByRole("switch", { name: "SOS alerts" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("v7: offers vet and NGO sign-up rows, with the application's status when there is one", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ vet: { status: "waiting" } }));
+    render(<MePage />);
+    const g = await rows();
+    const vet = g.getByRole("link", { name: /Sign records as a vet/ });
+    expect(vet.getAttribute("href")).toBe("/vet/apply");
+    expect(vet.textContent).toBe("Sign records as a vetWaiting ›");
+    expect(g.getByRole("link", { name: /Bring your NGO to Hetja/ }).getAttribute("href")).toBe("/ngo/register");
+  });
+
+  it("v7: a verified vet loses the sign-up row (the Vet tab takes over)", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ vet: { status: "verified" } }));
+    render(<MePage />);
+    const g = await rows();
+    expect(g.queryByRole("link", { name: /Sign records as a vet/ })).toBeNull();
+    expect(localStorage.getItem("hetja:tab-role")).toBe("vet");
   });
 
   it("counts alerts newer than the last visit to Alerts", async () => {

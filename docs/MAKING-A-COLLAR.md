@@ -72,8 +72,10 @@ Design v5 replaced the single etched-tag sheet with printable paper sheets
   an `@page` rule, for the browser's own Print.
 
 These are paper tags: cut, laminate or seal both sides in clear packing tape,
-and replace them when they wear. The laser-etched TPU tag below is still the
-long-lived option, and the 40 mm arithmetic above still applies to it.
+and replace them when they wear. The laser-etched TPU tag is still the
+long-lived option: design v6 P5's material switch ("Laser on TPU" on the same
+print screen) prints its 40 × 40 mm sheet unchanged, with the shop's specs one
+tap away, and the 40 mm arithmetic above still applies to it.
 
 ## Fitting
 

@@ -55,7 +55,7 @@ describe("quiet hours", () => {
   });
 
   it("uses no em dash", () => {
-    expect(formatQuietHours({ start: "23:00", end: "06:00" })).not.toContain("—");
+    expect(formatQuietHours({ start: "23:00", end: "06:00" })).not.toContain(String.fromCharCode(0x2014));
   });
 });
 

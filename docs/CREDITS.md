@@ -84,6 +84,9 @@ so the history of what Hetja once used stays checkable.
 | Adoption | Source (canonical) | License | Where used | Notes |
 |---|---|---|---|---|
 | `Hopding/pdf-lib`: the collar sheet PDF | github.com/Hopding/pdf-lib | MIT | `apps/web/lib/collar-pdf.ts` (`pdf-lib` 1.17.1), reached from R7 Print tag and R8 Batch sheet | Builds the A4 or Letter collar sheets in the browser as a vector PDF (no server-side rendering in the room). Each QR is one filled path of module rectangles from `lib/qr.ts`'s matrix, so the printed size is exact; text uses the PDF standard fonts, so nothing is embedded and a sheet is 5 to 25 KB. About 200 KB gzipped, dynamic-imported only when a sheet is built, never in the initial bundle of any page. |
+| Noto Sans Devanagari Bold (Devanagari subset) | github.com/notofonts/devanagari, via `@fontsource/noto-sans-devanagari` 5.3.0 (the file only, not the package) | OFL-1.1 | `apps/web/public/fonts/NotoSansDevanagari-700-devanagari.woff` (+ `NotoSansDevanagari-OFL.txt`), used by `apps/web/lib/collar-pdf.ts` | 72 KB. Fetched only when a dog's name on a sheet is in Devanagari (Hindi, Marathi), and embedded in the PDF as a subset of just the glyphs used. |
+| `Hopding/fontkit` (`@pdf-lib/fontkit`) | github.com/Hopding/fontkit | MIT | `apps/web/lib/collar-pdf.ts` (1.1.1) | pdf-lib's font engine for custom fonts: parses the WOFF, shapes Devanagari conjuncts and vowel signs, and writes the subset. Dynamic-imported with the Devanagari font only. |
+| `facebook/regenerator` (`regenerator-runtime`) | github.com/facebook/regenerator | MIT | `apps/web/lib/collar-pdf.ts` (0.14.1) | A few KB. That fontkit build's Indic shaper expects a global `regeneratorRuntime`; it is assigned just before fontkit loads (not through the package's `Function` fallback). |
 
 ## Evaluated and deliberately NOT adopted
 

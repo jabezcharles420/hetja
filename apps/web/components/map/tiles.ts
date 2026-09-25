@@ -18,8 +18,11 @@ import { MUMBAI_LATLNG } from "./logic";
  * draw up to their own edge) and `noWrap`.
  *
  * Without a key, or when Esri refuses the tiles at runtime (expired or revoked
- * key, 401/498), the layer is swapped for CARTO's keyless light_all tiles so
- * the map never goes blank.
+ * key, 401/498), there is no tile layer at all: the map is a plain mist
+ * background and the ward pills and place pins still sit at their centres.
+ * There is no keyless fallback. CARTO's light_all now answers 200 with an
+ * "API KEY REQUIRED" image (so tileerror never fires), and OpenStreetMap's
+ * own tiles are ruled out for a production app by their usage policy.
  */
 
 export const ESRI_BASE =
@@ -27,28 +30,14 @@ export const ESRI_BASE =
 const ESRI_POWERED = 'Powered by <a href="https://www.esri.com" rel="noopener">Esri</a>';
 const ESRI_DATA_FALLBACK =
   "Esri, TomTom, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community";
-const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" rel="noopener">CARTO</a>';
-
 /** Esri errors before any tile loads: this many and the key is not working. */
 const FAILS_BEFORE_FALLBACK = 3;
 
-export type TileSource = "esri" | "carto";
+/** "none": no street map; MapScreen says so on the map. */
+export type TileSource = "esri" | "none";
 
 function escapeText(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
-
-function carto(L: typeof Leaflet): Leaflet.TileLayer {
-  return L.tileLayer(CARTO_URL, {
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: "abcd",
-    bounds: MUMBAI_LATLNG,
-    noWrap: true,
-    maxZoom: 20,
-    detectRetina: false,
-  });
 }
 
 export function addBaseLayer(
@@ -59,8 +48,7 @@ export function addBaseLayer(
 ): void {
   const k = (key ?? "").trim();
   if (!k) {
-    carto(L).addTo(map);
-    onSource?.("carto");
+    onSource?.("none");
     return;
   }
 
@@ -82,9 +70,9 @@ export function addBaseLayer(
     failed++;
     if (!swapped && loaded === 0 && failed >= FAILS_BEFORE_FALLBACK) {
       swapped = true;
+      // Removing the layer also takes its Esri credit out of the attribution.
       map.removeLayer(esri);
-      carto(L).addTo(map);
-      onSource?.("carto");
+      onSource?.("none");
     }
   });
   esri.addTo(map);

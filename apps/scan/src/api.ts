@@ -46,7 +46,32 @@ export interface DogProfile {
   lastFedAt?: string | null;
   feederCount?: number;
   storyAuthorCount?: number;
+  /**
+   * Design v5 (DogProfileV5 in apps/web/lib/api.ts). `verified` false shows
+   * the grey Unverified pill; undefined (an older API) shows nothing.
+   */
+  verified?: boolean;
+  /** A "wrong dog" report is open. Feeds still log and SOS is never paused. */
+  tagUnderReview?: boolean;
+  /** Three tag reports in 7 days: the profile asks for a sturdier collar. */
+  sturdierCollarSuggested?: boolean;
+  /** Deceased dogs only: first name and initial of each feeder who fed them. */
+  memorial?: { feederNames: string[] };
+  /**
+   * Design v6: first names of the dog's feeders who show them (the API sends
+   * `feeders: { firstName: string | null }[]`, null for an opt-out; those are
+   * counted in feederCount and never named).
+   */
+  feederNames?: string[];
+  /** First name of whoever logged the latest feed, or null (opted out, or nobody). */
+  lastFedBy?: string | null;
+  /** When the saved copy was fetched, for an offline (stale) profile (V17). */
+  savedAt?: string;
 }
+
+/** GET /dogs/:slug answered 404 (or 400): no dog has this code. */
+export class NotFoundError extends Error {}
+
 
 export interface ProfileResult {
   profile: DogProfile;
@@ -73,10 +98,14 @@ const API_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
 export async function fetchDogProfile(slug: string, sig: string): Promise<ProfileResult> {
   const url = `${API_BASE}/dogs/${encodeURIComponent(slug)}${sig ? `?s=${encodeURIComponent(sig)}` : ""}`;
   const res = await fetch(url, { headers: { accept: "application/json" } });
+  if (res.status === 404 || res.status === 400) throw new NotFoundError();
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const stale = res.headers.get("X-Hetja-Stale") === "1";
   const body: unknown = await res.json();
-  return { profile: normalizeProfile(extractData(body)), stale };
+  const profile = normalizeProfile(extractData(body));
+  const date = res.headers.get("date");
+  if (stale && date && Number.isFinite(Date.parse(date))) profile.savedAt = new Date(date).toISOString();
+  return { profile, stale };
 }
 
 function extractData(body: unknown): Record<string, unknown> {
@@ -121,7 +150,21 @@ function normalizeProfile(d: Record<string, unknown>): DogProfile {
     lastFedAt: d.lastFedAt === null ? null : optString(d.lastFedAt),
     feederCount: optCount(d.feederCount),
     storyAuthorCount: optCount(d.storyAuthorCount),
+    verified: typeof d.verified === "boolean" ? d.verified : undefined,
+    tagUnderReview: d.tagUnderReview === true,
+    sturdierCollarSuggested: d.sturdierCollarSuggested === true,
+    memorial: memorialFrom(d.memorial),
+    feederNames: Array.isArray(d.feeders)
+      ? d.feeders.map((f) => optString((f as { firstName?: unknown } | null)?.firstName)).filter((n): n is string => !!n)
+      : undefined,
+    lastFedBy: optString(d.lastFedBy) ?? (d.lastFedBy === null ? null : undefined),
   };
+}
+
+function memorialFrom(v: unknown): { feederNames: string[] } | undefined {
+  const names = (v as { feederNames?: unknown } | null)?.feederNames;
+  if (!Array.isArray(names)) return undefined;
+  return { feederNames: names.filter((n): n is string => typeof n === "string" && n.length > 0) };
 }
 
 /**

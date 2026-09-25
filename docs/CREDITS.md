@@ -43,7 +43,7 @@ algorithm is adapted rather than installed, this file says so.
 |---|---|---|---|---|
 | `fengyuanchen/compressorjs`: browser-side photo compress + EXIF strip | github.com/fengyuanchen/compressorjs | MIT | `apps/web/lib/photo.ts`, used by `apps/web/app/feed/FeedScreen.tsx` and the New dog form (`FeedButton.tsx` was removed in v4) | Re-encodes through a fresh `<canvas>`: auto-orient (`checkOrientation`), WebP where supported else JPEG, quality 0.8, capped 1600px. `retainExif: false` + `strict: false` mean the output carries no EXIF/GPS (the lib's only EXIF re-insertion path is guarded by `retainExif`); verified again with exifr on the output before upload. Dynamic-imported so the initial dog page pays nothing. |
 | `MikeKovarik/exifr`: EXIF/GPS/orientation reader | github.com/MikeKovarik/exifr | MIT | `apps/web/lib/photo.ts` | Extracts orientation + GPS from the picked photo. GPS is coarsened to ward via `@hetja/contracts` `coarsenToWard` (INVARIANT 2) and feeds ward-level sighting data; the feeder's own device location stays the separate, consented `captureGeo` channel. Also used as the post-compression assertion that no GPS/orientation survived. |
-| `GoogleChrome/web-vitals`: client Core Web Vitals reporting | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/web/lib/web-vitals.ts` + `components/WebVitalsReporter.tsx`, `apps/scan/src/web-vitals.ts` | LCP/CLS/INP/TTFB beamed to `POST /api/v1/metrics/web-vitals` (§M.16) with slug-stripped paths (`/d/:slug`, `/dog/:slug`, never the real collar code). In `apps/scan` it is the one permitted dependency (~1.5 KB gz after tree-shaking; scan bundle stays far under the 40 KB budget). |
+| `GoogleChrome/web-vitals`: client Core Web Vitals reporting | github.com/GoogleChrome/web-vitals | Apache-2.0 | `apps/web/lib/web-vitals.ts` + `components/WebVitalsReporter.tsx` | LCP/CLS/INP/TTFB beamed to `POST /api/v1/metrics/web-vitals` (§M.16) with slug-stripped paths (`/d/:slug`, `/dog/:slug`, never the real collar code). **No longer in `apps/scan` (2026-09-25):** the package cost the collar page 3,590 B gzipped, so `apps/scan/src/web-vitals.ts` now measures the same four metrics with the browser's own `PerformanceObserver` and navigation timing, in a separate `telemetry.js` loaded when idle. The package's metric definitions remain the reference for that code. |
 ## Wave 4: a11y + regression gates
 
 | Adoption | Source (canonical) | License | Where used | Notes |
@@ -73,11 +73,30 @@ so the history of what Hetja once used stays checkable.
 |---|---|---|---|---|
 | Claude Design: the v4 design source | Claude Design (Anthropic), handoff kept in `docs/design/v4-handoff/` | n/a (design produced for Hetja) | `packages/design/tokens.css`, `apps/web/components/ds/*`, every screen in `apps/web` and `apps/scan` | The spec, `.dc.html` mocks, rendered boards and copy deck for screens 01 to 18, and the separate map handoff (screen 19). Its viewer scripts (`support.js`, `image-slot.js`) are not committed. |
 | Inter (variable, Latin subset) | github.com/rsms/inter, via `@fontsource-variable/inter` | OFL-1.1 | `apps/web/public/fonts/Inter-latin-var.woff2` (+ `Inter-OFL.txt`), declared in `apps/web/app/globals.css` | 48 KB, weight axis 100 to 900. The Android stand-in for SF Pro, which may not ship to non-Apple platforms; it sits after `-apple-system` in the stack, so Apple devices never download it. Carried over from v3. |
-| Inter subset for the collar page | the same Inter, subset with fonttools | OFL-1.1 | `apps/scan/assets/inter-scan.woff2` (+ `Inter-OFL.txt`), served at `/d/inter-scan.woff2` | 13.6 KB: weights 400 to 700, printable ASCII plus a few punctuation marks. Recipe in `apps/scan/scripts/build.mjs`. Fits inside the 40 KB budget (INVARIANT 13). |
+| Inter subset for the collar page | the same Inter, subset with fonttools | OFL-1.1 | `apps/scan/assets/inter-scan.woff2` (+ `Inter-OFL.txt`), served at `/d/inter-scan.woff2` | 11.2 KB (13.6 KB until 2026-09-25): weights 400 to 700, printable ASCII less 20 rarely used symbols such as `#`, `@` and `~` (the list is in `apps/scan/index.html`), plus a few punctuation marks. Recipe in `apps/scan/scripts/build.mjs`. Fits inside the 40 KB budget (INVARIANT 13). |
 | Leaflet | github.com/Leaflet/Leaflet | BSD-2-Clause | `apps/web/components/map/*` (`leaflet` 1.9.4) | The map on `/map`. Imported on the client only, on that page. |
 | Esri basemap tiles (Light Gray) | ArcGIS Location Platform, static basemap tiles service | Esri terms of use (not open source) | `apps/web/components/map/tiles.ts` | The mock's basemap. A referrer-restricted key with basemap privileges only, `NEXT_PUBLIC_ESRI_API_KEY` from the `ESRI_API_KEY` secret. The service requires "Powered by Esri" and its data attribution on the map; `tiles.ts` shows both, fetching the service's own copyright text when it answers. |
-| CARTO basemap (light_all) | carto.com/attributions | CARTO attribution terms | `apps/web/components/map/tiles.ts` | The keyless fallback when there is no Esri key or Esri refuses the tiles, so the map never goes blank. Attributed "© OpenStreetMap contributors © CARTO". |
-| OpenStreetMap data | openstreetmap.org/copyright | ODbL-1.0 | via both basemaps | Attributed in the map's attribution control ("© OpenStreetMap contributors"). |
+| CARTO basemap (light_all) | carto.com/attributions | CARTO attribution terms | *(removed 2026-09-25)* | Was the keyless fallback when there was no Esri key or Esri refused the tiles. CARTO's keyless tiles now answer with an "API key required" image, so the fallback was removed: without Esri, `/map` and the SpotMap draw no street tiles and say so (docs/BUGS.md, 2026-09-25). |
+| OpenStreetMap data | openstreetmap.org/copyright | ODbL-1.0 | via the Esri basemap | Attributed in the map's attribution control ("© OpenStreetMap contributors", inside Esri's data attribution). |
+
+## Wave 7: design v5, register and print (2026-09-25)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `Hopding/pdf-lib`: the collar sheet PDF | github.com/Hopding/pdf-lib | MIT | `apps/web/lib/collar-pdf.ts` (`pdf-lib` 1.17.1), reached from R7 Print tag and R8 Batch sheet | Builds the A4 or Letter collar sheets in the browser as a vector PDF (no server-side rendering in the room). Each QR is one filled path of module rectangles from `lib/qr.ts`'s matrix, so the printed size is exact; text uses the PDF standard fonts, so nothing is embedded and a sheet is 5 to 25 KB. About 200 KB gzipped, dynamic-imported only when a sheet is built, never in the initial bundle of any page. |
+| Noto Sans Devanagari Bold (Devanagari subset) | github.com/notofonts/devanagari, via `@fontsource/noto-sans-devanagari` 5.3.0 (the file only, not the package) | OFL-1.1 | `apps/web/public/fonts/NotoSansDevanagari-700-devanagari.woff` (+ `NotoSansDevanagari-OFL.txt`), used by `apps/web/lib/collar-pdf.ts` | 72 KB. Fetched only when a dog's name on a sheet is in Devanagari (Hindi, Marathi), and embedded in the PDF as a subset of just the glyphs used. |
+| `Hopding/fontkit` (`@pdf-lib/fontkit`) | github.com/Hopding/fontkit | MIT | `apps/web/lib/collar-pdf.ts` (1.1.1) | pdf-lib's font engine for custom fonts: parses the WOFF, shapes Devanagari conjuncts and vowel signs, and writes the subset. Dynamic-imported with the Devanagari font only. |
+| `facebook/regenerator` (`regenerator-runtime`) | github.com/facebook/regenerator | MIT | `apps/web/lib/collar-pdf.ts` (0.14.1) | A few KB. That fontkit build's Indic shaper expects a global `regeneratorRuntime`; it is assigned just before fontkit loads (not through the package's `Function` fallback). |
+
+## Also in `apps/web/package.json`, credited late
+
+Both were added before this file tracked every dependency; listed here so the
+credits match the package file.
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `kazuhikoarase/qrcode-generator` | github.com/kazuhikoarase/qrcode-generator | MIT | `apps/web/lib/qr.ts` (2.0.4), `components/DesktopInvite.tsx` | The QR matrix for every printed collar (signed URL, vector modules in `lib/collar-pdf.ts`) and the "open this on your phone" QR on the desktop invitation (D1, D2). |
+| `supabase/supabase-js`, `supabase/ssr` | github.com/supabase/supabase-js · github.com/supabase/ssr | MIT | `apps/web/lib/supabase-dogs.ts` (types only) | Typed wrappers for the Supabase dog RPCs. No page calls them: every web read goes through the API (docs/OWNER-TODO.md D12). |
 
 ## Evaluated and deliberately NOT adopted
 

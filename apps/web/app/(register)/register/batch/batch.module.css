@@ -1,0 +1,88 @@
+/* R8 Batch sheet. */
+
+.body {
+  gap: 14px;
+  padding-top: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.slot {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--h-line);
+}
+
+.slotOn {
+  background: var(--h-blue);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 20px;
+  padding: 4px 16px;
+}
+
+.list > li + li {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  cursor: pointer;
+}
+
+.row[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.row:focus-within .name {
+  text-decoration: underline;
+  text-decoration-color: var(--h-blue);
+  text-underline-offset: 3px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.name {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  font-family: var(--h-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--h-secondary);
+}
+
+.note {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.inlineLink {
+  color: var(--h-link);
+}

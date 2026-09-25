@@ -36,38 +36,87 @@ Fork it. Run it in your city. Tell us what we got wrong.
 
 ## What it does today
 
-Every screen below is built to the Claude Design v4 handoff (see Design).
+Every screen below is built to the Claude Design handoffs (v4, then v5 and
+v6 on top of it; see Design). The app has four tabs, **Home, Map, Scan, Me**.
+On a desktop wider than 744 px the app is an invitation instead: "Hetja lives
+on your phone", with a QR to open the same page there.
 
 - **Scan** (`/scan`). The camera opens by itself and a found QR opens the dog.
-  No camera, or a muddy QR? Type the nine-character code under it. A wrong code
-  gets "No dog with that code" on the spot instead of a dead page.
+  After six seconds without a read it offers three ways on: type the code,
+  find the dog by ward and photo, or **Dog is hurt · Send SOS anyway**. Typing
+  forgives the usual slips (0 for O, 1 or l for I), works with only some of
+  the letters, and a near miss asks "Is it her?" with the dog's photo instead
+  of a dead end. **Find by ward and photo** (`/scan/find`) shows the ward's
+  collared dogs, narrowed by coat colour.
 - **The collar page** (`/d/<code>`). What a stranger sees after pointing their
   phone's own camera at a collar: photo (or the dog's initial), name, ward,
   vaccinated and sterilised status (only what a vet has recorded; "unknown"
-  otherwise, never a guessed "no"), when it was last fed, the collar code with
-  Copy and "Say it", the story its feeders wrote, and one red button: **This
-  dog needs help**.
+  otherwise, never a guessed "no"), the first names of the dog's feeders
+  (each can opt out), the story they wrote, the collar code with Copy, and
+  one red button, **{Name} needs help**, which works before the page has
+  finished loading. A saved copy still opens offline. A dog nobody has
+  vouched for yet says Unverified; a tag someone reported as being on the
+  wrong dog says so; a dog that has died keeps a quiet memorial page. **Report
+  a tag problem** (damaged, found on the ground, wrong dog, too tight) tells
+  the dog's feeders.
 - **SOS**. Three choices ("Hurt, but moving", "Can't get up, or bleeding",
-  "Something else"), an optional note or photo, then **Send SOS**. No account.
-  The sent screen shows the severity, whether anyone has taken the case yet
-  (it checks while the screen is open), and tappable numbers for vets and NGOs
-  nearby. Feeders nearby are paged; nobody's personal number is ever shown.
-- **Log a feed** (`/feed`). For signed-in feeders: optional photo, optional
-  "How did it go?" (Ate it all, Ate a little, Didn't eat, Looks unwell), and a
-  streak. "Looks unwell" suggests an SOS; it never raises one by itself. Works
-  offline and sends when the phone is back online.
-- **Sign in** (`/login`). Email, then a six-digit code. No password, no SMS.
-- **Me** (`/me`). Streak, badges, trust level, your dogs (the ones not fed
-  today first), and the switch that lets Hetja page you for SOS cases near
-  where you feed.
-- **New dog and Collar ready** (`/register`). Register a dog you look after,
-  get its collar code, print the tag, attach it, and scan it once to switch
-  it on.
+  "Something else"), an optional note or photo, then send. No account. The
+  location is asked for once, in words, before the browser asks. The reporter
+  then follows the case on the same screen: who was told, "Priya is on the
+  way", three first-aid lines while they wait, a way to send the responder an
+  update or say "I had to leave", and the outcome (taken to a vet, treated on
+  the spot, not found, or died). Tappable numbers for vets and NGOs are there
+  throughout (confirmed numbers only; see Contributing); with no signal the message is written for the phone's own SMS
+  app. Nobody's personal number is ever shown.
+- **An SOS with no known dog.** An unknown or unreadable collar still gets an
+  SOS: it needs the reporter's location, works in Mumbai only, and is located
+  to the ward; a "Can't get up, or bleeding" report pages that ward's feeders
+  and every report escalates to the nearest vets. Its limits are tighter than
+  for a report about a known dog.
+- **The responder's SOS page** (`/sos/<case>`). Where a push lands: the dog,
+  the ward, how far away, when it escalates, and **I'm going** (or "I can't go
+  right now"). The exact spot unlocks only after taking the case, with
+  directions; then "Tell the reporter you're close", "With Rani", "I can't
+  make it after all" (which hands the case back and pages again), and how it
+  ended.
+- **Log a feed** (`/feed`). For signed-in feeders: one dog, or several from a
+  round in one go; optional photo, optional "How did it go?" (Ate it all, Ate
+  a little, Didn't eat, Looks unwell) and a note. "Looks unwell" can tell the
+  dog's other feeders; it suggests an SOS and never raises one by itself.
+  Works offline and sends when the phone is back online.
+- **Sign in** (`/login`). Email, then a six-digit code that works for five
+  minutes. No password, no SMS. A first sign-in goes to **Become a feeder**
+  (`/welcome`): your shown name, your wards, SOS alerts and quiet hours.
+- **Me** (`/me`). Signed out, what signing in unlocks. Signed in: streak,
+  trust, your dogs, a checklist on day one, and rows for My dogs, Alerts (with
+  an unread count), the SOS alerts switch (turning it off offers a pause),
+  Register a dog and Settings. **Alerts** (`/alerts`) lists the last 14 days.
+  **Settings** (`/settings`): name, wards, alerts (SOS only or all, quiet
+  hours, pause), "Show my first name on dogs' pages", download my data, sign
+  out, delete my account.
+- **My dogs** (`/me/dogs`). Every dog you registered or fed in 60 days, what
+  needs doing first, and other people's new dogs you can confirm. Each dog has
+  a private week view, a story to write, a tag page (reprint, spare, history)
+  and **Update on a dog**: not seen, adopted, or passed away (which a second
+  feeder confirms).
+- **Register a dog and print its tag** (`/register`). A face photo, a
+  duplicate check in the ward, name and markings, confirm; then the code and
+  its QR, and a print screen that builds a real PDF in the browser (ten small
+  tags and a collar band, or one large tag and a wall notice, A4 or Letter),
+  shares it with a print shop, or gives the 40 mm laser sheet for etched TPU.
+  A batch sheet takes up to eight dogs. Scanning the tag once, next to the
+  dog, switches it on; a wrong tag is caught and named. At most two dogs wait
+  for their collars at a time.
+- **Vet checkup** (`/vet/<code>`, vet accounts). Rabies, sterilisation, next
+  vaccine due, a note for feeders; written to the tamper-evident ledger, and
+  it verifies the dog.
 - **Map** (`/map`). All of Mumbai by ward: which wards have a dog that needs
-  help, which are waiting for dinner, and the vets and NGOs nearby. Dogs are
+  help, which are waiting for dinner, who has not been logged today, and the
+  vets and NGOs nearby, with "open now" where the hours say so. Dogs are
   counted per ward, never placed on a street.
 - **Marketing and reading pages**: Home, About, How it works, FAQ, Privacy,
-  Contact, and `/hetja`, the memorial.
+  Contact, and `/hetja`, the memorial. English only for now: Hindi and
+  Marathi wait for human translations.
 
 What is designed but not finished is listed plainly in
 [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) §9.
@@ -94,8 +143,11 @@ ops/        the shared-box room (ops/room), Caddy, gates, Supabase, runbook
 
 The collar page is deliberately framework-free. A citizen standing over an
 injured dog on 4G gets served static HTML under a hard 40 KB gzipped budget,
-enforced in CI; a framework runtime alone would exceed it. It is about 33 KB
-today, 13.6 KB of which is a small Inter subset for Android.
+enforced in CI; a framework runtime alone would exceed it. It is 39,101 bytes
+of its 40,960 today, 11.2 KB of which is a small Inter subset for Android. The
+v6 screens paid for themselves with three cuts: the HTML is minified at build
+time, 20 rarely used ASCII symbols left the font subset, and the web-vitals
+package gave way to the browser's own measurements.
 
 ## Architecture, briefly
 
@@ -153,9 +205,20 @@ rules underneath are older than the look: one loud button per screen (blue,
 or red for SOS only), colour never alone, 44px targets, and plain white fast
 screens for the collar page and SOS.
 
-The handoff (spec, mocks, boards, copy deck) is kept in
-[docs/design/v4-handoff/](docs/design/v4-handoff/README.md). Its values live
-in [packages/design/tokens.css](packages/design/tokens.css), the components in
+Two more handoffs built on it without changing the look. **v5** audited the
+live site and added the missing pages (become a feeder, alerts, settings, my
+dogs, a vet's checkup, the SOS page for responders), registering and printing
+a tag, and what happens when a tag breaks. **v6** polished every screen, gave
+each dog's feeders a first name, followed an SOS through to its outcome, and
+made desktop an invitation to use a phone.
+
+Each handoff (spec, mocks, rendered boards) is kept in the repo:
+[docs/design/v4-handoff/](docs/design/v4-handoff/README.md),
+[docs/design/v5-handoff/](docs/design/v5-handoff/CONTRACT.md) and
+[docs/design/v6-handoff/](docs/design/v6-handoff/CONTRACT.md); the v5 and v6
+folders each carry a `CONTRACT.md` with the owner's decisions and every place
+the build deliberately departs from a mock. The values live in
+[packages/design/tokens.css](packages/design/tokens.css), the components in
 `apps/web/components/ds`, and the rationale in
 [docs/design/HETJA-DESIGN.md](docs/design/HETJA-DESIGN.md).
 
@@ -210,9 +273,10 @@ The most useful contributions right now are not code:
   ([docs/VET-DATA-INTAKE.md](docs/VET-DATA-INTAKE.md)). Most numbers are still
   unconfirmed. Volunteer-run numbers change often, and a number nobody has
   called must never be presented as confirmed.
-- **First-aid copy review by a practising vet.** The holding-instruction cards
-  are built but disabled until a qualified person signs off. Wrong first-aid
-  advice in an emergency causes harm.
+- **First-aid copy review by a practising vet.** The three "While you wait"
+  lines a reporter sees until help arrives now ship, by the owner's decision,
+  exactly as designed. They still want a qualified person's review before
+  launch. Wrong first-aid advice in an emergency causes harm.
 - **Ward-level geocoding** for directory entries currently marked `TODO: geocode`.
 
 For code, the invariants are the contract. If a change touches geo precision,

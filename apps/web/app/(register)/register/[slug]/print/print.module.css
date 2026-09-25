@@ -1,123 +1,263 @@
-.page {
-  padding: var(--h-s7) var(--h-gutter);
-}
+/* Print the tag: R7 (paper) and P5 (laser) merged. */
 
-.muted {
-  color: var(--h-ink-muted);
-  padding: var(--h-s6) var(--h-gutter);
-}
-
-.error {
-  color: var(--h-accent);
-  font-weight: var(--h-w-semibold);
+.body {
+  gap: 16px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
 }
 
 .back {
-  color: var(--h-ink-muted);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  align-self: flex-start;
 }
 
-.sheetPage {
-  padding: var(--h-s5) var(--h-gutter) var(--h-s7);
+/* P5 material switch: 34px segments, 14px 600. */
+.material {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--h-quiet);
+  border-radius: 12px;
+  padding: 3px;
 }
 
-.toolbar {
-  display: flex;
-  gap: var(--h-s3);
-  margin-bottom: var(--h-s5);
-  align-items: center;
+.materialOpt {
+  position: relative;
 }
 
-.printBtn {
-  min-height: var(--h-target);
-  background: var(--h-accent);
-  color: var(--h-base);
-  border: none;
-  border-radius: var(--h-radius-fill);
-  padding: 0 var(--h-s5);
-  font-weight: var(--h-w-semibold);
+.materialOpt input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
   cursor: pointer;
 }
 
-.sheet {
-  position: relative;
-  border: var(--h-hairline) solid var(--h-rule);
-  padding: var(--h-s6);
-  max-width: 420px;
-  background: var(--h-base);
+.materialOpt span {
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-text-mid);
+}
+
+.materialOpt input:checked + span {
+  background: var(--h-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   color: var(--h-ink);
 }
 
-/* Cut lines: hairline cross at corners */
-.cutLines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+.materialOpt input:focus-visible + span {
+  outline: var(--h-focus);
+  outline-offset: -2px;
 }
 
-.qrWrap {
+/* P5 laser preview. */
+.laserWrap {
+  background: var(--h-quiet);
+  border-radius: 24px;
+  padding: 14px;
   display: flex;
   justify-content: center;
-  padding: var(--h-s4) 0;
 }
 
-.qr {
-  line-height: 0;
+.laserPage {
+  width: 176px;
+  height: 249px;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.qr svg {
+.laserQr {
+  width: 66px;
+  height: 66px;
+  outline: 1px dashed var(--h-tertiary);
+  outline-offset: 3px;
+}
+
+.laserQr svg {
   display: block;
+  width: 66px;
+  height: 66px;
 }
 
-.plate {
-  --h-num-tabular: "tnum" 1, "lnum" 1;
-  margin-top: var(--h-s4);
-  justify-content: center;
-  text-align: center;
-  letter-spacing: 0.12em;
+.laserCode {
+  margin-top: 4px;
+  font-family: var(--h-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: #000;
 }
 
-.meta {
-  font-size: var(--h-t-xs);
-  color: var(--h-ink-muted);
-  word-break: break-all;
-  margin-top: var(--h-s3);
-  text-align: center;
+.laserCut {
+  font-size: 7px;
+  color: var(--h-secondary);
 }
 
-.selfCheck {
-  font-size: var(--h-t-xs);
-  color: var(--h-ink-muted);
-  margin-top: var(--h-s2);
-  text-align: center;
+.specRow {
+  min-height: 56px;
 }
 
-.note {
-  font-size: var(--h-t-sm);
-  color: var(--h-ink-muted);
-  margin-top: var(--h-s4);
-  text-align: center;
+.specValue {
+  font-size: 17px;
+  color: var(--h-secondary);
 }
 
+.specToggle {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.specLink {
+  font-size: 17px;
+  color: var(--h-secondary);
+}
+
+.specItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  font-size: 15px;
+}
+
+.specKey {
+  color: var(--h-secondary);
+  flex: none;
+}
+
+.specVal {
+  text-align: right;
+}
+
+/* On paper only the laser sheet prints. */
 @media print {
-  .toolbar {
+  .page > :not([data-laser-sheet]) {
     display: none !important;
   }
 
-  .sheetPage {
-    padding: 0;
-  }
-
-  .sheet {
-    border: none;
-    max-width: none;
+  .page {
+    background: #fff;
+    min-height: 0;
   }
 }
 
-/* Ensure colours print as specified */
-.sheet {
-  print-color-adjust: exact;
-  -webkit-print-color-adjust: exact;
+.previewWrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
 }
 
+.preview {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.previewInner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.option {
+  min-height: 64px;
+  cursor: pointer;
+}
+
+.option:focus-within .optionTitle {
+  text-decoration: underline;
+  text-decoration-color: var(--h-blue);
+  text-underline-offset: 3px;
+}
+
+.radio {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--h-control-off);
+}
+
+.radioOn {
+  border: 7px solid var(--h-blue);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.optionTitle {
+  font-size: 17px;
+}
+
+.paperRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.paperLabel {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.paperSeg {
+  width: 180px;
+}
+
+.shop {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  height: 52px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--h-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.shop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.shop:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.shop:active {
+  transform: scale(0.98);
+}
+
+.inlineLink {
+  color: var(--h-link);
+}

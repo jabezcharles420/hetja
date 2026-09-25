@@ -23,7 +23,7 @@ import type { DeviceTokenOutcome } from "@/lib/device";
 const push = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, back: vi.fn() }),
 }));
 
 vi.mock("next/link", async () => {
@@ -37,7 +37,7 @@ vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   return {
     ...actual,
-    api: { ...actual.api, requestOtp: vi.fn(), verifyOtp: vi.fn() },
+    api: { ...actual.api, requestOtp: vi.fn(), verifyOtp: vi.fn(), getFeederMe: vi.fn() },
   };
 });
 
@@ -60,6 +60,7 @@ import { deviceTokenFailureMessage } from "@/lib/device";
 const apiMock = api as unknown as {
   requestOtp: ReturnType<typeof vi.fn>;
   verifyOtp: ReturnType<typeof vi.fn>;
+  getFeederMe: ReturnType<typeof vi.fn>;
 };
 
 /** Shaped like a real issueDeviceToken() output. */
@@ -83,6 +84,8 @@ describe("feeder sign-in", () => {
     apiMock.requestOtp.mockReset();
     apiMock.verifyOtp.mockReset();
     apiMock.requestOtp.mockResolvedValue({ expiresAt: "2026-08-14T10:00:00.000Z" });
+    apiMock.getFeederMe.mockReset();
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: true });
     apiMock.verifyOtp.mockResolvedValue({
       accessToken: "access-1",
       refreshToken: "refresh-1",
@@ -171,6 +174,19 @@ describe("feeder sign-in", () => {
     // One attempt only: a wrong code must not be replayed, it consumes attempts.
     expect(apiMock.verifyOtp).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["invalid_code", 400, "That's not the code. Check the newest email."],
+    ["expired", 400, "That code has run out. Codes work for 5 minutes, so tap Resend for a new one."],
+    ["too_many_attempts", 429, "Too many tries with that code. Tap Resend for a new one."],
+  ])("says %s in words, never the raw result code", async (raw, status, words) => {
+    apiMock.verifyOtp.mockReset();
+    apiMock.verifyOtp.mockRejectedValue(new ApiError(raw, { status, code: raw.toUpperCase() }));
+    render(<LoginPage />);
+    await signIn("000000");
+    await waitFor(() => expect(screen.queryByText(words)).not.toBeNull());
+    expect(screen.queryByText(raw)).toBeNull();
+  });
 });
 
 describe("design v4 login screens", () => {
@@ -180,6 +196,8 @@ describe("design v4 login screens", () => {
     apiMock.requestOtp.mockReset();
     apiMock.verifyOtp.mockReset();
     apiMock.requestOtp.mockResolvedValue({ expiresAt: "2026-08-14T10:00:00.000Z" });
+    apiMock.getFeederMe.mockReset();
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: true });
     apiMock.verifyOtp.mockResolvedValue({
       accessToken: "access-1",
       refreshToken: "refresh-1",
@@ -200,14 +218,22 @@ describe("design v4 login screens", () => {
     return (await screen.findByLabelText("6-digit code")) as HTMLInputElement;
   }
 
-  it("ships the mock's copy on both steps, with the 5-minute expiry", async () => {
+  it("ships the audit's copy on both steps, with the 5-minute expiry", async () => {
     render(<LoginPage />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sign in.No password.");
-    expect(screen.getByText(/which dog hates the red scooter\./)).not.toBeNull();
+    expect(
+      screen.getByText(
+        "We'll email you a 6-digit code. You already remember enough, like which dog hates the red scooter.",
+      ),
+    ).not.toBeNull();
+    expect(screen.queryByText(/OTP/)).toBeNull();
     cleanup();
     await toCodeStep();
     expect(screen.getByText("Check your email.")).not.toBeNull();
-    expect(screen.getByText("6 digits sent to priya.feeds@gmail.com. It works for 5 minutes.")).not.toBeNull();
+    // V5's layout; the owner's 5-minute expiry, not the mock's 10.
+    expect(screen.getByText("priya.feeds@gmail.com").parentElement?.textContent).toBe(
+      "Sent to priya.feeds@gmail.com. It works for 5 minutes.",
+    );
     expect(screen.getByRole("button", { name: "‹ Change email" })).not.toBeNull();
   });
 
@@ -265,5 +291,59 @@ describe("design v4 login screens", () => {
     const input = await toCodeStep();
     fireEvent.change(input, { target: { value: "123456" } });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/feed?dog=abc234567"));
+  });
+
+  it("is a full-screen step with Cancel back to where the feeder came from", async () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("link", { name: "Cancel" }).getAttribute("href")).toBe("/");
+    cleanup();
+    window.history.replaceState({}, "", "/login?next=%2Fsettings");
+    render(<LoginPage />);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Cancel" }).getAttribute("href")).toBe("/settings"));
+  });
+
+  it("sends a feeder who has not been through N1 to /welcome first", async () => {
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: false });
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482190" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/welcome"));
+  });
+
+  it("keeps the destination through /welcome", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Ffeed%3Fdog%3Dabc234567");
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: false });
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482190" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/welcome?next=%2Ffeed%3Fdog%3Dabc234567"));
+  });
+
+  it("goes straight on when the profile cannot be read (an older API)", async () => {
+    apiMock.getFeederMe.mockRejectedValue(new Error("offline"));
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482190" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/me"));
+  });
+
+  it("V6: too many codes shows the clock time from Retry-After, and I have a code still works", async () => {
+    apiMock.requestOtp.mockRejectedValue(new ApiError("slow down", { status: 429, code: "RATE_LIMITED", retryAfterSec: 840 }));
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "priya.feeds@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    expect(await screen.findByRole("heading", { name: "Let's take a breath." })).toBeTruthy();
+    expect(screen.getByText(/You can ask for a new one at/).textContent).toMatch(/at \d{1,2}:\d{2} [ap]m, in 14 minutes\.$/);
+    expect(screen.getByText("A code from earlier may still be in your inbox and still work.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Scan a collar meanwhile" }).getAttribute("href")).toBe("/scan");
+    fireEvent.click(screen.getByRole("button", { name: "I have a code" }));
+    expect(await screen.findByLabelText("6-digit code")).toBeTruthy();
+  });
+
+  it("V4: an empty email is an error on the field, with an icon", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    const err = await screen.findByRole("alert");
+    expect(err.textContent).toBe("Type your email first.");
+    expect(err.querySelector("svg")).not.toBeNull();
+    expect(screen.getByLabelText("Email").getAttribute("aria-invalid")).toBe("true");
+    expect(apiMock.requestOtp).not.toHaveBeenCalled();
   });
 });

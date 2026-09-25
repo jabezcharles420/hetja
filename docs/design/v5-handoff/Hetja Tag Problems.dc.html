@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Tag problems" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:900px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">When a tag breaks.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">Tags get muddy, chewed and torn off. Every case ends the same way: the dog is found, the feeders are told, and someone reprints the same code. Reprinting uses the print screens in <a href="Hetja Register and Print.dc.html">Register and Print</a>.</p>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;max-width:1400px">
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">QR won't scan</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Type the printed code, even part of it. Or pick the dog by ward and photo. F1, F2, F3.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Tag found on the ground</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Scanning it opens the dog. Report it and the feeders get an alert. F4, F5.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Tag on the wrong dog</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Reported from the profile. Feeds and SOS on that code pause until a feeder checks. F4.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Same code forever</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Any feeder of the dog can reprint. The code never changes, so spare tags keep working. F6.</div></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px 44px">
+
+    <div data-screen-label="F1 Scan failed" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F1 Can't read the QR <span style="font-weight:400;color:#6e6e73">· After 6 seconds of trying</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#111;color:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;margin:8px 12px 0;border-radius:28px;overflow:hidden;position:relative;background:#2c2c2e">
+          <image-slot id="fail-camera" placeholder="Camera view" style="position:absolute;inset:0"></image-slot>
+          <div style="position:absolute;left:50%;top:38%;width:190px;height:190px;transform:translate(-50%,-50%);border-radius:24px;border:3px solid #ff9f0a;pointer-events:none"></div>
+        </div>
+        <div style="flex:none;background:#fff;color:#1d1d1f;border-radius:32px 32px 0 0;margin-top:-40px;position:relative;padding:22px 20px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em">Can't read this QR.</div>
+          <div style="font-size:15px;line-height:1.4;color:#6e6e73;margin-top:-4px">Mud and rain do this. Try one of these.</div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:60px;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Type the code</span><span style="font-size:13px;color:#6e6e73">Printed under the QR. Part of it is fine.</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:60px"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Find by ward and photo</span><span style="font-size:13px;color:#6e6e73">When the code is gone too</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+          </div>
+          <div style="height:52px;border-radius:999px;background:#d70015;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Dog is hurt · Send SOS anyway</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="F2 Partial code" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F2 Part of a code <span style="font-weight:400;color:#6e6e73">· Matches narrow as you type</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Scan</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:0 20px">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Type what you can read</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <div style="height:64px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px #1d1d1f;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:26px;font-weight:600;letter-spacing:0.08em">RNI</div>
+            <div style="height:64px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #0071e3;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:26px;font-weight:600;letter-spacing:0.08em">4<span style="color:#c7c7cc">··</span></div>
+            <div style="height:64px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:26px;font-weight:600;letter-spacing:0.08em;color:#c7c7cc">···</div>
+          </div>
+          <div style="font-size:14px;line-height:1.4;color:#6e6e73;margin-top:-6px">Skip what you can't read. 0 and O, 1 and I are treated as the same.</div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:6px 4px 0">2 dogs match</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;gap:12px;align-items:center;min-height:76px;border-bottom:1px solid #e8e8ed"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="match-1" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Rani</span><span style="font-size:13px;color:#6e6e73;font-family:ui-monospace,Menlo,monospace">RNI 482 PQ7 · K/W</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:76px"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="match-2" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Rinku</span><span style="font-size:13px;color:#6e6e73;font-family:ui-monospace,Menlo,monospace">RNI 407 KD2 · H/W</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+          </div>
+          <div style="font-size:14px;color:#6e6e73;padding:0 4px">Check the photo before you log anything.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Can't read any of it? Find by photo</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="F3 Find by photo" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F3 Find by ward and photo <span style="font-weight:400;color:#6e6e73">· No code at all</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Scan</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px;overflow:hidden">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Which dog is it?</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:16px;min-height:52px;padding:0 16px"><div style="display:flex;flex-direction:column"><span style="font-size:13px;color:#6e6e73">Ward, from your location</span><span style="font-size:17px">K/W · Andheri West</span></div><span style="font-size:15px;color:#0066cc">Change</span></div>
+          <div style="display:flex;gap:8px;font-size:15px;flex-wrap:wrap"><span style="height:36px;padding:0 14px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">Brown</span><span style="height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1px #d2d2d7;background:#fff;display:flex;align-items:center">Black</span><span style="height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1px #d2d2d7;background:#fff;display:flex;align-items:center">White</span><span style="height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1px #d2d2d7;background:#fff;display:flex;align-items:center">Spotted</span></div>
+          <div style="font-size:14px;color:#6e6e73">9 brown dogs registered in K/W</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <sc-for list="{{ grid }}" as="g" hint-placeholder-count="9">
+              <div style="display:flex;flex-direction:column;gap:5px"><div style="aspect-ratio:1;border-radius:16px;overflow:hidden;background:#e8e8ed"><image-slot id="{{ g.id }}" shape="rounded" radius="16" placeholder="" style="width:100%;height:100%"></image-slot></div><span style="font-size:14px;font-weight:600;padding-left:2px">{{ g.name }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Not here? Register this dog</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="F4 Report tag problem" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F4 Report a tag problem <span style="font-weight:400;color:#6e6e73">· From any dog profile</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative">
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+          <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+          <div style="height:280px;margin:8px 12px 0;border-radius:28px;background:#e8e8ed"></div>
+          <div style="padding:18px 20px;font-size:34px;font-weight:700;letter-spacing:-0.03em">Rani</div>
+        </div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.4)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:center"><span style="width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span></div>
+          <div style="font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;padding-top:4px">What's wrong with the tag?</div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:62px;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Damaged or faded</span><span style="font-size:13px;color:#6e6e73">Still on her, hard to scan</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:62px;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Found it on the ground</span><span style="font-size:13px;color:#6e6e73">The dog isn't with me</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:62px;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">This isn't the dog in the photo</span><span style="font-size:13px;color:#6e6e73">Tag is on a different dog</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:62px"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Collar is too tight</span><span style="font-size:13px;color:#6e6e73">Or cutting into the neck</span></div><span style="font-size:20px;color:#86868b">›</span></div>
+          </div>
+          <div style="font-size:13px;line-height:1.45;color:#6e6e73;padding:0 4px">No sign-in needed. Her feeders are told within a minute.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="F5 Found tag sent" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F5 Found tag, reported <span style="font-weight:400;color:#6e6e73">· Stranger · what to do with it</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:flex-end;padding:0 20px;font-size:17px;color:#0066cc">Done</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:8px 20px 0">
+          <div style="width:64px;height:64px;border-radius:50%;background:#e6f4ea;color:#1a7a35;font-size:30px;display:flex;align-items:center;justify-content:center">✓</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Rani's feeders know.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">3 feeders in K/W got an alert that her tag came off. Someone will put a new one on her.</div>
+          <div style="background:#fff;border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:17px;font-weight:600">What to do with the tag</div>
+            <div style="display:flex;gap:12px"><span style="width:26px;height:26px;border-radius:50%;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none">1</span><span style="font-size:15px;line-height:1.45">Leave it tied to a pole or gate near where you found it, at eye level.</span></div>
+            <div style="display:flex;gap:12px"><span style="width:26px;height:26px;border-radius:50%;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none">2</span><span style="font-size:15px;line-height:1.45">Or bin it. The code still works on her spare tags.</span></div>
+          </div>
+          <div style="background:#fff;border-radius:20px;min-height:60px;padding:0 16px;display:flex;align-items:center;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Seen Rani nearby?</span><span style="font-size:13px;color:#6e6e73">Helps feeders find her faster</span></div><span style="height:36px;padding:0 14px;border-radius:999px;background:#f5f5f7;font-size:15px;font-weight:600;color:#0066cc;display:flex;align-items:center">Yes, just now</span></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="F6 Feeder alert and reprint" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">F6 Feeder gets the alert <span style="font-weight:400;color:#6e6e73">· Reprint in two taps</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Me</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px">
+          <div style="background:#fff;border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 #e8e8ed">
+            <div style="display:flex;gap:12px;align-items:center"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="f6-rani" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Rani's tag came off</span><span style="font-size:13px;color:#6e6e73">Found near her usual spot · 12 min ago</span></div></div>
+            <div style="height:28px;align-self:flex-start;padding:0 12px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:13px;font-weight:600;display:flex;align-items:center">Needs a new tag</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="height:48px;border-radius:999px;background:#0071e3;color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center">Reprint tag</div>
+              <div style="height:48px;border-radius:999px;background:#f5f5f7;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center">I have a spare</div>
+            </div>
+          </div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:10px 4px 0">Tag history · RNI 482 PQ7</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:15px">Reported off by a passer-by</span><span style="font-size:13px;color:#6e6e73">Today</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:15px">Printed · 6 tags · Priya S.</span><span style="font-size:13px;color:#6e6e73">12 Aug</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px"><span style="font-size:15px">Registered · Priya S.</span><span style="font-size:13px;color:#6e6e73">12 Aug</span></div>
+          </div>
+          <div style="font-size:13px;line-height:1.45;color:#6e6e73;padding:0 4px">Only feeders of Rani see this. After 3 reports in a week, her profile asks for a sturdier collar.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const names = ['Rani', 'Bhoori', 'Laxmi', 'Kalu', 'Moti', 'Tiger', 'Sheru', 'Chikki', 'No name'];
+    return { grid: names.map((name, i) => ({ name, id: 'find-' + i })) };
+  }
+}
+</script>
+</body>
+</html>

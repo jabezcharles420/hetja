@@ -10,7 +10,7 @@ const css = fs.readFileSync("packages/design/tokens.css", "utf8");
 const tokens = {};
 for (const m of css.matchAll(/--h-([a-z-]+):\s*(#[0-9a-fA-F]{3,8})/g)) tokens[m[1]] = m[2];
 
-const need = ["white", "mist", "ink", "secondary", "text-mid", "blue", "link", "blue-tint", "blue-tint-ink", "sos", "ok", "ok-bg", "warn", "warn-bg", "neutral", "neutral-bg", "danger", "danger-bg", "band", "band-ink", "band-sub", "band-link", "memorial-bg", "aurora-base"];
+const need = ["white", "mist", "ink", "secondary", "text-mid", "blue", "link", "blue-tint", "blue-tint-ink", "sos", "ok", "ok-bg", "warn", "warn-bg", "neutral", "neutral-bg", "danger", "danger-bg", "band", "band-ink", "band-sub", "band-link", "memorial-bg", "aurora-base", "vet", "vet-bg"];
 for (const t of need) {
   if (!tokens[t]) {
     console.error(`FAIL: token --h-${t} missing from packages/design/tokens.css`);
@@ -52,6 +52,7 @@ const pairs = [
   ["--h-blue-tint-ink", "--h-blue-tint"],
   // status pills (icon + words; text still has to pass)
   ["--h-ok", "--h-ok-bg"],
+  ["--h-vet", "--h-vet-bg"],
   ["--h-warn", "--h-warn-bg"],
   ["--h-neutral", "--h-neutral-bg"],
   ["--h-danger", "--h-danger-bg"],

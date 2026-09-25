@@ -1528,8 +1528,15 @@ describe("GET /api/v1/reports/:caseId/status", () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers["cache-control"]).toBe("no-store");
     const data = res.json().data;
-    expect(Object.keys(data).sort()).toEqual(["ackedAt", "escalatedAt", "resolvedAt", "state"]);
-    expect(data).toEqual({ state: "open", ackedAt: null, escalatedAt: null, resolvedAt: null });
+    // Design v6 widened this (N10, N11, V19, L7): lifecycle times, the
+    // responder's and paged feeders' FIRST names (opt-out respected), counts,
+    // the outcome, and the reporter's own updates. Still nothing that
+    // identifies anyone beyond a first name, and no position.
+    expect(Object.keys(data).sort()).toEqual([
+      "ackedAt", "arrivedAt", "closeByAt", "escalatedAt", "feedersNotified", "feedersNotifiedNames", "leftAt",
+      "outcome", "resolvedAt", "responderFirstName", "state", "takenAt", "updates", "vetName", "vetsNotified",
+    ]);
+    expect(data).toMatchObject({ state: "open", ackedAt: null, escalatedAt: null, resolvedAt: null, responderFirstName: null });
 
     // After an ack, the reporter learns THAT it was acknowledged, not by whom.
     const responder = await makeFeeder("Status Acker");
@@ -1826,7 +1833,9 @@ describe("POST /api/v1/reports: hardening batch 1 (T3, T5, T11)", () => {
     for (let i = 0; i < 6; i++) await app.inject({ method: "POST", url: "/api/v1/reports", payload });
     const limited = await app.inject({ method: "POST", url: "/api/v1/reports", payload });
     expect(limited.statusCode).toBe(429);
-    expect(limited.json().data).toBeUndefined();
+    // No nearbyCare without a position. (Since v6 the 429 may carry the
+    // reporter's openCase instead, L7.)
+    expect(limited.json().data?.nearbyCare).toBeUndefined();
     await app.close();
   });
 });

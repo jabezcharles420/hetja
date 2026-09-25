@@ -13,7 +13,7 @@ external build guide that lived outside the repo.
 | 3 | identity_hmac only (HMAC-SHA256 pepper), never bare contact info | ✅ | `lib/hmac.ts`; schema has no phone/email column; security-gate grep |
 | 4 | LWW on dogs.last_seen_geo by captured_at (±15 min), tie-break received_at | ✅ | `scans.ts` applyLww + `0002_dogs_received_at.sql`; test |
 | 5 | scans.client_uuid UNIQUE (offline replay idempotency) | ✅ | unique index + scan replay test (`created:false`) |
-| 6 | Rate limits per account/device token, never per IP (one documented exception: device-token minting, see #6 below) | ✅ | device tokens as write subject (`device.ts`); SOS caps per token; per-subject limiters in `lib/rate-limit.ts` |
+| 6 | Rate limits per account/device token, never per IP (documented exceptions, each paired with a subject or global bucket: device-token minting, the two v5 finding reads, v5 tag reports and the v6 dogless SOS; see #6 below) | ✅ | device tokens as write subject (`device.ts`); SOS caps per token; per-subject limiters in `lib/rate-limit.ts` |
 | 7 | Anonymous SOS attested + capped (2/day, 5/week) | ✅ | `sos.ts` cap check, per device token for anon callers, per account for feeder-authed ones; global mint bucket on `/devices/token` (`lib/rate-limit.ts`) |
 | 8 | medical_records append-only (no UPDATE/DELETE/**TRUNCATE**) | ✅ | `0001` REVOKE UPDATE/DELETE + `0012` REVOKE TRUNCATE and a statement-level `BEFORE TRUNCATE` trigger; tests assert app_user cannot UPDATE/DELETE |
 | 9 | Ledger hash-chained, length-prefixed payloads | ✅ | `@hetja/ledger` (hashInput) + `medical.ts` chain write under advisory lock; RFC 6962 Merkle root persisted per append (`0014`) and served as an O(log n) inclusion proof by `GET /api/v1/ledger/proof` |
@@ -99,7 +99,8 @@ have to re-derive it.
 - **`GET /api/v1/reports/:caseId/status`** answers only the device token or
   account that filed the report, returns state and timestamps and nothing
   about who responded (3), and is rate-limited per device subject, never per
-  IP (6).
+  IP (6). (Design v6 changed "nothing about who responded": see the v6
+  section below.)
 - **Registration's self-reported vaccinated and sterilised answers**
   (`dogs.vaccinated_reported`, `dogs.sterilised_reported`, migration 0025) are
   read by no public route.
@@ -111,6 +112,104 @@ tag is scanned, but `GET /api/v1/dogs/:slug` had no status filter, so anyone
 holding the slug could read a `pending_activation` or `expired` dog. It now
 answers 404 for both, except to the registrator who filed it
 (`dogs.ts`, `NON_PUBLIC_STATUSES`; `dogs.test.ts`).
+
+### New surfaces in design v5 (2026-09-25), checked against 1, 2, 3, 6 and 8
+
+- **`GET /api/v1/dogs/lookup`** and **`GET /api/v1/wards/:wardId/dogs`**
+  (`routes/finding.ts`) return DogCards: slug, name, ward, portrait, markings,
+  a last-seen time. Ward level only (2). They hand out slugs by design, so the
+  bound on enumerating the register through them (1) is the rate limiting in
+  #6 above, including a global bucket each; at most 5 and 30 cards. Active and
+  lost dogs only.
+- **`GET /api/v1/dogs/:slug`** adds flags (`verified`, `tagUnderReview`,
+  `sturdierCollarSuggested`) and, for a deceased dog only, `memorial.feederNames`:
+  the names of the signed-in feeders who fed them. v5 specified first name and
+  initial; since v6 it is the first name only, with the opt-out below. Through
+  v5 that was the one public read naming people, by the owner's decision
+  (CONTRACT.md, N9). Every other v5 surface that shows a person does so to a
+  signed-in account, in the public form (`lib/public-name.ts`: first name and
+  initial), never contact data (3): mostly feeders of the same dog (alerts, My
+  dogs, tag history, status reports), but also feeders who chose the dog's
+  ward (a not-seen alert names the reporter) and responders paged for a case
+  (`respondingName` on `GET /sos/cases/:id`).
+- **`GET /api/v1/sos/cases/:id`** returns the dog's EXACT last position only to
+  the responder who acked the case; a paged responder sees the ward (2).
+- **Tag reports** are anonymous (device token) and can put a tag under review,
+  which withholds feed trust on the dog. They cannot pause SOS, change
+  `sos_eligible_at` or touch the fan-out. The reporter's device is stored only
+  as a SHA-256 of the canonical device id, for the 24 h dedupe.
+- **The vet checkup** (`POST /dogs/:slug/checkups`) appends through the one
+  chain writer (`appendMedicalRecord`, routes/medical.ts), one record per
+  checkup, so it stays append-only and hash-chained (8, 9).
+- **`DELETE /api/v1/feeders/me`** anonymises rather than deletes (11's shape):
+  name, identity HMAC, consent, wards, sessions and push subscriptions go;
+  dogs, scans and ledger references stay.
+
+### New surfaces in design v6 (2026-09-25), checked against 2, 3, 6 and 7
+
+- **Feeders' first names on public pages (3), with an opt-out.** By the
+  owner's decision, `GET /api/v1/dogs/:slug` now carries
+  `feeders: { firstName }[]` and `lastFedBy`, the memorial names, the dog
+  week and the reporter's status page name feeders. Public copy is the FIRST
+  WORD of the display name only (`lib/public-name.ts` `firstName`): never a
+  surname, an initial, an account id or contact data. Every feeder can switch
+  it off ("Show my first name on dogs' pages", `feeders.show_first_name`,
+  default on); on those surfaces an opted-out feeder is counted ("Rani has 2
+  feeders") and never named, and the profile cache is dropped when anyone
+  changes it. The setting is scoped to dogs' pages as its label says: the
+  signed-in surfaces listed in the v5 section still show the public name
+  (first name and initial) to other signed-in feeders whatever it is set to. This
+  is a deliberate widening of what INVARIANT 3 protects (it was counts only
+  through v5, first name and initial for a memorial): a first name alone,
+  beside a ward, is the most that is ever public.
+- **Dogless SOS (7, 2, 6).** `POST /api/v1/reports` without a dog needs a
+  point inside Mumbai; the case is located to the nearest ward centre and is
+  paged exactly like a dog at that point: for a `critical` report, feeders
+  who chose that ward and feeders with no wards who fed within 2 km of it;
+  for a `minor` or `serious` one, the feeders who chose that ward (see the
+  minor/serious bullet below). At escalation the vets nearest the point get
+  notification rows, which count as told only once delivered.
+  Every INVARIANT 7 rule for a dog report applies unchanged, plus
+  `doglessReportPerSubject` (burst 2, then 3 a day per account or device),
+  `doglessReportPerIp` (burst 3, then 6 a day per address: the fifth
+  IP-keyed limit, after minting, the two finding reads and tag reports,
+  recorded under #6 as it requires) and one open dogless case per reporter
+  per ward. The point is stored on the case (`sos_cases.geo`), given
+  only to the responder who takes it, and never logged. A paged responder
+  sees the ward and, if eligible, a distance rounded to 100 m from their own
+  last scan.
+- **The reporter's status page** (`GET /reports/:caseId/status`, the filing
+  device's token or account only) now names the responder and the paged
+  feeders by first name (opt-out respected) and counts vets. Never who
+  anyone is beyond that, never where the responder is.
+- **Alerts pause** (`feeders.sos_paused_until`, at most 30 days): a paused
+  feeder has no responder standing (`lib/sos-eligibility.ts` `canRespond`,
+  fixed in the pre-deploy review): not paged by any fan-out, nor by the
+  re-page after a release, not handed case ids on the map, not admitted to a
+  case page by standing (V22 answers `forbiddenReason: "paused"`). A case they
+  were ALREADY paged for stays takeable if they open it deliberately (the
+  `notified` ground of `mayAck`): a pause stops new pages, it does not take
+  back a page they have. Consent (`sos_opt_in`) is unchanged by it.
+- **Every SOS tells the dog's own feeders; taking it still needs the floor**
+  (pre-deploy review). At filing, whatever the severity, the dog's registrator
+  and feeders with a feed in the last 60 days (opted in, not paused, live) are
+  told: a push and an Alerts entry, counted as told, WHATEVER their trust, so
+  "Priya and Arjun know" is true for a new feeder too. Those at the severity's
+  trust floor are ordinary responders; those below it get a `notify_only` row
+  (migration 0028), which is NOT a ground to take the case (`mayAck`
+  `notified` counts responder rows only), is not re-paged after a release, and
+  never holds off escalation: a critical case whose only rows are notify-only
+  escalates at once, exactly as with nobody paged. Opening the case from that
+  push answers 403 with the V22 checklist plus the summary the reporter shares
+  (dog, severity, ward, time), never the note, photo or spot. Critical keeps
+  the city-wide responder fan-out (`docs/queries/sos_fanout.sql`); a minor or
+  serious report pages no one else (dogless: the feeders who chose that ward,
+  at the floor). Before this, a serious report told no feeder at all, while
+  the copy said "Tells Priya, Arjun and a vet nearby".
+- **"Told" means told.** The case page and the reporter's page count a paged
+  feeder as told (the alert is in their account's Alerts list) and a vet or
+  NGO only once a notification was actually delivered. Tier-2 escalation
+  writes sms/bmc rows that nothing sends yet, so today those count as zero.
 
 ## Why this exists
 
@@ -177,7 +276,7 @@ spec PDFs directly. Migrated here so it survives independently of them.
    correct rate-limit subject because it identifies one client, not one NAT
    pool.
 
-   **The one IP-keyed limit, and why it is allowed (hardening batch 1,
+   **The first IP-keyed limit, and why it is allowed (hardening batch 1,
    2026-09-25).** `POST /api/v1/devices/token` is where a device subject is
    CREATED, so there is no device or account to key on yet. Its only bound was
    the global mint bucket (200/day), which one client could drain in about
@@ -194,6 +293,35 @@ spec PDFs directly. Migrated here so it survives independently of them.
    loopback proxy; without it every request would share one bucket, which fails
    closed. Any second IP-keyed limit needs its own entry here.
 
+   **Design v5 IP-keyed limits (2026-09-25).** Three more, each for a request
+   that may carry no device or account at all, and each paired with a subject
+   or global bucket (`lib/rate-limit.ts`):
+   - `lookupPerSubject` (`GET /api/v1/dogs/lookup`) and `wardDogsPerSubject`
+     (`GET /api/v1/wards/:wardId/dogs`): keyed on the device when the request
+     presents a valid `x-device-token`, and on the address (`ipBucketKey`)
+     only when it presents none, which is how the web pages call them. Burst
+     10, then one a minute. These reads hand out slugs by design (F2 partial
+     code, F3 find by ward), so what bounds walking the register through them
+     is `lookupGlobal` / `wardDogsGlobal` (3000 a day each); the per-address
+     bucket only stops one client draining that. Refusal is a read refused,
+     never a report or a sign-in, so a shared CGNAT address costs nothing that
+     matters on the life-safety path.
+   - `tagReportPerIp` (`POST /api/v1/dogs/:slug/tag-reports`): on top of the
+     per-device (`tagReportPerSubject`) and per-dog (`tagReportPerDog`) limits,
+     never instead of them. Burst 10, then 20 an hour. Device tokens are
+     minted, 10 an hour per address, and each fresh one would otherwise bring
+     a fresh budget for paging a dog's feeders.
+   None of the three gates SOS, a scan or sign-in.
+
+   **Design v6: a fifth, and the only one on an SOS path (2026-09-25).**
+   `doglessReportPerIp` (burst 3, then 6 a day per address) bounds the SOS
+   with no known dog, which needs no dog and so has less to key on. It sits on
+   top of `doglessReportPerSubject` and INVARIANT 7's caps, never instead of
+   them, and it gates only the dogless path: an SOS about a known dog is never
+   keyed on the address. It is set generously because a real reporter files
+   one, and a refused one is still shown the nearest vets to call. The full
+   entry is in the v6 section at the top of this file.
+
    Every other limiter added in the same batch is per account or per device:
    scans (burst 30, then 1 a minute), scan photos (40 a day; over budget the
    scan is kept and answered `photoAccepted: false`), SOS reports (burst 6, then
@@ -207,8 +335,12 @@ spec PDFs directly. Migrated here so it survives independently of them.
    Without this, the SOS fan-out (which pages real people's phones) becomes
    a free mechanism for paging strangers at will.
 
-    The caps are **rolling** windows as of wave 7 (2026-08-24): `sos.ts` counts
-    rows with `received_at >= now() - interval '1 day' / '7 days'`. They were
+    The caps are **rolling** windows as of wave 7 (2026-08-24): `sos.ts` counted
+    rows with `received_at >= now() - interval '1 day' / '7 days'`. Since the
+    2026-09-07 fix pass it counts the CASES the subject opened
+    (`sos_cases.opened_at` in the same rolling windows, joined to the opening
+    scan), because counting scans let a held report re-open a case each time
+    one was closed (docs/BUGS.md). They were
     **calendar** windows for most of the system's life
     (`received_at >= date_trunc('day'|'week', now())`), which let a token file
     two reports at 23:58 IST and two more at 00:01; the route's comment claimed

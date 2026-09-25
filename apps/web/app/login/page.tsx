@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Aurora, Button, Label, StickyFooter } from "@/components/ds";
+import { Aurora, Button, DogAvatar, StatusIcon, StickyFooter } from "@/components/ds";
+import { AppHeader } from "@/components/ds/AppHeader";
 import { api, ApiError, setSession } from "@/lib/api";
 import {
   clearCachedDeviceToken,
@@ -11,11 +12,26 @@ import {
   isBadDeviceTokenError,
   readCachedDeviceToken,
 } from "@/lib/device";
-import { formatCountdown, OTP_LENGTH, OTP_MINUTES, RESEND_COOLDOWN_S, safeNext } from "@/lib/login";
+import {
+  cancelHref,
+  formatCountdown,
+  formatRetryAt,
+  OTP_LENGTH,
+  OTP_MINUTES,
+  RESEND_COOLDOWN_S,
+  safeNext,
+  verifyErrorMessage,
+  welcomeHref,
+} from "@/lib/login";
 import styles from "./login.module.css";
 
 /**
- * Screens 07 / 08, Login (design v4): email, then a 6-digit code.
+ * Sign in (design v4 screens 07 / 08, v5 audit, v6 V4 / V5 / V6): email,
+ * then a 6-digit code. A full-screen step with Cancel: no card, no tab bar,
+ * no footer. A feeder who has not been through N1 yet lands on /welcome.
+ *
+ * Errors sit on the field they are about, with an icon (V4, V5). A 429 on
+ * asking for a code shows V6 with the clock time from Retry-After.
  *
  * The code boxes are ONE hidden input (autocomplete="one-time-code",
  * inputmode numeric) under six painted boxes, so iOS / Android autofill and
@@ -25,20 +41,41 @@ import styles from "./login.module.css";
 
 const CONSENT_VERSION = 1;
 
+function FieldError({ id, children }: { id: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <p id={id} className={styles.fieldError} role="alert">
+      <StatusIcon name="alert" size={16} />
+      {children}
+    </p>
+  );
+}
+
 export default function LoginPage(): React.JSX.Element {
   const router = useRouter();
 
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "code" | "limited">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | undefined>();
+  /** Progress and device messages (not errors about a field). */
   const [status, setStatus] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  /** The code step's error came from the server (V5): offer a new code. */
+  const [codeRejected, setCodeRejected] = useState(false);
+  const [retryAfterSec, setRetryAfterSec] = useState<number | undefined>();
   const [busy, setBusy] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [cancelTo, setCancelTo] = useState("/");
   const codeRef = useRef<HTMLInputElement | null>(null);
   const submittedFor = useRef<string | null>(null);
   const inFlight = useRef(false);
+
+  // Read after hydration: the server render has no query string to read.
+  useEffect(() => {
+    setCancelTo(cancelHref(new URLSearchParams(window.location.search).get("next")));
+  }, []);
 
   // Resend cooldown tick.
   useEffect(() => {
@@ -67,7 +104,8 @@ export default function LoginPage(): React.JSX.Element {
     }
   };
 
-  const sendCode = async (): Promise<boolean> => {
+  /** Ask for a code. Returns false on failure; a 429 moves to V6. */
+  const sendCode = async (onError: (message: string) => void): Promise<boolean> => {
     setBusy(true);
     setStatus(null);
     try {
@@ -77,7 +115,12 @@ export default function LoginPage(): React.JSX.Element {
       void warmDeviceToken();
       return true;
     } catch (err) {
-      setStatus(err instanceof ApiError ? err.message : "Could not send the code. Try again.");
+      if (err instanceof ApiError && err.status === 429) {
+        setRetryAfterSec(err.retryAfterSec);
+        setStep("limited");
+      } else {
+        onError(err instanceof ApiError ? err.message : "Could not send the code. Try again.");
+      }
       return false;
     } finally {
       setBusy(false);
@@ -87,11 +130,13 @@ export default function LoginPage(): React.JSX.Element {
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      setStatus("Type your email first.");
+      setEmailError("Type your email first.");
       return;
     }
-    if (await sendCode()) {
+    setEmailError(null);
+    if (await sendCode(setEmailError)) {
       setCode("");
+      setCodeError(null);
       submittedFor.current = null;
       setStep("code");
     }
@@ -99,8 +144,10 @@ export default function LoginPage(): React.JSX.Element {
 
   const resend = async () => {
     setCode("");
+    setCodeError(null);
+    setCodeRejected(false);
     submittedFor.current = null;
-    await sendCode();
+    await sendCode(setCodeError);
     codeRef.current?.focus();
   };
 
@@ -137,6 +184,7 @@ export default function LoginPage(): React.JSX.Element {
       inFlight.current = true;
       submittedFor.current = otp;
       setBusy(true);
+      setCodeError(null);
       try {
         // Usually instant: cached, or the warm-up mint has already finished
         // (getDeviceToken shares one in-flight solve).
@@ -151,9 +199,20 @@ export default function LoginPage(): React.JSX.Element {
         // BOTH halves: the refresh token is what outlives the 15-minute access token.
         setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
         setStatus(null);
-        router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
+        const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+        // N1 comes first for a feeder who has not chosen wards yet. An older
+        // API without `onboarded`, or a failed read, goes straight on.
+        const onboarded = await api
+          .getFeederMe()
+          .then((me) => me.onboarded)
+          .catch(() => undefined);
+        router.push(onboarded === false ? welcomeHref(next) : next);
       } catch (err) {
-        setStatus(err instanceof ApiError ? err.message : "That code didn't work. Try again.");
+        setStatus(null);
+        setCodeRejected(true);
+        setCodeError(
+          err instanceof ApiError ? verifyErrorMessage(err.code, err.message) : "That code didn't work. Try again.",
+        );
       } finally {
         inFlight.current = false;
         setBusy(false);
@@ -167,44 +226,112 @@ export default function LoginPage(): React.JSX.Element {
   const onCodeChange = (raw: string) => {
     const next = raw.replace(/\D/g, "").slice(0, OTP_LENGTH);
     setCode(next);
+    if (codeError && !busy) {
+      setCodeError(null);
+      setCodeRejected(false);
+    }
     if (status && !busy) setStatus(null);
     // Auto-submit once per complete code.
     if (next.length === OTP_LENGTH && submittedFor.current !== next) void verify(next);
   };
 
+  /** V5: after a wrong code, tapping any box clears all six. */
+  const onBoxesTap = () => {
+    if (!codeRejected || busy) return;
+    setCode("");
+    setCodeError(null);
+    setCodeRejected(false);
+    submittedFor.current = null;
+  };
+
+  if (step === "limited") {
+    const at = formatRetryAt(retryAfterSec);
+    return (
+      <Aurora variant="light" className={styles.page}>
+        <div className={styles.form}>
+          <div className={`${styles.body} ${styles.bodyLimited}`}>
+            <span className={styles.breath} aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3.2l2 1.3" />
+              </svg>
+            </span>
+            <h1 className={`${styles.title} ${styles.titleBreath}`}>Let&apos;s take a breath.</h1>
+            <p className={styles.leadLg}>
+              That&apos;s a lot of codes in a short time.{" "}
+              {at ? (
+                <>
+                  You can ask for a new one at <b className={styles.ink}>{at.clock}</b>, {at.relative}.
+                </>
+              ) : (
+                <>You can ask for a new one in a few minutes.</>
+              )}
+            </p>
+            <p className={styles.note}>A code from earlier may still be in your inbox and still work.</p>
+          </div>
+          <StickyFooter background="none" className={styles.footer}>
+            <Button
+              fullWidth
+              onClick={() => {
+                setCode("");
+                setCodeError(null);
+                submittedFor.current = null;
+                setStep("code");
+              }}
+            >
+              I have a code
+            </Button>
+            <Button variant="link" href="/scan" fullWidth>
+              Scan a collar meanwhile
+            </Button>
+          </StickyFooter>
+        </div>
+      </Aurora>
+    );
+  }
+
   if (step === "email") {
     return (
       <Aurora variant="light" className={styles.page}>
+        <AppHeader cancel={{ href: cancelTo }} />
         <form className={styles.form} onSubmit={(e) => void requestCode(e)} noValidate>
-          <div className={styles.bodyEmail}>
+          <div className={styles.body}>
+            <div className={styles.dogs} aria-hidden="true">
+              <DogAvatar id="rani" name="Rani" palette="rose" size={48} ring="var(--h-aurora-light-base)" />
+              <DogAvatar id="kalu" name="Kalu" palette="lilac" size={48} ring="var(--h-aurora-light-base)" />
+              <DogAvatar id="bruno" name="Bruno" palette="sky" size={48} ring="var(--h-aurora-light-base)" />
+            </div>
             <h1 className={styles.title}>
               Sign in.
               <br />
               No password.
             </h1>
-            <p className={styles.lead}>
-              For feeders and vets. We email you a 6-digit code. You have enough to remember, like which dog
-              hates the red scooter.
+            <p className={styles.leadLg}>
+              We&apos;ll email you a 6-digit code. You already remember enough, like which dog hates the red scooter.
             </p>
             <div className={styles.field}>
-              <Label as="label" htmlFor="login-email">
-                Email
-              </Label>
               <input
                 id="login-email"
-                className={styles.input}
+                className={[styles.input, emailError ? styles.inputError : ""].filter(Boolean).join(" ")}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError(null);
+                }}
                 type="email"
                 inputMode="email"
                 autoComplete="email"
                 autoCapitalize="none"
                 spellCheck={false}
-                aria-describedby={status ? "login-status" : undefined}
+                placeholder="you@example.com"
+                aria-label="Email"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? "login-email-error" : status ? "login-status" : undefined}
               />
+              {emailError && <FieldError id="login-email-error">{emailError}</FieldError>}
             </div>
             {status && (
-              <p id="login-status" className={styles.status} role="alert">
+              <p id="login-status" className={styles.status} role="status">
                 {status}
               </p>
             )}
@@ -223,12 +350,28 @@ export default function LoginPage(): React.JSX.Element {
 
   return (
     <Aurora variant="light" className={styles.page}>
+      <AppHeader
+        cancel={{
+          label: "‹ Change email",
+          onClick: () => {
+            setStep("email");
+            setStatus(null);
+            setCodeError(null);
+            setCodeRejected(false);
+            setCode("");
+          },
+        }}
+      />
       <form
         className={styles.form}
         onSubmit={(e) => {
           e.preventDefault();
+          if (codeRejected) {
+            void resend();
+            return;
+          }
           if (code.length !== OTP_LENGTH) {
-            setStatus("Type all 6 digits from the email.");
+            setCodeError("Type all 6 digits from the email.");
             codeRef.current?.focus();
             return;
           }
@@ -236,26 +379,13 @@ export default function LoginPage(): React.JSX.Element {
         }}
         noValidate
       >
-        <div className={styles.top}>
-          <button
-            type="button"
-            className={styles.back}
-            onClick={() => {
-              setStep("email");
-              setStatus(null);
-              setCode("");
-            }}
-          >
-            ‹ Change email
-          </button>
-        </div>
-        <div className={styles.bodyCode}>
-          <h1 className={styles.title}>Check your email.</h1>
+        <div className={styles.body}>
+          <h1 className={`${styles.title} ${styles.titleCode}`}>Check your email.</h1>
           <p className={styles.lead}>
-            6 digits sent to {email.trim()}. It works for {OTP_MINUTES} minutes.
+            Sent to <span className={styles.ink}>{email.trim()}</span>. It works for {OTP_MINUTES} minutes.
           </p>
           {devCode && <p className={styles.dev}>Dev build: your code is {devCode}</p>}
-          <div className={styles.otp}>
+          <div className={styles.otp} onPointerDown={onBoxesTap}>
             <input
               ref={codeRef}
               id="login-code"
@@ -269,12 +399,18 @@ export default function LoginPage(): React.JSX.Element {
               pattern="[0-9]*"
               maxLength={OTP_LENGTH}
               aria-label="6-digit code"
-              aria-describedby={status ? "login-status" : undefined}
+              aria-invalid={codeError ? true : undefined}
+              aria-describedby={codeError ? "login-code-error" : status ? "login-status" : undefined}
             />
             {Array.from({ length: OTP_LENGTH }, (_, i) => (
               <div
                 key={i}
-                className={[styles.box, i === active ? styles.boxActive : ""].filter(Boolean).join(" ")}
+                className={[
+                  styles.box,
+                  codeRejected ? styles.boxError : i === active ? styles.boxActive : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 aria-hidden="true"
                 data-testid="otp-box"
               >
@@ -282,16 +418,23 @@ export default function LoginPage(): React.JSX.Element {
               </div>
             ))}
           </div>
-          <p className={styles.resend}>
-            Nothing yet?{" "}
-            {resendIn > 0 ? (
-              <span aria-live="off">Resend in {formatCountdown(resendIn)}</span>
-            ) : (
-              <button type="button" className={styles.resendBtn} onClick={() => void resend()} disabled={busy}>
-                Resend
-              </button>
-            )}
-          </p>
+          {codeError && <FieldError id="login-code-error">{codeError}</FieldError>}
+          {codeRejected ? (
+            <p className={styles.note}>
+              Asked more than once? Only the latest code works. Not there? Look in Promotions or Spam.
+            </p>
+          ) : (
+            <p className={styles.resend}>
+              Nothing yet?{" "}
+              {resendIn > 0 ? (
+                <span aria-live="off">Resend in {formatCountdown(resendIn)}</span>
+              ) : (
+                <button type="button" className={styles.resendBtn} onClick={() => void resend()} disabled={busy}>
+                  Resend
+                </button>
+              )}
+            </p>
+          )}
           {status && (
             <p id="login-status" className={styles.status} role="status">
               {status}
@@ -300,7 +443,7 @@ export default function LoginPage(): React.JSX.Element {
         </div>
         <StickyFooter background="none" className={styles.footer}>
           <Button type="submit" fullWidth disabled={busy} aria-busy={busy || undefined}>
-            Verify
+            {codeRejected ? "Send a new code" : "Verify"}
           </Button>
         </StickyFooter>
       </form>

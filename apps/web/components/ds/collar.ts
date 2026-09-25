@@ -22,6 +22,15 @@ export function sanitizeCollarCode(raw: string): string {
   return out;
 }
 
+/**
+ * Folds the characters the alphabet leaves out onto the ones people mean,
+ * the way GET /dogs/lookup does: `0` is `o`, `1` and `l` are `i`. Opt-in
+ * (CollarCodeInput `fold`), so existing callers keep dropping them.
+ */
+export function foldConfusables(raw: string): string {
+  return raw.replace(/0/g, "o").replace(/[1lL]/g, "i");
+}
+
 /** "ddr017xk2" -> ["DDR", "017", "XK2"]. Works on partial codes too. */
 export function collarGroups(code: string): string[] {
   const upper = code.replace(/\s+/g, "").toUpperCase();

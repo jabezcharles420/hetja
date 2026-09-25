@@ -33,6 +33,12 @@ export interface EnqueueInput {
   deviceToken?: string;
   /** "How did it go?" (optional). Stored with the record and replayed as-is. */
   outcome?: FeedOutcomeValue;
+  /** The dog's name, kept with the record for the N7 waiting list. Never sent. */
+  dogName?: string | null;
+  /** v6 L2: the feeder's note (<= 280), sent with the feed. */
+  note?: string;
+  /** v6 L2: with an "unwell" outcome, one push to the dog's other feeders. */
+  tellCoFeeders?: true;
 }
 
 export interface FeedOutcome {
@@ -107,6 +113,9 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     capturedAt: new Date().toISOString(),
     deviceToken: input.deviceToken,
     ...(input.outcome ? { outcome: input.outcome } : {}),
+    ...(input.dogName ? { dogName: input.dogName } : {}),
+    ...(input.note ? { note: input.note } : {}),
+    ...(input.tellCoFeeders ? { tellCoFeeders: true as const } : {}),
   });
 
   const offline = !isOnLine();
@@ -292,7 +301,7 @@ async function flushDetailed(onDrop?: (item: QueuedScan, err: ApiError) => void)
       continue;
     }
     try {
-      const result = await api.createScan(
+      const result = await api.createScanV6(
         {
           clientUuid: item.clientUuid,
           dogSlug: item.dogSlug,
@@ -301,6 +310,8 @@ async function flushDetailed(onDrop?: (item: QueuedScan, err: ApiError) => void)
           photoBase64: item.photo,
           capturedAt: item.capturedAt,
           ...(item.outcome ? { outcome: item.outcome } : {}),
+          ...(item.note ? { note: item.note } : {}),
+          ...(item.tellCoFeeders && item.outcome === "unwell" ? { tellCoFeeders: true as const } : {}),
         },
         // The capture-time credential. Harmless alongside a Bearer: the route
         // prefers the Bearer for attribution, and this token is what makes an
@@ -448,6 +459,30 @@ export async function queuedCount(): Promise<number> {
     return (await listQueued()).length;
   } catch {
     return 0;
+  }
+}
+
+/** A queued feed as the N7 screen lists it: no photo bytes, no token. */
+export interface WaitingFeed {
+  id: string;
+  dogSlug: string;
+  dogName: string | null;
+  outcome: FeedOutcomeValue | null;
+  capturedAt: string;
+}
+
+/** Feeds still on this phone, oldest first. Never throws. */
+export async function listWaiting(): Promise<WaitingFeed[]> {
+  try {
+    return (await listQueued()).map((q) => ({
+      id: q.id,
+      dogSlug: q.dogSlug,
+      dogName: q.dogName ?? null,
+      outcome: q.outcome ?? null,
+      capturedAt: q.capturedAt,
+    }));
+  } catch {
+    return [];
   }
 }
 

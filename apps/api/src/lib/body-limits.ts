@@ -9,12 +9,14 @@
  * above any non-photo payload this API defines, and only the two routes that
  * take a photo opt into the large limit:
  *
- *   POST /api/v1/scans     photoBase64 (routes/scans.ts)
- *   POST /api/v1/reports   photoBase64 (routes/sos.ts)
+ *   POST /api/v1/scans           photoBase64 (routes/scans.ts)
+ *   POST /api/v1/reports         photoBase64 (routes/sos.ts)
+ *   POST /api/v1/registrations   photoBase64, design v5 R2 (routes/registrations.ts)
  *
- * /scans also refuses an unauthenticated request in onRequest, before the body
- * is read at all, so the large limit is only ever spent on a caller holding a
- * Bearer token or a valid device token.
+ * /scans and /registrations also refuse an unauthenticated request in
+ * onRequest, before the body is read at all, so the large limit is only ever
+ * spent on a caller holding a Bearer token or a valid device token (for
+ * /registrations, both).
  */
 import { MAX_PHOTO_BASE64_CHARS } from "@hetja/contracts";
 

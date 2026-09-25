@@ -60,3 +60,32 @@ describe("apps/scan slugStrippedPath", () => {
     expect(slugStrippedPath("/d/")).toBe("/d/");
   });
 });
+
+import { clsOf, inpOf, rating } from "./web-vitals.js";
+
+describe("native web vitals (design v6: the package no longer fits the 40 KB budget)", () => {
+  it("rates with the web-vitals package's thresholds", () => {
+    expect(rating("LCP", 2500)).toBe("good");
+    expect(rating("LCP", 2501)).toBe("needs-improvement");
+    expect(rating("LCP", 4001)).toBe("poor");
+    expect(rating("CLS", 0.1)).toBe("good");
+    expect(rating("INP", 300)).toBe("needs-improvement");
+    expect(rating("TTFB", 1900)).toBe("poor");
+  });
+
+  it("CLS is the largest session window (1 s gap, 5 s cap)", () => {
+    expect(clsOf([])).toBe(0);
+    // One window: 0.1 + 0.05, then a gap over 1 s starts a new one of 0.12.
+    expect(clsOf([{ startTime: 0, value: 0.1 }, { startTime: 500, value: 0.05 }, { startTime: 3000, value: 0.12 }])).toBeCloseTo(0.15);
+    // A window longer than 5 s is split even without a gap.
+    const steady = [0, 900, 1800, 2700, 3600, 4500, 5400].map((t) => ({ startTime: t, value: 0.1 }));
+    expect(clsOf(steady)).toBeCloseTo(0.6);
+  });
+
+  it("INP is the worst interaction, skipping one per 50", () => {
+    expect(inpOf([])).toBeUndefined();
+    expect(inpOf([40, 120, 80])).toBe(120);
+    const many = Array.from({ length: 60 }, (_, i) => i + 1);
+    expect(inpOf(many)).toBe(59);
+  });
+});

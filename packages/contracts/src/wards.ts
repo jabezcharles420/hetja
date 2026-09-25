@@ -150,3 +150,26 @@ export function isInMumbai(lat: number, lng: number): boolean {
     lng <= MUMBAI_BOUNDS.east
   );
 }
+
+/**
+ * The ward whose hand-placed centre is nearest a point (design v6, the
+ * dogless SOS: "located to the visitor's ward"). An APPROXIMATION: there are
+ * no ward boundary polygons in the schema, and near a ward edge the nearest
+ * centre can be the neighbouring ward. It is used only to choose whose feeders
+ * a dogless SOS pages and which ward the case is shown under, where "the
+ * ward next door" is still the right people to ask. Null outside Mumbai.
+ */
+export function nearestWard(lat: number, lng: number): BmcWardCode | null {
+  if (!isInMumbai(lat, lng)) return null;
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best: BmcWardCode | null = null;
+  let bestD = Infinity;
+  for (const [code, c] of Object.entries(BMC_WARD_CENTROIDS) as [BmcWardCode, WardCentroid][]) {
+    const d = (c.lat - lat) ** 2 + ((c.lng - lng) * k) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = code;
+    }
+  }
+  return best;
+}

@@ -34,6 +34,9 @@ import metricsRoutes from "./routes/metrics.js";
 import statsRoutes from "./routes/stats.js";
 import wardRoutes from "./routes/wards.js";
 import mapRoutes from "./routes/map.js";
+import findingRoutes from "./routes/finding.js";
+import tagRoutes from "./routes/tags.js";
+import dogStatusRoutes from "./routes/dog-status.js";
 
 export function buildServer(config: AppConfig): FastifyInstance {
   const app = Fastify({
@@ -107,6 +110,10 @@ export function buildServer(config: AppConfig): FastifyInstance {
         ? config.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
         : true,
     credentials: false,
+    // The web app on hetja.in calls api.hetja.in cross-origin; without this the
+    // browser hides Retry-After and the "Too many codes" screen (V6) cannot
+    // show a clock time.
+    exposedHeaders: ["retry-after"],
   });
   app.decorate("config", config);
 
@@ -214,6 +221,10 @@ export function buildServer(config: AppConfig): FastifyInstance {
   void app.register(statsRoutes);
   void app.register(wardRoutes);
   void app.register(mapRoutes);
+  // Design v5 (docs/design/v5-handoff/CONTRACT.md).
+  void app.register(findingRoutes);
+  void app.register(tagRoutes);
+  void app.register(dogStatusRoutes);
 
   return app;
 }

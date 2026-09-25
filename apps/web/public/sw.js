@@ -177,7 +177,20 @@ scope.addEventListener("push", (event) => {
     tag: data.caseId ? `sos-${data.caseId}` : undefined,
     data: { url: data.url || "/" },
   };
-  event.waitUntil(scope.registration.showNotification(title, options));
+  // Keep an SOS push's payload so the case page can say what the alert said
+  // when the case itself will not load (design v6 L6, lib/care-cache.ts).
+  const stash = data.caseId
+    ? caches
+        .open(CACHE)
+        .then((cache) =>
+          cache.put(
+            `/__hetja/push/${encodeURIComponent(data.caseId)}`,
+            new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } }),
+          ),
+        )
+        .catch(() => undefined)
+    : Promise.resolve();
+  event.waitUntil(Promise.all([scope.registration.showNotification(title, options), stash]));
 });
 
 scope.addEventListener("notificationclick", (event) => {

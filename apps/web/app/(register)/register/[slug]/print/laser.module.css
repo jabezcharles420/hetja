@@ -1,0 +1,59 @@
+/* The TPU laser sheet: print only. */
+
+.sheet {
+  display: none;
+}
+
+@media print {
+  .sheet {
+    display: block;
+    width: 110mm;
+    margin: 10mm auto 0;
+    padding: 8mm;
+    border: 0.2mm solid #000;
+    background: #fff;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .qr {
+    width: 40mm;
+    height: 40mm;
+    margin: 4mm auto;
+    line-height: 0;
+    outline: 0.2mm dashed #000;
+    outline-offset: 1mm;
+  }
+
+  .qr svg {
+    display: block;
+  }
+
+  .plate {
+    margin: 6mm 0 0;
+    text-align: center;
+    font-family: ui-monospace, "SF Mono", Menlo, "Roboto Mono", monospace;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .meta,
+  .selfCheck {
+    margin: 3mm 0 0;
+    text-align: center;
+    font-size: 7pt;
+    color: #444;
+    word-break: break-all;
+  }
+
+  .note {
+    margin: 4mm 0 0;
+    text-align: center;
+    font-size: 9pt;
+    color: #222;
+  }
+}

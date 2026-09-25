@@ -142,3 +142,12 @@ describe("isInMumbai", () => {
     expect(isInMumbai(19.07, Number.POSITIVE_INFINITY)).toBe(false);
   });
 });
+
+describe("nearestWard (design v6 dogless SOS)", () => {
+  it("names the ward whose centre is nearest, and nothing outside Mumbai", async () => {
+    const { nearestWard } = await import("./wards.js");
+    expect(nearestWard(19.132, 72.828)).toBe("K-West");
+    expect(nearestWard(18.92, 72.829)).toBe("A");
+    expect(nearestWard(28.61, 77.2)).toBeNull();
+  });
+});

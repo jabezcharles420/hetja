@@ -1,38 +1,69 @@
-import { parseSlug, isValidSlug } from "./slug";
-import { fetchDogProfile } from "./api";
-import { setStatus, setSub, renderProfile, renderError, setNote, clearNote } from "./ui";
+import { parseSlug, isValidSlug, rawCode } from "./slug";
+import { fetchDogProfile, NotFoundError, type DogProfile } from "./api";
+import { deskMarkup, isDesk, renderProfile, renderError, renderUnknown, setNote, clearNote } from "./ui";
+import { flushTagQueue, openTagSheet, wireTag } from "./tag";
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
 import { listDroppedFeeds, clearDroppedFeeds } from "./dropped";
 import { wirePanel, setPanelProfile } from "./panel";
-import { wireHistory } from "./sos";
+import { openSos, resumeSos, wireHistory } from "./sos";
 
 const SLUG = parseSlug(location.pathname);
 const SIG = new URLSearchParams(location.search).get("s") ?? "";
 
 let viewInFlight = false;
+let resumed = false;
 
 async function view(): Promise<void> {
   if (viewInFlight) return;
-  if (!isValidSlug(SLUG)) {
-    renderError("Unrecognized code. Check the collar and scan again.");
-    return;
-  }
+  if (!isValidSlug(SLUG)) return unknown(rawCode(location.pathname));
   viewInFlight = true;
-  setStatus("Loading…");
-  setSub("");
   clearNote();
   try {
     const { profile, stale } = await fetchDogProfile(SLUG, SIG);
     renderProfile(profile, stale);
     setPanelProfile(profile);
     document.title = `${profile.name} · Hetja`;
-  } catch {
+    document.querySelector("#tag-open")?.addEventListener("click", () => openTagSheet(profile, () => void view()));
+    desk(profile);
+    resume(profile);
+  } catch (err) {
+    if (err instanceof NotFoundError) return unknown(SLUG);
     renderError("Can't reach Hetja right now. If you're offline, medical status shown may be outdated.");
     setPanelProfile(undefined);
+    resume();
   } finally {
     viewInFlight = false;
   }
+}
+
+/** P8: the collar is not one Hetja knows. SOS stays live, dogless. */
+function unknown(code: string): void {
+  renderUnknown(code);
+  setPanelProfile(undefined, true);
+  document.title = "Hetja doesn't know this collar · Hetja";
+  resume(undefined, true);
+}
+
+/** P13's auto-send: an SOS written offline, sent now the page is open again. */
+function resume(profile?: DogProfile, dogless = false): void {
+  if (resumed) return;
+  resumed = true;
+  resumeSos(SLUG, profile, dogless);
+}
+
+/**
+ * D2: wider than 744 px, a dog's page is an invitation to use the phone,
+ * with a QR of this very URL and the SOS still one click away.
+ */
+function desk(p: DogProfile): void {
+  if (!isDesk() || p.status === "deceased") return;
+  const el = document.querySelector<HTMLElement>("#v-desk")!;
+  el.innerHTML = deskMarkup(p, location.href);
+  document.body.classList.add("desk");
+  document.querySelector("#v-profile")!.classList.add("hidden");
+  el.classList.remove("hidden");
+  document.querySelector("#dk-sos")!.addEventListener("click", () => openSos({ slug: SLUG, profile: p }));
 }
 
 function registerServiceWorker(): void {
@@ -77,11 +108,13 @@ async function checkQueue(): Promise<void> {
   }
 }
 
-wirePanel(SLUG);
+wirePanel(SLUG, !isValidSlug(SLUG));
 wireHistory();
+wireTag();
 registerServiceWorker();
 void view();
 void checkQueue();
+void flushTagQueue();
 
 /**
  * Telemetry loads AFTER the page is usable, as its own chunk.

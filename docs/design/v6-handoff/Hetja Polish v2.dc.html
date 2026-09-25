@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+
+<section data-screen-label="Desktop is an invitation" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:960px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">On a laptop, Hetja points to your phone.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">No desktop redesign. Any screen wider than 744px shows one of these two pages. Reading pages (About, FAQ, Privacy, /hetja) still open, in the phone layout centred at 480px.</p>
+  </header>
+
+  <div id="d1" data-screen-label="D1 Desktop home" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">D1</span><span style="font-size:17px;font-weight:600">Any page, on a desktop</span><span style="font-size:15px;color:#6e6e73">replaces 01 at 1440, 57 at 1440</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+    <div style="width:1440px;height:900px;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.16);background:radial-gradient(40% 60% at 0% 0%,#ffb3dc 0%,rgba(255,179,220,0) 70%),radial-gradient(40% 55% at 100% 10%,#ffcbb8 0%,rgba(255,203,184,0) 70%),radial-gradient(45% 50% at 70% 100%,#ffc2ec 0%,rgba(255,194,236,0) 70%),#fdf6f8;display:flex;flex-direction:column">
+      <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 180px;background:rgba(255,255,255,.6);border-bottom:1px solid rgba(0,0,0,.05)">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:50%;background:#1d1d1f"></span><span style="font-size:19px;font-weight:700;letter-spacing:-0.02em">Hetja</span></div>
+        <div style="display:flex;gap:28px;font-size:13px;color:#1d1d1f"><span>About</span><span>How it works</span><span>FAQ</span><span>Privacy</span></div>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 360px;gap:80px;align-items:center;padding:0 180px">
+        <div style="display:flex;flex-direction:column;gap:28px">
+          <span style="align-self:flex-start;height:32px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.7);font-size:14px;font-weight:600;display:flex;align-items:center">Hetja · for Mumbai's street dogs</span>
+          <div style="font-size:96px;line-height:.95;font-weight:700;letter-spacing:-0.055em">Hetja lives<br>on your phone.</div>
+          <div style="font-size:23px;line-height:1.4;color:#6e6e73;max-width:560px">It's made for the street, not the desk. <span style="color:#1d1d1f">Point your phone's camera at the code</span> and Rani, Kalu and 57 others are one tap away.</div>
+          <div style="display:flex;gap:24px;align-items:center;background:#fff;border-radius:32px;padding:24px;align-self:flex-start;box-shadow:0 20px 50px rgba(0,0,0,.08)">
+            <div style="width:148px;height:148px;position:relative;background:repeating-linear-gradient(45deg,#1d1d1f 0 3px,#fff 3px 6px)">
+              <span style="position:absolute;left:0;top:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;right:0;top:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;left:0;bottom:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:240px"><span style="font-size:21px;font-weight:700;letter-spacing:-0.02em">Open on your phone</span><span style="font-size:15px;line-height:1.45;color:#6e6e73">Or type <span style="color:#1d1d1f;font-weight:600">hetja.in</span> into its browser. Then add it to your home screen.</span></div>
+          </div>
+        </div>
+        <div style="width:300px;height:620px;border-radius:48px;background:#fff;box-shadow:0 0 0 9px #1d1d1f,0 40px 80px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;gap:12px;padding:44px 18px 0;box-sizing:border-box;justify-self:center">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">You found Rani</span>
+          <div style="height:170px;border-radius:22px;overflow:hidden;background:#ffe3c2"><image-slot id="d1-rani" placeholder="Rani photo" style="width:100%;height:170px"></image-slot></div>
+          <span style="font-size:32px;font-weight:700;letter-spacing:-0.035em;line-height:1">Rani</span>
+          <span style="font-size:13px;color:#6e6e73">K/W ward · Andheri West</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="height:28px;padding:0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">✓ Vaccinated</span><span style="height:28px;padding:0 10px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">✓ Sterilised</span></div>
+          <span style="font-size:13px;line-height:1.4;color:#48484d">Priya fed her 2 hours ago.</span>
+          <div style="margin-top:auto;margin-bottom:24px;height:48px;border-radius:999px;background:#d70015;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center">This dog needs help</div>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d;max-width:900px">One page instead of desktop versions of 86 screens. The QR encodes the current URL, so opening the map on a laptop and scanning lands on the map on the phone. The phone shows the product instead of describing it.</p></sc-if>
+  </div>
+
+  <div id="d2" data-screen-label="D2 Dog link on desktop" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">D2</span><span style="font-size:17px;font-weight:600">A dog's link, opened on a desktop</span><span style="font-size:15px;color:#6e6e73">/d/r4n7kw2ab at 1440</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+    <div style="width:1440px;height:900px;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.16);background:#fff;display:flex;flex-direction:column">
+      <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 180px;border-bottom:1px solid #e8e8ed"><div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:50%;background:#1d1d1f"></span><span style="font-size:19px;font-weight:700;letter-spacing:-0.02em">Hetja</span></div></div>
+      <div style="flex:1;display:grid;grid-template-columns:480px 1fr;gap:96px;align-items:center;padding:0 180px">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div style="height:300px;border-radius:32px;overflow:hidden;background:#ffe3c2"><image-slot id="d2-rani" placeholder="Rani photo" style="width:100%;height:300px"></image-slot></div>
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Rani is on Hetja.</span><span style="font-size:19px;color:#6e6e73">K/W ward · Andheri West · fed by 2 people</span></div>
+          <div style="display:flex;gap:8px"><span style="height:36px;padding:0 14px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center">✓ Vaccinated</span><span style="height:36px;padding:0 14px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:flex;align-items:center">✓ Sterilised</span><span style="height:36px;padding:0 14px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:15px;font-weight:600;display:flex;align-items:center">Last fed 2 hours ago</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="font-size:40px;line-height:1.05;font-weight:700;letter-spacing:-0.035em">Standing next to her?<br>Use your phone.</div>
+          <div style="display:flex;gap:24px;align-items:center">
+            <div style="width:132px;height:132px;position:relative;background:repeating-linear-gradient(45deg,#1d1d1f 0 3px,#fff 3px 6px);flex:none">
+              <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:5px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;right:0;top:0;width:26px;height:26px;border:5px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;left:0;bottom:0;width:26px;height:26px;border:5px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+            </div>
+            <span style="font-size:17px;line-height:1.47;color:#6e6e73">Scan to open Rani's page on your phone. It can share your location with whoever comes to help.</span>
+          </div>
+          <div style="border-top:1px solid #e8e8ed;padding-top:24px;display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:17px;line-height:1.47">Is she hurt right now? You can still raise an SOS from here.</span>
+            <div style="align-self:flex-start;height:56px;padding:0 28px;border-radius:999px;background:#d70015;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px"><span style="width:20px;height:20px;border-radius:50%;background:#fff;color:#d70015;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Rani needs help</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d;max-width:900px">Dog links get shared on WhatsApp Web, so someone will open one on a laptop. They get the dog, a handoff to the phone, and SOS stays available. The desktop SOS form is the mobile one centred at 480px.</p></sc-if>
+  </div>
+</section>
+
+<section data-screen-label="Polish v2" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:0 72px 72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:14px;max-width:960px;border-top:1px solid #d2d2d7;padding-top:56px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Every dog by name.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">A second pass over the screens not covered in P1–P13. The main change is voice: the app talks about Rani and Priya instead of "the dog" and "the user". Every string with a name already has it in the API response.</p>
+    <div style="display:flex;gap:16px;align-items:center;font-size:14px;color:#48484d"><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span>strings and layout<span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span>a field or query that already exists</div>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;gap:64px 48px">
+
+    <!-- V1 404 -->
+    <div id="v1" data-screen-label="V1 Not found" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V1</span><span style="font-size:17px;font-weight:600">Not found</span><span style="font-size:15px;color:#6e6e73">11</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf6f8;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:120px 20px 0">
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">404</span>
+          <div style="font-size:48px;line-height:1;font-weight:700;letter-spacing:-0.045em">This lane doesn't go anywhere.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">The dogs know every shortcut in Mumbai. This page isn't one of them.</div>
+          <div style="font-size:17px;color:#0066cc">Go to the home page ›</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- V2 Scan typed -->
+    <div id="v2" data-screen-label="V2 Type the code" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V2</span><span style="font-size:17px;font-weight:600">No camera, typing</span><span style="font-size:15px;color:#6e6e73">12, 13</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Home</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Type the code on the collar.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Nine letters and numbers, printed under the QR. Capitals or not, it doesn't matter.</div>
+          <div style="height:60px;border-radius:16px;box-shadow:inset 0 0 0 2px #0071e3;padding:0 18px;display:flex;align-items:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:24px;letter-spacing:.12em">R4N 7KW 2A<span style="display:inline-block;width:2px;height:26px;background:#0071e3;margin-left:2px"></span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:#6e6e73"><span>One more to go</span><span>8 / 9</span></div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:16px;display:flex;gap:14px;align-items:center">
+            <div style="width:64px;height:40px;border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:9px;letter-spacing:.06em;flex:none">R4N 7KW</div>
+            <span style="font-size:14px;line-height:1.4;color:#48484d">Easy to mix up: 0 and O, 1 and I. Hetja reads them as the same.</span>
+          </div>
+          <div style="font-size:15px;color:#0066cc">Use the camera instead ›</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;opacity:.4;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Find the dog</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"Too short" (13) was an error for something the user hadn't finished. A counter replaces it, and the button enables at 9. Treating 0/O and 1/I as equal needs one normalise function.</p></sc-if>
+    </div>
+
+    <!-- V3 Did you mean -->
+    <div id="v3" data-screen-label="V3 Did you mean" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V3</span><span style="font-size:17px;font-weight:600">Code not found</span><span style="font-size:15px;color:#6e6e73">14</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Home</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Type the code on the collar.</div>
+          <div style="height:60px;border-radius:16px;box-shadow:inset 0 0 0 2px #9a5200;padding:0 18px;display:flex;align-items:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:24px;letter-spacing:.12em">R4N 7KW 2AR</div>
+          <div style="display:flex;gap:8px;font-size:15px;color:#9a5200;font-weight:600;align-items:center"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>No dog has this code.</div>
+          <div style="background:#f5f5f7;border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px">
+            <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">One letter off. Is it her?</span>
+            <div style="display:flex;gap:14px;align-items:center">
+              <div style="width:56px;height:56px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">R</div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:19px;font-weight:600">Rani</span><span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:15px;letter-spacing:.06em;color:#48484d">R4N 7KW 2A<span style="color:#1d1d1f;font-weight:700;text-decoration:underline">B</span></span><span style="font-size:14px;color:#6e6e73">K/W ward · Andheri West</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Yes, that's Rani</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Not her. Type it again</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Return near matches (one character off) from the 404. The photo and ward let a stranger confirm without knowing the code.</p></sc-if>
+    </div>
+
+    <!-- V4 Login -->
+    <div id="v4" data-screen-label="V4 Sign in" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V4</span><span style="font-size:17px;font-weight:600">Sign in, empty</span><span style="font-size:15px;color:#6e6e73">16, 17</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf6f8;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">Cancel</div>
+          <div style="display:flex;padding-left:4px">
+            <div style="width:48px;height:48px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fdf6f8">R</div>
+            <div style="width:48px;height:48px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px">K</div>
+            <div style="width:48px;height:48px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fdf6f8;margin-left:-10px">B</div>
+          </div>
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Sign in.<br>No password.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">We'll email you a 6-digit code. You already remember enough, like which dog hates the red scooter.</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="height:60px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;padding:0 18px;display:flex;align-items:center;font-size:19px;color:#86868b">you@example.com</div>
+            <div style="display:flex;gap:8px;font-size:15px;color:#b80012;font-weight:600;align-items:center"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>Type your email first.</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Send code</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The error sits on the field it's about, with an icon, instead of floating below the button. The avatar row puts the dogs on a screen that's otherwise just a form.</p></sc-if>
+    </div>
+
+    <!-- V5 wrong code -->
+    <div id="v5" data-screen-label="V5 Wrong code" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V5</span><span style="font-size:17px;font-weight:600">Wrong code</span><span style="font-size:15px;color:#6e6e73">20</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf6f8;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Change email</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Check your email.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Sent to <span style="color:#1d1d1f">priya.s@gmail.com</span>. It works for 10 minutes.</div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">4</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">8</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">2</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">0</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">1</div>
+            <div style="height:64px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px #b80012;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600">7</div>
+          </div>
+          <div style="display:flex;gap:8px;font-size:15px;color:#b80012;font-weight:600;align-items:center"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>That's not the code. Check the newest email.</div>
+          <div style="font-size:15px;line-height:1.45;color:#6e6e73">Asked more than once? Only the latest code works. Not there? Look in Promotions or Spam.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Send a new code</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The most common cause of a wrong code is an older email, so the error says that. Tapping any box clears all six.</p></sc-if>
+    </div>
+
+    <!-- V6 rate limited -->
+    <div id="v6" data-screen-label="V6 Too many codes" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V6</span><span style="font-size:17px;font-weight:600">Too many codes</span><span style="font-size:15px;color:#6e6e73">21</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#fdf6f8;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:120px 20px 0">
+          <span style="width:52px;height:52px;border-radius:50%;background:#fff3e0;color:#9a5200;display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg></span>
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">Let's take a breath.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">That's a lot of codes in a short time. You can ask for a new one at <span style="color:#1d1d1f;font-weight:600">4:32 pm</span>, in 14 minutes.</div>
+          <div style="font-size:15px;line-height:1.45;color:#48484d">A code from earlier may still be in your inbox and still work.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">I have a code</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Scan a collar meanwhile</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Read Retry-After from the 429 and show a clock time, not "try later".</p></sc-if>
+    </div>
+
+    <!-- V7 Me signed out -->
+    <div id="v7" data-screen-label="V7 Me signed out" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V7</span><span style="font-size:17px;font-weight:600">Me, signed out</span><span style="font-size:15px;color:#6e6e73">22</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:40px 20px 0">
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">You probably already feed someone.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">Sign in to put it on the record, so a stranger who scans the collar knows the dog is looked after.</div>
+          <div style="background:#fff;border-radius:24px;padding:4px 18px">
+            <div style="min-height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8e8ed"><span style="width:36px;height:36px;border-radius:50%;background:#e6f4ea;color:#1a7a35;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg></span><span style="font-size:16px;line-height:1.35">Log a feed in two taps. Keep a streak.</span></div>
+            <div style="min-height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8e8ed"><span style="width:36px;height:36px;border-radius:50%;background:#fde8ea;color:#b80012;display:flex;align-items:center;justify-content:center;flex:none;font-weight:800">!</span><span style="font-size:16px;line-height:1.35">Hear when a dog in your ward is hurt.</span></div>
+            <div style="min-height:64px;display:flex;align-items:center;gap:14px"><span style="width:36px;height:36px;border-radius:50%;background:#e8f1fc;color:#0062c4;display:flex;align-items:center;justify-content:center;flex:none;font-weight:700;font-size:18px">+</span><span style="font-size:16px;line-height:1.35">Give a dog without a collar a name and a code.</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73">59 dogs, 23 feeders in Mumbai so far.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Sign in with email</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- V8 new feeder -->
+    <div id="v8" data-screen-label="V8 Day one" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V8</span><span style="font-size:17px;font-weight:600">Me, brand-new feeder</span><span style="font-size:15px;color:#6e6e73">25</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:40px 20px 0">
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">Day one, Priya.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">Three things and you're set. The dogs won't notice. Their next stranger will.</div>
+          <div style="background:#fff;border-radius:24px;padding:6px 18px">
+            <div style="min-height:68px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8e8ed"><span style="width:28px;height:28px;border-radius:50%;background:#1a7a35;display:flex;align-items:center;justify-content:center;flex:none"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;color:#6e6e73;text-decoration:line-through">Sign in</span></div></div>
+            <div style="min-height:68px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8e8ed"><span style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2px #1d1d1f;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">2</span><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Scan a dog you feed</span><span style="font-size:14px;color:#6e6e73">You'll be listed as one of their feeders</span></div><span style="color:#86868b;font-size:20px">›</span></div>
+            <div style="min-height:68px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8e8ed"><span style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #d2d2d7;color:#6e6e73;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">3</span><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px">Log their first feed</span><span style="font-size:14px;color:#6e6e73">Starts your streak</span></div></div>
+            <div style="min-height:68px;display:flex;align-items:center;gap:14px"><span style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #d2d2d7;color:#6e6e73;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">4</span><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px">Pick your wards</span><span style="font-size:14px;color:#6e6e73">For SOS alerts nearby</span></div></div>
+          </div>
+          <div style="font-size:15px;line-height:1.45;color:#48484d">No collar on your dog yet? <span style="color:#0066cc">Register one ›</span></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:0">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+          <div style="height:10px"></div>
+          <div style="height:56px;margin:0 -20px;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #e3e3e8;background:rgba(255,255,255,.92);font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span>Scan</span><span style="color:#1d1d1f">Me</span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">25 shows zeros: 0 streak, locked badges, 0 dogs, low trust. A new feeder needs a first step, not an empty dashboard. The checklist disappears once all four are done, and the streak card takes its place.</p></sc-if>
+    </div>
+
+    <!-- V9 Me error -->
+    <div id="v9" data-screen-label="V9 Me didn't load" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V9</span><span style="font-size:17px;font-weight:600">Me didn't load</span><span style="font-size:15px;color:#6e6e73">26</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:24px 20px 0">
+          <div style="background:#fff;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#48484d" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg><span style="flex:1;font-size:14px;color:#48484d">Showing this morning's copy. Can't reach Hetja.</span><span style="font-size:14px;font-weight:600;color:#0066cc">Retry</span></div>
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">Afternoon, Priya.</div>
+          <div style="background:#fff;border-radius:24px;padding:20px;display:flex;align-items:baseline;gap:10px"><span style="font-size:56px;font-weight:700;letter-spacing:-0.05em;line-height:1">12</span><span style="font-size:17px;font-weight:600">day streak</span></div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73;padding:0 4px">My dogs</span>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:64px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="width:44px;height:44px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;display:flex;align-items:center;justify-content:center">R</div><span style="flex:1;font-size:17px;font-weight:600">Rani</span><span style="font-size:14px;color:#6e6e73">Fed 7:10 am</span></div>
+            <div style="min-height:64px;display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-weight:700;display:flex;align-items:center;justify-content:center">K</div><span style="flex:1;font-size:17px;font-weight:600">Kalu</span><span style="font-size:14px;color:#6e6e73">Fed yesterday</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73;padding:0 4px">Feeds you log now are saved on this phone and sent when you're back.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan to log Kalu's feed</div>
+          <div style="height:10px"></div>
+          <div style="height:56px;margin:0 -20px;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #e3e3e8;background:rgba(255,255,255,.92);font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span>Scan</span><span style="color:#1d1d1f">Me</span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Cache the last /me response in localStorage and show it with a banner, rather than a full-page error. Feeders log feeds on the street with a weak signal.</p></sc-if>
+    </div>
+
+    <!-- V10 Feed logged -->
+    <div id="v10" data-screen-label="V10 Rani has eaten" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V10</span><span style="font-size:17px;font-weight:600">Feed logged</span><span style="font-size:15px;color:#6e6e73">29</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;padding:110px 28px 0">
+          <div style="position:relative;width:128px;height:128px">
+            <div style="width:128px;height:128px;border-radius:50%;overflow:hidden;background:#ffd9e6;box-shadow:0 12px 30px rgba(0,0,0,.12)"><image-slot id="v10-rani" shape="circle" placeholder="Rani" style="width:128px;height:128px"></image-slot></div>
+            <span style="position:absolute;right:-2px;bottom:-2px;width:40px;height:40px;border-radius:50%;background:#1a7a35;box-shadow:0 0 0 4px #f5f5f7;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span>
+          </div>
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Rani has eaten.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">She's thrilled, in her own way. Anyone who scans her collar now sees "Fed a few minutes ago".</div>
+          <div style="background:#fff;border-radius:24px;padding:18px 22px;display:flex;align-items:center;gap:14px;align-self:stretch">
+            <span style="font-size:44px;font-weight:700;letter-spacing:-0.05em;line-height:1">13</span>
+            <div style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-size:17px;font-weight:600">day streak</span><span style="font-size:14px;color:#6e6e73">One more for the Fortnight badge</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan the next dog</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Done for now</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">A toast that sends you back to Me becomes a moment. Feeders usually feed several dogs in one walk, so the primary action goes straight back to the scanner.</p></sc-if>
+    </div>
+
+    <!-- V11 Feed no dog -->
+    <div id="v11" data-screen-label="V11 Who did you feed" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V11</span><span style="font-size:17px;font-weight:600">Log a feed, no dog yet</span><span style="font-size:15px;color:#6e6e73">30</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">Cancel</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Who did you feed?</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Tap everyone from tonight's round.</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="position:relative"><div style="width:84px;height:84px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #f5f5f7,0 0 0 5px #1d1d1f">R</div><span style="position:absolute;right:-2px;bottom:-2px;width:28px;height:28px;border-radius:50%;background:#1d1d1f;box-shadow:0 0 0 3px #f5f5f7;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span></div><span style="font-size:15px;font-weight:600">Rani</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="position:relative"><div style="width:84px;height:84px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #f5f5f7,0 0 0 5px #1d1d1f">K</div><span style="position:absolute;right:-2px;bottom:-2px;width:28px;height:28px;border-radius:50%;background:#1d1d1f;box-shadow:0 0 0 3px #f5f5f7;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span></div><span style="font-size:15px;font-weight:600">Kalu</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:84px;height:84px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center">B</div><span style="font-size:15px">Bruno</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:84px;height:84px;border-radius:50%;background:#ffe3c2;color:#7a4a12;font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center">M</div><span style="font-size:15px">Moti</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:84px;height:84px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #d2d2d7;background:#fff;color:#0066cc;font-size:30px;display:flex;align-items:center;justify-content:center">+</div><span style="font-size:15px;color:#0066cc">Scan</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73">Your dogs, most recently fed last. Scan anyone new.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Log 2 feeds</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">/me already returns the feeder's dogs. Multi-select turns one post per dog into one tap for the round. Photos and outcomes stay available on the single-dog screen (27).</p></sc-if>
+    </div>
+
+    <!-- V12 Register dashboard -->
+    <div id="v12" data-screen-label="V12 Your registrations" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V12</span><span style="font-size:17px;font-weight:600">Registrations</span><span style="font-size:15px;color:#6e6e73">31</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Me</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Dogs you put on Hetja</div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73;padding:0 4px">Needs you</span>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:76px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="width:48px;height:48px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-weight:700;display:flex;align-items:center;justify-content:center">K</div><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Kalu needs his collar</span><span style="font-size:14px;color:#6e6e73">Printed · 12 days to put it on</span></div><span style="color:#86868b;font-size:20px">›</span></div>
+            <div style="min-height:76px;display:flex;align-items:center;gap:12px"><div style="width:48px;height:48px;border-radius:50%;background:#d7efe3;color:#1f5c3d;font-weight:700;display:flex;align-items:center;justify-content:center">S</div><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Sheru's tag isn't printed</span><span style="font-size:14px;color:#9a5200">3 days left, then the code expires</span></div><span style="color:#86868b;font-size:20px">›</span></div>
+          </div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73;padding:0 4px">Live</span>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:72px;display:flex;align-items:center;gap:12px"><div style="width:48px;height:48px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;display:flex;align-items:center;justify-content:center">R</div><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Rani</span><span style="font-size:14px;color:#6e6e73">Scanned 14 times since July</span></div><span style="height:28px;padding:0 11px 0 8px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Live</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Put Kalu's collar on</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Rows become sentences about each dog, sorted by what needs doing. The scan count is a quiet reward for the work. "New dog" moves into Me once a slot is free.</p></sc-if>
+    </div>
+
+    <!-- V13 register empty -->
+    <div id="v13" data-screen-label="V13 First dog" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V13</span><span style="font-size:17px;font-weight:600">No dogs registered yet</span><span style="font-size:15px;color:#6e6e73">32, 34</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Me</div>
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em;margin-top:24px">Every dog on Hetja started with someone like you.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">Pick a dog you see every day. Naming them is the hard part.</div>
+          <div style="background:#fff;border-radius:24px;padding:6px 18px">
+            <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:16px">A clear face photo</span><span style="font-size:14px;color:#6e6e73">1 min</span></div>
+            <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:16px">Print the tag</span><span style="font-size:14px;color:#6e6e73">Home printer or a shop</span></div>
+            <div style="min-height:60px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:16px">A soft collar with a breakaway</span><span style="font-size:14px;color:#6e6e73">About ₹150</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73">You'll have 14 days to put the collar on. Up to two dogs at a time.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Register your first dog</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">One screen for both "no registrations" and "enable registration": tapping the button grants the capability. It lists what's needed up front, including the cost of a collar, so nobody quits halfway. The ₹150 figure needs checking.</p></sc-if>
+    </div>
+
+    <!-- V14 collar ready -->
+    <div id="v14" data-screen-label="V14 Almost on Hetja" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V14</span><span style="font-size:17px;font-weight:600">Code ready</span><span style="font-size:15px;color:#6e6e73">38</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:40px 20px 0">
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">Kalu is almost on Hetja.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">This is his code, for good. Print the tag, put it on, and scan it once to switch his page on.</div>
+          <div style="align-self:center;width:250px;background:#fff;border-radius:28px;padding:22px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.12)">
+            <div style="width:150px;height:150px;position:relative;background:repeating-linear-gradient(45deg,#1d1d1f 0 3px,#fff 3px 6px)">
+              <span style="position:absolute;left:0;top:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;right:0;top:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+              <span style="position:absolute;left:0;bottom:0;width:30px;height:30px;border:6px solid #000;background:#000;box-shadow:inset 0 0 0 5px #fff"></span>
+            </div>
+            <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:24px;font-weight:600;letter-spacing:.06em;display:flex;gap:12px"><span>K2A</span><span>U9P</span><span>D3Z</span></span>
+            <span style="font-size:13px;font-weight:600">Kalu · Scan me if I look lost</span>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Print Kalu's tag</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">I'll print it later</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"Kalu has a code" told the feeder what happened, not what's next. The material advice moves to the print screen (P5), which is where it's needed.</p></sc-if>
+    </div>
+
+    <!-- V15 profile -->
+    <div id="v15" data-screen-label="V15 You found Rani" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V15</span><span style="font-size:17px;font-weight:600">Dog profile</span><span style="font-size:15px;color:#6e6e73">68, 71</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:10px 20px 0">
+          <div style="height:200px;border-radius:28px;overflow:hidden;background:#ffe3c2"><image-slot id="v15-rani" placeholder="Rani photo" style="width:100%;height:200px"></image-slot></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">You found</span><span style="font-size:44px;line-height:1;font-weight:700;letter-spacing:-0.04em">Rani.</span><span style="font-size:17px;color:#6e6e73">K/W ward · Andheri West</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="height:32px;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Vaccinated</span>
+            <span style="height:32px;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Sterilised</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;background:#f5f5f7;border-radius:20px;padding:14px 16px">
+            <div style="display:flex"><span style="width:32px;height:32px;border-radius:50%;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f5f5f7">P</span><span style="width:32px;height:32px;border-radius:50%;background:#48484d;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f5f5f7;margin-left:-8px">A</span></div>
+            <span style="font-size:15px;line-height:1.4">Priya fed her 2 hours ago. Rani has 2 feeders.</span>
+          </div>
+          <div style="font-size:17px;line-height:1.47">Rani sleeps under the sugarcane-juice cart on SV Road and walks the lane at seven every evening like she owns it. She does.</div>
+          <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:15px;letter-spacing:.06em;color:#6e6e73">Collar R4N 7KW 2AB · <span style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:0;color:#0066cc">Copy</span></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px;box-shadow:0 -1px 0 #e8e8ed">
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:#d70015;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Rani needs help</div>
+          <div style="text-align:center;font-size:13px;color:#6e6e73">Tells Priya, Arjun and a vet nearby.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"Last fed 2 hours ago" becomes "Priya fed her". A named person makes the dog feel looked after and makes the SOS feel like it reaches someone. The code drops to one line because strangers rarely need it (the big card stays for feeders). The button uses her name.</p></sc-if>
+    </div>
+
+    <!-- V16 no feeders -->
+    <div id="v16" data-screen-label="V16 Nobody feeds Moti yet" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V16</span><span style="font-size:17px;font-weight:600">Profile, no feeders</span><span style="font-size:15px;color:#6e6e73">69, 70</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:10px 20px 0">
+          <div style="height:200px;border-radius:28px;background:#ffe3c2;color:#7a4a12;font-size:88px;font-weight:700;display:flex;align-items:center;justify-content:center">M</div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">You found</span><span style="font-size:44px;line-height:1;font-weight:700;letter-spacing:-0.04em">Moti.</span><span style="font-size:17px;color:#6e6e73">K/W ward · Andheri West</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="height:32px;padding:0 12px 0 9px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>Vaccination unknown</span>
+            <span style="height:32px;padding:0 12px 0 9px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>Sterilisation unknown</span>
+          </div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:19px;font-weight:700;letter-spacing:-0.01em">Nobody feeds Moti on Hetja yet.</span>
+            <span style="font-size:15px;line-height:1.45;color:#48484d">If you give Moti a biscuit on your way to work, that counts. Become her first feeder and her page will say so.</span>
+            <span style="font-size:17px;color:#0066cc">I feed Moti ›</span>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px;box-shadow:0 -1px 0 #e8e8ed">
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:#d70015;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Moti needs help</div>
+          <div style="text-align:center;font-size:13px;color:#6e6e73">Tells a vet nearby.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Three unknown pills and "No story yet. Nobody has written one yet" read as neglect. The empty state becomes an invitation: the stranger reading it may be the dog's actual feeder.</p></sc-if>
+    </div>
+
+    <!-- V17 offline profile -->
+    <div id="v17" data-screen-label="V17 Saved profile" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V17</span><span style="font-size:17px;font-weight:600">Profile, offline</span><span style="font-size:15px;color:#6e6e73">72</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="color:#86868b;font-size:13px">No signal</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:10px 20px 0">
+          <div style="position:relative;height:200px;border-radius:28px;overflow:hidden;background:#ffe3c2"><image-slot id="v17-rani" placeholder="Rani photo" style="width:100%;height:200px"></image-slot><span style="position:absolute;left:12px;top:12px;height:32px;padding:0 12px 0 10px;border-radius:999px;background:rgba(255,255,255,.92);font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.08)"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg>Saved yesterday, 8:14 pm</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">You found</span><span style="font-size:44px;line-height:1;font-weight:700;letter-spacing:-0.04em">Rani.</span><span style="font-size:17px;color:#6e6e73">K/W ward · Andheri West</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="height:32px;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Vaccinated, as of yesterday</span>
+          </div>
+          <div style="font-size:15px;line-height:1.45;color:#6e6e73">You're offline, so this is the last copy your phone saw. The SOS button still works. It sends when there's signal, or by text.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px;box-shadow:0 -1px 0 #e8e8ed">
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:#d70015;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Rani needs help</div>
+          <div style="text-align:center;font-size:13px;color:#6e6e73">Works offline. See P13.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The grey banner that pushed the dog down becomes a timestamp chip on the photo. Pills say "as of yesterday", so the caveat sits next to the claim it qualifies.</p></sc-if>
+    </div>
+
+    <!-- V18 SOS choose -->
+    <div id="v18" data-screen-label="V18 What's happened to Rani" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V18</span><span style="font-size:17px;font-weight:600">SOS, chosen</span><span style="font-size:15px;color:#6e6e73">76–79</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Rani</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">What's happened to Rani?</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Pick the closest. You're doing the right thing.</div>
+          <div style="min-height:72px;border-radius:20px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:0 18px;display:flex;align-items:center;gap:14px"><span style="width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Hurt, but moving</span><span style="font-size:14px;color:#6e6e73">Limping, a wound, not eating</span></div></div>
+          <div style="min-height:72px;border-radius:20px;box-shadow:inset 0 0 0 3px #1d1d1f;background:#f5f5f7;padding:0 18px;display:flex;align-items:center;gap:14px"><span style="width:24px;height:24px;border-radius:50%;background:#1d1d1f;display:flex;align-items:center;justify-content:center;flex:none"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Can't get up, or bleeding</span><span style="font-size:14px;color:#6e6e73">Needs a vet now</span></div></div>
+          <div style="min-height:72px;border-radius:20px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:0 18px;display:flex;align-items:center;gap:14px"><span style="width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Something else</span><span style="font-size:14px;color:#6e6e73">Missing, scared, or being harmed</span></div></div>
+          <div style="display:grid;grid-template-columns:96px 1fr;gap:10px">
+            <div style="height:96px;border-radius:16px;overflow:hidden;background:#f5f5f7;position:relative"><image-slot id="v18-photo" placeholder="photo" style="width:96px;height:96px"></image-slot><span style="position:absolute;right:6px;top:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center">×</span></div>
+            <div style="height:96px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:10px 12px;box-sizing:border-box;font-size:15px;line-height:1.35">Hit by an auto near the SV Road signal, back leg bleeding.</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:12px 20px 0;display:flex;flex-direction:column;gap:6px">
+          <div style="text-align:center;font-size:13px;color:#6e6e73">Priya, Arjun and a vet will see K/W ward. Never your exact spot.</div>
+          <div style="height:60px;border-radius:999px;background:#d70015;color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center">Send SOS for Rani</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Photo and note sit side by side in one row, so the button never moves down (78 pushed it off-screen). "Remove photo" becomes an × on the thumbnail. While sending, the button reads "Sending to Priya…" instead of turning pale pink, which looked disabled.</p></sc-if>
+    </div>
+
+    <!-- V19 SOS sent -->
+    <div id="v19" data-screen-label="V19 SOS sent for Rani" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V19</span><span style="font-size:17px;font-weight:600">SOS sent</span><span style="font-size:15px;color:#6e6e73">80, 82</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:32px 20px 0">
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">Priya and Arjun know.</div>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">They feed Rani and got your message just now, along with a vet nearby. This page updates when someone's on the way.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="height:30px;padding:0 12px 0 9px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg>Waiting for a reply · 1 min</span>
+          </div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73;margin-top:8px">Can't wait? Call</span>
+          <div>
+            <div style="min-height:72px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Lokhandwala Pet Hospital</span><span style="font-size:14px;color:#6e6e73">Vet · open now, 24 hours · 900 m</span></div><span style="height:44px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:16px;font-weight:600;display:flex;align-items:center">Call</span></div>
+            <div style="min-height:72px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Versova Animal Welfare Trust</span><span style="font-size:14px;color:#6e6e73">NGO · open till 7 pm · 2.1 km</span></div><span style="height:44px;padding:0 20px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:16px;font-weight:600;display:flex;align-items:center">Call</span></div>
+            <div style="min-height:72px;display:flex;align-items:center;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600;color:#6e6e73">Municipal Vet Dispensary</span><span style="font-size:14px;color:#6e6e73">Closed now · opens 10 am</span></div></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Back to Rani</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"SOS sent." with a green tick said the job was done. The job is waiting, so the headline names who knows and the pill counts up. Closed places lose their Call button, and "number not confirmed" entries are hidden instead of shown. When someone accepts, this becomes N10.</p></sc-if>
+    </div>
+
+    <!-- V20 map empty -->
+    <div id="v20" data-screen-label="V20 Map, early days" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V20</span><span style="font-size:17px;font-weight:600">Map, calm day</span><span style="font-size:15px;color:#6e6e73">57, 65–67</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)"></div>
+        <span style="position:absolute;left:20px;top:300px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;color:#86868b">existing Leaflet map</span>
+        <span style="position:absolute;left:180px;top:250px;height:34px;padding:0 12px;border-radius:999px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px">P/N <span style="color:#9a5200">3</span></span>
+        <span style="position:absolute;left:230px;top:380px;height:34px;padding:0 12px;border-radius:999px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px">K/E <span style="color:#9a5200">1</span></span>
+        <div style="position:relative;height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">Mumbai right now</span>
+          <div style="font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">A quiet evening. No dog needs help.</div>
+          <div style="font-size:16px;line-height:1.45;color:#48484d">4 haven't been logged today, mostly in Malad. They've probably eaten. Nobody has said so.</div>
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+          <div style="height:56px;margin:0 -20px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"0 dogs need help. 4 are waiting for dinner." is a template with a zero in it. Write the zero case as its own sentence. Same idea for loading ("Counting the dogs" becomes "Counting Mumbai's dogs…") and the empty production map: "Hetja is new here. The first collars go on in K/W."</p></sc-if>
+    </div>
+
+    <!-- V21 case closed responder -->
+    <div id="v21" data-screen-label="V21 Case closed" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V21</span><span style="font-size:17px;font-weight:600">Case resolved</span><span style="font-size:15px;color:#6e6e73">53</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Map</div>
+          <span style="height:30px;align-self:flex-start;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Resolved · 3 h ago</span>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Rani got to a vet in 29 minutes.</div>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">Priya took her to Lokhandwala Pet Hospital. The passer-by who raised it has been told.</div>
+          <div style="display:flex;flex-direction:column;padding:4px 2px">
+            <div style="display:flex;gap:12px;min-height:40px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1d1d1f;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">Raised by a passer-by</span><span style="font-size:14px;color:#6e6e73">4:02</span></div>
+            <div style="display:flex;gap:12px;min-height:40px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1d1d1f;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">Priya took it</span><span style="font-size:14px;color:#6e6e73">4:06</span></div>
+            <div style="display:flex;gap:12px;min-height:40px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1d1d1f;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">With Rani</span><span style="font-size:14px;color:#6e6e73">4:14</span></div>
+            <div style="display:flex;gap:12px;min-height:40px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1a7a35;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">Taken to a vet</span><span style="font-size:14px;color:#6e6e73">4:31</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">See Rani's page</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"This one is finished. Thank you." replaced with what happened. The timestamps already exist on the case.</p></sc-if>
+    </div>
+
+    <!-- V22 hidden -->
+    <div id="v22" data-screen-label="V22 Case for others" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V22</span><span style="font-size:17px;font-weight:600">Not your case</span><span style="font-size:15px;color:#6e6e73">54, 56</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Map</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em;margin-top:40px">This case went to feeders in H/W.</div>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">Cases stay with the people who were alerted, so the exact spot doesn't travel. It's being looked after.</div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:17px;font-weight:600">Want cases like this?</span>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:10px;font-size:15px;align-items:center"><span style="width:22px;height:22px;border-radius:50%;background:#1a7a35;display:flex;align-items:center;justify-content:center;flex:none"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span>Signed in</div>
+              <div style="display:flex;gap:10px;font-size:15px;align-items:center"><span style="width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span>Alerts on for H/W</div>
+              <div style="display:flex;gap:10px;font-size:15px;align-items:center"><span style="width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span>7 feeds logged (you have 3)</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Turn on alerts for H/W</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"This case isn't yours to see" sounds like a telling-off. It now reassures first, then shows the trust requirements as a checklist, which also covers the refused-ack case (56) and its paragraph of rules. The 7-feed threshold is a placeholder for the real rule.</p></sc-if>
+    </div>
+
+    <!-- V23 install -->
+    <div id="v23" data-screen-label="V23 Add to home screen" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">V23</span><span style="font-size:17px;font-weight:600">Add to home screen</span><span style="font-size:15px;color:#6e6e73">08, after a first feed</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="padding:110px 28px 0;text-align:center;font-size:44px;font-weight:700;letter-spacing:-0.04em;line-height:1.02">Rani has eaten.</div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.36)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:18px">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="align-self:center;display:grid;grid-template-columns:repeat(4,56px);gap:18px;padding:8px 0">
+            <span style="width:56px;height:56px;border-radius:14px;background:#e8e8ed"></span>
+            <span style="width:56px;height:56px;border-radius:14px;background:#1d1d1f;box-shadow:0 8px 20px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700">Hetja</span>
+            <span style="width:56px;height:56px;border-radius:14px;background:#e8e8ed"></span>
+            <span style="width:56px;height:56px;border-radius:14px;background:#e8e8ed"></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;text-align:center"><span style="font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Keep Rani one tap away.</span><span style="font-size:17px;line-height:1.45;color:#48484d">Put Hetja on your home screen. It opens straight to the scanner, even on a slow network.</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Add to home screen</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Not now</div>
+            <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The install card on the landing page (08) asks a first-time visitor to commit before they've done anything. Hold the beforeinstallprompt event and offer it after the first logged feed, named after the dog they just fed. On iOS, show the Share › Add to Home Screen steps instead.</p></sc-if>
+    </div>
+
+  </div>
+</section>
+
+<section data-screen-label="Map and remaining states" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:0 72px 72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:960px;border-top:1px solid #d2d2d7;padding-top:56px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">The map, and the last loose ends.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">Map fixes shared by every map screen: the attribution strip becomes an ⓘ button (it ate 50px), the +/– buttons go on mobile (pinch works), filter chips fade at the edge so they read as scrollable, and sheet content fades above the pinned button instead of being sliced mid-sentence.</p>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;gap:64px 48px">
+
+    <!-- M1 city sheet -->
+    <div id="m1" data-screen-label="M1 Mumbai right now" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M1</span><span style="font-size:17px;font-weight:600">City sheet, pulled up</span><span style="font-size:15px;color:#6e6e73">57, 58</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="position:relative;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(255,255,255,.72);border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:50%;background:#1d1d1f"></span><span style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Hetja</span></div><span style="font-size:17px;color:#0066cc">Sign in</span></div>
+        <div style="position:relative;display:flex;gap:8px;padding:12px 20px;white-space:nowrap">
+          <span style="height:38px;padding:0 14px 0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;flex:none"><span style="width:18px;height:18px;border-radius:50%;background:#d70015;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Needs help</span>
+          <span style="height:38px;padding:0 14px 0 10px;border-radius:999px;background:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.08)">Not fed today</span>
+          <span style="height:38px;padding:0 14px;border-radius:999px;background:#fff;font-size:15px;font-weight:600;display:flex;align-items:center;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.08)">Vets</span>
+          <span style="position:absolute;right:0;top:0;bottom:0;width:56px;background:linear-gradient(90deg,rgba(247,230,234,0),#f7e6ea)"></span>
+        </div>
+        <span style="position:absolute;right:16px;top:224px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);font-size:14px;color:#48484d;display:flex;align-items:center;justify-content:center">i</span>
+        <div style="position:absolute;left:0;right:0;bottom:0;top:250px;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">Mumbai right now</span>
+          <div style="font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-0.03em">Two dogs need help. 17 haven't been logged today.</div>
+          <div style="display:flex;gap:18px;font-size:15px;color:#48484d"><span><b style="color:#1d1d1f">59</b> with collars</span><span><b style="color:#1d1d1f">23</b> feeders</span><span><b style="color:#1d1d1f">41</b> fed today</span></div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73;margin-top:4px">Needs help</span>
+          <div>
+            <div style="min-height:68px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="width:44px;height:44px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;display:flex;align-items:center;justify-content:center">R</div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Rani · Andheri West</span><span style="font-size:14px;color:#6e6e73">Can't get up, or bleeding · 13 min</span></div><span style="height:28px;padding:0 10px 0 8px;border-radius:999px;background:#fde8ea;color:#b80012;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px"><span style="width:14px;height:14px;border-radius:50%;background:#b80012;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">!</span>Open</span></div>
+            <div style="min-height:68px;display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-weight:700;display:flex;align-items:center;justify-content:center">B</div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Bruno · Bandra West</span><span style="font-size:14px;color:#6e6e73">Hurt, or needs checking · 47 min</span></div><span style="height:28px;padding:0 10px 0 8px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 5v3.2l2 1.3"></path></svg>Taken</span></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:24px 20px 0;background:linear-gradient(rgba(255,255,255,0),#fff 28px)">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+            <div style="height:56px;margin:10px -20px 0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;background:#fff;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"17 are waiting for dinner" claims something the data doesn't know; "not logged" is the honest version. The three stat tiles wrapped their labels onto two lines, so they become one line of text. SOS rows lead with the dog's name, and show whether someone has already taken it.</p></sc-if>
+    </div>
+
+    <!-- M2 ward sheet -->
+    <div id="m2" data-screen-label="M2 Andheri West" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M2</span><span style="font-size:17px;font-weight:600">A ward</span><span style="font-size:15px;color:#6e6e73">59, 61</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="position:relative;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(255,255,255,.72);border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:50%;background:#1d1d1f"></span><span style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Hetja</span></div><span style="font-size:17px;color:#0066cc">Priya S.</span></div>
+        <span style="position:absolute;left:140px;top:150px;height:44px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:0 0 0 3px #1d1d1f,0 6px 18px rgba(0,0,0,.14);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">K/W<span style="height:30px;padding:0 9px;border-radius:999px;background:#d70015;color:#fff;font-size:14px;display:flex;align-items:center">! 1</span></span>
+        <span style="position:absolute;left:60px;top:112px;height:30px;padding:0 10px;border-radius:999px;background:#0071e3;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">+ Vet</span>
+        <span style="position:absolute;left:284px;top:206px;height:30px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">NGO</span>
+        <div style="position:absolute;left:0;right:0;bottom:0;top:250px;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="font-size:17px;color:#0066cc">‹ All of Mumbai</div>
+          <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">K/W ward</span><span style="font-size:34px;line-height:1.05;font-weight:700;letter-spacing:-0.035em">Andheri West</span></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex"><span style="width:34px;height:34px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff">R</span><span style="width:34px;height:34px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff;margin-left:-8px">K</span><span style="width:34px;height:34px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff;margin-left:-8px">B</span></div>
+            <span style="font-size:15px;line-height:1.35;color:#48484d">Rani, Kalu, Bruno and 11 others live here. 5 not logged today.</span>
+          </div>
+          <div style="border-radius:20px;background:#fde8ea;padding:16px;display:flex;gap:12px;align-items:center">
+            <div style="width:48px;height:48px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 2px #fff">R</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Rani can't get up</span><span style="font-size:14px;color:#48484d">13 min · her 2 feeders told · nobody yet</span></div>
+            <span style="color:#b80012;font-size:20px">›</span>
+          </div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">Help nearby</span>
+          <div style="min-height:60px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Lokhandwala Pet Hospital</span><span style="font-size:14px;color:#6e6e73">Vet · open now, 24 hours</span></div><span style="height:40px;padding:0 16px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:15px;font-weight:600;display:flex;align-items:center">Call</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:28px 20px 0;background:linear-gradient(rgba(255,255,255,0),#fff 28px)">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">I can go and help Rani</div>
+            <div style="height:56px;margin:10px -20px 0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;background:#fff;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The ward pin sat on top of the NGO pin; offset place pins from ward centres. The ward is introduced by its dogs, which are already public at ward level. The SOS card taps through to the case (P9), and the button names the dog.</p></sc-if>
+    </div>
+
+    <!-- M3 sign in first -->
+    <div id="m3" data-screen-label="M3 Sign in to take it" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M3</span><span style="font-size:17px;font-weight:600">Help tapped, signed out</span><span style="font-size:15px;color:#6e6e73">60</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:#fff">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="padding:60px 20px;font-size:34px;font-weight:700;letter-spacing:-0.035em">Andheri West</div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.36)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:16px">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Sign in to take Rani's case.</span><span style="font-size:17px;line-height:1.45;color:#48484d">It takes a minute with your email. The exact spot is only shared with someone Hetja can reach again.</span></div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:4px 16px">
+            <div style="min-height:60px;display:flex;align-items:center;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;color:#6e6e73">Can't wait?</span><span style="font-size:17px;font-weight:600">Lokhandwala Pet Hospital</span></div><span style="height:40px;padding:0 16px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:15px;font-weight:600;display:flex;align-items:center">Call</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Sign in with email</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Not now</div>
+            <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Live, the footer swaps text in place over half-hidden content. A sheet makes it a clear moment, explains why sign-in is needed in one line, and gives a non-member something useful to do right now. After sign-in, return to this case, not to Me.</p></sc-if>
+    </div>
+
+    <!-- M4 taken from map -->
+    <div id="m4" data-screen-label="M4 Taken from the map" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M4</span><span style="font-size:17px;font-weight:600">Taken from the map</span><span style="font-size:15px;color:#6e6e73">62</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <span style="position:absolute;left:180px;top:170px;width:22px;height:22px;border-radius:50%;background:#d70015;box-shadow:0 0 0 6px rgba(215,0,21,.2)"></span>
+        <span style="position:absolute;left:120px;top:210px;height:30px;padding:0 12px;border-radius:999px;background:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.1)">Rani is here</span>
+        <div style="position:absolute;left:0;right:0;bottom:0;top:300px;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:16px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <span style="width:52px;height:52px;border-radius:50%;background:#1a7a35;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span>
+          <div style="font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-0.03em">Rani's case is yours.</div>
+          <div style="font-size:17px;line-height:1.45;color:#48484d">The person who found her can see you're coming. Her exact spot is on the map now, for you only.</div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:15px;color:#48484d"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 14.5s5-4.3 5-8.2A5 5 0 0 0 3 6.3c0 3.9 5 8.2 5 8.2z"></path><circle cx="8" cy="6.3" r="1.8"></circle></svg>1.4 km · about 6 min by auto</div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:0 20px">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Directions to Rani</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Open the case</div>
+            <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">After taking the case the responder's next need is to get moving, so the primary opens the phone's maps app with the coordinates. The tab bar hides: this is now a focused task.</p></sc-if>
+    </div>
+
+    <!-- M5 vet -->
+    <div id="m5" data-screen-label="M5 A vet" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M5</span><span style="font-size:17px;font-weight:600">A vet on the map</span><span style="font-size:15px;color:#6e6e73">63</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <span style="position:absolute;left:160px;top:150px;height:38px;padding:0 14px;border-radius:999px;background:#0071e3;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;box-shadow:0 0 0 3px #fff,0 6px 18px rgba(0,0,0,.14)">+ Vet</span>
+        <div style="position:absolute;left:0;right:0;bottom:0;top:250px;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="font-size:17px;color:#0066cc">‹ Andheri West</div>
+          <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">Vet · 900 m</span><span style="font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-0.03em">Lokhandwala Pet Hospital</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="height:30px;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Open now · 24 hours</span>
+            <span style="height:30px;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Ambulance</span>
+            <span style="height:30px;padding:0 12px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:14px;font-weight:600;display:inline-flex;align-items:center">Treats street dogs</span>
+          </div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:0 16px">
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:17px;font-family:ui-monospace,'SF Mono',Menlo,monospace">+91 22 2630 0101</span><span style="font-size:15px;color:#0066cc">Copy</span></div>
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:17px">Directions</span><span style="color:#86868b;font-size:20px">›</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73">Listed by the clinic. Hetja sends them SOS alerts for K/W.</div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:24px 20px 0;background:linear-gradient(rgba(255,255,255,0),#fff 24px)">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Call the clinic</div>
+            <div style="height:56px;margin:10px -20px 0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;background:#fff;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The number was shown at 40px in its own card, then again as the button, which pushed the listing note under the footer. Now: distance, "open now" computed from hours, directions, and back goes to the ward it came from, not "All of Mumbai".</p></sc-if>
+    </div>
+
+    <!-- M6 hungry ward -->
+    <div id="m6" data-screen-label="M6 Malad" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M6</span><span style="font-size:17px;font-weight:600">Ward, no SOS</span><span style="font-size:15px;color:#6e6e73">64</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <span style="position:absolute;left:140px;top:150px;height:44px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:0 0 0 3px #1d1d1f,0 6px 18px rgba(0,0,0,.14);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">P/N<span style="height:30px;padding:0 9px;border-radius:999px;background:#fff3e0;color:#9a5200;font-size:14px;display:flex;align-items:center">4</span></span>
+        <div style="position:absolute;left:0;right:0;bottom:0;top:250px;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="font-size:17px;color:#0066cc">‹ All of Mumbai</div>
+          <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">P/N ward</span><span style="font-size:34px;line-height:1.05;font-weight:700;letter-spacing:-0.035em">Malad</span></div>
+          <div style="font-size:17px;line-height:1.45;color:#48484d">Nobody's logged these four today. They've probably eaten. Nobody has said so.</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><span style="width:56px;height:56px;border-radius:50%;background:#d7efe3;color:#1f5c3d;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center">S</span><span style="font-size:14px;font-weight:600">Sheru</span><span style="font-size:12px;color:#6e6e73">yesterday</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><span style="width:56px;height:56px;border-radius:50%;background:#ffe3c2;color:#7a4a12;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center">L</span><span style="font-size:14px;font-weight:600">Lali</span><span style="font-size:12px;color:#6e6e73">yesterday</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><span style="width:56px;height:56px;border-radius:50%;background:#e4defa;color:#4b3a8f;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center">T</span><span style="font-size:14px;font-weight:600">Tiger</span><span style="font-size:12px;color:#9a5200">3 days</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><span style="width:56px;height:56px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center">C</span><span style="font-size:14px;font-weight:600">Chotu</span><span style="font-size:12px;color:#6e6e73">yesterday</span></div>
+          </div>
+          <div style="display:flex;gap:12px;padding:4px 2px"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.6" style="flex:none"><path d="M8 1.8l5 2v4c0 3-2.2 5.2-5 6.4C5.2 13 3 10.8 3 7.8v-4z"></path></svg><span style="font-size:14px;line-height:1.45;color:#6e6e73">Shown by ward, never by street.</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:24px 20px 0;background:linear-gradient(rgba(255,255,255,0),#fff 24px)">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">I feed in Malad</div>
+            <div style="height:56px;margin:10px -20px 0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;background:#fff;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"4 not fed" becomes four named dogs, so a feeder who walks past Tiger knows it's been three days. "I feed in Malad" adds the ward and opens the alerts ask (N13), instead of jumping to a push prompt.</p></sc-if>
+    </div>
+
+    <!-- M7 map error -->
+    <div id="m7" data-screen-label="M7 Map numbers failed" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">M7</span><span style="font-size:17px;font-weight:600">Numbers didn't load</span><span style="font-size:15px;color:#6e6e73">66</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,#fbeef1 0 12px,#f7e6ea 12px 24px)">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:rgba(255,255,255,.72)"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <span style="position:absolute;left:150px;top:190px;height:34px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.7);color:#86868b;font-size:14px;font-weight:600;display:flex;align-items:center">K/W 14</span>
+        <span style="position:absolute;left:210px;top:300px;height:34px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.7);color:#86868b;font-size:14px;font-weight:600;display:flex;align-items:center">P/N 6</span>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:14px;box-shadow:0 -8px 30px rgba(0,0,0,.08)">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="font-size:28px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">The map is here. The numbers are not.</div>
+          <div style="font-size:16px;line-height:1.45;color:#48484d">Showing counts from 3:40 pm, greyed out. Open SOS cases may be missing.</div>
+          <span style="align-self:flex-start;height:44px;padding:0 20px;border-radius:999px;background:#e8e8ed;font-size:15px;font-weight:600;display:flex;align-items:center">Try again</span>
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Scan a collar</div>
+          <div style="height:56px;margin:0 -20px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e3e3e8;font-size:13px;font-weight:600;color:#6e6e73;text-align:center;align-items:center"><span>Home</span><span style="color:#1d1d1f">Map</span><span>Scan</span><span>Me</span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">The headline stays; it's good. What was missing: a retry, and the last known counts (cached like V9) marked as stale so the map isn't empty.</p></sc-if>
+    </div>
+
+    <!-- L1 paging off -->
+    <div id="l1" data-screen-label="L1 Pause SOS alerts" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L1</span><span style="font-size:17px;font-weight:600">Turning SOS alerts off</span><span style="font-size:15px;color:#6e6e73">24</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;background:#f5f5f7">
+        <div style="position:relative;height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="padding:40px 20px;font-size:40px;font-weight:700;letter-spacing:-0.035em">Morning, Priya.</div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.36)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:32px 32px 0 0;padding:10px 20px 0;display:flex;flex-direction:column;gap:16px">
+          <span style="align-self:center;width:40px;height:5px;border-radius:3px;background:#d2d2d7"></span>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Need a break from alerts?</span><span style="font-size:17px;line-height:1.45;color:#48484d">If Rani or Kalu is hurt, Arjun and the vets in K/W will still hear. You won't.</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="min-height:56px;border-radius:16px;box-shadow:inset 0 0 0 2.5px #1d1d1f;background:#f5f5f7;padding:0 16px;display:flex;align-items:center;gap:12px"><span style="width:24px;height:24px;border-radius:50%;background:#1d1d1f;display:flex;align-items:center;justify-content:center;flex:none"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg></span><span style="flex:1;font-size:17px;font-weight:600">Pause until tomorrow</span><span style="font-size:14px;color:#6e6e73">8 am</span></div>
+            <div style="min-height:56px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:0 16px;display:flex;align-items:center;gap:12px"><span style="width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span><span style="flex:1;font-size:17px">Pause for a week</span><span style="font-size:14px;color:#6e6e73">2 Oct</span></div>
+            <div style="min-height:56px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:0 16px;display:flex;align-items:center;gap:12px"><span style="width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #aeaeb2;flex:none"></span><span style="font-size:17px">Turn off</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Pause alerts</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Keep them on</div>
+            <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">One tap on the toggle silently removed a responder. Most people want a pause, not an exit. Store a resume time; Me shows "Alerts paused until 8 am · Resume".</p></sc-if>
+    </div>
+
+    <!-- L2 looks unwell -->
+    <div id="l2" data-screen-label="L2 Rani looks unwell" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L2</span><span style="font-size:17px;font-weight:600">Feed, "Looks unwell"</span><span style="font-size:15px;color:#6e6e73">28</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:#f5f5f7">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">Cancel</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Feeding Rani</div>
+          <div style="height:130px;border-radius:24px;overflow:hidden;background:#ffe3c2"><image-slot id="l2-photo" placeholder="feed photo" style="width:100%;height:130px"></image-slot></div>
+          <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">How was she?</span>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:15px">
+            <span style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">Ate it all</span>
+            <span style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">Ate a little</span>
+            <span style="height:44px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">Didn't eat</span>
+            <span style="height:44px;padding:0 16px 0 12px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Looks unwell</span>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Tell Arjun</span><span style="font-size:14px;line-height:1.35;color:#6e6e73">He feeds her too. A note, not an alarm.</span></div><div style="width:51px;height:31px;border-radius:16px;background:#1a7a35;position:relative;flex:none"><span style="position:absolute;right:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff"></span></div></div>
+            <div style="min-height:44px;border-radius:12px;box-shadow:inset 0 0 0 1.5px #d2d2d7;padding:0 12px;display:flex;align-items:center;font-size:15px;color:#86868b">What did you notice? (optional)</div>
+            <span style="font-size:15px;color:#b80012;font-weight:600">It's serious. Raise an SOS ›</span>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Log feed and tell Arjun</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Between "log and move on" and "SOS" there's a middle: a co-feeder should know. Sends one notification to the dog's other feeders; the outcome already shows in N15.</p></sc-if>
+    </div>
+
+    <!-- L3 register signed out -->
+    <div id="l3" data-screen-label="L3 Register signed out" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L3</span><span style="font-size:17px;font-weight:600">Register, signed out</span><span style="font-size:15px;color:#6e6e73">33</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#f5f5f7">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:80px 20px 0">
+          <div style="width:104px;height:104px;border-radius:50%;box-shadow:inset 0 0 0 2px #d2d2d7;border:0;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;font-size:40px;color:#86868b">?</div>
+          <div style="font-size:44px;line-height:1.02;font-weight:700;letter-spacing:-0.04em">There's a dog without a name near you.</div>
+          <div style="font-size:18px;line-height:1.45;color:#6e6e73">Sign in to give them one, and a collar code that tells strangers they're somebody's.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Sign in to register a dog</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">How registering works</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">After sign-in, go straight to V13, not Me.</p></sc-if>
+    </div>
+
+    <!-- L4 someone else -->
+    <div id="l4" data-screen-label="L4 Someone else is going" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L4</span><span style="font-size:17px;font-weight:600">Someone else took it</span><span style="font-size:15px;color:#6e6e73">51</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:#fff">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Map</div>
+          <div style="display:flex;gap:12px;align-items:center"><div style="width:56px;height:56px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center">B</div><span style="font-size:15px;color:#6e6e73">Bruno · H/W Bandra West<br>Hurt, or needs checking</span></div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Meera is on her way to Bruno.</div>
+          <span style="height:30px;align-self:flex-start;padding:0 12px 0 9px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Covered · taken 22 min ago</span>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">Thanks for looking. If she needs a hand, you'll get a note.</div>
+          <div style="margin-top:12px;background:#f5f5f7;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73">Meanwhile, near you</span>
+            <div style="display:flex;align-items:center;gap:12px"><div style="display:flex"><span style="width:32px;height:32px;border-radius:50%;background:#ffe3c2;color:#7a4a12;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f5f5f7">M</span><span style="width:32px;height:32px;border-radius:50%;background:#d7efe3;color:#1f5c3d;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f5f5f7;margin-left:-8px">G</span></div><span style="flex:1;font-size:15px">Moti and Goli haven't been logged in H/W today.</span><span style="color:#86868b;font-size:20px">›</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Back to the map</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">A warn-coloured "Someone is on the way" pill read like a problem. Covered is good news, so it's green, with a name. The responder who got there second gets something else useful to do.</p></sc-if>
+    </div>
+
+    <!-- L5 escalated -->
+    <div id="l5" data-screen-label="L5 Escalated" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L5</span><span style="font-size:17px;font-weight:600">Nobody took it in time</span><span style="font-size:15px;color:#6e6e73">52</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e6f4ea;color:#1a7a35;font-size:12px;font-weight:600;display:flex;align-items:center">Copy only</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:#fff">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Map</div>
+          <div style="display:flex;gap:12px;align-items:center"><div style="width:56px;height:56px;border-radius:50%;background:#dbe9fb;color:#1f4a80;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center">B</div><span style="font-size:15px;color:#6e6e73">Bruno · H/W Bandra West<br>Hurt, or needs checking</span></div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Nobody has reached Bruno yet.</div>
+          <span style="height:30px;align-self:flex-start;padding:0 12px 0 9px;border-radius:999px;background:#fde8ea;color:#b80012;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"></circle><path d="M8 4.5v4.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8" cy="11.3" r="1" fill="#fff"></circle></svg>1 hour · vets told</span>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">His feeders didn't answer, so every vet in H/W was told at 3:32. None has taken it. You still can.</div>
+          <div style="display:flex;flex-direction:column;padding:4px 2px">
+            <div style="display:flex;gap:12px;min-height:38px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1d1d1f;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">Raised by a passer-by</span><span style="font-size:14px;color:#6e6e73">3:02</span></div>
+            <div style="display:flex;gap:12px;min-height:38px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#1d1d1f;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">3 feeders told · no reply</span><span style="font-size:14px;color:#6e6e73">3:02</span></div>
+            <div style="display:flex;gap:12px;min-height:38px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:#d70015;margin-top:5px;flex:none"></span><span style="flex:1;font-size:15px">4 vets and 2 NGOs told</span><span style="font-size:14px;color:#6e6e73">3:32</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px;box-shadow:0 -1px 0 #e8e8ed">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">I can go and help Bruno</div>
+          <div style="text-align:center;font-size:13px;color:#6e6e73">About 2.8 km from you. The exact spot unlocks when you take it.</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">"Escalated to vets" sounded handled. It's the most urgent state a case can be in, so the headline says plainly nobody has arrived.</p></sc-if>
+    </div>
+
+    <!-- L6 case load failed -->
+    <div id="l6" data-screen-label="L6 Case didn't load" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L6</span><span style="font-size:17px;font-weight:600">Case didn't load</span><span style="font-size:15px;color:#6e6e73">55</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:#fff">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="color:#86868b;font-size:13px">Weak signal</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:12px 20px 0">
+          <div style="font-size:17px;color:#0066cc">‹ Map</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em;margin-top:24px">Couldn't load Rani's case.</div>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">The signal dropped. Here's what your alert said:</div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:16px;display:flex;gap:12px;align-items:center">
+            <div style="width:48px;height:48px;border-radius:50%;background:#ffd9e6;color:#8a2f52;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none">R</div>
+            <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Can't get up, or bleeding</span><span style="font-size:14px;color:#6e6e73">K/W Andheri West · raised 4:02 pm</span></div>
+          </div>
+          <div style="min-height:60px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8ed"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Lokhandwala Pet Hospital</span><span style="font-size:14px;color:#6e6e73">Vet · 24 hours · saved on this phone</span></div><span style="height:40px;padding:0 16px;border-radius:999px;background:#e8f1fc;color:#0062c4;font-size:15px;font-weight:600;display:flex;align-items:center">Call</span></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Try again</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Live, "Open the map" was the loud button and "Try again" the quiet one; swapped. The push payload already carries dog, severity, ward and time, so show it. Cache ward vets for offline calls.</p></sc-if>
+    </div>
+
+    <!-- L7 rate limited -->
+    <div id="l7" data-screen-label="L7 Rani already has an SOS" style="display:flex;flex-direction:column;gap:14px;width:390px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="height:26px;padding:0 10px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center">L7</span><span style="font-size:17px;font-weight:600">SOS limit reached</span><span style="font-size:15px;color:#6e6e73">83</span><span style="height:22px;padding:0 8px;border-radius:6px;background:#e8f1fc;color:#0062c4;font-size:12px;font-weight:600;display:flex;align-items:center">Small build</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;background:#fff">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:40px 20px 0">
+          <div style="font-size:40px;line-height:1.02;font-weight:700;letter-spacing:-0.035em">Rani already has an SOS open.</div>
+          <div style="font-size:17px;line-height:1.47;color:#48484d">You raised it at 3:50 pm. Priya took it 4 minutes later and is on her way.</div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:16px;display:flex;gap:12px;align-items:center">
+            <div style="width:48px;height:48px;border-radius:50%;background:#1d1d1f;color:#fff;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none">P</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:600">Priya S.</span><span style="font-size:14px;color:#6e6e73">Feeds Rani · took it at 3:54</span></div>
+            <span style="height:28px;padding:0 11px 0 8px;border-radius:999px;background:#e6f4ea;color:#1a7a35;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>Going</span>
+          </div>
+          <div style="font-size:15px;line-height:1.45;color:#6e6e73">Something new happened? Add it to the open case and Priya sees it.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:4px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Add an update</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Call a vet</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+      <sc-if value="{{ notes }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14px;line-height:1.5;color:#48484d">Most hits on the limit are the same person re-sending for the same dog out of worry. Check for an open case on this dog first; if there is one, show it instead of "SOS not sent". The generic limit message stays for other dogs. 85 (failed, care list) follows V19's layout with a Try again button.</p></sc-if>
+    </div>
+
+  </div>
+  <div style="max-width:960px;font-size:15px;line-height:1.5;color:#6e6e73;border-top:1px solid #d2d2d7;padding-top:20px">Left as they are: the marketing pages and /hetja (redone in Hetja Mobile Pages), the design-system page 10 (internal), and the printed sheet 40 (it prints correctly).</div>
+</section></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { notes: this.props.showNotes ?? true };
+  }
+}
+</script>
+</body>
+</html>

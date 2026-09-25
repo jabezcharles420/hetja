@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Register and print" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:900px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Register a dog. Print the tag.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">Anyone signed in can register a street dog. Eight screens from photo to a printed A4 sheet. The printable PDF is in <a href="Hetja Collar Sheet A4.dc.html">Hetja Collar Sheet A4</a>.</p>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;max-width:1400px">
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Sign-in required</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Email or phone code. Every dog is tied to the person who added it.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Duplicate check first</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Before details, show similar dogs in the same ward. One dog, one code.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Unverified until confirmed</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">A vet or a second feeder confirms. Until then the profile shows a grey Unverified badge.</div></div>
+    <div style="background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:15px;font-weight:600">Prints in black only</div><div style="font-size:14px;line-height:1.45;color:#6e6e73">Tags work on any office or print-shop printer. A4 by default, Letter available.</div></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px 44px">
+
+    <div data-screen-label="R1 Start" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R1 Start <span style="font-weight:400;color:#6e6e73">· From Me or Home</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Me</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:4px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Register a dog</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Know a street dog well? Give them a code so anyone can scan it and help. About two minutes.</div>
+          <div style="background:#fff;border-radius:24px;padding:4px 18px">
+            <div style="display:flex;gap:14px;align-items:center;min-height:72px;border-bottom:1px solid #e8e8ed"><span style="width:32px;height:32px;border-radius:50%;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex:none">1</span><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:17px;font-weight:600">A clear face photo</div><div style="font-size:14px;color:#6e6e73">Taken now, in daylight if you can</div></div></div>
+            <div style="display:flex;gap:14px;align-items:center;min-height:72px;border-bottom:1px solid #e8e8ed"><span style="width:32px;height:32px;border-radius:50%;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex:none">2</span><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:17px;font-weight:600">The ward they live in</div><div style="font-size:14px;color:#6e6e73">Never a street or building</div></div></div>
+            <div style="display:flex;gap:14px;align-items:center;min-height:72px"><span style="width:32px;height:32px;border-radius:50%;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex:none">3</span><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:17px;font-weight:600">A printer or print shop</div><div style="font-size:14px;color:#6e6e73">One A4 page, black and white</div></div></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73;padding:0 4px">New dogs show as Unverified until a vet or a second feeder confirms them.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Start with a photo</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R2 Photo" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R2 Photo <span style="font-weight:400;color:#6e6e73">· Step 1 of 4</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#111;color:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px"><span>Cancel</span><span style="font-size:15px;color:#c7c7cc">1 of 4</span></div>
+        <div style="flex:1;margin:0 12px;border-radius:28px;overflow:hidden;position:relative;background:#2c2c2e">
+          <image-slot id="reg-camera" placeholder="Camera view" style="position:absolute;inset:0"></image-slot>
+          <div style="position:absolute;left:50%;top:44%;width:230px;height:260px;transform:translate(-50%,-50%);border-radius:50%;border:2.5px dashed rgba(255,255,255,.85);pointer-events:none"></div>
+          <div style="position:absolute;left:16px;right:16px;bottom:16px;padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.55);font-size:15px;line-height:1.35;text-align:center;pointer-events:none">Face in the oval. Crouch to their eye level.</div>
+        </div>
+        <div style="flex:none;height:150px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 28px">
+          <span style="font-size:15px;color:#fff">Gallery</span>
+          <span style="width:76px;height:76px;border-radius:50%;border:4px solid #fff;display:flex;align-items:center;justify-content:center"><span style="width:60px;height:60px;border-radius:50%;background:#fff"></span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R3 Duplicate check" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R3 Already on Hetja? <span style="font-weight:400;color:#6e6e73">· Step 2 of 4</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px"><span style="color:#0066cc">‹ Back</span><span style="font-size:15px;color:#6e6e73">2 of 4</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px"><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#d2d2d7"></span><span style="height:4px;border-radius:2px;background:#d2d2d7"></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:20px 20px 0">
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:16px;min-height:52px;padding:0 16px"><div style="display:flex;flex-direction:column"><span style="font-size:13px;color:#6e6e73">Ward, from your location</span><span style="font-size:17px">K/W · Andheri West</span></div><span style="font-size:15px;color:#0066cc">Change</span></div>
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Is this dog already registered?</div>
+          <div style="font-size:15px;line-height:1.45;color:#6e6e73">Similar dogs in K/W. If one matches, add your photo to them instead.</div>
+          <div style="background:#fff;border-radius:24px;padding:4px 16px">
+            <div style="display:flex;gap:12px;align-items:center;min-height:76px;border-bottom:1px solid #e8e8ed"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="dup-1" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Bhoori</span><span style="font-size:13px;color:#6e6e73">Brown, white chest · fed yesterday</span></div><span style="height:36px;padding:0 14px;border-radius:999px;background:#f5f5f7;font-size:15px;font-weight:600;color:#0066cc;display:flex;align-items:center">Same dog</span></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:76px;border-bottom:1px solid #e8e8ed"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="dup-2" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Laxmi</span><span style="font-size:13px;color:#6e6e73">Brown, black mouth · 4 days ago</span></div><span style="height:36px;padding:0 14px;border-radius:999px;background:#f5f5f7;font-size:15px;font-weight:600;color:#0066cc;display:flex;align-items:center">Same dog</span></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:76px"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="dup-3" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">No name</span><span style="font-size:13px;color:#6e6e73">Tan, short tail · 2 weeks ago</span></div><span style="height:36px;padding:0 14px;border-radius:999px;background:#f5f5f7;font-size:15px;font-weight:600;color:#0066cc;display:flex;align-items:center">Same dog</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">None of these, continue</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R4 Details" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R4 About the dog <span style="font-weight:400;color:#6e6e73">· Step 3 of 4</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px"><span style="color:#0066cc">‹ Back</span><span style="font-size:15px;color:#6e6e73">3 of 4</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px"><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#d2d2d7"></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:20px 20px 0;overflow:hidden">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">About her</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:60px;display:flex;flex-direction:column;justify-content:center;gap:2px;border-bottom:1px solid #e8e8ed"><div style="font-size:13px;color:#6e6e73">Name people call her</div><div style="font-size:19px">Rani</div></div>
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid #e8e8ed"><div style="font-size:13px;color:#6e6e73">Sex</div><div style="display:grid;grid-template-columns:repeat(3,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">Female</span><span style="height:40px;line-height:40px">Male</span><span style="height:40px;line-height:40px">Not sure</span></div></div>
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;color:#6e6e73">How to spot her</div><div style="display:flex;flex-wrap:wrap;gap:8px;font-size:15px"><span style="height:36px;padding:0 14px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">Brown</span><span style="height:36px;padding:0 14px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">White chest</span><span style="height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">Limps</span><span style="height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">+ Add</span></div></div>
+          </div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:4px 4px 0">Health, if you know</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid #e8e8ed"><div style="font-size:15px">Vaccinated</div><div style="display:grid;grid-template-columns:repeat(3,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px">Yes</span><span style="height:40px;line-height:40px">No</span><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">Not sure</span></div></div>
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px"><div style="font-size:15px">Sterilised <span style="color:#6e6e73">(ear notch)</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">Yes</span><span style="height:40px;line-height:40px">No</span><span style="height:40px;line-height:40px">Not sure</span></div></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Continue</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R5 Confirm" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R5 Check and confirm <span style="font-weight:400;color:#6e6e73">· Step 4 of 4</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px"><span style="color:#0066cc">‹ Back</span><span style="font-size:15px;color:#6e6e73">4 of 4</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px"><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span><span style="height:4px;border-radius:2px;background:#0071e3"></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:20px 20px 0">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Check and confirm</div>
+          <div style="background:#fff;border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;gap:14px;align-items:center"><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="reg-photo" shape="circle" placeholder="Photo" style="width:72px;height:72px"></image-slot></div><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:700;letter-spacing:-0.02em">Rani</span><span style="font-size:15px;color:#6e6e73">Female · Brown, white chest</span></div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:15px">
+              <div style="background:#f5f5f7;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:#6e6e73">Ward</span><span>K/W</span></div>
+              <div style="background:#f5f5f7;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:#6e6e73">Added by</span><span>Priya S.</span></div>
+              <div style="background:#f5f5f7;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:#6e6e73">Vaccinated</span><span>Not sure</span></div>
+              <div style="background:#f5f5f7;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:#6e6e73">Sterilised</span><span>Yes</span></div>
+            </div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;gap:12px;align-items:center;min-height:60px;border-bottom:1px solid #e8e8ed"><span style="width:24px;height:24px;border-radius:7px;background:#0071e3;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">✓</span><span style="font-size:15px;line-height:1.35">I see her at least once a week.</span></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:60px"><span style="width:24px;height:24px;border-radius:7px;background:#0071e3;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">✓</span><span style="font-size:15px;line-height:1.35">I won't post where she sleeps or eats.</span></div>
+          </div>
+          <div style="font-size:13px;line-height:1.45;color:#6e6e73;padding:0 4px">Your phone and email are never shown. The profile shows your first name and initial.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Register Rani</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R6 Code ready" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R6 Code ready <span style="font-weight:400;color:#6e6e73">· Real, scannable QR</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:flex-end;padding:0 20px;font-size:17px;color:#0066cc">Done</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:8px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Rani is on Hetja.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Print her tag and tie it to a soft collar. Anyone who scans it can log a feed or send an SOS.</div>
+          <div style="align-self:center;margin-top:8px;width:270px;background:#fff;border-radius:28px;box-shadow:0 20px 50px rgba(0,0,0,.12);padding:22px;display:flex;flex-direction:column;align-items:center;gap:12px">
+            <img src="{{ qrRani }}" alt="QR code for Rani" style="width:180px;height:180px;image-rendering:pixelated;display:block">
+            <div style="font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:26px;font-weight:600;letter-spacing:0.06em;display:flex;gap:10px"><span>RNI</span><span>482</span><span>PQ7</span></div>
+            <div style="display:flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;background:#f2f2f5;color:#48484d;font-size:13px;font-weight:600">Unverified · needs one confirmation</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Print her tag</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">Ask a vet to confirm</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R7 Print setup" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R7 Print <span style="font-weight:400;color:#6e6e73">· Choose layout and paper</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Rani</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px;overflow:hidden">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Print tag</div>
+          <div style="display:flex;justify-content:center;padding:6px 0">
+            <div style="width:124px;aspect-ratio:210/297;background:#fff;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:9px 8px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:6px;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#1d1d1f"></span><span style="width:30px;height:3px;border-radius:2px;background:#1d1d1f"></span></div>
+              <div style="flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(2,1fr) 1.2fr;gap:2px">
+                <sc-for list="{{ six }}" as="s" hint-placeholder-count="6"><div style="border:1px dashed #b0b0b8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px"><img src="{{ qrRani }}" alt="" style="width:13px;height:13px;image-rendering:pixelated"><span style="width:10px;height:2px;background:#1d1d1f;border-radius:1px"></span></div></sc-for>
+              </div>
+              <div style="height:14px;display:flex;flex-direction:column;gap:2px"><span style="height:2px;background:#d2d2d7"></span><span style="height:2px;width:80%;background:#d2d2d7"></span><span style="height:2px;width:60%;background:#d2d2d7"></span></div>
+            </div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;gap:12px;align-items:center;min-height:64px;border-bottom:1px solid #e8e8ed"><span style="width:22px;height:22px;border-radius:50%;border:7px solid #0071e3;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">10 small tags + collar band</span><span style="font-size:13px;color:#6e6e73">Coin-sized, 32 × 46 mm</span></div></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:64px;border-bottom:1px solid #e8e8ed"><span style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c7c7cc;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">1 large tag + wall notice</span><span style="font-size:13px;color:#6e6e73">For a shop or society gate</span></div></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:64px"><span style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c7c7cc;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Add to a batch sheet</span><span style="font-size:13px;color:#6e6e73">8 different dogs on one page</span></div></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="font-size:15px;color:#6e6e73">Paper</span><div style="display:grid;grid-template-columns:1fr 1fr;width:180px;background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">A4</span><span style="height:40px;line-height:40px">Letter</span></div></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Download PDF</div>
+          <div style="height:52px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d2d2d7;background:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Send to a print shop</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="R8 Batch sheet" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">R8 Batch sheet <span style="font-weight:400;color:#6e6e73">· Feeders and NGOs with many dogs</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px;color:#0066cc"><span>‹ Me</span><span>Select all</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Batch sheet</div><div style="font-size:15px;color:#6e6e73">6 of 8 slots on this A4 page</div></div>
+          <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px"><sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8"><span style="height:6px;border-radius:3px;background:{{ sl.c }}"></span></sc-for></div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <sc-for list="{{ batch }}" as="d" hint-placeholder-count="7">
+              <div style="display:flex;gap:12px;align-items:center;min-height:58px;border-bottom:1px solid #e8e8ed">
+                <span style="width:24px;height:24px;border-radius:7px;background:{{ d.boxBg }};box-shadow:{{ d.boxRing }};color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">{{ d.tick }}</span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">{{ d.name }}</span><span style="font-size:13px;color:#6e6e73;font-family:ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:0.04em">{{ d.pretty }}</span></div>
+                <span style="font-size:13px;color:#6e6e73">{{ d.note }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Download sheet · 6 tags</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { qr: {} };
+  dogs() {
+    return [
+      ['Rani','rni482pq7','New'],['Bruno','bru017xk2','Reprint'],['Kalu','kal233mt9',''],['Moti','mot561hd4',''],
+      ['Sheru','shr905ae3','Reprint'],['Laxmi','lxm148rb6',''],['Tiger','tgr772nc5','Printed']
+    ];
+  }
+  componentDidMount() {
+    const go = () => {
+      if (!window.qrcode) return (this.t = setTimeout(go, 120));
+      const qr = {};
+      this.dogs().forEach(([, code]) => {
+        const q = window.qrcode(0, 'M'); q.addData('HTTPS://HETJA.IN/D/' + code.toUpperCase(), 'Alphanumeric'); q.make();
+        qr[code] = 'data:image/svg+xml;utf8,' + encodeURIComponent(q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }));
+      });
+      this.setState({ qr });
+    };
+    go();
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const blank = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+    const picked = 6;
+    const batch = this.dogs().map(([name, code, note], i) => {
+      const on = i < picked;
+      return { name, note, pretty: code.toUpperCase().match(/.{3}/g).join(' '), tick: on ? '✓' : '', boxBg: on ? '#0071e3' : '#fff', boxRing: on ? 'none' : 'inset 0 0 0 1.5px #c7c7cc' };
+    });
+    return {
+      qrRani: this.state.qr.rni482pq7 || blank,
+      six: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      batch,
+      slots: Array.from({ length: 8 }, (_, i) => ({ c: i < picked ? '#0071e3' : '#d2d2d7' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+.switch {
+  position: relative;
+  flex: none;
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: #e3e3e8;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 44px touch target around the 31px switch. */
+.switch::before {
+  content: "";
+  position: absolute;
+  inset: -7px -4px;
+}
+
+.switch:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.switch:disabled {
+  opacity: 0.6;
+}
+
+.knob {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--h-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.on {
+  background: var(--h-ok);
+}
+
+.on .knob {
+  left: auto;
+  right: 2px;
+  box-shadow: none;
+}

@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 /**
- * Scan (design v4, screen 02): the camera opens by itself, decodes go through
- * a GET /dogs/:slug existence check, a 404 is the inline "No dog with that
- * code", and success is a FULL navigation to /d/<slug> (the profile is a
- * different app behind Caddy) or, with ?intent=feed, /feed?dog=<slug>.
+ * Scan (design v4 screen 02, v5 F1): the camera opens by itself, decodes go
+ * through a GET /dogs/:slug existence check, and success is a FULL navigation
+ * to /d/<slug> (the profile is a different app behind Caddy) or, with
+ * ?intent=feed, /feed?dog=<slug>. A typed code that is short or unknown goes
+ * to /scan/code (F2 / N8). After 6 s of a live camera with no read, the F1
+ * sheet replaces the typing sheet; with no camera it is there from the start.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -28,7 +30,7 @@ vi.mock("@/lib/api", async () => {
   return { ...actual, api: { ...actual.api, getDog: vi.fn() } };
 });
 
-import QrScanner, { destinationFor, extractCollarFromScan, NO_DOG_MESSAGE } from "./QrScanner";
+import QrScanner, { destinationFor, extractCollarFromScan, FAIL_AFTER_MS, NO_DOG_MESSAGE } from "./QrScanner";
 import { api, ApiError } from "@/lib/api";
 
 const getDog = (api as unknown as { getDog: ReturnType<typeof vi.fn> }).getDog;
@@ -61,6 +63,11 @@ function installBarcodeDetector(barcodes: Array<{ rawValue: string; format: stri
     configurable: true,
     writable: true,
   });
+}
+
+/** A camera that is still asking for permission: the typing sheet stays up. */
+function cameraPending(): void {
+  stubMediaDevices(vi.fn().mockReturnValue(new Promise(() => {})));
 }
 
 function stubMediaDevices(getUserMedia: (...args: unknown[]) => Promise<MediaStream>): void {
@@ -130,7 +137,8 @@ describe("QrScanner screen", () => {
     expect(screen.getByText("It opens by itself. No button needed.")).not.toBeNull();
     expect(screen.getByText("No camera, or the QR is muddy?")).not.toBeNull();
     expect(screen.getByRole("button", { name: "View profile" })).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
+    // A tab root: no back link (the TabBar is the way out).
+    expect(screen.queryByRole("link", { name: /Home/ })).toBeNull();
     await waitFor(() => expect(gum.mock.calls.length).toBe(1), { timeout: 3000 });
     expect(screen.queryByRole("button", { name: /camera/i })).toBeNull();
   });
@@ -141,15 +149,77 @@ describe("QrScanner screen", () => {
     (window.location as { hash: string }).hash = "#code";
     render(<QrScanner />);
     await waitFor(() => expect(document.activeElement?.id).toBe("scan-collar-code"));
+    (window.location as { hash: string }).hash = "";
   });
 
-  it("hides the frame and focuses the code input when the camera is denied", async () => {
+  it("goes straight to the fallback choices when the camera is denied", async () => {
     installBarcodeDetector([]);
     stubMediaDevices(vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")));
     render(<QrScanner />);
-    await waitFor(() => expect(screen.queryByTestId("scan-frame")).toBeNull());
-    expect(document.activeElement?.id).toBe("scan-collar-code");
-    expect(screen.getByText("No camera here.")).not.toBeNull();
+    expect(await screen.findByText("Camera is off for Hetja.")).not.toBeNull();
+    expect(screen.queryByTestId("scan-frame")).toBeNull();
+    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1");
+    expect(screen.getByRole("link", { name: /Find by ward and photo/ }).getAttribute("href")).toBe("/scan/find");
+    expect(screen.getByRole("link", { name: "Dog is hurt · Send SOS anyway" }).getAttribute("href")).toBe(
+      "/scan/find?sos=1",
+    );
+  });
+
+  it("goes straight to the fallback choices when there is no camera at all", async () => {
+    render(<QrScanner />);
+    expect(await screen.findByText("No camera here.")).not.toBeNull();
+    expect(screen.getByTestId("scan-fallback")).not.toBeNull();
+  });
+
+  it("slides up F1 after 6 seconds of a live camera with no read, and outlines the frame", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      installBarcodeDetector([]);
+      stubMediaDevices(vi.fn().mockResolvedValue(fakeStream().stream));
+      render(<QrScanner />);
+      await waitFor(() => expect(screen.getByTestId("scan-frame")).not.toBeNull());
+      await waitFor(() => expect(screen.getByTestId("scan-frame").closest("[data-camera]")?.getAttribute("data-camera")).toBe("scanning"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(FAIL_AFTER_MS - 1000);
+      });
+      expect(screen.queryByText("Can't read this QR.")).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1500);
+      });
+      expect(screen.getByText("Can't read this QR.")).not.toBeNull();
+      expect(screen.getByText("Mud and rain do this. Try one of these.")).not.toBeNull();
+      expect(screen.getByText("Printed under the QR. Part of it is fine.")).not.toBeNull();
+      expect(screen.getByText("When the code is gone too")).not.toBeNull();
+      expect(screen.getByRole("link", { name: "Dog is hurt · Send SOS anyway" })).not.toBeNull();
+      expect(screen.getByTestId("scan-frame").getAttribute("data-failed")).toBe("true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the typing sheet up while someone is typing, past 6 seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      installBarcodeDetector([]);
+      stubMediaDevices(vi.fn().mockResolvedValue(fakeStream().stream));
+      render(<QrScanner />);
+      await waitFor(() => expect(screen.getByTestId("scan-frame").closest("[data-camera]")?.getAttribute("data-camera")).toBe("scanning"));
+      fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "rni" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(FAIL_AFTER_MS + 1000);
+      });
+      expect(screen.queryByText("Can't read this QR.")).toBeNull();
+      expect(screen.getByText("No camera, or the QR is muddy?")).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps ?intent=feed on the fallback links", async () => {
+    window.location.search = "?intent=feed";
+    render(<QrScanner />);
+    await screen.findByText("No camera here.");
+    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1&intent=feed");
   });
 
   it("verifies a decoded collar, then does a full navigation to /d/ with the signature", async () => {
@@ -174,19 +244,21 @@ describe("QrScanner screen", () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
-  it("says 'No dog with that code' inline for a typed code the API does not know", async () => {
+  it("sends a typed code the API does not know to N8 on /scan/code", async () => {
     getDog.mockRejectedValue(new ApiError("dog not found", { status: 404, code: "DOG_NOT_FOUND" }));
+    cameraPending();
     render(<QrScanner />);
     fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "ABC 234 567" } });
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    expect(await screen.findByText(NO_DOG_MESSAGE)).not.toBeNull();
-    expect(NO_DOG_MESSAGE).toBe("No dog with that code. Check the letters and try again.");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/scan/code?code=abc234567"));
     expect(getDog).toHaveBeenCalledWith("abc234567", null);
     expect(assign).not.toHaveBeenCalled();
+    expect(NO_DOG_MESSAGE).toBe("No dog with that code. Check the letters and try again.");
   });
 
   it("goes to the profile for a known typed code", async () => {
     getDog.mockResolvedValue({ slug: "abc234567" });
+    cameraPending();
     render(<QrScanner />);
     fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc234567" } });
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
@@ -195,18 +267,28 @@ describe("QrScanner screen", () => {
 
   it("still goes to the profile when the check cannot reach the network (the profile works offline)", async () => {
     getDog.mockRejectedValue(new ApiError("offline", { status: 0, code: "NETWORK_ERROR" }));
+    cameraPending();
     render(<QrScanner />);
     fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc234567" } });
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/d/abc234567"));
   });
 
-  it("refuses a short code without calling the API", async () => {
+  it("sends part of a code to F2 without calling the API", async () => {
+    cameraPending();
     render(<QrScanner />);
     fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc" } });
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    expect(await screen.findByRole("alert")).not.toBeNull();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/scan/code?code=abc"));
     expect(getDog).not.toHaveBeenCalled();
+  });
+
+  it("asks for the code when the sheet is submitted empty", async () => {
+    cameraPending();
+    render(<QrScanner />);
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Type the code printed under the QR.");
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("offers Torch only when the camera supports it, and switches it with applyConstraints", async () => {

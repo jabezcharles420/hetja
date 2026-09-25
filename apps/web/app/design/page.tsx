@@ -380,7 +380,7 @@ export default function DesignPage(): React.JSX.Element {
                 <Button fullWidth size="hero" href="/scan">
                   Scan a collar
                 </Button>
-                <Button variant="link" chevron href="/scan#code">
+                <Button variant="link" chevron href="/scan/code">
                   Or type a collar code
                 </Button>
               </div>

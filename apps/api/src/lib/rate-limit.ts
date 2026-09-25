@@ -191,9 +191,12 @@ export const GLOBAL_SUBJECT = "global";
 //
 // Every limiter below is keyed on an ACCOUNT (`acct:<feederId>`) or an
 // attested DEVICE (`dev:<deviceId>`, the canonical subject from
-// lib/device.ts deviceTokenSubject), never on an IP (INVARIANT 6). The one
-// IP-keyed limiter in this file is `deviceMintPerIp`, and its comment says why
-// it is the exception. Use `subjectKey()` so the prefixing is uniform.
+// lib/device.ts deviceTokenSubject), never on an IP (INVARIANT 6). The
+// IP-keyed limiters in this file are the documented exceptions, each recorded
+// in docs/INVARIANTS.md #6: `deviceMintPerIp` (hardening batch 1), and since
+// design v5/v6 the no-credential fallbacks of `lookupPerSubject` and
+// `wardDogsPerSubject`, `tagReportPerIp` and `doglessReportPerIp`. Use
+// `subjectKey()` so the prefixing is uniform.
 // ---------------------------------------------------------------------------
 
 /** The rate-limit key for an account or a device. */
@@ -240,7 +243,8 @@ export const sosAckPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, bur
 /**
  * Device-token mints, per client IP: burst 10, then 10 an hour.
  *
- * THE ONE IP-KEYED LIMIT IN THIS API, and a documented exception to
+ * THE FIRST IP-KEYED LIMIT IN THIS API (hardening batch 1; the design v5/v6
+ * ones are listed in the section header above), and a documented exception to
  * INVARIANT 6 (docs/INVARIANTS.md #6). There is no account or device to key
  * on here: minting the device token is the step that creates the device
  * subject every other limit uses. Without this, the single global bucket
@@ -265,6 +269,64 @@ export const sosAckPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, bur
  * pool everyone shares.
  */
 export const deviceMintPerIp = new RateLimiter({ refillPerSec: 10 / 3600, burst: 10 });
+
+// ---------------------------------------------------------------------------
+// Design v5 (2026-09-25). Same rules as hardening batch 1: account or device
+// first. The anonymous READS below (lookup, ward dogs) are called by pages
+// that hold no credential at all (apps/web sends them with auth: false), so
+// when no valid device token accompanies the request they fall back to the
+// client address, IPv4 as is and IPv6 by its /64 (ipBucketKey). Those, with
+// tagReportPerIp and doglessReportPerIp below, are the IP-keyed limits added
+// after deviceMintPerIp, all recorded in docs/INVARIANTS.md #6 as that entry
+// requires. Each is paired with a single global bucket, which
+// is what actually bounds enumeration of the register through these reads.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/v1/dogs/lookup, per device (or per IP without one): burst 10, then
+ * one a minute. A stranger retyping a scratched code tries a handful; walking
+ * the register four known characters at a time is not that.
+ */
+export const lookupPerSubject = new RateLimiter({ refillPerSec: 1 / 60, burst: 10 });
+
+/** GET /api/v1/dogs/lookup, whole system: 3000 a day, burst 200. */
+export const lookupGlobal = new RateLimiter({ refillPerSec: 3000 / 86_400, burst: 200 }, 1);
+
+/** GET /api/v1/wards/:wardId/dogs, per device or IP: burst 10, then one a minute. */
+export const wardDogsPerSubject = new RateLimiter({ refillPerSec: 1 / 60, burst: 10 });
+
+/** GET /api/v1/wards/:wardId/dogs, whole system: 3000 a day, burst 200. */
+export const wardDogsGlobal = new RateLimiter({ refillPerSec: 3000 / 86_400, burst: 200 }, 1);
+
+/**
+ * POST /api/v1/dogs/:slug/tag-reports, per account or device: burst 5, then 10
+ * a day. The 24 h dedupe per (reporter, dog, kind) is separate and silent.
+ */
+export const tagReportPerSubject = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+
+/**
+ * Tag reports, per client IP: burst 10, then 20 an hour. On top of the device
+ * limit, because device tokens are minted (10 an hour per address,
+ * deviceMintPerIp) and each fresh one would otherwise carry a fresh budget.
+ */
+export const tagReportPerIp = new RateLimiter({ refillPerSec: 20 / 3600, burst: 10 });
+
+/**
+ * Tag reports, per DOG: burst 10, then 10 a day, whoever files them. However
+ * many devices one person mints, one dog's feeders are not paged without
+ * bound. Keyed `dog:<id>`.
+ */
+export const tagReportPerDog = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 10 });
+
+/**
+ * Signed-in v5/v6 writes (confirm, checkups, status reports, tag resolve,
+ * prints, collars, SOS decline, release, arrived, close-by), per account:
+ * burst 20, then one a minute.
+ */
+export const feederWritePerAccount = new RateLimiter({ refillPerSec: 1 / 60, burst: 20 });
+
+/** GET /api/v1/feeders/me/export, per account: burst 3, then 5 a day. */
+export const exportPerAccount = new RateLimiter({ refillPerSec: 5 / 86_400, burst: 3 });
 
 /**
  * The key `deviceMintPerIp` uses: the IPv4 address as is, or the first four
@@ -317,3 +379,53 @@ interface WarnLogger {
 export function logRateLimited(log: WarnLogger, limiter: string, subjectKind: SubjectKind): void {
   log.warn({ event: "rate_limited", limiter, subjectKind }, "rate limited");
 }
+
+interface ReplyLike {
+  status(code: number): ReplyLike;
+  header(name: string, value: string): ReplyLike;
+  send(payload: unknown): unknown;
+}
+
+/**
+ * Consume one token from each (limiter, key) pair, in order, stopping at the
+ * first refusal. On refusal: the standard log line, 429 RATE_LIMITED with
+ * retry-after, and false. The design v5 routes gate on several limiters at
+ * once (subject, IP, dog, global); peeking every one first means a request
+ * turned away by the third does not spend the first two.
+ */
+export function enforceLimits(
+  log: WarnLogger,
+  reply: ReplyLike,
+  checks: ReadonlyArray<{ limiter: RateLimiter; key: string; name: string; kind: SubjectKind }>,
+  message = "too many requests; try again shortly",
+): boolean {
+  for (const c of checks) {
+    const d = c.limiter.peek(c.key);
+    if (!d.allowed) {
+      logRateLimited(log, c.name, c.kind);
+      reply
+        .status(429)
+        .header("retry-after", String(d.retryAfterSec))
+        .send({ ok: false, error: { message, code: "RATE_LIMITED" } });
+      return false;
+    }
+  }
+  for (const c of checks) c.limiter.consume(c.key);
+  return true;
+}
+
+/**
+ * Dogless SOS (design v6, P8): a report naming no dog, located to the
+ * reporter's ward, pages that ward's feeders. Per account or device: burst 2,
+ * then 3 a day. Per client IP (docs/INVARIANTS.md #6): burst 3, then 6 a day.
+ * Both on top of reportPerSubject and INVARIANT 7's case caps, which still
+ * apply unchanged, and the one-open-case-per-ward dedupe in routes/sos.ts.
+ */
+export const doglessReportPerSubject = new RateLimiter({ refillPerSec: 3 / 86_400, burst: 2 });
+export const doglessReportPerIp = new RateLimiter({ refillPerSec: 6 / 86_400, burst: 3 });
+
+/**
+ * "Tell her other feeders" on an unwell feed (design v6, L2), per DOG: burst
+ * 2, then 4 a day, however many feeders file it. Keyed `dog:<id>`.
+ */
+export const unwellPushPerDog = new RateLimiter({ refillPerSec: 4 / 86_400, burst: 2 });

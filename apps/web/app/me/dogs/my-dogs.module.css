@@ -1,0 +1,117 @@
+/* N4 My dogs (design v5). */
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary {
+  margin: 0;
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  appearance: none;
+  border: 0;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-line);
+  color: var(--h-ink);
+  font: inherit;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  /* 36 visible, 44 to the thumb */
+  position: relative;
+}
+
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.chipOn {
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: none;
+}
+
+.chip:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 4px 16px;
+}
+
+.item {
+  border-bottom: 1px solid var(--h-divider);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.rowLink,
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rowName {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.rowSub {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  padding: 14px var(--h-gutter) calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--h-mist);
+}

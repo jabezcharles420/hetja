@@ -134,7 +134,7 @@ function requireFeeder(
 }
 
 async function loadFeederRole(feederId: string): Promise<string | null> {
-  const res = await query<FeederRow>("SELECT id, role FROM feeders WHERE id = $1", [feederId]);
+  const res = await query<FeederRow>("SELECT id, role FROM feeders WHERE id = $1 AND deleted_at IS NULL", [feederId]);
   return res.rows[0]?.role ?? null;
 }
 
@@ -150,6 +150,116 @@ function verifyVetSignature(
   } catch {
     return false;
   }
+}
+
+/** Minimal structural view of the pg client so helpers avoid a `pg` import. */
+interface TxClient {
+  query<T = any>(text: string, params?: unknown[]): Promise<{ rows: T[]; rowCount: number | null }>;
+}
+
+export interface ChainAppend {
+  input: MedicalRecordInput;
+  vetId: string | null;
+  isVerified: boolean;
+  vetSignature: string | null;
+}
+
+export interface ChainAppendResult {
+  id: string;
+  hashCurr: string;
+  isVerified: boolean;
+  prev: string;
+  merkleRoot: string;
+}
+
+/**
+ * The one ledger write (INVARIANT 8 append-only, INVARIANT 9 length-prefixed
+ * chain), inside the CALLER's transaction. Extracted from the POST handler so
+ * design v5's vet checkup (routes/tags.ts, POST /dogs/:slug/checkups) appends
+ * through exactly this path rather than a copy: a second chain writer that
+ * drifted in lock key, head ordering or hash inputs would fork the chain.
+ * The caller must be inside withTx; the advisory lock is transaction-scoped.
+ */
+export async function appendMedicalRecord(client: TxClient, rec: ChainAppend): Promise<ChainAppendResult> {
+  const { input, vetId, isVerified, vetSignature } = rec;
+  const payloadText = canonicalPayload({ ...input });
+  const ts = new Date().toISOString();
+  await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
+  const head = await client.query<HeadRow>(
+    `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
+  );
+  const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
+  const hashCurr = computeHash(prev, { ...input }, vetId ?? "feeder", ts);
+
+  // Merkle root over THIS DOG's whole ledger including the row about to be
+  // written (enhancement stack §D.1, Top-25 #15). Computed here, inside the
+  // same transaction and under the same advisory lock as the chain write,
+  // for two reasons: the root has to include the new leaf, and no concurrent
+  // append may land between "read the dog's rows" and "insert" or the stored
+  // root would describe a tree that never existed.
+  //
+  // The cost is real and worth stating plainly: this is O(n) rows read plus
+  // O(n) SHA-256 over one dog's history on EVERY insert, and it is paid
+  // while holding CHAIN_LOCK_KEY, which serialises all medical appends
+  // system-wide, so it is not just this writer's latency, it is everyone's.
+  // At pilot scale that is fine: a dog carries a handful of records (a
+  // vaccination, an ABC, the odd treatment), so n is single digits and the
+  // hashing is microseconds. It stops being fine somewhere in the low
+  // thousands of records for a single dog, which no dog will reach; if one
+  // ever does, the fix is to store each row's audit path incrementally
+  // rather than rebuilding the tree, not to drop the persistence.
+  const prior = await client.query<ProvenRecord>(DOG_LEDGER_SQL, [input.dogId]);
+  // `merkleRoot` is typed against the full `LedgerRecord` but reads only
+  // `hash` (and `merkleProof` additionally `id`), which is what the query
+  // above selects. So this asserts to a subtype whose extra fields are
+  // provably unused. See ledger.ts's `asLeaves` for the same note.
+  const leaves = [
+    ...prior.rows,
+    { id: PENDING_LEAF_ID, hash: hashCurr },
+  ] as LedgerRecord[];
+  const dogMerkleRoot = merkleRoot(leaves);
+
+  const ins = await client.query(
+    `INSERT INTO medical_records
+       (dog_id, vet_id, record_type, vaccine_name, vaccine_date, abc_date,
+        diagnosis, treatment, severity, is_verified, vet_signature,
+        corrects_record_id, payload_len, hash_prev, hash_curr,
+        payload, hash_vet_id, hash_ts, merkle_root)
+     SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::uuid, $13, $14, $15,
+            $16::jsonb, $17, $18, $19
+     RETURNING id`,
+    [
+      input.dogId,
+      vetId,
+      input.recordType,
+      input.vaccineName ?? null,
+      input.vaccineDate ?? null,
+      input.abcDate ?? null,
+      input.diagnosis ?? null,
+      input.treatment ?? null,
+      input.severity ?? null,
+      isVerified,
+      vetSignature,
+      input.correctsRecordId ?? null,
+      Buffer.byteLength(payloadText, "utf8"),
+      prev,
+      hashCurr,
+      payloadText,
+      vetId ?? "feeder",
+      ts,
+      dogMerkleRoot,
+    ],
+  );
+  return {
+    id: ins.rows[0].id as string,
+    hashCurr,
+    isVerified,
+    prev,
+    // The dog's root as of this row, returned so the writer can record
+    // what was attested without a second round trip. Verifiable against
+    // GET /api/v1/ledger/proof?hash=<hashCurr>.
+    merkleRoot: dogMerkleRoot,
+  };
 }
 
 export default async function medicalRoutes(app: FastifyInstance): Promise<void> {
@@ -180,7 +290,6 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
     }
     const input = parsed.data;
     const payloadText = canonicalPayload({ ...input });
-    const ts = new Date().toISOString();
 
     let vetId: string | null = null;
     let isVerified = false;
@@ -224,84 +333,7 @@ export default async function medicalRoutes(app: FastifyInstance): Promise<void>
       merkleRoot: string;
     };
     try {
-      data = await withTx(async (client) => {
-        await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
-        const head = await client.query<HeadRow>(
-          `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
-        );
-        const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
-        const hashCurr = computeHash(prev, { ...input }, vetId ?? "feeder", ts);
-
-        // Merkle root over THIS DOG's whole ledger including the row about to be
-        // written (enhancement stack §D.1, Top-25 #15). Computed here, inside the
-        // same transaction and under the same advisory lock as the chain write,
-        // for two reasons: the root has to include the new leaf, and no concurrent
-        // append may land between "read the dog's rows" and "insert" or the stored
-        // root would describe a tree that never existed.
-        //
-        // The cost is real and worth stating plainly: this is O(n) rows read plus
-        // O(n) SHA-256 over one dog's history on EVERY insert, and it is paid
-        // while holding CHAIN_LOCK_KEY, which serialises all medical appends
-        // system-wide, so it is not just this writer's latency, it is everyone's.
-        // At pilot scale that is fine: a dog carries a handful of records (a
-        // vaccination, an ABC, the odd treatment), so n is single digits and the
-        // hashing is microseconds. It stops being fine somewhere in the low
-        // thousands of records for a single dog, which no dog will reach; if one
-        // ever does, the fix is to store each row's audit path incrementally
-        // rather than rebuilding the tree, not to drop the persistence.
-        const prior = await client.query<ProvenRecord>(DOG_LEDGER_SQL, [input.dogId]);
-        // `merkleRoot` is typed against the full `LedgerRecord` but reads only
-        // `hash` (and `merkleProof` additionally `id`), which is what the query
-        // above selects. So this asserts to a subtype whose extra fields are
-        // provably unused. See ledger.ts's `asLeaves` for the same note.
-        const leaves = [
-          ...prior.rows,
-          { id: PENDING_LEAF_ID, hash: hashCurr },
-        ] as LedgerRecord[];
-        const dogMerkleRoot = merkleRoot(leaves);
-
-        const ins = await client.query(
-          `INSERT INTO medical_records
-             (dog_id, vet_id, record_type, vaccine_name, vaccine_date, abc_date,
-              diagnosis, treatment, severity, is_verified, vet_signature,
-              corrects_record_id, payload_len, hash_prev, hash_curr,
-              payload, hash_vet_id, hash_ts, merkle_root)
-           SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::uuid, $13, $14, $15,
-                  $16::jsonb, $17, $18, $19
-           RETURNING id`,
-          [
-            input.dogId,
-            vetId,
-            input.recordType,
-            input.vaccineName ?? null,
-            input.vaccineDate ?? null,
-            input.abcDate ?? null,
-            input.diagnosis ?? null,
-            input.treatment ?? null,
-            input.severity ?? null,
-            isVerified,
-            vetSignature,
-            input.correctsRecordId ?? null,
-            Buffer.byteLength(payloadText, "utf8"),
-            prev,
-            hashCurr,
-            payloadText,
-            vetId ?? "feeder",
-            ts,
-            dogMerkleRoot,
-          ],
-        );
-        return {
-          id: ins.rows[0].id as string,
-          hashCurr,
-          isVerified,
-          prev,
-          // The dog's root as of this row, returned so the writer can record
-          // what was attested without a second round trip. Verifiable against
-          // GET /api/v1/ledger/proof?hash=<hashCurr>.
-          merkleRoot: dogMerkleRoot,
-        };
-      });
+      data = await withTx((client) => appendMedicalRecord(client, { input, vetId, isVerified, vetSignature }));
     } catch (err) {
       // A well-formed UUID that matches no row arrives here as FK violation
       // 23503, which the error handler would otherwise render as a 500. The

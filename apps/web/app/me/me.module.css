@@ -1,8 +1,9 @@
-/* Screen 09, Me (Mobile App mock). Mist; the TabBar is global chrome. */
+/* Me (Mobile App mock 09, v5 audit, v6 V7 / V8 / V9 / L1). Mist; the
+ * TabBar is global chrome. */
 
 .page {
   /* The shell adds a TabBar-height spacer after <main>. */
-  min-height: calc(100dvh - var(--h-tab-h) - env(safe-area-inset-bottom, 0px));
+  min-height: calc(100dvh - var(--tab-clear, 0px));
   display: flex;
   flex-direction: column;
   background: var(--h-mist);
@@ -13,8 +14,16 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: calc(6px + env(safe-area-inset-top, 0px)) var(--h-gutter) 16px;
+  gap: 16px;
+  /* Side gutters come from .h-container. */
+  padding-block: calc(24px + env(safe-area-inset-top, 0px)) 16px;
+  max-width: 720px;
+}
+
+/* V7 / V8: 40px down, 18px between blocks. */
+.bodyTall {
+  gap: 18px;
+  padding-top: calc(40px + env(safe-area-inset-top, 0px));
 }
 
 .title {
@@ -24,6 +33,31 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   overflow-wrap: anywhere;
+}
+
+.titleLg {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+  text-wrap: wrap;
+}
+
+.lead {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.small {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--h-secondary);
 }
 
 .loading,
@@ -38,19 +72,194 @@
   color: var(--h-danger);
 }
 
-/* --- signed out -------------------------------------------------------- */
-.signedOut {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* --- V7 signed out: what signing in is for ------------------------------ */
+.why {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 4px 18px;
 }
 
-.signedOutText {
+.why li {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.why li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.whyIcon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.whyOk {
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+}
+
+.whySos {
+  background: var(--h-danger-bg);
+  color: var(--h-danger);
+}
+
+.whyAdd {
+  background: var(--h-blue-tint);
+  color: var(--h-blue-tint-ink);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* --- V8 day one ---------------------------------------------------------- */
+.steps {
+  list-style: none;
   margin: 0;
-  font-size: 17px;
-  line-height: 1.47;
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 6px 18px;
+}
+
+.steps li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.step {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--h-ink);
+  text-decoration: none;
+}
+
+a.step:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.stepMark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
   color: var(--h-secondary);
-  text-wrap: pretty;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepNow .stepMark {
+  box-shadow: inset 0 0 0 2px var(--h-ink);
+  color: var(--h-ink);
+}
+
+.stepDone .stepMark {
+  background: var(--h-ok);
+  box-shadow: none;
+}
+
+.stepText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stepTitle {
+  font-size: 17px;
+}
+
+.stepNow .stepTitle {
+  font-weight: 600;
+}
+
+.stepDone .stepTitle {
+  color: var(--h-secondary);
+  text-decoration: line-through;
+}
+
+.stepSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.chev {
+  color: var(--h-tertiary);
+  font-size: 20px;
+}
+
+.register {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.inlineLink {
+  color: var(--h-link);
+  text-decoration: none;
+  display: inline-block;
+  padding-block: 12px;
+  margin-block: -12px;
+}
+
+/* --- V9 stale copy, L1 paused ------------------------------------------- */
+.stale {
+  background: var(--h-white);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--h-text-mid);
+}
+
+.staleText {
+  flex: 1;
+  font-size: 14px;
+}
+
+.staleRetry,
+.pausedResume {
+  appearance: none;
+  border: 0;
+  background: none;
+  margin: -12px 0;
+  padding: 12px 0;
+  font-family: var(--h-font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-link);
+  cursor: pointer;
+}
+
+.paused {
+  background: var(--h-white);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--h-text-mid);
+}
+
+.pausedResume {
+  font-size: 15px;
 }
 
 /* --- streak card ------------------------------------------------------- */
@@ -100,130 +309,72 @@
   padding-top: 10px;
 }
 
-/* --- my dogs ------------------------------------------------------------ */
-.dogsLabel {
-  padding: 2px 4px 0;
+/* --- my dogs (V9) --------------------------------------------------------- */
+.label {
+  padding: 0 4px;
 }
 
 .dogs {
   list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 0 16px;
 }
 
-.dogLink {
+.dogs li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.dog {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
 }
 
-.dogLink:focus-visible {
+.dog:focus-visible {
   outline: var(--h-focus);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
-.empty {
-  list-style: none;
-  padding: 18px 0;
-  font-size: 15px;
-  line-height: 1.4;
-  color: var(--h-secondary);
-}
-
-/* --- quiet settings row (SOS paging) ----------------------------------- */
-.settings {
-  margin-top: 14px;
-  background: var(--h-white);
-  border-radius: var(--h-r-inner);
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.settingsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.settingsText {
+.dogName {
+  flex: 1;
   min-width: 0;
-}
-
-.settingsTitle {
-  margin: 0;
   font-size: 17px;
-  line-height: 1.3;
   font-weight: 600;
 }
 
-.settingsSub {
-  margin: 2px 0 0;
-  font-size: 15px;
-  line-height: 1.35;
+.dogFed {
+  font-size: 14px;
   color: var(--h-secondary);
 }
 
-.settingsHint {
-  margin: 0;
+/* --- the hub rows ---------------------------------------------------------- */
+.links {
+  margin-top: 8px;
+}
+
+.unread {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue);
+  color: var(--h-white);
   font-size: 13px;
-  line-height: 1.4;
-  color: var(--h-secondary);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 
-.switch {
-  position: relative;
-  flex: none;
-  appearance: none;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  width: 51px;
-  height: 31px;
-  border-radius: 16px;
-  background: #e3e3e8;
-  cursor: pointer;
-}
-
-/* 44px touch target around the 31px switch. */
-.switch::before {
-  content: "";
-  position: absolute;
-  inset: -7px -4px;
-}
-
-.switch:focus-visible {
-  outline: var(--h-focus);
-  outline-offset: 2px;
-}
-
-.switch:disabled {
-  opacity: 0.6;
-}
-
-.knob {
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  background: var(--h-white);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.switchOn {
-  background: var(--h-ok);
-}
-
-.switchOn .knob {
-  left: auto;
-  right: 2px;
-  box-shadow: none;
-}
-
-/* --- sticky "Scan to log …" above the TabBar ---------------------------- */
+/* --- the one button, pinned above the TabBar ----------------------------- */
 .page .footer {
-  bottom: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: 10px;
+  bottom: var(--tab-clear, 0px);
+  padding-bottom: 16px;
 }

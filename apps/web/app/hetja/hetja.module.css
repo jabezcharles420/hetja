@@ -275,13 +275,6 @@
   border: 0;
 }
 
-@media (min-width: 1024px) {
-  .masthead {
-    padding-top: 120px;
-    padding-bottom: 96px;
-  }
-}
-
 /* --- Print ---
  * The page is sometimes printed and shared. Keep headings with their text,
  * never split a facet, the letter or a song row across a page, and drop the

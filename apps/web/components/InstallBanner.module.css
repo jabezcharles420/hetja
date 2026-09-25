@@ -1,10 +1,11 @@
-/* Install card: white, radius 20, floating-chip shadow, 12px above the TabBar. */
+/* Install card: white, radius 20, floating-chip shadow, 12px above the TabBar
+ * (or the bottom edge where there is none: ChromeShell's --tab-clear). */
 
 .banner {
   position: fixed;
   left: calc(12px + env(safe-area-inset-left, 0px));
   right: calc(12px + env(safe-area-inset-right, 0px));
-  bottom: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  bottom: calc(max(var(--tab-clear, 0px), env(safe-area-inset-bottom, 0px)) + 12px);
   z-index: 25;
   max-width: 420px;
   margin-inline: auto;

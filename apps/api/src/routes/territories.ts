@@ -69,7 +69,7 @@ async function authenticate(
       .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
     return null;
   }
-  const res = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1`, [feederId]);
+  const res = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [feederId]);
   const feeder = res.rows[0];
   if (!feeder) {
     void reply

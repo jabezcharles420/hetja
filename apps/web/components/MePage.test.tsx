@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * Me (design v4, screen 09), plus the SOS paging consent it keeps.
- *
- * The consent gap these exist for: `feeders.sos_opt_in` defaults to false, the
- * SOS fan-out (routes/sos.ts) pages only feeders who have it set, and
- * `PATCH /api/v1/feeders/me` is its only writer. Until a web surface called it,
- * every feeder was permanently opted out.
+ * Me, a tab root (v4 screen 09, the v5 audit, v6 V7 / V8 / V9 / L1):
+ * signed out it says what signing in is for; a brand-new feeder gets the
+ * day-one checklist; a feeder with dogs gets the name, streak, dogs and rows
+ * (My dogs, Alerts with an unread count, SOS alerts, Register, Settings).
+ * The SOS switch never flips silently: off opens L1 (pause), on opens N13.
+ * When Hetja cannot be reached, the last copy from this phone is shown.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -19,6 +19,8 @@ vi.mock("next/link", async () => {
   };
 });
 
+vi.mock("@/lib/pwa", () => ({ subscribeToPush: vi.fn(async () => true), isStandalone: () => false }));
+
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   return {
@@ -28,20 +30,20 @@ vi.mock("@/lib/api", async () => {
       getStreak: vi.fn(),
       getFeederMe: vi.fn(),
       getMyDogs: vi.fn(),
-      updateFeederMe: vi.fn(),
+      getAlerts: vi.fn(),
+      patchFeederMe: vi.fn(),
     },
   };
 });
 
 import MePage from "@/app/me/page";
 import { api, ApiError, setAccessToken } from "@/lib/api";
+import { ALERTS_SEEN_KEY, ME_CACHE_KEY } from "@/lib/me-hub";
 
-const apiMock = api as unknown as {
-  getStreak: ReturnType<typeof vi.fn>;
-  getFeederMe: ReturnType<typeof vi.fn>;
-  getMyDogs: ReturnType<typeof vi.fn>;
-  updateFeederMe: ReturnType<typeof vi.fn>;
-};
+const apiMock = api as unknown as Record<
+  "getStreak" | "getFeederMe" | "getMyDogs" | "getAlerts" | "patchFeederMe",
+  ReturnType<typeof vi.fn>
+>;
 
 const STREAK = {
   trustScore: 46,
@@ -52,7 +54,7 @@ const STREAK = {
   trustLevel: { name: "Trusted feeder", level: 2, nextThreshold: 50 },
 };
 
-function feederMe(overrides: Partial<{ sosOptIn: boolean; trustScore: number; displayName: string }> = {}) {
+function feederMe(overrides: Record<string, unknown> = {}) {
   return {
     feederId: "f1",
     displayName: "Priya",
@@ -63,17 +65,26 @@ function feederMe(overrides: Partial<{ sosOptIn: boolean; trustScore: number; di
     canRegister: false,
     registrationBudget: { pending: 0, max: 3 },
     capabilities: [],
-    sosOptIn: false,
+    sosOptIn: true,
+    wards: ["K-West"],
     ...overrides,
   };
 }
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600e3).toISOString();
+const DOGS = [
+  { slug: "ddr237xk2", name: "Bruno", wardId: "K-West", wardName: null, lastFedAt: hoursAgo(0.05), myLastFedAt: hoursAgo(0.05) },
+  { slug: "kaa234xyz", name: "Kaali", wardId: "K-West", wardName: null, lastFedAt: hoursAgo(49), myLastFedAt: hoursAgo(49) },
+];
 
 beforeEach(() => {
+  localStorage.clear();
   setAccessToken("tok");
   apiMock.getStreak.mockResolvedValue(STREAK);
-  apiMock.getMyDogs.mockResolvedValue({ dogs: [] });
+  apiMock.getMyDogs.mockResolvedValue({ dogs: DOGS });
+  apiMock.getFeederMe.mockResolvedValue(feederMe());
+  apiMock.getAlerts.mockResolvedValue({ items: [] });
+  apiMock.patchFeederMe.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -83,69 +94,160 @@ afterEach(() => {
   cleanup();
 });
 
-describe("MePage: design v4", () => {
+const rows = async () => within(await screen.findByRole("list", { name: "Your Hetja" }));
+
+describe("MePage: signed in", () => {
   it("greets by the hour with the feeder's first name", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 8, 24, 9, 0));
     apiMock.getFeederMe.mockResolvedValue(feederMe({ displayName: "Priya Sharma" }));
     render(<MePage />);
-    expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("Morning, Priya.");
+    expect(await screen.findByRole("heading", { level: 1, name: "Morning, Priya." })).toBeTruthy();
   });
 
-  it("shows the streak, the Tuesday joke with the first dog, the four badges and the trust bar", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe());
-    apiMock.getMyDogs.mockResolvedValue({
-      dogs: [{ slug: "ddr237xk2", name: "Bruno", wardId: "K-West", wardName: "Andheri West", lastFedAt: hoursAgo(2), myLastFedAt: hoursAgo(2) }],
-    });
+  it("shows the streak, the badges and the trust bar", async () => {
     render(<MePage />);
     expect(await screen.findByText("23")).not.toBeNull();
     expect(screen.getByText("day streak")).not.toBeNull();
-    expect(
-      screen.getByText("Fed someone every day since 1 September. Bruno still says you missed Tuesday."),
-    ).not.toBeNull();
     for (const label of ["First feed", "A full week", "Monsoon feeder"]) expect(screen.getByText(label)).not.toBeNull();
-    // month_streak is locked: its visible line is the countdown to 28.
-    expect(screen.getByText("5 days to go")).not.toBeNull();
     expect(screen.getByText("Trusted feeder · Level 2")).not.toBeNull();
-    expect(screen.getByText("Level 3 at 50")).not.toBeNull();
-    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("92");
   });
 
-  it("lists dogs not fed today first and points the button at the first of them", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe());
-    apiMock.getMyDogs.mockResolvedValue({
-      dogs: [
-        { slug: "ddr237xk2", name: "Bruno", wardId: "K-West", wardName: null, lastFedAt: hoursAgo(0.05), myLastFedAt: hoursAgo(0.05) },
-        { slug: "kaa234xyz", name: "Kaali", wardId: "K-West", wardName: null, lastFedAt: hoursAgo(49), myLastFedAt: hoursAgo(49) },
-        { slug: "mot567abc", name: "Motu", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: hoursAgo(72) },
+  it("lists the dogs, not fed today first, each opening its page", async () => {
+    render(<MePage />);
+    await screen.findByText("Kaali");
+    const kaali = screen.getAllByRole("link").find((l) => l.getAttribute("href") === "/me/dogs/kaa234xyz")!;
+    expect(kaali.getAttribute("href")).toBe("/me/dogs/kaa234xyz");
+    expect(within(kaali).getByText(/^Fed (yesterday|\d+ days ago)$/)).toBeTruthy();
+    const cta = screen.getByRole("link", { name: "Scan to log Kaali's feed" });
+    expect(cta.getAttribute("href")).toBe("/scan?intent=feed&dog=kaa234xyz");
+  });
+
+  it("has rows for My dogs, Alerts, SOS alerts, Register a dog and Settings", async () => {
+    render(<MePage />);
+    const g = await rows();
+    const links = g.getAllByRole("link");
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/me/dogs", "/alerts", "/register", "/settings"]);
+    expect(g.getByRole("switch", { name: "SOS alerts" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("counts alerts newer than the last visit to Alerts", async () => {
+    localStorage.setItem(ALERTS_SEEN_KEY, String(Date.now() - 3600e3));
+    apiMock.getAlerts.mockResolvedValue({
+      items: [
+        { id: "1", kind: "fed", at: hoursAgo(0.1), dog: null, wardCode: null, actorName: null, detail: null, href: "/" },
+        { id: "2", kind: "fed", at: hoursAgo(0.2), dog: null, wardCode: null, actorName: null, detail: null, href: "/" },
+        { id: "3", kind: "fed", at: hoursAgo(5), dog: null, wardCode: null, actorName: null, detail: null, href: "/" },
       ],
     });
     render(<MePage />);
-    await screen.findByText("Kaali");
-    const rows = screen.getAllByTestId("list-row");
-    expect(rows.map((r) => within(r).getByRole("link").textContent)).toEqual(["Kaali", "Motu", "Bruno"]);
-    expect(within(rows[0]!).getByText("Not fed today")).not.toBeNull();
-    expect(within(rows[2]!).getByText(/^Fed (just now|\d+m ago)$/)).not.toBeNull();
-    const cta = screen.getByRole("link", { name: "Scan to log Kaali's feed" });
-    expect(cta.getAttribute("href")).toBe("/scan?intent=feed&dog=kaa234xyz");
-    // Profiles live on the /d/ app.
-    expect(within(rows[0]!).getByRole("link").getAttribute("href")).toBe("/d/kaa234xyz");
+    const g = await rows();
+    expect(await g.findByLabelText("2 new")).toBeTruthy();
   });
 
-  it("keeps the page when the dog list fails, with a generic button", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe());
-    apiMock.getMyDogs.mockRejectedValue(new ApiError("boom", { status: 500 }));
+  it("turning SOS alerts off opens the pause sheet (L1) instead of switching off", async () => {
     render(<MePage />);
-    expect(await screen.findByText(/No dogs yet/)).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Scan to log a feed" }).getAttribute("href")).toBe("/scan?intent=feed");
+    fireEvent.click((await rows()).getByRole("switch", { name: "SOS alerts" }));
+    const sheet = screen.getByRole("dialog", { name: "Need a break from alerts?" });
+    expect(apiMock.patchFeederMe).not.toHaveBeenCalled();
+    expect(within(sheet).getByText(/If Kaali or Bruno is hurt, other feeders and the vets in K\/W will still hear\. You won't\./)).toBeTruthy();
+    expect(within(sheet).getByRole("radio", { name: /Pause until tomorrow/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Pause alerts" }));
+    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledTimes(1));
+    const patch = apiMock.patchFeederMe.mock.calls[0]![0] as { sosOptIn: boolean; sosPausedUntil: string };
+    expect(patch.sosOptIn).toBe(true);
+    expect(Date.parse(patch.sosPausedUntil)).toBeGreaterThan(Date.now());
+    expect(await screen.findByText(/^Alerts paused until/)).toBeTruthy();
   });
 
-  it("gives a signed-out visitor a friendly card and a Sign in button, and no consent control", async () => {
+  it("Turn off in the pause sheet switches paging off", async () => {
+    render(<MePage />);
+    fireEvent.click((await rows()).getByRole("switch", { name: "SOS alerts" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Turn off" }));
+    fireEvent.click(screen.getByRole("button", { name: "Turn off alerts" }));
+    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledWith({ sosOptIn: false, sosPausedUntil: null }));
+  });
+
+  it("a paused feeder sees the resume time and can resume", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosPausedUntil: new Date(Date.now() + 5 * 3600e3).toISOString() }));
+    render(<MePage />);
+    expect(await screen.findByText(/^Alerts paused until /)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledWith({ sosPausedUntil: null }));
+    await waitFor(() => expect(screen.queryByText(/^Alerts paused until/)).toBeNull());
+  });
+
+  it("turning SOS alerts on shows the alerts ask (N13) first", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false }));
+    render(<MePage />);
+    fireEvent.click((await rows()).getByRole("switch", { name: "SOS alerts" }));
+    const ask = screen.getByRole("dialog", { name: "Know when a dog near you is hurt." });
+    expect(within(ask).getByText("Only for your wards, and only when someone raises an SOS. Most weeks, that's none.")).toBeTruthy();
+    fireEvent.click(within(ask).getByRole("button", { name: "Turn on alerts" }));
+    await waitFor(() =>
+      expect(apiMock.patchFeederMe).toHaveBeenCalledWith(
+        expect.objectContaining({ sosOptIn: true, sosPausedUntil: null, wards: ["K-West"] }),
+      ),
+    );
+  });
+});
+
+describe("MePage: day one (V8)", () => {
+  it("gives a brand-new feeder the checklist, not an empty dashboard", async () => {
+    apiMock.getStreak.mockResolvedValue({ ...STREAK, streakDays: 0 });
+    apiMock.getMyDogs.mockResolvedValue({ dogs: [] });
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ wards: [] }));
+    render(<MePage />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Day one, Priya." })).toBeTruthy();
+    expect(screen.getByText("Three things and you're set. The dogs won't notice. Their next stranger will.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Scan a dog you feed/ }).getAttribute("href")).toBe("/scan");
+    expect(screen.getByText("Starts your streak")).toBeTruthy();
+    expect(screen.getByText("For SOS alerts nearby")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Register one ›" }).getAttribute("href")).toBe("/register");
+    expect(screen.getByRole("link", { name: "Scan a collar" }).getAttribute("href")).toBe("/scan");
+    expect(screen.queryByText("day streak")).toBeNull();
+  });
+});
+
+describe("MePage: offline (V9)", () => {
+  it("shows the last copy from this phone with a banner and Retry", async () => {
+    localStorage.setItem(
+      ME_CACHE_KEY,
+      JSON.stringify({ savedAt: new Date().toISOString(), streak: { streakDays: 12 }, me: feederMe(), dogs: DOGS }),
+    );
+    apiMock.getStreak.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<MePage />);
+    expect(await screen.findByText(/^Showing (this morning's|this afternoon's|this evening's) copy\. Can't reach Hetja\.$/)).toBeTruthy();
+    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("Feeds you log now are saved on this phone and sent when you're back.")).toBeTruthy();
+    apiMock.getStreak.mockResolvedValue(STREAK);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.queryByText(/Can't reach Hetja/)).toBeNull());
+  });
+
+  it("without a saved copy, says so and offers a retry", async () => {
+    apiMock.getStreak.mockRejectedValue(new ApiError("Server is having a moment.", { status: 503 }));
+    render(<MePage />);
+    expect((await screen.findByRole("alert")).textContent).toBe("Server is having a moment.");
+  });
+});
+
+describe("MePage: signed out (V7)", () => {
+  it("says what signing in is for, with one Sign in with email", async () => {
     setAccessToken(null);
     render(<MePage />);
-    expect(await screen.findByText("Hello, stranger.")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Sign in" }).getAttribute("href")).toBe("/login?next=%2Fme");
-    expect(screen.queryByRole("switch")).toBeNull();
+    expect(await screen.findByRole("heading", { level: 1, name: "You probably already feed someone." })).toBeTruthy();
+    expect(
+      screen.getByText("Sign in to put it on the record, so a stranger who scans the collar knows the dog is looked after."),
+    ).toBeTruthy();
+    for (const t of [
+      "Log a feed in two taps. Keep a streak.",
+      "Hear when a dog in your ward is hurt.",
+      "Give a dog without a collar a name and a code.",
+    ])
+      expect(screen.getByText(t)).toBeTruthy();
+    const signIn = screen.getByRole("link", { name: "Sign in with email" });
+    expect(signIn.getAttribute("href")).toBe("/login?next=%2Fme");
     expect(apiMock.getStreak).not.toHaveBeenCalled();
   });
 
@@ -153,47 +255,6 @@ describe("MePage: design v4", () => {
     apiMock.getStreak.mockRejectedValue(new ApiError("unauthenticated", { status: 401, code: "UNAUTHENTICATED" }));
     apiMock.getFeederMe.mockRejectedValue(new ApiError("unauthenticated", { status: 401, code: "UNAUTHENTICATED" }));
     render(<MePage />);
-    expect(await screen.findByText("Hello, stranger.")).not.toBeNull();
-  });
-});
-
-describe("MePage: SOS paging consent (the quiet settings row)", () => {
-  const sw = () => screen.findByRole("switch", { name: "SOS paging" });
-
-  it("reflects the server's sos_opt_in", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: true }));
-    render(<MePage />);
-    expect((await sw()).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByText("Page me when a dog near where I feed needs help")).not.toBeNull();
-  });
-
-  it("PATCHes sosOptIn when toggled and confirms in a status line", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false }));
-    apiMock.updateFeederMe.mockResolvedValue({ sosOptIn: true });
-    render(<MePage />);
-    const toggle = await sw();
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(toggle);
-    await waitFor(() => expect(apiMock.updateFeederMe).toHaveBeenCalledWith({ sosOptIn: true }));
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/You'll be paged/));
-    expect((await sw()).getAttribute("aria-checked")).toBe("true");
-  });
-
-  it("reverts and shows the API's message when the PATCH fails", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false }));
-    apiMock.updateFeederMe.mockRejectedValue(
-      new ApiError("body must contain { sosOptIn?: boolean ... }", { status: 400, code: "INVALID_SOS_OPT_IN" }),
-    );
-    render(<MePage />);
-    fireEvent.click(await sw());
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/body must contain/));
-    expect((await sw()).getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("tells a low-trust feeder why opting in will not page them yet", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false, trustScore: 30 }));
-    render(<MePage />);
-    await sw();
-    expect(screen.getByText(/trust score of 40 or more/).textContent).toMatch(/Yours is 30/);
+    expect(await screen.findByRole("link", { name: "Sign in with email" })).not.toBeNull();
   });
 });

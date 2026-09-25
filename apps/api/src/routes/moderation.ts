@@ -70,7 +70,7 @@ async function requireAdmin(
 ): Promise<{ feederId: string } | null> {
   const auth = feederAuth(req, reply);
   if (!auth) return null;
-  const roleRes = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1`, [auth.feederId]);
+  const roleRes = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [auth.feederId]);
   const role = roleRes.rows[0]?.role ?? null;
   if (role !== "admin") {
     void reply

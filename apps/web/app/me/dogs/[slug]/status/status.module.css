@@ -1,0 +1,80 @@
+/* N9 Update on a dog (design v5). Memorial background, no motion, no blue fill. */
+
+.body {
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.group {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 4px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.option {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 0;
+  border-bottom: 1px solid var(--h-divider);
+  cursor: pointer;
+}
+
+.option:last-child {
+  border-bottom: 0;
+}
+
+.option:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--h-control-off);
+}
+
+.radioOn {
+  border: 7px solid var(--h-blue);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.optionTitle {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.optionSub {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px var(--h-gutter) calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--h-memorial-bg);
+}

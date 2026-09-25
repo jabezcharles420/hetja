@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Dashboard from "./Dashboard";
+import RegistrationsClient from "./RegistrationsClient";
 
 export const metadata: Metadata = {
   title: "Register · Hetja",
   description:
-    "Your dog registrations: status, days left, and printable collar sheets. Attaching the tag is what activates it.",
+    "The dogs you put on Hetja: which collars still need putting on, which tags need printing, and which dogs are live.",
 };
 
 export default function RegisterPage(): React.JSX.Element {
-  return <Dashboard />;
+  return <RegistrationsClient />;
 }

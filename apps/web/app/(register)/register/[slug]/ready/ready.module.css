@@ -1,71 +1,16 @@
-/* Screen 11, Collar ready (Mobile App mock). */
-
-.page {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background: var(--h-mist);
-  color: var(--h-ink);
-}
+/* V14 Code ready ("Kalu is almost on Hetja."): the QR card. */
 
 .body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: calc(40px + env(safe-area-inset-top, 0px)) var(--h-gutter) 16px;
+  gap: 18px;
+  padding-top: calc(40px + env(safe-area-inset-top, 0px));
 }
 
-.title {
-  margin: 0;
-  font-size: 34px;
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  overflow-wrap: anywhere;
-}
-
-.lead {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.45;
-  color: var(--h-secondary);
-  text-wrap: pretty;
-}
-
-.link,
-.next {
-  color: var(--h-link);
-  font-size: 17px;
-  text-decoration: none;
-}
-
-.next {
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--h-target);
-  margin-top: 6px;
-  font-size: 15px;
-  text-align: center;
-}
-
-.link:focus-visible,
-.next:focus-visible,
-.pdf:focus-visible {
-  outline: var(--h-focus);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-/* --- the tag ----------------------------------------------------------- */
 .tag {
   align-self: center;
-  margin-top: 14px;
-  width: 250px;
+  width: 270px; /* V14 draws 250; 270 (R6) fits the kept Unverified pill */
   box-sizing: border-box;
   background: var(--h-white);
-  border-radius: var(--h-r-card);
+  border-radius: 28px;
   box-shadow: var(--h-sh-collar);
   padding: 22px;
   display: flex;
@@ -74,91 +19,38 @@
   gap: 12px;
 }
 
-.qr {
-  width: 170px;
-  height: 170px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
+.qr,
 .qr svg {
   display: block;
-  width: 170px;
-  height: 170px;
+  width: 150px;
+  height: 150px;
 }
 
 .code {
-  display: flex;
-  gap: 10px;
   font-family: var(--h-mono);
-  font-size: 26px;
-  line-height: 1.2;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: 0.06em;
+  display: flex;
+  gap: 12px;
 }
 
 .tagLine {
-  font-size: 14px;
-  line-height: 1.2;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
 }
 
-/* --- footer ------------------------------------------------------------ */
-.page .footer {
-  gap: 6px;
-  /* The mock's 6px gap + 26px home-indicator strip under the link. */
-  padding-bottom: max(32px, calc(env(safe-area-inset-bottom, 0px) + 6px));
-}
-
-.pdf {
-  appearance: none;
-  border: 0;
-  background: none;
-  margin: 0;
-  padding: 0;
-  height: var(--h-target);
-  font-family: var(--h-font);
-  font-size: 17px;
-  color: var(--h-link);
-  cursor: pointer;
-}
-
-/* --- print: the tag alone, the QR at its physical size ----------------- */
-@media print {
-  /* Focused route: no global chrome here, so hiding our own siblings of the
-   * tag leaves the tag alone on the sheet. */
-  .body > :not(.tag),
-  .page .footer {
-    display: none !important;
-  }
-  .page {
-    min-height: 0;
-    background: #fff;
-  }
-  .body {
-    padding: 0;
-  }
-  .tag {
-    align-self: flex-start;
-    margin: 0;
-    width: auto;
-    box-shadow: none;
-    border: 0.3mm solid #d2d2d7;
-    border-radius: 6mm;
-    padding: 5mm;
-    gap: 3mm;
-  }
-  .qr,
-  .qr svg {
-    width: 40mm;
-    height: 40mm;
-    border-radius: 0;
-  }
-  .code {
-    font-size: 16pt;
-  }
-  .tagLine {
-    font-size: 9pt;
-  }
+/* Kept from R6: the grey Unverified pill. */
+.pill {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-neutral-bg);
+  color: var(--h-neutral);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }

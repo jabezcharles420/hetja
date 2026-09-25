@@ -22,11 +22,15 @@ import {
 } from "../lib/gamification.js";
 import { PHOTO_ROUTE_BODY_LIMIT } from "../lib/body-limits.js";
 import { PHOTO_BUSY_RETRY_AFTER_SEC, PhotoBusyError, photoGate, type Release } from "../lib/photo-gate.js";
-import { logRateLimited, photoPerSubject, scanPerSubject, subjectKey } from "../lib/rate-limit.js";
+import { logRateLimited, photoPerSubject, scanPerSubject, subjectKey, unwellPushPerDog } from "../lib/rate-limit.js";
+import { forgetDog } from "./dogs.js";
+import { enqueueFeederPush, feederIdsOfDog } from "../lib/dog-feeders.js";
 
 interface DogIdRow {
   id: string;
+  slug: string;
   status: string;
+  tag_review_since: Date | null;
 }
 
 interface ScanRow {
@@ -289,6 +293,12 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       // offline queue drops a scan on a permanent 4xx, so a client bug in an
       // optional field would cost the scan itself.
       const feedOutcome = type === "feed" ? (parsed.data.outcome ?? null) : null;
+      // Design v6 (L2): a short note on a feed, stored with it (feeds only,
+      // ignored otherwise for the same offline-queue reason as `outcome`), and
+      // on an 'unwell' feed by a SIGNED-IN feeder the choice to tell the dog's
+      // other feeders with one push. An anonymous device cannot page anyone.
+      const feedNote = type === "feed" && parsed.data.note?.trim() ? parsed.data.note.trim() : null;
+      const tellCoFeeders = type === "feed" && feedOutcome === "unwell" && parsed.data.tellCoFeeders === true && !!feederId;
 
       // MUMBAI ONLY (hardening batch 1, T4, audit A-03). A geotag outside
       // MUMBAI_BOUNDS is a spoof or a phone without a fix, and it is treated
@@ -356,9 +366,10 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       }
 
       try {
-        const dogRes = await query<DogIdRow>(`SELECT id, status::text AS status FROM dogs WHERE slug = $1`, [
-          dogSlug,
-        ]);
+        const dogRes = await query<DogIdRow>(
+          `SELECT id, slug, status::text AS status, tag_review_since FROM dogs WHERE slug = $1`,
+          [dogSlug],
+        );
         const dog = dogRes.rows[0];
         if (!dog) {
           return reply
@@ -431,6 +442,8 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
               activatedSlug: null,
               sosEligibleAt: null,
               streak: null as StreakState | null,
+              foundAgain: false,
+              coFeedersTold: undefined as number | undefined,
             };
           }
 
@@ -448,6 +461,30 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
           if (feedOutcome !== null) {
             await client.query(`UPDATE scans SET feed_outcome = $2 WHERE id = $1`, [scanId, feedOutcome]);
           }
+          if (feedNote !== null) {
+            await client.query(`UPDATE scans SET note = $2 WHERE id = $1`, [scanId, feedNote]);
+          }
+
+          // "Tell her other feeders" (L2): one push, inside the created branch
+          // so a replay never sends it twice, and at most a few per dog a day
+          // (unwellPushPerDog) however many feeders file it.
+          let coFeedersTold: number | undefined;
+          if (tellCoFeeders && feederId) {
+            const others = await feederIdsOfDog(dog.id, feederId, client);
+            if (unwellPushPerDog.consume(`dog:${dog.id}`).allowed) {
+              await enqueueFeederPush(client, others, {
+                kind: "unwell",
+                title: "A feeder thinks a dog you feed is unwell",
+                body: "Open to see the note and her week.",
+                url: `/me/dogs/${dog.slug}`,
+                tag: `unwell-${dog.slug}`,
+              });
+              coFeedersTold = others.length;
+            } else {
+              logRateLimited(req.log, "unwellPushPerDog", "global");
+              coFeedersTold = 0;
+            }
+          }
 
           // Streak and trust (hardening batch 1, T2). The scan above is always
           // recorded; what is withheld is the REWARD:
@@ -462,7 +499,14 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
             if (withinBackdateLimit(captured, receivedAt)) {
               streak = await updateFeedStreak(feederId, dateInKolkata(captured), client);
             }
-            if (await feedTrustCreditAllowed(feederId, dog.id, dog.status, client)) {
+            // Design v5: a 'wrong_dog' tag report puts the dog's tag under
+            // review (routes/tags.ts), and until a feeder checks it, feeds on
+            // that code earn no trust. The feed itself is still recorded, and
+            // nothing here (or anywhere) pauses SOS for the dog.
+            if (
+              dog.tag_review_since === null &&
+              (await feedTrustCreditAllowed(feederId, dog.id, dog.status, client))
+            ) {
               await logTrustEvent(
                 { feederId, eventType: "feed", reason: "feed scan logged", refScanId: scanId },
                 client,
@@ -477,13 +521,27 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
           // created:false above and can never re-stamp activated_at or re-run
           // corroboration. Both need an accepted (Mumbai) geotag: an
           // ungeotagged scan proves a camera, not a location.
+          // LOST -> ACTIVE (design v5, N9). A feed or view scan of a dog a
+          // feeder reported not seen is the dog being seen: it goes back to
+          // 'active'. Inside the `created` branch, so a replay cannot re-run
+          // it, and conditional on the row still being 'lost'. A view scan is
+          // what the collar page sends for "Seen her nearby? Yes, just now",
+          // from an anonymous device token; the scan limits above bound it.
+          let foundAgain = false;
+          if ((type === "feed" || type === "view") && dog.status === "lost") {
+            const back = await client.query(`UPDATE dogs SET status = 'active' WHERE id = $1 AND status = 'lost'`, [
+              dog.id,
+            ]);
+            foundAgain = (back.rowCount ?? 0) === 1;
+          }
+
           let activatedSlug: string | null = null;
           let sosEligibleAt: Date | null = null;
           if (acceptedGeo) {
             activatedSlug = await activatePendingRegistration(client, dog.id, scanId);
             sosEligibleAt = await corroborateSosEligibility(client, dog.id);
           }
-          return { created: true as const, scanId, activatedSlug, sosEligibleAt, streak };
+          return { created: true as const, scanId, activatedSlug, sosEligibleAt, streak, foundAgain, coFeedersTold };
         });
 
         if (result.created && result.scanId && photo && release) {
@@ -496,6 +554,10 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
             { dogSlug: result.activatedSlug, scanId: result.scanId },
             "registration activated by geotagged scan",
           );
+        }
+        if (result.foundAgain) {
+          forgetDog(dog.slug);
+          req.log.info({ dogId: dog.id }, "lost dog seen again: status back to active");
         }
         if (result.sosEligibleAt) {
           req.log.info({ dogId: dog.id }, "sos eligibility corroborated");
@@ -529,6 +591,8 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
             // Only when geo was sent: false means it was outside Mumbai and
             // treated as absent.
             ...(geoAccepted !== undefined ? { geoAccepted } : {}),
+            // Design v6: how many other feeders the unwell push went to.
+            ...(result.coFeedersTold !== undefined ? { coFeedersTold: result.coFeedersTold } : {}),
           },
         };
       } finally {
@@ -536,4 +600,71 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  /**
+   * POST /api/v1/scans/batch { feeds: [...] } (design v6, V11): one tap for a
+   * round, up to 12 feeds. Each item is run through POST /api/v1/scans itself
+   * (in-process), with the caller's own credential, so a batch is EXACTLY a
+   * sequence of single feeds: the same validation, the same INVARIANT 5
+   * idempotency per clientUuid, the same trust, streak and pause rules, and
+   * the same per-subject scan limit, which each item spends like any other
+   * feed (a batch buys no extra budget). No photos in a batch: they stay on
+   * the single-dog screen, and the route keeps the 64 KiB body limit. One
+   * item failing does not fail the others; each result says what happened.
+   */
+  app.post("/api/v1/scans/batch", { onRequest: authenticateScan }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const body = req.body as { feeds?: unknown } | undefined;
+    const feeds = Array.isArray(body?.feeds) ? body.feeds : null;
+    if (!feeds || feeds.length < 1 || feeds.length > 12) {
+      return reply.status(400).send({
+        ok: false,
+        error: { message: "body must be { feeds: [...] } with 1 to 12 feeds", code: "INVALID_SCAN_BATCH" },
+      });
+    }
+    const headers: Record<string, string> = {};
+    if (typeof req.headers.authorization === "string") headers.authorization = req.headers.authorization;
+    if (typeof req.headers["x-device-token"] === "string") headers["x-device-token"] = req.headers["x-device-token"];
+
+    const results: Array<Record<string, unknown>> = [];
+    let streak: unknown;
+    for (const raw of feeds) {
+      const item = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+      const clientUuid = typeof item.clientUuid === "string" ? item.clientUuid : "";
+      const dogSlug = typeof item.dogSlug === "string" ? item.dogSlug : "";
+      if ("photoBase64" in item || ("type" in item && item.type !== "feed")) {
+        results.push({
+          clientUuid,
+          dogSlug,
+          created: false,
+          error: { code: "INVALID_SCAN", message: "a batch holds feeds without photos" },
+        });
+        continue;
+      }
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/scans",
+        headers,
+        payload: { ...item, type: "feed" },
+        remoteAddress: req.ip,
+      });
+      const json = res.json() as { ok: boolean; data?: Record<string, unknown>; error?: { code?: string; message?: string } };
+      if (json.ok && json.data) {
+        if (json.data.streak) streak = json.data.streak;
+        results.push({
+          clientUuid,
+          dogSlug,
+          created: json.data.created === true,
+          ...(json.data.scanId ? { scanId: json.data.scanId } : {}),
+        });
+      } else {
+        results.push({
+          clientUuid,
+          dogSlug,
+          created: false,
+          error: { code: json.error?.code ?? `HTTP_${res.statusCode}`, message: json.error?.message ?? "refused" },
+        });
+      }
+    }
+    return { ok: true, data: { results, ...(streak ? { streak } : {}) } };
+  });
 }

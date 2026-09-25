@@ -1,4 +1,5 @@
-/* Screens 07 / 08, Login (Mobile App mock). Light aurora, no motion. */
+/* Screens 07 / 08, Login (Mobile App mock; v5 audit: no card, a 52px header
+ * with Cancel, no tab bar, no footer). Light aurora, no motion. */
 
 .page {
   min-height: 100dvh;
@@ -14,50 +15,33 @@
   margin: 0;
 }
 
-.top {
-  flex: none;
-  height: 52px;
-  box-sizing: content-box;
-  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
-  display: flex;
-  align-items: center;
-}
-
-.back {
-  appearance: none;
-  border: 0;
-  background: none;
-  margin: 0;
-  padding: 0;
-  min-height: var(--h-target);
-  font-family: var(--h-font);
-  font-size: 17px;
-  color: var(--h-link);
-  cursor: pointer;
-}
-
-.back:focus-visible,
 .resendBtn:focus-visible {
   outline: var(--h-focus);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
-.bodyEmail,
-.bodyCode {
+.body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 72px 24px 16px;
+  gap: 18px;
+  padding: 12px var(--h-gutter) 16px;
 }
 
-.bodyEmail {
-  padding-top: calc(72px + env(safe-area-inset-top, 0px));
+/* V6 sits lower, with no header above it. */
+.bodyLimited {
+  padding-top: calc(120px + env(safe-area-inset-top, 0px));
 }
 
-.bodyCode {
-  padding-top: 20px;
+/* V4: the dogs on a screen that is otherwise just a form. */
+.dogs {
+  display: flex;
+  padding-left: 4px;
+}
+
+.dogs > * + * {
+  margin-left: -10px;
 }
 
 .title {
@@ -66,6 +50,67 @@
   line-height: 1.02;
   font-weight: 700;
   letter-spacing: -0.04em;
+}
+
+.titleCode {
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.titleBreath {
+  font-size: 40px;
+  letter-spacing: -0.035em;
+}
+
+.leadLg {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+}
+
+.ink {
+  color: var(--h-ink);
+  font-weight: inherit;
+}
+
+b.ink {
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.fieldError {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--h-danger);
+}
+
+.fieldError svg {
+  flex: none;
+}
+
+.breath {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .lead {
@@ -81,7 +126,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 .input {
@@ -100,8 +145,17 @@
   outline: none;
 }
 
+.input::placeholder {
+  color: var(--h-tertiary);
+}
+
 .input:focus {
   box-shadow: var(--h-ring-focus);
+}
+
+.inputError,
+.inputError:focus {
+  box-shadow: inset 0 0 0 2px var(--h-danger);
 }
 
 /* --- OTP --------------------------------------------------------------- */
@@ -110,7 +164,7 @@
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 /* One real input over the six painted boxes: autofill, paste and the
@@ -146,6 +200,10 @@
   color: var(--h-ink);
 }
 
+.boxError {
+  box-shadow: inset 0 0 0 2px var(--h-danger);
+}
+
 .boxActive {
   box-shadow: var(--h-ring-focus);
 }
@@ -156,7 +214,11 @@
   background: var(--h-blue);
 }
 
-.otpInput:focus-visible ~ .boxActive {
+.otpInput:focus-visible ~ .boxError {
+  box-shadow: inset 0 0 0 2px var(--h-danger);
+}
+
+.boxActive {
   box-shadow: var(--h-ring-focus);
 }
 

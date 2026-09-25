@@ -279,3 +279,416 @@
   color: var(--h-danger);
   text-align: center;
 }
+
+/* --- N7 No signal (design v5) ------------------------------------------ */
+.offlineBanner {
+  flex: none;
+  margin: calc(8px + env(safe-area-inset-top, 0px)) var(--h-gutter) 0;
+  min-height: 48px;
+  border-radius: 16px;
+  background: var(--h-ink);
+  color: var(--h-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  font-size: 15px;
+}
+
+.offlineAuto {
+  color: var(--h-control-off);
+}
+
+.savedBody {
+  padding-top: 32px;
+}
+
+.savedCheck {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waitList {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 4px 16px;
+}
+
+.waitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--h-divider);
+  font-size: 15px;
+}
+
+.waitRow:last-child {
+  border-bottom: 0;
+}
+
+.waitTag {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-warn);
+}
+
+.sosNote {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.careName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.careCall {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  padding: 0 16px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue-tint);
+  color: var(--h-blue-tint-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.careCall:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* --- V10 has eaten (design v6) ----------------------------------------- */
+.doneBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  padding: calc(96px + env(safe-area-inset-top, 0px)) 28px 16px;
+}
+
+.doneAvatar {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+.doneFace {
+  width: 128px !important;
+  height: 128px !important;
+  font-size: 50px !important;
+  box-shadow: var(--h-sh-avatar);
+}
+
+.doneBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--h-ok);
+  color: var(--h-white);
+  box-shadow: 0 0 0 4px var(--h-mist);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneTitle {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.doneLead {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.streakCard {
+  align-self: stretch;
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.streakNum {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.streakText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.streakLabel {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.streakSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.doneLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.doneLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* --- V11 who did you feed ---------------------------------------------- */
+.roundBody {
+  gap: 18px;
+}
+
+.roundGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.roundDog {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.roundDog:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 16px;
+}
+
+.roundFace {
+  position: relative;
+  border-radius: 50%;
+}
+
+.roundFaceOn {
+  box-shadow: 0 0 0 3px var(--h-mist), 0 0 0 5px var(--h-ink);
+}
+
+.roundAvatar {
+  width: 84px !important;
+  height: 84px !important;
+  font-size: 30px !important;
+}
+
+.roundTick {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: 0 0 0 3px var(--h-mist);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.roundName,
+.roundNameOn,
+.roundScanName {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.roundNameOn {
+  font-weight: 600;
+}
+
+.roundScanName {
+  color: var(--h-link);
+}
+
+.roundScan {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  color: var(--h-link);
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- L2 looks unwell --------------------------------------------------- */
+.unwellCard {
+  margin-top: 12px;
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tellRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tellText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tellTitle {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.tellSub {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--h-secondary);
+}
+
+.switch {
+  appearance: none;
+  border: 0;
+  flex: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: var(--h-control-off);
+  cursor: pointer;
+  /* 31 visible inside a 44 target */
+  margin: 6px 0;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  inset: -7px -2px;
+}
+
+.switchOn {
+  background: var(--h-ok);
+}
+
+.knob {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--h-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.switchOn .knob {
+  left: auto;
+  right: 2px;
+}
+
+.switch:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.noteInput {
+  appearance: none;
+  border: 0;
+  min-height: 44px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-ink);
+  background: var(--h-white);
+}
+
+.noteInput::placeholder {
+  color: var(--h-tertiary);
+}
+
+.noteInput:focus-visible {
+  outline: none;
+  box-shadow: var(--h-ring-focus);
+}
+
+.sosLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-danger);
+  text-decoration: none;
+}
+
+.sosLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

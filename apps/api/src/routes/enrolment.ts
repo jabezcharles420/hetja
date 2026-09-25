@@ -82,7 +82,7 @@ async function requireAdmin(
       .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
     return null;
   }
-  const roleRes = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1`, [feederId]);
+  const roleRes = await query<{ role: string }>(`SELECT role FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [feederId]);
   if ((roleRes.rows[0]?.role ?? null) !== "admin") {
     void reply
       .status(403)

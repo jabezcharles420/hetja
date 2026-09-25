@@ -5,6 +5,9 @@
  *   validate_scan  → marks scan ai_validation/review_status (stub: calls AI)
  *   escalate_sos   → 8-min unacked SOS → tier 2 + notify BMC/vets
  *   send_sos_push  → VAPID-signed Web Push to each fanned-out responder
+ *   send_feeder_push → design v5 non-SOS pushes (tag reports, look-outs,
+ *                    status), honouring each recipient's alerts mode and
+ *                    quiet hours at send time
  *   retention      → raw-photo 7-day TTL + thumbnail rotation
  *   anchor_ledger  → daily ledger head publication, Merkle root and signature
  *                    (INVARIANT 10; see src/sign-anchor.ts for the key config)
@@ -219,6 +222,82 @@ async function sendOnePush(sub: PushSubRow, notificationId: string, payload: str
   }
 }
 
+/**
+ * Quiet hours (design v5, feeders.quiet_start / quiet_end: minutes after
+ * midnight, Asia/Kolkata). A window may wrap midnight (23:00 to 06:00). Equal
+ * ends are refused by the column's CHECK, and read here as "no window".
+ */
+export function inQuietHours(start: number | null, end: number | null, minute: number): boolean {
+  if (start == null || end == null || start === end) return false;
+  return start < end ? minute >= start && minute < end : minute >= start || minute < end;
+}
+
+/** Whole minutes from `minute` until the window's end (1..1440). */
+export function minutesUntilQuietEnd(end: number, minute: number): number {
+  const delta = (end - minute + 1440) % 1440;
+  return delta === 0 ? 1440 : delta;
+}
+
+/** Minutes after midnight in Asia/Kolkata (UTC+5:30, no DST). */
+export function minuteOfDayInKolkata(d: Date): number {
+  return Math.floor(((d.getTime() / 60_000 + 330) % 1440 + 1440) % 1440);
+}
+
+export interface FeederPushRecipient {
+  id: string;
+  alerts_mode: string | null;
+  quiet_start: number | null;
+  quiet_end: number | null;
+}
+
+/**
+ * Who gets a non-SOS push now, who later, and who never. alerts_mode NULL
+ * reads as 'all', the default (F4 promises "Her feeders are told within a
+ * minute."). Only an explicit 'sos_only' (chosen in Settings) receives no
+ * non-SOS push; those alerts are still in the feeder's Alerts list, which is
+ * built from the source rows (routes/feeders.ts), so nothing is lost but the
+ * buzz.
+ * Inside quiet hours the push is HELD, not dropped: `later` maps a delay in
+ * minutes to the recipients whose window ends then.
+ */
+export function partitionFeederPush(
+  rows: readonly FeederPushRecipient[],
+  minute: number,
+): { now: string[]; later: Map<number, string[]> } {
+  const now: string[] = [];
+  const later = new Map<number, string[]>();
+  for (const r of rows) {
+    if (r.alerts_mode === "sos_only") continue;
+    if (inQuietHours(r.quiet_start, r.quiet_end, minute)) {
+      const delay = minutesUntilQuietEnd(r.quiet_end as number, minute);
+      later.set(delay, [...(later.get(delay) ?? []), r.id]);
+    } else {
+      now.push(r.id);
+    }
+  }
+  return { now, later };
+}
+
+/** The SOS push body (send_sos_push). Exported for the test. */
+export function sosPushPayload(
+  caseId: string,
+  row: { severity: string; dog_name: string | null; ward_id: string | null; opened_at: Date } | undefined,
+): string {
+  const severity = row?.severity ?? "serious";
+  return JSON.stringify({
+    title: "Hetja SOS",
+    body: row?.dog_name
+      ? `${row.dog_name} needs help: a ${severity} report near you.`
+      : `A ${severity} report needs a responder nearby.`,
+    caseId,
+    url: `/sos/${caseId}`,
+    severity,
+    dogName: row?.dog_name ?? null,
+    wardId: row?.ward_id ?? null,
+    openedAt: row?.opened_at ? new Date(row.opened_at).toISOString() : null,
+  });
+}
+
 export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   validate_scan: async (p) => {
     // Phase 0 stub: AI worker (apps/ai) performs YOLO validation asynchronously.
@@ -263,15 +342,19 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       // a dog with no recorded position no longer produces a NULL sort key that
       // orders arbitrarily. It is excluded, because paging the wrong clinic is
       // worse than paging none and is indistinguishable from success.
+      // Design v6: a dogless case (P8) has no dog; its point is the case's
+      // own geo (the reporter's, Mumbai only). A dog case still uses the dog.
       const vets = await client.query(
         `SELECT v.id, v.signing_key_pub
-           FROM vets v, dogs d
-          WHERE d.id = $1
-            AND d.last_seen_geo IS NOT NULL
+           FROM vets v,
+                (SELECT COALESCE(d.last_seen_geo, c.geo) AS at
+                   FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id
+                  WHERE c.id = $1) here
+          WHERE here.at IS NOT NULL
             AND v.geo IS NOT NULL
-          ORDER BY v.geo <-> d.last_seen_geo
+          ORDER BY v.geo <-> here.at
           LIMIT 3`,
-        [p.dogId],
+        [p.caseId],
       );
       for (const v of vets.rows) {
         await client.query(
@@ -298,21 +381,37 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
    */
   send_sos_push: async (p) => {
     if (!PUSH_ENABLED) return;
+    // `repage` (design v6, POST /sos/cases/:id/release): the case is open
+    // again, so every paged responder who has not declined is told again,
+    // delivered or not, except the one who released it, anyone who has since
+    // paused alerts, withdrawn consent or deleted the account, and anyone only TOLD
+    // (notify_only, 0028: they cannot take it). Otherwise, as ever,
+    // only the pages not yet delivered.
+    const repage = p?.repage === true;
+    const exclude = typeof p?.exclude === "string" ? p.exclude : null;
     const notifs = await query<{ id: string; feeder_id: string }>(
-      `SELECT id, feeder_id FROM sos_notifications
-        WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
-      [p.caseId],
+      repage
+        ? `SELECT n.id, n.feeder_id FROM sos_notifications n
+             JOIN feeders f ON f.id = n.feeder_id
+            WHERE n.case_id = $1 AND n.channel = 'push' AND n.declined_at IS NULL AND NOT n.notify_only
+              AND ($2::uuid IS NULL OR n.feeder_id <> $2::uuid)
+              AND f.deleted_at IS NULL AND f.sos_opt_in
+              AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())`
+        : `SELECT id, feeder_id FROM sos_notifications
+            WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
+      repage ? [p.caseId, exclude] : [p.caseId],
     );
     if (notifs.rowCount === 0) return;
 
-    const caseRow = await query<{ severity: string }>(`SELECT severity FROM sos_cases WHERE id = $1`, [p.caseId]);
-    const severity = caseRow.rows[0]?.severity ?? "serious";
-    const payload = JSON.stringify({
-      title: "Hetja SOS",
-      body: `A ${severity} report needs a responder nearby.`,
-      caseId: p.caseId,
-      url: `/sos/${p.caseId}`,
-    });
+    // Design v6 (L6): the payload also carries what the alert was about, so
+    // the case page can show it on a first open: the dog's name, the WARD
+    // (never a position) and when it was raised.
+    const caseRow = await query<{ severity: string; dog_name: string | null; ward_id: string | null; opened_at: Date }>(
+      `SELECT c.severity::text AS severity, d.name AS dog_name, COALESCE(c.ward_id, d.ward_id) AS ward_id, c.opened_at
+         FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id WHERE c.id = $1`,
+      [p.caseId],
+    );
+    const payload = sosPushPayload(p.caseId, caseRow.rows[0]);
 
     for (const notif of notifs.rows) {
       const subs = await query<PushSubRow>(
@@ -322,6 +421,50 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       for (const sub of subs.rows) {
         await sendOnePush(sub, notif.id, payload);
       }
+    }
+  },
+
+  /**
+   * Design v5 non-SOS push (lib/dog-feeders.ts enqueueFeederPush): a tag
+   * report, a "look out for" a dog not seen, a status change. The API decides
+   * WHO (feeders of the dog, a ward's feeders); this handler decides WHEN, at
+   * send time, from each recipient's live settings (partitionFeederPush):
+   * alerts mode, then quiet hours. A held push is re-queued as its own job for
+   * the end of the window, so a retry of this one cannot double-send it.
+   * Recipients re-read here, so an account anonymised since enqueue gets
+   * nothing. SOS never comes through here: send_sos_push has no quiet hours.
+   */
+  send_feeder_push: async (p) => {
+    if (!PUSH_ENABLED) return;
+    const ids = (Array.isArray(p?.feederIds) ? p.feederIds : []).filter(
+      (x: unknown): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x),
+    );
+    if (ids.length === 0) return;
+    const rows = await query<FeederPushRecipient>(
+      `SELECT id, alerts_mode, quiet_start, quiet_end FROM feeders
+        WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+      [ids],
+    );
+    const { now, later } = partitionFeederPush(rows.rows, minuteOfDayInKolkata(new Date()));
+    for (const [delay, held] of later) {
+      await query(
+        `INSERT INTO jobs (kind, payload, run_after)
+         VALUES ('send_feeder_push', $1::jsonb, now() + make_interval(mins => $2))`,
+        [JSON.stringify({ ...p, feederIds: held }), delay],
+      );
+    }
+    const payload = JSON.stringify({
+      title: String(p?.title ?? "Hetja"),
+      body: String(p?.body ?? ""),
+      url: String(p?.url ?? "/alerts"),
+      tag: String(p?.tag ?? "hetja"),
+    });
+    for (const feederId of now) {
+      const subs = await query<PushSubRow>(
+        `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE feeder_id = $1`,
+        [feederId],
+      );
+      for (const sub of subs.rows) await sendPush(sub, payload);
     }
   },
 
@@ -826,12 +969,16 @@ export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise
  */
 export const JOB_PRODUCERS: Record<string, string> = {
   validate_scan: "NONE -- see docs/INVARIANTS.md",
-  escalate_sos: "apps/api/src/routes/sos.ts (POST /api/v1/reports)",
-  send_sos_push: "apps/api/src/routes/sos.ts (dispatchFanout enqueues send_sos_push)",
+  escalate_sos:
+    "apps/api/src/routes/sos.ts (POST /api/v1/reports; releaseCase, used by POST /sos/cases/:id/release and DELETE /api/v1/feeders/me)",
+  send_sos_push:
+    "apps/api/src/routes/sos.ts (POST /api/v1/reports after dispatchFanout or notifyOwnFeeders; releaseCase re-pages with repage: true)",
   retention: "apps/worker/src/index.ts (enqueueRetentionJobIfDue via tick)",
   anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
   expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",
   send_registration_reminder: "apps/worker/src/index.ts (expire_stale_registrations handler enqueues send_registration_reminder)",
+  send_feeder_push:
+    "apps/api/src/lib/dog-feeders.ts enqueueFeederPush (routes/tags.ts tag reports, routes/dog-status.ts status reports, routes/scans.ts unwell tellCoFeeders); re-queued by itself for quiet hours",
 };
 
 /** `enqueueRetentionJobIfDue`, throttled, on its own transaction. */

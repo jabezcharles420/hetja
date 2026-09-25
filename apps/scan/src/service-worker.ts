@@ -1,9 +1,9 @@
 import { flushQueue } from "./flush";
 import { recordDroppedFeed } from "./dropped";
 
-// v3: design v4 shell. A new name drops the old shell on activate, so a
-// returning visitor is not served the previous design from cache.
-const CACHE = "scan-shell-v3";
+// v4: design v5 (tag problems, N8); v3 was the design v4 shell. A new name
+// drops the old shell on activate, so a returning visitor is not served the previous design from cache.
+const CACHE = "scan-shell-v4";
 const API_PREFIX = "/api/v1";
 const SYNC_TAG = "log-feed";
 

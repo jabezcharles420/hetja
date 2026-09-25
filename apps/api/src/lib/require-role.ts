@@ -92,8 +92,14 @@ function authenticate(req: FastifyRequest, reply: FastifyReply): string | null {
   }
 }
 
+/**
+ * `deleted_at IS NULL` (design v5): DELETE /api/v1/feeders/me anonymises the
+ * row rather than deleting it, so dogs and feed logs keep their references. An
+ * anonymised account must still read as gone to every capability check, or an
+ * access token minted before the delete would keep working for up to its TTL.
+ */
 async function loadRole(feederId: string): Promise<FeederRole | null> {
-  const res = await query<{ role: FeederRole }>(`SELECT role FROM feeders WHERE id = $1`, [
+  const res = await query<{ role: FeederRole }>(`SELECT role FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [
     feederId,
   ]);
   return res.rows[0]?.role ?? null;

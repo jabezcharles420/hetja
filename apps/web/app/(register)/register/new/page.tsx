@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import NewRegistrationForm from "./NewRegistrationForm";
+import RegisterFlow from "./RegisterFlow";
 
 export const metadata: Metadata = {
   title: "Register a dog · Hetja",
-  description: "File a registration for a street or community dog you look after; get the signed QR to print and attach.",
+  description: "A face photo, the ward, a few details: then the signed collar code to print.",
 };
 
 export default function NewRegisterPage(): React.JSX.Element {
-  return <NewRegistrationForm />;
+  return <RegisterFlow />;
 }

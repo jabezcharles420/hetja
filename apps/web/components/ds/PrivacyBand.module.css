@@ -11,12 +11,9 @@
   gap: 16px;
 }
 
-.label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--h-band-sub);
+.lock {
+  display: flex;
+  color: var(--h-band-ink);
 }
 
 .headline {
@@ -55,8 +52,9 @@
   padding: 140px var(--h-gutter);
   gap: 22px;
 }
-.desktop .label {
-  font-size: 15px;
+.desktop .lock svg {
+  width: 44px;
+  height: 56px;
 }
 .desktop .headline {
   font-size: 96px;
@@ -76,8 +74,9 @@
     padding: 140px var(--h-gutter);
     gap: 22px;
   }
-  .responsive .label {
-    font-size: 15px;
+  .responsive .lock svg {
+    width: 44px;
+    height: 56px;
   }
   .responsive .headline {
     font-size: 96px;

@@ -60,7 +60,7 @@ describe("home page (Pages 01 + Landing 18)", () => {
     render(await LandingPage());
     expect(screen.getByRole("link", { name: "Scan a collar" }).getAttribute("href")).toBe("/scan");
     expect(screen.getByRole("link", { name: /Or type a collar code/ }).getAttribute("href")).toBe(
-      "/scan#code",
+      "/scan/code",
     );
     expect(screen.getByRole("link", { name: /Become a feeder/ }).getAttribute("href")).toBe("/login");
   });

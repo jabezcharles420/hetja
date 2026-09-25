@@ -33,8 +33,10 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 20px;
-  padding-block: calc(var(--page-top, 0px) + 40px) 36px;
+  /* v5 audit: one spacing scale. Related items 16 apart, 40 of real top
+   * padding below the header so the chip is never clipped under it. */
+  gap: 16px;
+  padding-block: calc(var(--page-top, 0px) + 40px) 40px;
 }
 
 .badge {
@@ -81,7 +83,7 @@
 .avatarRow {
   display: flex;
   justify-content: center;
-  margin: 6px 0 2px;
+  margin: 8px 0;
 }
 
 .avatar + .avatar {
@@ -93,12 +95,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* The link's 44px target is centred on the mock's 17px text line. */
 .textLink {
-  margin-block: -16px -12px;
+  margin-block: -12px -12px;
 }
 
 /* Pages 01 phone: 270 wide + 16px padding a side (the mock is content-box,

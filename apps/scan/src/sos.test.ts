@@ -50,7 +50,7 @@ describe("readReport", () => {
 
   it("429 without nearbyCare: capped, no rows (the page falls back to a location lookup)", () => {
     const r = readReport(429, { ok: false, error: { code: "RATE_LIMITED" } });
-    expect(r).toEqual({ ok: false, rateLimited: true, care: [] });
+    expect(r).toEqual({ ok: false, rateLimited: true, care: [], code: "RATE_LIMITED" });
   });
 
   it("other failures carry no rows and are not rate-limited", () => {

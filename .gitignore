@@ -38,3 +38,9 @@ blob-report/
 # `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 apps/ai/.venv/
 apps/ai/__pycache__/
+
+# Care-directory agent scratch: JSONL checkpoints, per-batch files, prompts and
+# run logs. The generated <YYYY-MM>-mumbai.csv and its report under
+# packages/db/data/care/ are deliverables and stay tracked; only the working
+# directory is ignored. See docs/CARE-ENRICH-AGENT.md.
+packages/db/data/care/.work/

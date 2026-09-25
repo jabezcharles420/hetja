@@ -1,0 +1,378 @@
+/* P1 to P4: one registration. */
+
+.back {
+  align-self: flex-start;
+  margin-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---- P1 tracker ---------------------------------------------------------- */
+.tracker {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 8px 20px;
+}
+
+.step {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.step + .step {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.stepMark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.done {
+  background: var(--h-ok);
+}
+
+.current {
+  box-shadow: inset 0 0 0 2px var(--h-ink);
+  color: var(--h-ink);
+}
+
+.next {
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  color: var(--h-secondary);
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.stepTitle {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.stepDone {
+  color: var(--h-secondary);
+}
+
+.stepSub {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.locNote {
+  display: flex;
+  gap: 12px;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.locNote svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.typeCard {
+  background: var(--h-white);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---- P2 scanner ---------------------------------------------------------- */
+.scanPage {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-camera);
+  color: var(--h-white);
+}
+
+.scanVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.scanVideo[data-live] {
+  opacity: 0.85;
+}
+
+.scanTop {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--h-gutter) 12px;
+  font-size: 17px;
+}
+
+.scanCancel {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--h-white);
+  min-height: var(--h-target);
+  cursor: pointer;
+}
+
+.scanCancel:focus-visible,
+.scanNoteLink:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.scanWhat {
+  color: var(--h-control-off);
+}
+
+.frameWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding-top: 40px;
+}
+
+.frame {
+  width: 220px;
+  height: 220px;
+  position: relative;
+}
+
+.frame[data-dim] {
+  opacity: 0.5;
+}
+
+.frame span {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 0 solid var(--h-white);
+}
+
+.frame span:nth-child(1) {
+  left: 0;
+  top: 0;
+  border-left-width: 5px;
+  border-top-width: 5px;
+  border-top-left-radius: 22px;
+}
+
+.frame span:nth-child(2) {
+  right: 0;
+  top: 0;
+  border-right-width: 5px;
+  border-top-width: 5px;
+  border-top-right-radius: 22px;
+}
+
+.frame span:nth-child(3) {
+  left: 0;
+  bottom: 0;
+  border-left-width: 5px;
+  border-bottom-width: 5px;
+  border-bottom-left-radius: 22px;
+}
+
+.frame span:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-right-width: 5px;
+  border-bottom-width: 5px;
+  border-bottom-right-radius: 22px;
+}
+
+.scanNote {
+  margin: 0 var(--h-gutter);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 15px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.scanNoteLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--h-white);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  flex: none;
+  background: var(--h-white);
+  color: var(--h-ink);
+  border-radius: 32px 32px 0 0;
+  padding: 24px var(--h-gutter) calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sheetHead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.warnIcon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sheetTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.sheetText {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.codes {
+  background: var(--h-mist);
+  border-radius: 20px;
+  padding: 4px 16px;
+}
+
+.codeRow {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.codeRow + .codeRow {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.codeText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.codeLabel {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.codeValue {
+  font-family: var(--h-mono);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+}
+
+.codeName {
+  font-size: 14px;
+  color: var(--h-text-mid);
+}
+
+.codeStrong {
+  font-weight: 600;
+  color: var(--h-ink);
+}
+
+.sheetActions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- P3 live ------------------------------------------------------------- */
+.liveBody {
+  gap: 18px;
+  padding-top: calc(56px + env(safe-area-inset-top, 0px));
+}
+
+.bigTick {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--h-ok);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.liveCard {
+  background: var(--h-white);
+  border-radius: 28px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+.liveHead {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.liveName {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.liveCode {
+  font-family: var(--h-mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  display: flex;
+  gap: 14px;
+}
+
+/* ---- P4 ------------------------------------------------------------------ */
+.invite {
+  font-size: 17px;
+  min-height: var(--h-target);
+}

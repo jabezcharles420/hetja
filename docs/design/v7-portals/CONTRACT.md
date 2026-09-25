@@ -68,7 +68,7 @@ for vet and NGO.
   rescue, collars, volunteer; vets linked to the NGO. Paused NGO: no new SOS
   routing. Removed: vets unlinked, verification kept.
 
-## Data (migration `0028_v7_portals.sql`, additive)
+## Data (migration `0029_v7_portals.sql`, additive)
 
 - `admin_roles` (feeder_id, role, wards[], granted_by, granted_at,
   revoked_at) and `audit_log` (append-only; actor, action, subject type and
@@ -150,7 +150,7 @@ for vet and NGO.
 
 | Area | Builder |
 |---|---|
-| Migration 0028, API, worker, care import extension, owner bootstrap | api |
+| Migration 0029, API, worker, care import extension, owner bootstrap | api |
 | Admin portal (`apps/web/app/admin/**`, desktop) | admin |
 | Vet portal (`apps/web/app/vet/**`, the Vet tab, V2b, V3 signing with passkeys, V5, the certificate PDF) | vet (the care builder, who built N3) |
 | NGO portal (`apps/web/app/ngo/**`, the NGO tab, N1 to N5) | ngo (the register builder) |

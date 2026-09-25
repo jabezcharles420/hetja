@@ -200,6 +200,7 @@ afterEach(async () => {
     await query(`DELETE FROM tag_prints WHERE dog_id = $1`, [id]);
     await query(`DELETE FROM dog_status_reports WHERE dog_id = $1`, [id]);
     await query(`DELETE FROM sos_notifications WHERE case_id IN (SELECT id FROM sos_cases WHERE dog_id = $1)`, [id]);
+    await query(`DELETE FROM sos_case_events WHERE case_id IN (SELECT id FROM sos_cases WHERE dog_id = $1)`, [id]);
     await query(`DELETE FROM sos_cases WHERE dog_id = $1`, [id]);
     await query(`DELETE FROM trust_events WHERE ref_scan_id IN (SELECT id FROM scans WHERE dog_id = $1)`, [id]);
     await query(`DELETE FROM scans WHERE dog_id = $1`, [id]);

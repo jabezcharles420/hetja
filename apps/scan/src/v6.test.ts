@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DogProfile } from "./api.js";
 import { firstAid } from "./firstaid.js";
 import { careRow, clock, dayWord, doneCopy, feederLine, helpCap, nameList, pronouns, sentCopy, sosSeeCap, sosText } from "./format.js";
-import { readReport, readStatus } from "./sos.js";
+import { byConfirmed, careBlock, readReport, readStatus } from "./sos.js";
 import { buildProfile, deskMarkup, unknownMarkup } from "./ui.js";
 
 const NOW = Date.parse("2026-09-25T14:00:00Z");
@@ -121,7 +121,36 @@ describe("SOS copy", () => {
     const base = { phone: "+912226300000", phoneVerified: true, hasAmbulance: false };
     expect(careRow({ ...base, kind: "private_clinic", is24x7: true, distanceKm: 0.9 })).toEqual({ meta: "Vet · open now, 24 hours · 900 m", closed: false });
     expect(careRow({ ...base, kind: "ngo", is24x7: false, hoursNote: "open till 7 pm", distanceKm: 2.1 }).meta).toBe("NGO · open till 7 pm · 2.1 km");
-    expect(careRow({ ...base, kind: "govt", is24x7: false, openNow: false, opensNote: "opens 10 am" })).toEqual({ meta: "Closed now · opens 10 am", closed: true });
+    expect(careRow({ ...base, kind: "govt", is24x7: false, openNow: false, opensNote: "opens 10 am" })).toEqual({
+      meta: "Government vet · free · Closed now · opens 10 am",
+      closed: true,
+    });
+    // 24 x 7 is never "closed now", whatever else the row says.
+    expect(careRow({ ...base, kind: "private_clinic", is24x7: true, openNow: false }).closed).toBe(false);
+  });
+
+  it("government and free places say they are free", () => {
+    const base = { phone: "+912226300000", phoneVerified: true, hasAmbulance: false, is24x7: false };
+    expect(careRow({ ...base, kind: "govt", name: "BMC Vet Dispensary" }).meta).toBe("Government vet · free");
+    expect(careRow({ ...base, kind: "govt", name: "Bai Sakarbai Dinshaw Petit Hospital" }).meta).toBe("Government hospital · free");
+    expect(careRow({ ...base, kind: "ngo", costTier: "free", hoursNote: "open till 7 pm" }).meta).toBe("NGO · free · open till 7 pm");
+    expect(careRow({ ...base, kind: "private_clinic", costTier: "paid" }).meta).toBe("Vet");
+  });
+
+  it("never hides a number: unconfirmed ones keep Call, after the confirmed ones", () => {
+    const list = [
+      { name: "Unconfirmed Clinic", kind: "private_clinic", phone: "+912226300003", phoneVerified: false, hasAmbulance: false, is24x7: false },
+      { name: "No Phone Trust", kind: "ngo", phoneVerified: false, hasAmbulance: false, is24x7: false },
+      { name: "Lokhandwala Pet Hospital", kind: "private_clinic", phone: "+912226300000", phoneVerified: true, hasAmbulance: false, is24x7: true },
+    ];
+    expect(byConfirmed(list).map((p) => p.name)).toEqual(["Lokhandwala Pet Hospital", "Unconfirmed Clinic"]);
+    const html = careBlock(list);
+    expect(html.indexOf("Lokhandwala")).toBeLessThan(html.indexOf("Unconfirmed Clinic"));
+    expect(html).toContain('<p class="row-n">Number not confirmed yet</p>');
+    expect(html).toContain('href="tel:+912226300003"');
+    expect(html).not.toContain("No Phone Trust");
+    // Every provider unconfirmed (today's data): still something to call.
+    expect(careBlock([list[0]!])).toContain("Call Unconfirmed Clinic");
   });
 
   it("N10 first aid, the mock's three lines", () => {

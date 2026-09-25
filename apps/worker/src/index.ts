@@ -383,15 +383,20 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     if (!PUSH_ENABLED) return;
     // `repage` (design v6, POST /sos/cases/:id/release): the case is open
     // again, so every paged responder who has not declined is told again,
-    // delivered or not, except the one who released it. Otherwise, as ever,
+    // delivered or not, except the one who released it, anyone who has since
+    // paused alerts, withdrawn consent or deleted the account, and anyone only TOLD
+    // (notify_only, 0028: they cannot take it). Otherwise, as ever,
     // only the pages not yet delivered.
     const repage = p?.repage === true;
     const exclude = typeof p?.exclude === "string" ? p.exclude : null;
     const notifs = await query<{ id: string; feeder_id: string }>(
       repage
-        ? `SELECT id, feeder_id FROM sos_notifications
-            WHERE case_id = $1 AND channel = 'push' AND feeder_id IS NOT NULL AND declined_at IS NULL
-              AND ($2::uuid IS NULL OR feeder_id <> $2::uuid)`
+        ? `SELECT n.id, n.feeder_id FROM sos_notifications n
+             JOIN feeders f ON f.id = n.feeder_id
+            WHERE n.case_id = $1 AND n.channel = 'push' AND n.declined_at IS NULL AND NOT n.notify_only
+              AND ($2::uuid IS NULL OR n.feeder_id <> $2::uuid)
+              AND f.deleted_at IS NULL AND f.sos_opt_in
+              AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())`
         : `SELECT id, feeder_id FROM sos_notifications
             WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
       repage ? [p.caseId, exclude] : [p.caseId],
@@ -964,14 +969,16 @@ export async function enqueueRegistrationSweepIfDue(client: PoolClient): Promise
  */
 export const JOB_PRODUCERS: Record<string, string> = {
   validate_scan: "NONE -- see docs/INVARIANTS.md",
-  escalate_sos: "apps/api/src/routes/sos.ts (POST /api/v1/reports)",
-  send_sos_push: "apps/api/src/routes/sos.ts (dispatchFanout enqueues send_sos_push; POST /sos/cases/:id/release re-pages with repage: true)",
+  escalate_sos:
+    "apps/api/src/routes/sos.ts (POST /api/v1/reports; releaseCase, used by POST /sos/cases/:id/release and DELETE /api/v1/feeders/me)",
+  send_sos_push:
+    "apps/api/src/routes/sos.ts (POST /api/v1/reports after dispatchFanout or notifyOwnFeeders; releaseCase re-pages with repage: true)",
   retention: "apps/worker/src/index.ts (enqueueRetentionJobIfDue via tick)",
   anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
   expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",
   send_registration_reminder: "apps/worker/src/index.ts (expire_stale_registrations handler enqueues send_registration_reminder)",
   send_feeder_push:
-    "apps/api/src/lib/dog-feeders.ts enqueueFeederPush (routes/tags.ts tag reports, routes/dog-status.ts status reports); re-queued by itself for quiet hours",
+    "apps/api/src/lib/dog-feeders.ts enqueueFeederPush (routes/tags.ts tag reports, routes/dog-status.ts status reports, routes/scans.ts unwell tellCoFeeders); re-queued by itself for quiet hours",
 };
 
 /** `enqueueRetentionJobIfDue`, throttled, on its own transaction. */

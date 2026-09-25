@@ -397,6 +397,8 @@ interface Viewer {
   trustScore: number;
   /** Design v5: feeders.wards; the ward rule in lib/sos-eligibility.ts. */
   wards: string[];
+  /** Design v6: a paused feeder has no standing (lib/sos-eligibility.ts). */
+  pausedUntil: Date | null;
 }
 
 /**
@@ -413,17 +415,25 @@ async function optionalViewer(req: FastifyRequest): Promise<Viewer | null> {
   } catch {
     return null;
   }
-  const res = await query<{ sos_opt_in: boolean; trust_score: number; wards: string[] }>(
-    `SELECT sos_opt_in, trust_score, wards FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
+  const res = await query<{ sos_opt_in: boolean; trust_score: number; wards: string[]; sos_paused_until: Date | null }>(
+    `SELECT sos_opt_in, trust_score, wards, sos_paused_until FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
     [feederId],
   );
   const row = res.rows[0];
-  return row ? { feederId, sosOptIn: row.sos_opt_in, trustScore: row.trust_score, wards: row.wards ?? [] } : null;
+  return row
+    ? {
+        feederId,
+        sosOptIn: row.sos_opt_in,
+        trustScore: row.trust_score,
+        wards: row.wards ?? [],
+        pausedUntil: row.sos_paused_until,
+      }
+    : null;
 }
 
 /** The shared responder rule (lib/sos-eligibility.ts), re-exported for existing callers. */
 export function canRespond(
-  viewer: (Pick<Viewer, "sosOptIn" | "trustScore"> & { wards?: string[] }) | null,
+  viewer: (Pick<Viewer, "sosOptIn" | "trustScore"> & { wards?: string[]; pausedUntil?: Date | null }) | null,
   severity: Severity,
   wardId?: string | null,
 ): boolean {

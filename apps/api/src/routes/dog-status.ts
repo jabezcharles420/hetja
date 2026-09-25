@@ -479,13 +479,27 @@ export default async function dogStatusRoutes(app: FastifyInstance): Promise<voi
 
     const result = await withTx(async (client) => {
       await client.query(`SELECT pg_advisory_xact_lock($1, hashtext($2))`, [STATUS_LOCK_KEY, dog.id]);
-      const r = await client.query<{ reported_by: string | null; confirmed_at: Date | null; kind: string }>(
-        `SELECT reported_by, confirmed_at, kind FROM dog_status_reports WHERE id = $1 AND dog_id = $2`,
-        [id, dog.id],
+      const r = await client.query<{
+        reported_by: string | null;
+        confirmed_at: Date | null;
+        kind: string;
+        lapsed: boolean;
+        dog_status: string;
+      }>(
+        `SELECT r.reported_by, r.confirmed_at, r.kind,
+                r.created_at < now() - make_interval(days => $3) AS lapsed,
+                (SELECT status::text FROM dogs WHERE id = r.dog_id) AS dog_status
+           FROM dog_status_reports r WHERE r.id = $1 AND r.dog_id = $2`,
+        [id, dog.id, PENDING_DAYS],
       );
       const row = r.rows[0];
       if (!row || row.kind !== "passed_away") return "not_found" as const;
       if (row.confirmed_at) return "done" as const;
+      // A pending report lapses after PENDING_DAYS (it no longer shows in the
+      // GET either), and a dog that is no longer active or lost (adopted,
+      // already deceased) cannot be confirmed dead by it.
+      if (row.lapsed) return "lapsed" as const;
+      if (!["active", "lost"].includes(row.dog_status)) return "final" as const;
       if (row.reported_by === auth.feederId) return "same" as const;
       await client.query(`UPDATE dog_status_reports SET confirmed_by = $2, confirmed_at = now() WHERE id = $1`, [
         id,
@@ -496,6 +510,15 @@ export default async function dogStatusRoutes(app: FastifyInstance): Promise<voi
     });
     if (result === "not_found") {
       return reply.status(404).send({ ok: false, error: { message: "report not found", code: "REPORT_NOT_FOUND" } });
+    }
+    if (result === "lapsed") {
+      return reply.status(410).send({
+        ok: false,
+        error: { message: "this report lapsed; file a new one if it is still true", code: "REPORT_LAPSED" },
+      });
+    }
+    if (result === "final") {
+      return reply.status(409).send({ ok: false, error: { message: "the dog's status has changed", code: "DOG_STATUS_FINAL" } });
     }
     if (result === "same") {
       return reply.status(403).send({

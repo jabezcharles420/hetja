@@ -191,9 +191,12 @@ export const GLOBAL_SUBJECT = "global";
 //
 // Every limiter below is keyed on an ACCOUNT (`acct:<feederId>`) or an
 // attested DEVICE (`dev:<deviceId>`, the canonical subject from
-// lib/device.ts deviceTokenSubject), never on an IP (INVARIANT 6). The one
-// IP-keyed limiter in this file is `deviceMintPerIp`, and its comment says why
-// it is the exception. Use `subjectKey()` so the prefixing is uniform.
+// lib/device.ts deviceTokenSubject), never on an IP (INVARIANT 6). The
+// IP-keyed limiters in this file are the documented exceptions, each recorded
+// in docs/INVARIANTS.md #6: `deviceMintPerIp` (hardening batch 1), and since
+// design v5/v6 the no-credential fallbacks of `lookupPerSubject` and
+// `wardDogsPerSubject`, `tagReportPerIp` and `doglessReportPerIp`. Use
+// `subjectKey()` so the prefixing is uniform.
 // ---------------------------------------------------------------------------
 
 /** The rate-limit key for an account or a device. */
@@ -240,7 +243,8 @@ export const sosAckPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, bur
 /**
  * Device-token mints, per client IP: burst 10, then 10 an hour.
  *
- * THE ONE IP-KEYED LIMIT IN THIS API, and a documented exception to
+ * THE FIRST IP-KEYED LIMIT IN THIS API (hardening batch 1; the design v5/v6
+ * ones are listed in the section header above), and a documented exception to
  * INVARIANT 6 (docs/INVARIANTS.md #6). There is no account or device to key
  * on here: minting the device token is the step that creates the device
  * subject every other limit uses. Without this, the single global bucket
@@ -271,9 +275,10 @@ export const deviceMintPerIp = new RateLimiter({ refillPerSec: 10 / 3600, burst:
 // first. The anonymous READS below (lookup, ward dogs) are called by pages
 // that hold no credential at all (apps/web sends them with auth: false), so
 // when no valid device token accompanies the request they fall back to the
-// client address, IPv4 as is and IPv6 by its /64 (ipBucketKey). Those are the
-// second and third IP-keyed limits in this API, recorded in docs/INVARIANTS.md
-// #6 as that entry requires. Each is paired with a single global bucket, which
+// client address, IPv4 as is and IPv6 by its /64 (ipBucketKey). Those, with
+// tagReportPerIp and doglessReportPerIp below, are the IP-keyed limits added
+// after deviceMintPerIp, all recorded in docs/INVARIANTS.md #6 as that entry
+// requires. Each is paired with a single global bucket, which
 // is what actually bounds enumeration of the register through these reads.
 // ---------------------------------------------------------------------------
 
@@ -314,8 +319,9 @@ export const tagReportPerIp = new RateLimiter({ refillPerSec: 20 / 3600, burst: 
 export const tagReportPerDog = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 10 });
 
 /**
- * Signed-in v5 writes (confirm, checkups, status reports, resolve, prints,
- * collars, decline), per account: burst 20, then one a minute.
+ * Signed-in v5/v6 writes (confirm, checkups, status reports, tag resolve,
+ * prints, collars, SOS decline, release, arrived, close-by), per account:
+ * burst 20, then one a minute.
  */
 export const feederWritePerAccount = new RateLimiter({ refillPerSec: 1 / 60, burst: 20 });
 

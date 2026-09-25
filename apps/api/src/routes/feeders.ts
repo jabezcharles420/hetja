@@ -48,6 +48,7 @@ import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
 import { FORMER_FEEDER_NAME, publicName } from "../lib/public-name.js";
 import { exportPerAccount, logRateLimited } from "../lib/rate-limit.js";
 import { forgetAllDogs } from "./dogs.js";
+import { releaseCase } from "./sos.js";
 
 interface MyDogRow {
   id: string;
@@ -389,20 +390,21 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
     interface Row {
       id: string;
       at: Date;
-      slug: string;
+      slug: string | null;
       name: string | null;
-      ward_id: string;
+      ward_id: string | null;
       actor: string | null;
       actor_deleted: Date | null;
       detail: string | null;
     }
     const [sos, tags, verified, fed, notSeen, status] = await Promise.all([
       query<Row>(
-        `SELECT c.id::text AS id, n.sent_at AS at, d.slug, d.name, d.ward_id,
+        // LEFT JOIN: a dogless SOS (design v6) has a ward and no dog.
+        `SELECT c.id::text AS id, n.sent_at AS at, d.slug, d.name, COALESCE(c.ward_id, d.ward_id) AS ward_id,
                 NULL::text AS actor, NULL::timestamptz AS actor_deleted, c.severity::text AS detail
            FROM sos_notifications n
            JOIN sos_cases c ON c.id = n.case_id
-           JOIN dogs d ON d.id = c.dog_id
+           LEFT JOIN dogs d ON d.id = c.dog_id
           WHERE n.feeder_id = $1 AND n.channel = 'push' AND n.sent_at >= ${since}
           ORDER BY n.sent_at DESC LIMIT 50`,
         [me],
@@ -481,8 +483,8 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
         id: `${kind}:${r.id}`,
         kind,
         at: new Date(r.at).toISOString(),
-        dog: { slug: r.slug, name: r.name ?? null },
-        wardCode: wardDisplay(r.ward_id).code,
+        dog: r.slug ? { slug: r.slug, name: r.name ?? null } : null,
+        wardCode: r.ward_id ? wardDisplay(r.ward_id).code : null,
         actorName: publicName(r.actor, r.actor_deleted),
         detail: r.detail || null,
         href: href(r),
@@ -574,8 +576,9 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
           [me],
         ),
         query(
-          `SELECT d.slug, c.severity, c.state, c.note, c.opened_at, c.resolved_at
-             FROM sos_cases c JOIN scans s ON s.id = c.scan_id JOIN dogs d ON d.id = c.dog_id
+          `SELECT d.slug, COALESCE(c.ward_id, d.ward_id) AS ward_id, c.severity, c.state, c.note, c.outcome,
+                  c.opened_at, c.resolved_at
+             FROM sos_cases c JOIN scans s ON s.id = c.scan_id LEFT JOIN dogs d ON d.id = c.dog_id
             WHERE s.scan_type = 'sos' AND s.feeder_id = $1 ORDER BY c.opened_at DESC`,
           [me],
         ),
@@ -629,8 +632,10 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
    *   identity deleted, deleted_at stamped (every auth check: FEEDER_GONE)
    *
    * An SOS case the person had acknowledged and not resolved is RELEASED back
-   * to 'open' with escalation re-queued now: otherwise their claim would keep
-   * stopping the case's escalation after the only person holding it had left.
+   * to 'open' through the same path as "I can't make it after all"
+   * (releaseCase: event, re-page, escalation on the original clock, now if it
+   * is past): otherwise their claim would keep stopping the case's escalation
+   * after the only person holding it had left.
    *
    * 200 { deleted: true }, not 204: the web client parses every response.
    */
@@ -665,17 +670,16 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
       }
       await client.query(`DELETE FROM push_subscriptions WHERE feeder_id = $1`, [me]);
       await client.query(`DELETE FROM refresh_tokens WHERE feeder_id = $1`, [me]);
-      const cases = await client.query<{ id: string; dog_id: string }>(
-        `UPDATE sos_cases SET acked_by = NULL, acked_at = NULL, state = 'open'
-          WHERE acked_by = $1 AND resolved_at IS NULL AND state = 'acked'
-          RETURNING id, dog_id`,
+      // The same release path as POST /sos/cases/:id/release (routes/sos.ts
+      // releaseCase): a 'released' event on the timeline, the other paged
+      // responders paged again, escalation on the case's original clock.
+      const cases = await client.query<{ id: string }>(
+        `SELECT id FROM sos_cases
+          WHERE acked_by = $1 AND resolved_at IS NULL AND state IN ('acked', 'escalated')
+          FOR UPDATE`,
         [me],
       );
-      for (const c of cases.rows) {
-        await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('escalate_sos', $1::jsonb, now())`, [
-          JSON.stringify({ caseId: c.id, dogId: c.dog_id }),
-        ]);
-      }
+      for (const c of cases.rows) await releaseCase(client, c.id, me);
       return cases.rowCount ?? 0;
     });
 

@@ -4,9 +4,11 @@
  * POST /api/v1/reports:         anon-attested (device token, INVARIANT 7 caps)
  *                                OR feeder-authed (Bearer access token). Opens a
  *                                sos_case at tier 1. Severity routing:
- *                                minor/serious wait for validation before fan-out
- *                                (validation pipeline is out of Phase-0 scope, so
- *                                no responders are notified at report time);
+ *                                every severity TELLS the dog's own feeders at
+ *                                filing (notifyOwnFeeders; below the trust floor
+ *                                as notify_only, never a ground to take it);
+ *                                minor/serious page nobody else (dogless: the
+ *                                ward's feeders at the floor);
  *                                critical fans out immediately via the canonical
  *                                query in docs/queries/sos_fanout.sql, but ONLY
  *                                when dogs.sos_eligible_at IS NOT NULL (wave 7:
@@ -318,6 +320,61 @@ async function dispatchFanout(
   return true;
 }
 
+/**
+ * The dog's OWN feeders, told about every SOS on their dog (pre-deploy
+ * review): the registrator and anyone with a non-rejected feed in the last 60
+ * days, opted in, not paused, live account, WHATEVER their trust. Quiet hours
+ * never apply to SOS. Those at the severity's trust floor get an ordinary
+ * responder page (a ground to take the case); those below it get a
+ * notify_only row (migration 0028): a push and an Alerts entry, counted as
+ * told, and NOT a ground to take the case, so it cannot stop escalation.
+ *
+ * A dogless case has no own feeders; for minor/serious it pages the feeders
+ * who chose its ward, at the floor, as responders (critical dogless cases go
+ * through dispatchFanout's ward branch instead). Rows already written by the
+ * responder fan-out are left as they are (ON CONFLICT DO NOTHING).
+ */
+async function notifyOwnFeeders(
+  client: TxClient,
+  caseId: string,
+  dogId: string | null,
+  wardId: string | null,
+  severity: SosSeverity,
+): Promise<{ responders: number; told: number }> {
+  const floor = TRUST_FLOOR[severity];
+  const res = await client.query<{ id: string; trust_score: number }>(
+    `SELECT f.id, f.trust_score FROM feeders f
+      WHERE f.sos_opt_in AND f.deleted_at IS NULL
+        AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())
+        AND (($1::uuid IS NOT NULL
+              AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1::uuid)
+                   OR EXISTS (SELECT 1 FROM scans s
+                               WHERE s.dog_id = $1::uuid AND s.feeder_id = f.id AND s.scan_type = 'feed'
+                                 AND s.review_status <> 'rejected'
+                                 AND s.received_at >= now() - interval '60 days')))
+             OR ($1::uuid IS NULL AND $2::text IS NOT NULL AND f.wards @> ARRAY[$2::text]
+                 AND f.trust_score >= $3))
+      ORDER BY f.trust_score DESC
+      LIMIT 30`,
+    [dogId, wardId, floor],
+  );
+  let responders = 0;
+  let told = 0;
+  for (const row of res.rows) {
+    const notifyOnly = row.trust_score < floor;
+    const ins = await client.query(
+      `INSERT INTO sos_notifications (case_id, feeder_id, channel, notify_only)
+       VALUES ($1, $2, 'push', $3) ON CONFLICT DO NOTHING`,
+      [caseId, row.id, notifyOnly],
+    );
+    if ((ins.rowCount ?? 0) === 1) {
+      told++;
+      if (!notifyOnly) responders++;
+    }
+  }
+  return { responders, told };
+}
+
 async function persistReportPhoto(
   app: FastifyInstance,
   scanId: string,
@@ -352,6 +409,53 @@ async function nearbyCareForSlug(dogSlug: string): Promise<NearbyCareProvider[] 
   const dogGeo = dogGeoRes.rows[0];
   if (dogGeo?.lat == null || dogGeo?.lng == null) return null;
   return getNearbyCare(dogGeo.lat, dogGeo.lng);
+}
+
+/**
+ * Release a held case back to 'open' (design v6). ONE path, used by
+ * POST /sos/cases/:id/release ("I can't make it after all") and by
+ * DELETE /api/v1/feeders/me for every case the leaving account held, so a
+ * deleted account's cases get the same 'released' event, re-page and
+ * escalation handling. The caller holds the case row lock and has checked
+ * that `feederId` is the acker and the case is not resolved.
+ */
+export async function releaseCase(client: TxClient, id: string, feederId: string): Promise<void> {
+  await client.query(
+    `UPDATE sos_cases
+        SET acked_by = NULL, acked_at = NULL, state = 'open', close_by_at = NULL, arrived_at = NULL
+      WHERE id = $1`,
+    [id],
+  );
+  await client.query(`UPDATE sos_notifications SET acked_at = NULL WHERE case_id = $1 AND feeder_id = $2`, [
+    id,
+    feederId,
+  ]);
+  await client.query(`INSERT INTO sos_case_events (case_id, kind, feeder_id) VALUES ($1, 'released', $2)`, [
+    id,
+    feederId,
+  ]);
+  // Escalation, on the ORIGINAL clock. If the job is still queued it
+  // stands as it is; if it already ran while the case was held (and did
+  // nothing, the case being acked), it is queued again for the original
+  // due time, or now if that is past.
+  await client.query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT 'escalate_sos', jsonb_build_object('caseId', c.id, 'dogId', c.dog_id),
+            GREATEST(now(), c.opened_at + interval '8 minutes')
+       FROM sos_cases c
+      WHERE c.id = $1 AND c.escalated_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM jobs j
+                         WHERE j.kind = 'escalate_sos' AND j.failed_at IS NULL
+                           AND j.payload->>'caseId' = c.id::text)`,
+    [id],
+  );
+  await client.query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT 'send_sos_push', $2::jsonb, now()
+      WHERE EXISTS (SELECT 1 FROM sos_notifications
+                     WHERE case_id = $1 AND channel = 'push' AND feeder_id IS NOT NULL AND feeder_id <> $3)`,
+    [id, JSON.stringify({ caseId: id, repage: true, exclude: feederId }), feederId],
+  );
 }
 
 export default async function sosRoutes(app: FastifyInstance): Promise<void> {
@@ -727,37 +831,59 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         //                 escalation at now(). Vets and BMC are notified
         //                 immediately rather than after a timer whose only job
         //                 was to wait for a responder who was never paged.
-        //   minor/serious → unchanged: tier 1, no paging at report time
-        //                 (validation pipeline out of scope), escalation after
-        //                 8 minutes. `fanout` is "escalated" because the
-        //                 escalation channel is what will notify anyone.
+        //   minor/serious → tier 1; the dog's own feeders are paged at filing
+        //                 (notifyOwnFeeders, below; before the v6 pre-deploy
+        //                 review nobody was), escalation after 8 minutes.
+        //                 `fanout` is "responders" when anyone was paged, else
+        //                 "escalated".
         //
         let tier = 1;
         let fanout: FanoutDisposition = "escalated";
         let escalateNow = false;
+        let anyTold = false;
         if (severity === "critical") {
           if (dog.sos_eligible_at != null) {
-            const notified = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity, dog.ward_id);
-            tier = notified ? 1 : 2;
+            const paged = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity, dog.ward_id);
+            // The dog's own feeders too (a dogless case's ward is already in
+            // the fan-out's ward branch). Own feeders at the floor count as
+            // responders; below it they are told only and do not hold off
+            // escalation.
+            const own = dog.dogless ? { responders: 0, told: 0 } : await notifyOwnFeeders(client, caseId, dog.id, null, severity);
+            const responders = paged || own.responders > 0;
+            anyTold = paged || own.told > 0;
+            tier = responders ? 1 : 2;
             fanout = "responders";
-            escalateNow = !notified;
-            if (notified) {
-              // Web Push (plan §3.4): hand delivery off to the worker
-              // (web-push + VAPID) rather than blocking this request on it.
-              // The worker writes delivered_at on success and leaves it null
-              // on failure, so the sos_notifications receipt columns mean
-              // something. Enqueued ONLY here: a job nothing enqueues is a ✅
-              // that lies (see docs/INVARIANTS.md on INVARIANT 10's history).
-              await client.query(
-                `INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`,
-                [JSON.stringify({ caseId, dogId: dog.dogless ? null : dog.id })],
-              );
-            }
+            escalateNow = !responders;
+            await client.query(`UPDATE sos_cases SET tier = $2 WHERE id = $1`, [caseId, tier]);
           } else {
+            // Uncorroborated: no responder fan-out, escalation now, but the
+            // dog's own feeders still hear about their dog.
             tier = 2;
             fanout = "escalated";
             escalateNow = true;
+            await client.query(`UPDATE sos_cases SET tier = 2 WHERE id = $1`, [caseId]);
+            const own = await notifyOwnFeeders(client, caseId, dog.dogless ? null : dog.id, null, severity);
+            anyTold = own.told > 0;
           }
+        } else {
+          // MINOR / SERIOUS (pre-deploy review, design v6: "Tells Priya, Arjun
+          // and a vet nearby"). Not the city-wide responder fan-out, which
+          // stays critical-only: the dog's own feeders are told at filing
+          // (notifyOwnFeeders), those at the trust floor as responders; for a
+          // dogless case, the feeders who chose that ward. Escalation keeps
+          // its 8 minutes.
+          const own = await notifyOwnFeeders(client, caseId, dog.dogless ? null : dog.id, dog.ward_id, severity);
+          anyTold = own.told > 0;
+          if (own.responders > 0) fanout = "responders";
+        }
+        if (anyTold) {
+          // Web Push (plan §3.4): hand delivery off to the worker (web-push +
+          // VAPID) rather than blocking this request on it. The worker writes
+          // delivered_at on success and leaves it null on failure, so the
+          // sos_notifications receipt columns mean something.
+          await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`, [
+            JSON.stringify({ caseId, dogId: dog.dogless ? null : dog.id }),
+          ]);
         }
 
         // Escalation: worker's escalate_sos handler promotes unacked cases.
@@ -948,7 +1074,10 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         [own.caseId],
       ),
       query<{ n: number }>(
-        `SELECT count(*)::int AS n FROM sos_notifications WHERE case_id = $1 AND vet_id IS NOT NULL`,
+        // Delivered only (pre-deploy review): escalation writes sms/bmc rows
+        // that nothing sends yet, and a vet who was never reached must not be
+        // counted as told.
+        `SELECT count(*)::int AS n FROM sos_notifications WHERE case_id = $1 AND vet_id IS NOT NULL AND delivered_at IS NOT NULL`,
         [own.caseId],
       ),
       query<{ created_at: Date; note: string }>(
@@ -1073,6 +1202,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       CaseRow & {
         acked_by: string | null;
         fanned_out: boolean;
+        told_only: boolean;
         declined_by_me: boolean;
         ward_id: string | null;
         dog_id: string | null;
@@ -1105,7 +1235,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
               (SELECT s.feeder_id IS NULL AND s.device_token IS NOT NULL FROM scans s WHERE s.id = c.scan_id)
                 AS reporter_anonymous,
               EXISTS (SELECT 1 FROM sos_notifications n
-                       WHERE n.case_id = c.id AND n.feeder_id = $2) AS fanned_out,
+                       WHERE n.case_id = c.id AND n.feeder_id = $2 AND NOT n.notify_only) AS fanned_out,
+              EXISTS (SELECT 1 FROM sos_notifications n
+                       WHERE n.case_id = c.id AND n.feeder_id = $2 AND n.notify_only) AS told_only,
               EXISTS (SELECT 1 FROM sos_notifications n
                        WHERE n.case_id = c.id AND n.feeder_id = $2 AND n.declined_at IS NOT NULL) AS declined_by_me,
               (SELECT count(*)::int FROM sos_notifications n
@@ -1113,11 +1245,11 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
               (SELECT min(n.sent_at) FROM sos_notifications n
                 WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL) AS first_told,
               (SELECT count(*)::int FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL
+                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL AND n.delivered_at IS NOT NULL
                   AND NOT EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
                 AS vets_told,
               (SELECT count(*)::int FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL
+                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL AND n.delivered_at IS NOT NULL
                   AND EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
                 AS ngos_told,
               (SELECT min(j.run_after) FROM jobs j
@@ -1156,7 +1288,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     const standingOk =
       !!standing &&
       canRespond(
-        { sosOptIn: standing.sos_opt_in, trustScore: standing.trust_score, wards: standing.wards ?? [] },
+        {
+          sosOptIn: standing.sos_opt_in,
+          trustScore: standing.trust_score,
+          wards: standing.wards ?? [],
+          pausedUntil: standing.sos_paused_until,
+        },
         severity,
         row.ward_id,
       );
@@ -1173,14 +1310,17 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       const trustScore = standing?.trust_score ?? 0;
       const floor = TRUST_FLOOR[severity];
       const paused = !!standing?.sos_paused_until && standing.sos_paused_until.getTime() > Date.now();
+      // Order: the first thing the feeder would have to change. "not_paged"
+      // remains for completeness; with every standing condition met the
+      // caller is admitted above, so in practice one of the others applies.
       const forbiddenReason = !standing?.sos_opt_in
         ? "not_opted_in"
-        : inMyWards === false
-          ? "outside_wards"
-          : trustScore < floor
-            ? "not_enough_trust"
-            : paused
-              ? "paused"
+        : paused
+          ? "paused"
+          : inMyWards === false
+            ? "outside_wards"
+            : trustScore < floor
+              ? "not_enough_trust"
               : "not_paged";
       return reply.status(403).send({
         ok: false,
@@ -1190,6 +1330,21 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         },
         data: {
           forbiddenReason,
+          // A feeder of the dog who was TOLD (notify_only, below the trust
+          // floor) and opens it from that push gets the V22 reassurance plus
+          // what the reporter already shares with the dog's feeders: the dog,
+          // severity, ward and time. Never the note, the photo or the spot.
+          ...(row.told_only
+            ? {
+                summary: {
+                  dog: row.slug ? { slug: row.slug, name: row.dog_name ?? null } : null,
+                  severity: row.severity,
+                  wardId: row.ward_id ?? null,
+                  openedAt: new Date(row.opened_at).toISOString(),
+                  state: row.state,
+                },
+              }
+            : {}),
           // V22 "This case went to feeders in H/W": the ward, nothing finer.
           wardId: row.ward_id ?? null,
           wardCode: row.ward_id ? wardDisplay(row.ward_id).code : null,
@@ -1310,6 +1465,11 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // Design v6.
         dogless: row.dog_id === null,
         timeline,
+        // A paged feeder's account HAS the alert (it is in their Alerts list,
+        // built from these rows), whether or not a push reached a phone, so
+        // they count as told. Vets and NGOs count only once a notification
+        // was actually delivered (the tier-2 sms/bmc rows are not yet sent by
+        // anything, so today they count as zero rather than as a claim).
         feedersTold: row.paged,
         vetsTold: row.vets_told,
         ngosTold: row.ngos_told,
@@ -1340,6 +1500,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/v1/sos/cases/:id/decline", async (req: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireFeeder(req, reply);
     if (!auth) return reply;
+    if (
+      !enforceLimits(req.log, reply, [
+        { limiter: feederWritePerAccount, key: `acct:${auth.feederId}`, name: "feederWritePerAccount", kind: "account" },
+      ])
+    ) {
+      return reply;
+    }
     const id = parseUuidParam((req.params as { id: string }).id);
     if (!id) {
       return reply.status(400).send({
@@ -1582,42 +1749,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/api/v1/sos/cases/:id/release", (req, reply) =>
     ackerAction(req, reply, async (client, id, feederId) => {
-      await client.query(
-        `UPDATE sos_cases
-            SET acked_by = NULL, acked_at = NULL, state = 'open', close_by_at = NULL, arrived_at = NULL
-          WHERE id = $1`,
-        [id],
-      );
-      await client.query(`UPDATE sos_notifications SET acked_at = NULL WHERE case_id = $1 AND feeder_id = $2`, [
-        id,
-        feederId,
-      ]);
-      await client.query(`INSERT INTO sos_case_events (case_id, kind, feeder_id) VALUES ($1, 'released', $2)`, [
-        id,
-        feederId,
-      ]);
-      // Escalation, on the ORIGINAL clock. If the job is still queued it
-      // stands as it is; if it already ran while the case was held (and did
-      // nothing, the case being acked), it is queued again for the original
-      // due time, or now if that is past.
-      await client.query(
-        `INSERT INTO jobs (kind, payload, run_after)
-         SELECT 'escalate_sos', jsonb_build_object('caseId', c.id, 'dogId', c.dog_id),
-                GREATEST(now(), c.opened_at + interval '8 minutes')
-           FROM sos_cases c
-          WHERE c.id = $1 AND c.escalated_at IS NULL
-            AND NOT EXISTS (SELECT 1 FROM jobs j
-                             WHERE j.kind = 'escalate_sos' AND j.failed_at IS NULL
-                               AND j.payload->>'caseId' = c.id::text)`,
-        [id],
-      );
-      await client.query(
-        `INSERT INTO jobs (kind, payload, run_after)
-         SELECT 'send_sos_push', $2::jsonb, now()
-          WHERE EXISTS (SELECT 1 FROM sos_notifications
-                         WHERE case_id = $1 AND channel = 'push' AND feeder_id IS NOT NULL AND feeder_id <> $3)`,
-        [id, JSON.stringify({ caseId: id, repage: true, exclude: feederId }), feederId],
-      );
+      await releaseCase(client, id, feederId);
       return { state: "open" };
     }),
   );
@@ -1731,7 +1863,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         ward_id: string | null;
       }>(
         `SELECT c.severity::text AS severity, c.acked_by, c.acked_at, c.resolved_at,
-                (SELECT d.ward_id FROM dogs d WHERE d.id = c.dog_id) AS ward_id
+                COALESCE(c.ward_id, (SELECT d.ward_id FROM dogs d WHERE d.id = c.dog_id)) AS ward_id
            FROM sos_cases c WHERE c.id = $1 FOR UPDATE OF c`,
         [id],
       );
@@ -1747,10 +1879,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         sos_opt_in: boolean;
         trust_score: number;
         wards: string[];
+        sos_paused_until: Date | null;
         notified: boolean;
       }>(
-        `SELECT f.sos_opt_in, f.trust_score, f.wards,
-                EXISTS (SELECT 1 FROM sos_notifications n WHERE n.case_id = $2 AND n.feeder_id = f.id) AS notified
+        `SELECT f.sos_opt_in, f.trust_score, f.wards, f.sos_paused_until,
+                -- A notify_only row (0028) is being told, not a ground to take it.
+                EXISTS (SELECT 1 FROM sos_notifications n
+                         WHERE n.case_id = $2 AND n.feeder_id = f.id AND NOT n.notify_only) AS notified
            FROM feeders f WHERE f.id = $1`,
         [feederId, id],
       );
@@ -1766,6 +1901,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
             sosOptIn: me.sos_opt_in,
             trustScore: me.trust_score,
             wards: me.wards ?? [],
+            pausedUntil: me.sos_paused_until,
             notified: me.notified,
             moderator: isModerator,
           },

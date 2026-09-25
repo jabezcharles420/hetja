@@ -435,7 +435,7 @@ export function resumeSos(slug: string, profile?: DogProfile, dogless = false): 
 
 /** Numbers this phone has been shown, so P13 can offer them with no signal. */
 function saveCare(list: CareProvider[]): void {
-  const keep = list.filter((p) => p.phone && p.phoneVerified).map((p) => ({ name: p.name, phone: p.phone }));
+  const keep = byConfirmed(list).map((p) => ({ name: p.name, phone: p.phone }));
   if (!keep.length) return;
   try {
     localStorage.setItem(CARE_KEY, JSON.stringify(keep.slice(0, 5)));
@@ -566,14 +566,21 @@ function renderFailed(r: ReportResult): void {
   if (!r.care.length) void loadCareFallback();
 }
 
-/** "Can't wait? Call": confirmed numbers only; a closed place keeps its row but loses Call. */
-function careBlock(list: CareProvider[]): string {
-  const rows = list
-    .filter((p) => p.phone && p.phoneVerified)
-    .map((p) => {
-      const r = careRow(p);
-      return rowHtml(p.name, r.meta, r.closed ? undefined : telHref(p.phone!), "Call", r.closed);
-    });
+/** Every provider with a number, confirmed ones first (a stable sort keeps the API's distance order). */
+export function byConfirmed(list: CareProvider[]): CareProvider[] {
+  return list.filter((p) => p.phone).sort((a, b) => Number(b.phoneVerified) - Number(a.phoneVerified));
+}
+
+/**
+ * "Can't wait? Call". Nothing with a number is hidden: an unconfirmed one
+ * keeps Call with a grey "Number not confirmed yet", and only a place that
+ * is known to be closed now loses Call.
+ */
+export function careBlock(list: CareProvider[]): string {
+  const rows = byConfirmed(list).map((p) => {
+    const r = careRow(p);
+    return rowHtml(p.name, r.meta, r.closed ? undefined : telHref(p.phone!), "Call", r.closed, r.note);
+  });
   return rows.length ? `<p class="label call-l">Can't wait? Call</p><div class="rows">${rows.join("")}</div>` : "";
 }
 
@@ -582,10 +589,10 @@ function putCare(html: string): void {
   if (el && html) el.innerHTML = html;
 }
 
-function rowHtml(title: string, sub: string, href?: string, label = "Call", muted = false): string {
+function rowHtml(title: string, sub: string, href?: string, label = "Call", muted = false, note?: string): string {
   return `<div class="row"><div class="row-txt"><p class="row-t${muted ? " muted" : ""}">${escapeHtml(title)}</p>${
     sub ? `<p class="row-s">${escapeHtml(sub)}</p>` : ""
-  }</div>${href ? `<a class="tint" href="${escapeHtml(href)}" aria-label="${label} ${escapeHtml(title)}">${label}</a>` : ""}</div>`;
+  }${note ? `<p class="row-n">${escapeHtml(note)}</p>` : ""}</div>${href ? `<a class="tint" href="${escapeHtml(href)}" aria-label="${label} ${escapeHtml(title)}">${label}</a>` : ""}</div>`;
 }
 
 /**
@@ -595,14 +602,19 @@ function rowHtml(title: string, sub: string, href?: string, label = "Call", mute
 async function loadCareFallback(): Promise<void> {
   const guidance = (lead: string): string =>
     rowHtml(
-      "No nearby help loaded",
+      "No numbers to show here",
       `${lead}Call a local vet or animal helpline from your phone. If the dog is in traffic and you can do so safely, move yourself out of the road first.`,
     );
   const pos = lastPos ?? (await getPosition());
   if (!pos) return putCare(guidance("Turn on location to see help nearby. "));
   const res = await fetchNearbyCare(pos.lat, pos.lng);
   saveCare(res.providers);
-  putCare(careBlock(res.providers) || guidance("Couldn't load nearby help right now. "));
+  // "Couldn't load" only when the request failed; an answer with nobody to
+  // call is a different, honest sentence.
+  putCare(
+    careBlock(res.providers) ||
+      guidance(res.ok ? "Hetja has no vets or NGOs with a phone number listed near you yet. " : "Couldn't load nearby help right now. "),
+  );
 }
 
 /* ------------------------------------------------------------------------- */

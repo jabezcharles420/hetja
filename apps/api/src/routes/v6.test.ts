@@ -809,3 +809,238 @@ describe("map v6", () => {
     clearMapCaches();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pre-deploy review fixes
+// ---------------------------------------------------------------------------
+
+describe("pre-deploy review fixes", () => {
+  it("a serious SOS pages the dog's own opted-in, unpaused feeders at the floor, and nobody else", async () => {
+    const reg = await insertFeeder({ sosOptIn: true, trust: 45 });
+    const dog = await insertDog({ registeredBy: reg.id, ward: "B" });
+    const fan = await insertFeeder({ sosOptIn: true, trust: 45 });
+    const paused = await insertFeeder({ sosOptIn: true, trust: 45 });
+    const newbie = await insertFeeder({ sosOptIn: true, trust: 30 });
+    const noConsent = await insertFeeder({ trust: 70 });
+    await insertFeeder({ sosOptIn: true, trust: 70, wards: ["B"] });
+    for (const f of [fan, paused, newbie, noConsent]) await feed(dog.id, f.id);
+    await query(`UPDATE feeders SET sos_paused_until = now() + interval '1 day' WHERE id = $1`, [paused.id]);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug: dog.slug, severity: "serious", deviceToken: device().token },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data).toMatchObject({ tier: 1, fanout: "responders" });
+    const caseId = res.json().data.caseId;
+    cases.push(caseId);
+    const rows = (
+      await query<{ feeder_id: string; notify_only: boolean }>(
+        `SELECT feeder_id, notify_only FROM sos_notifications WHERE case_id = $1`,
+        [caseId],
+      )
+    ).rows;
+    // At the floor: responders. Below it (newbie, trust 30): told only.
+    // Paused, no consent, not a feeder of the dog: nothing.
+    expect(rows.filter((r) => !r.notify_only).map((r) => r.feeder_id).sort()).toEqual([reg.id, fan.id].sort());
+    expect(rows.filter((r) => r.notify_only).map((r) => r.feeder_id)).toEqual([newbie.id]);
+    expect((await query(`SELECT 1 FROM jobs WHERE kind = 'send_sos_push' AND payload->>'caseId' = $1`, [caseId])).rowCount).toBe(1);
+  });
+
+  it("a dogless serious SOS pages the feeders who chose that ward, and shows in their Alerts by ward", async () => {
+    const wardFeeder = await insertFeeder({ sosOptIn: true, trust: 45, wards: ["K-West"] });
+    const other = await insertFeeder({ sosOptIn: true, trust: 45 });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { severity: "serious", deviceToken: device().token, geo: { lat: 19.1325, lng: 72.8285 } },
+    });
+    const caseId = res.json().data.caseId;
+    cases.push(caseId);
+    const paged = (await query<{ feeder_id: string }>(`SELECT feeder_id FROM sos_notifications WHERE case_id = $1`, [caseId])).rows.map(
+      (r) => r.feeder_id,
+    );
+    expect(paged).toContain(wardFeeder.id);
+    expect(paged).not.toContain(other.id);
+    const alerts = (await app.inject({ method: "GET", url: "/api/v1/feeders/me/alerts", headers: wardFeeder.headers })).json().data.items;
+    expect(alerts.find((a: any) => a.id === `sos:${caseId}`)).toMatchObject({ kind: "sos", dog: null, wardCode: "K/W" });
+  });
+
+  it("counts vets as told only once a notification was delivered", async () => {
+    const dog = await insertDog();
+    const d = device();
+    const acker = await insertFeeder();
+    const caseId = await sosCase(dog.id, { device: d.subject, ackedBy: acker.id });
+    const vet = await query<{ id: string }>(
+      `INSERT INTO vets (clinic_name, geo, signing_key_pub) VALUES ('Told Test', ST_SetSRID(ST_MakePoint(72.83, 19.11), 4326)::geography, 'none') RETURNING id`,
+    );
+    await query(`UPDATE sos_cases SET escalated_at = now(), tier = 2 WHERE id = $1`, [caseId]);
+    await query(`INSERT INTO sos_notifications (case_id, vet_id, channel) VALUES ($1, $2, 'sms')`, [caseId, vet.rows[0].id]);
+    await query(`INSERT INTO sos_notifications (case_id, channel) VALUES ($1, 'bmc')`, [caseId]);
+    try {
+      const view = (await app.inject({ method: "GET", url: `/api/v1/sos/cases/${caseId}`, headers: acker.headers })).json().data;
+      expect(view.vetsTold + view.ngosTold).toBe(0);
+      expect(view.timeline.find((t: any) => t.kind === "escalated").detail).toBeNull();
+      const status = (await app.inject({ method: "GET", url: `/api/v1/reports/${caseId}/status`, headers: { "x-device-token": d.token } })).json().data;
+      expect(status.vetsNotified).toBe(0);
+      await query(`UPDATE sos_notifications SET delivered_at = now() WHERE case_id = $1 AND vet_id IS NOT NULL`, [caseId]);
+      const after = (await app.inject({ method: "GET", url: `/api/v1/sos/cases/${caseId}`, headers: acker.headers })).json().data;
+      expect(after.vetsTold).toBe(1);
+    } finally {
+      await query(`DELETE FROM sos_notifications WHERE case_id = $1`, [caseId]);
+      await query(`DELETE FROM vets WHERE id = $1`, [vet.rows[0].id]);
+    }
+  });
+
+  it("the ack ward rule uses the case's ward on a dogless case", async () => {
+    const outside = await insertFeeder({ wards: ["A"], sosOptIn: true, trust: 70 });
+    const inside = await insertFeeder({ wards: ["K-West"], sosOptIn: true, trust: 70 });
+    const caseId = await sosCase(null, { ward: "K-West" });
+    expect((await app.inject({ method: "POST", url: `/api/v1/sos/cases/${caseId}/ack`, headers: outside.headers })).statusCode).toBe(403);
+    expect((await app.inject({ method: "POST", url: `/api/v1/sos/cases/${caseId}/ack`, headers: inside.headers })).statusCode).toBe(200);
+  });
+
+  it("a paused feeder has no standing (403 paused), but a case they were already paged for stays takeable", async () => {
+    const dog = await insertDog();
+    const f = await insertFeeder({ sosOptIn: true, trust: 70 });
+    await query(`UPDATE feeders SET sos_paused_until = now() + interval '1 day' WHERE id = $1`, [f.id]);
+    const c1 = await sosCase(dog.id);
+    const res = await app.inject({ method: "GET", url: `/api/v1/sos/cases/${c1}`, headers: f.headers });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().data.forbiddenReason).toBe("paused");
+    expect((await app.inject({ method: "POST", url: `/api/v1/sos/cases/${c1}/ack`, headers: f.headers })).statusCode).toBe(403);
+    const c2 = await sosCase(dog.id);
+    await page(c2, f.id);
+    expect((await app.inject({ method: "POST", url: `/api/v1/sos/cases/${c2}/ack`, headers: f.headers })).statusCode).toBe(200);
+  });
+
+  it("deleting an account releases held cases through the release path", async () => {
+    const dog = await insertDog();
+    const me = await insertFeeder();
+    const other = await insertFeeder();
+    const caseId = await sosCase(dog.id, { ackedBy: me.id });
+    await page(caseId, me.id);
+    await page(caseId, other.id);
+    const res = await app.inject({ method: "DELETE", url: "/api/v1/feeders/me", headers: me.headers, payload: { confirm: "DELETE" } });
+    expect(res.statusCode).toBe(200);
+    expect((await query(`SELECT state, acked_by FROM sos_cases WHERE id = $1`, [caseId])).rows[0]).toEqual({ state: "open", acked_by: null });
+    expect((await query(`SELECT 1 FROM sos_case_events WHERE case_id = $1 AND kind = 'released'`, [caseId])).rowCount).toBe(1);
+    expect((await query(`SELECT 1 FROM jobs WHERE kind = 'escalate_sos' AND payload->>'caseId' = $1`, [caseId])).rowCount).toBe(1);
+    const repage = await query<{ payload: any }>(`SELECT payload FROM jobs WHERE kind = 'send_sos_push' AND payload->>'caseId' = $1`, [caseId]);
+    expect(repage.rows[0].payload).toMatchObject({ repage: true, exclude: me.id });
+  });
+
+  it("the export includes a dogless SOS the account filed, by ward", async () => {
+    const me = await insertFeeder();
+    const r = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      headers: me.headers,
+      payload: { severity: "minor", geo: { lat: 18.918, lng: 72.828 } },
+    });
+    expect(r.statusCode).toBe(200);
+    cases.push(r.json().data.caseId);
+    const data = (await app.inject({ method: "GET", url: "/api/v1/feeders/me/export", headers: me.headers })).json().data;
+    expect(data.sosReports).toEqual([expect.objectContaining({ slug: null, ward_id: "A", severity: "minor" })]);
+    expect(JSON.stringify(data)).not.toMatch(/"(lat|lng|geo)"/);
+  });
+
+  it("a passed-away confirmation lapses after 30 days and needs the dog still active or lost", async () => {
+    const reg = await insertFeeder();
+    const second = await insertFeeder();
+    const dog = await insertDog({ registeredBy: reg.id });
+    await feed(dog.id, second.id);
+    const old = await query<{ id: string }>(
+      `INSERT INTO dog_status_reports (dog_id, kind, reported_by, created_at)
+       VALUES ($1, 'passed_away', $2, now() - interval '31 days') RETURNING id`,
+      [dog.id, reg.id],
+    );
+    const lapsed = await app.inject({
+      method: "POST",
+      url: `/api/v1/dogs/${dog.slug}/status-reports/${old.rows[0].id}/confirm`,
+      headers: second.headers,
+    });
+    expect(lapsed.statusCode).toBe(410);
+    const fresh = await query<{ id: string }>(
+      `INSERT INTO dog_status_reports (dog_id, kind, reported_by) VALUES ($1, 'passed_away', $2) RETURNING id`,
+      [dog.id, reg.id],
+    );
+    await query(`UPDATE dogs SET status = 'adopted' WHERE id = $1`, [dog.id]);
+    const final = await app.inject({
+      method: "POST",
+      url: `/api/v1/dogs/${dog.slug}/status-reports/${fresh.rows[0].id}/confirm`,
+      headers: second.headers,
+    });
+    expect(final.statusCode).toBe(409);
+    expect((await query(`SELECT status FROM dogs WHERE id = $1`, [dog.id])).rows[0].status).toBe("adopted");
+  });
+
+  it("decline is rate limited per account", async () => {
+    const f = await insertFeeder();
+    const dog = await insertDog();
+    const caseId = await sosCase(dog.id);
+    await page(caseId, f.id);
+    const codes: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      codes.push((await app.inject({ method: "POST", url: `/api/v1/sos/cases/${caseId}/decline`, headers: f.headers })).statusCode);
+    }
+    expect(codes.filter((c) => c === 200)).toHaveLength(20);
+    expect(codes[20]).toBe(429);
+  });
+});
+
+describe("own feeders are told whatever their trust; taking the case still needs the floor", () => {
+  it("a below-floor registrator is told, cannot take it, sees the summary and checklist, and escalation stands", async () => {
+    const reg = await insertFeeder({ sosOptIn: true, trust: 30 });
+    const dog = await insertDog({ registeredBy: reg.id, ward: "C", name: "Rani" });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug: dog.slug, severity: "serious", note: "Bleeding", deviceToken: device().token },
+    });
+    const caseId = res.json().data.caseId;
+    cases.push(caseId);
+    // Told: a push job and an Alerts entry; not a responder.
+    expect(res.json().data.fanout).toBe("escalated");
+    const row = (await query(`SELECT notify_only FROM sos_notifications WHERE case_id = $1 AND feeder_id = $2`, [caseId, reg.id])).rows[0];
+    expect(row).toEqual({ notify_only: true });
+    expect((await query(`SELECT 1 FROM jobs WHERE kind = 'send_sos_push' AND payload->>'caseId' = $1`, [caseId])).rowCount).toBe(1);
+    const alerts = (await app.inject({ method: "GET", url: "/api/v1/feeders/me/alerts", headers: reg.headers })).json().data.items;
+    expect(alerts.find((a: any) => a.id === `sos:${caseId}`)).toBeDefined();
+
+    const view = await app.inject({ method: "GET", url: `/api/v1/sos/cases/${caseId}`, headers: reg.headers });
+    expect(view.statusCode).toBe(403);
+    const data = view.json().data;
+    expect(data.forbiddenReason).toBe("not_enough_trust");
+    expect(data.checklist).toMatchObject({ trustScore: 30, trustFloor: 40, feedsToGo: 10 });
+    expect(data.summary).toMatchObject({ dog: { slug: dog.slug, name: "Rani" }, severity: "serious", wardId: "C", state: "open" });
+    expect(view.body).not.toContain("Bleeding");
+    expect(view.body).not.toMatch(/"lat"/);
+
+    const ack = await app.inject({ method: "POST", url: `/api/v1/sos/cases/${caseId}/ack`, headers: reg.headers });
+    expect(ack.statusCode).toBe(403);
+    expect((await query(`SELECT state, acked_by FROM sos_cases WHERE id = $1`, [caseId])).rows[0]).toEqual({ state: "open", acked_by: null });
+    expect((await query(`SELECT 1 FROM jobs WHERE kind = 'escalate_sos' AND payload->>'caseId' = $1`, [caseId])).rowCount).toBe(1);
+
+    // The reporter's page counts them as told.
+    const told = (await app.inject({ method: "GET", url: `/api/v1/sos/cases/${caseId}`, headers: (await insertFeeder({ role: "admin" })).headers })).json().data;
+    expect(told.feedersTold).toBe(1);
+  });
+
+  it("a critical case whose only rows are told-only escalates at once", async () => {
+    const reg = await insertFeeder({ sosOptIn: true, trust: 30 });
+    const dog = await insertDog({ registeredBy: reg.id, ward: "T", sosEligible: true, geo: false });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      payload: { dogSlug: dog.slug, severity: "critical", deviceToken: device().token },
+    });
+    const caseId = res.json().data.caseId;
+    cases.push(caseId);
+    expect(res.json().data.tier).toBe(2);
+    expect((await query(`SELECT notify_only FROM sos_notifications WHERE case_id = $1`, [caseId])).rows).toEqual([{ notify_only: true }]);
+    const esc = await query<{ run_after: Date }>(`SELECT run_after FROM jobs WHERE kind = 'escalate_sos' AND payload->>'caseId' = $1`, [caseId]);
+    expect(esc.rows[0].run_after.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+});

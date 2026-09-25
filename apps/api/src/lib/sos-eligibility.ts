@@ -43,6 +43,21 @@ export interface ResponderStanding {
    * means "no ward preference", which is every account older than 0026.
    */
   wards?: readonly string[];
+  /**
+   * Design v6 (L1): feeders.sos_paused_until. While it is in the future the
+   * feeder has no STANDING: not paged, not handed case ids on the map, not
+   * admitted to a case page by standing. A feeder who was already PAGED for a
+   * case keeps that ground (mayAck's `notified`): pausing stops new pages; it
+   * does not take away a case they deliberately open from a page they already
+   * had.
+   */
+  pausedUntil?: Date | string | null;
+}
+
+export function isPaused(pausedUntil: Date | string | null | undefined, now: number = Date.now()): boolean {
+  if (!pausedUntil) return false;
+  const t = pausedUntil instanceof Date ? pausedUntil.getTime() : Date.parse(pausedUntil);
+  return Number.isFinite(t) && t > now;
 }
 
 /**
@@ -76,6 +91,7 @@ export function canRespond(
     !!viewer &&
     viewer.sosOptIn &&
     viewer.trustScore >= TRUST_FLOOR[severity] &&
+    !isPaused(viewer.pausedUntil) &&
     wardAllows(viewer.wards, dogWard)
   );
 }

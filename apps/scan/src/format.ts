@@ -216,18 +216,31 @@ export function careMeta(p: CareMetaInput): string {
 }
 
 /**
- * V19 care row: "Vet · open now, 24 hours · 900 m". A place the API says is
- * closed loses its Call button ("Closed now · opens 10 am"). "Open now" is
- * only claimed from 24 x 7 or the API's own openNow, never guessed from a note.
+ * V19 care row: "Vet · open now, 24 hours · 900 m". A place loses its Call
+ * button only when the API knows its hours and says it is closed now
+ * ("Closed now · opens 10 am"); 24 x 7 is always callable, and "open now" is
+ * only claimed from 24 x 7 or the API's own openNow, never guessed from a
+ * note. Government places and free ones say so, because the owner wants
+ * people told they cost nothing: "Government vet · free".
+ *
+ * An unconfirmed number is never hidden (a stranger at an SOS may have
+ * nobody else to call): it keeps its Call button with `note`.
  */
 export function careRow(
-  p: CareMetaInput & { openNow?: boolean; opensNote?: string; distanceKm?: number },
-): { meta: string; closed: boolean } {
-  if (p.openNow === false) return { meta: ["Closed now", p.opensNote].filter(Boolean).join(" · "), closed: true };
+  p: CareMetaInput & { name?: string; costTier?: string; openNow?: boolean; opensNote?: string; distanceKm?: number },
+): { meta: string; closed: boolean; note?: string } {
+  const note = p.phoneVerified ? undefined : "Number not confirmed yet";
+  const free = p.kind === "govt" || p.costTier === "free";
+  const kind =
+    p.kind === "govt"
+      ? `Government ${/hospital/i.test(p.name ?? "") ? "hospital" : "vet"} · free`
+      : [p.kind ? KIND_LABEL[p.kind] ?? p.kind : "", free ? "free" : ""].filter(Boolean).join(" · ");
+  if (p.openNow === false && !p.is24x7)
+    return { meta: [kind, "Closed now", p.opensNote].filter(Boolean).join(" · "), closed: true, note };
   const hours = p.is24x7 ? "open now, 24 hours" : p.openNow ? ["open now", p.hoursNote].filter(Boolean).join(", ") : p.hoursNote;
   const km = p.distanceKm;
   const dist = km == null ? "" : km < 1 ? `${Math.max(100, Math.round(km * 10) * 100)} m` : `${km.toFixed(1)} km`;
-  return { meta: [p.kind ? KIND_LABEL[p.kind] ?? p.kind : "", hours, dist].filter(Boolean).join(" · "), closed: false };
+  return { meta: [kind, hours, dist].filter(Boolean).join(" · "), closed: false, note };
 }
 
 /* ---------------------------------------------------------------------------

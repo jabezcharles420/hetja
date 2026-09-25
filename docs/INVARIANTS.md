@@ -165,9 +165,10 @@ answers 404 for both, except to the registrator who filed it
 - **Dogless SOS (7, 2, 6).** `POST /api/v1/reports` without a dog needs a
   point inside Mumbai; the case is located to the nearest ward centre and is
   paged exactly like a dog at that point: for a `critical` report, feeders
-  who chose that ward and feeders with no wards who fed within 2 km of it
-  (a `serious` one pages nobody at report time, as for a dog), and at
-  escalation the vets nearest the point are recorded as told.
+  who chose that ward and feeders with no wards who fed within 2 km of it;
+  for a `minor` or `serious` one, the feeders who chose that ward (see the
+  minor/serious bullet below). At escalation the vets nearest the point get
+  notification rows, which count as told only once delivered.
   Every INVARIANT 7 rule for a dog report applies unchanged, plus
   `doglessReportPerSubject` (burst 2, then 3 a day per account or device),
   `doglessReportPerIp` (burst 3, then 6 a day per address: the fifth
@@ -182,11 +183,33 @@ answers 404 for both, except to the registrator who filed it
   feeders by first name (opt-out respected) and counts vets. Never who
   anyone is beyond that, never where the responder is.
 - **Alerts pause** (`feeders.sos_paused_until`, at most 30 days): a paused
-  feeder is left out of a new case's fan-out. Consent (`sos_opt_in`) is
-  unchanged by it. Two edges do not read the pause: the re-page after a
-  responder releases a case goes to everyone originally paged, and a paused
-  feeder who otherwise qualifies may still open and take a case
-  (`lib/sos-eligibility.ts`).
+  feeder has no responder standing (`lib/sos-eligibility.ts` `canRespond`,
+  fixed in the pre-deploy review): not paged by any fan-out, nor by the
+  re-page after a release, not handed case ids on the map, not admitted to a
+  case page by standing (V22 answers `forbiddenReason: "paused"`). A case they
+  were ALREADY paged for stays takeable if they open it deliberately (the
+  `notified` ground of `mayAck`): a pause stops new pages, it does not take
+  back a page they have. Consent (`sos_opt_in`) is unchanged by it.
+- **Every SOS tells the dog's own feeders; taking it still needs the floor**
+  (pre-deploy review). At filing, whatever the severity, the dog's registrator
+  and feeders with a feed in the last 60 days (opted in, not paused, live) are
+  told: a push and an Alerts entry, counted as told, WHATEVER their trust, so
+  "Priya and Arjun know" is true for a new feeder too. Those at the severity's
+  trust floor are ordinary responders; those below it get a `notify_only` row
+  (migration 0028), which is NOT a ground to take the case (`mayAck`
+  `notified` counts responder rows only), is not re-paged after a release, and
+  never holds off escalation: a critical case whose only rows are notify-only
+  escalates at once, exactly as with nobody paged. Opening the case from that
+  push answers 403 with the V22 checklist plus the summary the reporter shares
+  (dog, severity, ward, time), never the note, photo or spot. Critical keeps
+  the city-wide responder fan-out (`docs/queries/sos_fanout.sql`); a minor or
+  serious report pages no one else (dogless: the feeders who chose that ward,
+  at the floor). Before this, a serious report told no feeder at all, while
+  the copy said "Tells Priya, Arjun and a vet nearby".
+- **"Told" means told.** The case page and the reporter's page count a paged
+  feeder as told (the alert is in their account's Alerts list) and a vet or
+  NGO only once a notification was actually delivered. Tier-2 escalation
+  writes sms/bmc rows that nothing sends yet, so today those count as zero.
 
 ## Why this exists
 

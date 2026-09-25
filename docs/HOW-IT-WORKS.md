@@ -248,11 +248,12 @@ never hold back an SOS. This is rate-capped, because an unauthenticated
 endpoint that can notify unbounded numbers of people is a harassment vector
 (INVARIANT 7). If no eligible responder exists, the case escalates to tier 2
 immediately rather than waiting out a timer: the three nearest contracted vets
-and the municipal desk are recorded as told (a record, not yet a delivery;
-see §9). A `serious` report ("Hurt, but moving", "Something else") pages no
-feeder at report time and escalates the same way after eight minutes unless
-someone has taken it. That is why the reporter's screen always leads with
-numbers to call.
+and the municipal desk get notification rows (a record, not yet a delivery,
+so they are not counted as told; see §9). A `serious` report ("Hurt, but
+moving", "Something else") notifies the dog's own feeders at report time,
+whatever their trust score, and escalates after eight minutes unless someone
+has taken it. Taking a case still needs the trust floor. The reporter's
+screen always leads with numbers to call.
 
 `POST /api/v1/sos/cases/:id/ack` (**I'm going**) claims a case. It is a
 conditional update (`WHERE acked_by IS NULL AND resolved_at IS NULL`), so the
@@ -928,15 +929,15 @@ box up, is historical now; the shared box is provisioned once with
   dog names.
 - **Tier-2 escalation is a record, not yet a delivery.** When a case
   escalates, the worker writes `sos_notifications` rows for the three nearest
-  contracted vets (channel `sms`) and the municipal desk (`bmc`), and the case
-  page counts them as told, but no code sends an SMS or reaches the desk:
-  Hetja has no SMS provider and no desk integration. What actually reaches people today is Web Push to feeders and
-  the numbers on the reporter's screen.
-- **A `serious` SOS pages no feeder when it is filed.** Only a critical report
-  ("Can't get up, or bleeding") fans out at once; the other two choices wait
-  eight minutes and then escalate as above. This predates v5 (the validation
-  step it was waiting for was never built) and is why the reporter's screen
-  always leads with numbers to call.
+  contracted vets (channel `sms`) and the municipal desk (`bmc`), but no code
+  sends an SMS or reaches the desk: Hetja has no SMS provider and no desk
+  integration. Those rows are not counted as told anywhere. What actually
+  reaches people today is Web Push to feeders and the numbers on the
+  reporter's screen.
+- **A `serious` SOS notifies only the dog's own feeders when it is filed.**
+  Only a critical report ("Can't get up, or bleeding") fans out to every
+  responder nearby at once; the other two choices escalate after eight
+  minutes as above.
 - `validate_scan` has **no producer**. Nothing enqueues it, so `ai_validation`
   stays `NULL`, `review_status` stays `pending` forever, and INVARIANT 15's
   gate can never fire from real AI output. It is recorded in

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ececf0;-webkit-font-smoothing:antialiased}
+a{color:#0066cc;text-decoration:none}a:hover{color:#0071e3;text-decoration:underline}
+</style>
+</helmet>
+<section data-screen-label="Audit of hetja.in" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:72px;display:flex;flex-direction:column;gap:40px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:900px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">hetja.in today.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">What makes the live app feel unpolished, from the current mobile screens. The redesigned screens in the other files already fix these; this is the checklist for the build.</p>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1400px">
+    <sc-for list="{{ audit }}" as="a" hint-placeholder-count="6">
+      <div style="background:#fff;border-radius:28px;padding:24px;display:flex;gap:24px;align-items:flex-start">
+        <img src="{{ a.img }}" alt="{{ a.title }}" style="width:220px;flex:none;border-radius:18px;box-shadow:0 0 0 1px #e8e8ed;display:block">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em">{{ a.title }}</div>
+          <sc-for list="{{ a.items }}" as="it" hint-placeholder-count="3">
+            <div style="display:flex;gap:12px"><span style="width:26px;height:26px;border-radius:50%;background:#1d1d1f;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">{{ it.n }}</span><div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:15px;font-weight:600;line-height:1.35">{{ it.issue }}</span><span style="font-size:14px;line-height:1.45;color:#6e6e73">{{ it.fix }}</span></div></div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="background:#fff;border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:16px;max-width:1352px">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em">Across every screen</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 32px">
+      <sc-for list="{{ global }}" as="g" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid #e8e8ed;padding-top:12px"><span style="font-size:15px;font-weight:600">{{ g.t }}</span><span style="font-size:14px;line-height:1.45;color:#6e6e73">{{ g.d }}</span></div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="New pages" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;padding:0 72px 72px;display:flex;flex-direction:column;gap:48px">
+  <header style="display:flex;flex-direction:column;gap:12px;max-width:900px;border-top:1px solid #d2d2d7;padding-top:56px">
+    <h1 style="margin:0;font-size:56px;line-height:1;font-weight:700;letter-spacing:-0.045em">Pages the site is missing.</h1>
+    <p style="margin:0;font-size:21px;line-height:1.4;color:#6e6e73;text-wrap:pretty">The live site stops at sign-in. These cover what happens after: joining as a feeder, answering an SOS, vets confirming dogs, and the states nobody designs for.</p>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px 44px">
+
+    <div data-screen-label="N1 Become a feeder" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N1 Become a feeder <span style="font-weight:400;color:#6e6e73">· After first sign-in</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:radial-gradient(70% 40% at 0% 0%,#ffc9e6 0%,rgba(255,201,230,0) 70%),radial-gradient(60% 35% at 100% 5%,#ffd9c9 0%,rgba(255,217,201,0) 70%),#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:40px 20px 0">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Welcome. Where do you feed?</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">We only alert you about dogs in these wards.</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px"><div style="min-height:60px;display:flex;flex-direction:column;justify-content:center;gap:2px"><div style="font-size:13px;color:#6e6e73">Name shown to others</div><div style="font-size:19px">Priya S.</div></div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:15px">
+            <span style="height:40px;padding:0 16px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">K/W Andheri W</span>
+            <span style="height:40px;padding:0 16px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">H/W Bandra W</span>
+            <span style="height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">K/E Andheri E</span>
+            <span style="height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">+ More wards</span>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px">SOS alerts</span><span style="font-size:13px;color:#6e6e73">Hurt dogs in your wards</span></div><div style="width:51px;height:31px;border-radius:16px;background:#1a7a35;position:relative"><span style="position:absolute;right:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff"></span></div></div>
+            <div style="min-height:64px;display:flex;align-items:center;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px">Quiet hours</span><span style="font-size:13px;color:#6e6e73">SOS still comes through</span></div><span style="font-size:17px;color:#6e6e73">11 pm – 6 am ›</span></div>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Start feeding</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N2 SOS alert" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N2 SOS alert <span style="font-weight:400;color:#6e6e73">· Feeder nearby · respond</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fff;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600;background:#d70015;color:#fff"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:none;background:#d70015;color:#fff;padding:14px 20px 22px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase">SOS · K/W · 4 min ago</div>
+          <div style="font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-0.025em">Rani is hurt. Bleeding from a leg.</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:18px 20px 0">
+          <div style="display:flex;gap:14px;align-items:center"><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="n2-rani" shape="circle" placeholder="" style="width:72px;height:72px"></image-slot></div><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Photo from the person who sent it</span><span style="font-size:14px;color:#6e6e73">Sent by a passer-by, no account</span></div></div>
+          <div style="background:#f5f5f7;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:15px">Responding</span><span style="font-size:15px;font-weight:600">Nobody yet</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:15px">Nearest vet</span><span style="font-size:15px;color:#0066cc">Dr Mehta · Call</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px"><span style="font-size:15px">Where</span><span style="font-size:15px;color:#6e6e73">Shared only with you if you go</span></div>
+          </div>
+          <div style="font-size:13px;line-height:1.45;color:#6e6e73;padding:0 4px">The exact spot unlocks when you tap I'm going. Other feeders see that it's covered.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:6px">
+          <div style="height:56px;border-radius:999px;background:#d70015;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">I'm going</div>
+          <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0066cc">I can't go right now</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N3 Vet confirms" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N3 Vet confirms a dog <span style="font-weight:400;color:#6e6e73">· Vet · add a record</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px;color:#0066cc"><span>‹ Rani</span><span style="height:28px;padding:0 12px;border-radius:999px;background:#e8f0fe;color:#0059b3;font-size:13px;font-weight:600;display:flex;align-items:center">Vet account</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Checkup record</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid #e8e8ed"><div style="font-size:15px">Anti-rabies vaccine</div><div style="display:grid;grid-template-columns:repeat(3,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">Given today</span><span style="height:40px;line-height:40px">Up to date</span><span style="height:40px;line-height:40px">Due</span></div></div>
+            <div style="padding:12px 0;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid #e8e8ed"><div style="font-size:15px">Sterilised</div><div style="display:grid;grid-template-columns:repeat(2,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">Yes, confirmed</span><span style="height:40px;line-height:40px">No</span></div></div>
+            <div style="min-height:60px;display:flex;flex-direction:column;justify-content:center;gap:2px;border-bottom:1px solid #e8e8ed"><div style="font-size:13px;color:#6e6e73">Next vaccine due</div><div style="font-size:17px">Sep 2027</div></div>
+            <div style="min-height:80px;display:flex;flex-direction:column;justify-content:center;gap:4px"><div style="font-size:13px;color:#6e6e73">Note for feeders</div><div style="font-size:15px;line-height:1.4">Cut on front left paw, cleaned. Soft food for 3 days.</div></div>
+          </div>
+          <div style="background:#fff;border-radius:20px;min-height:64px;padding:0 16px;display:flex;align-items:center;gap:12px"><span style="width:24px;height:24px;border-radius:7px;background:#0071e3;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">✓</span><span style="font-size:15px;line-height:1.35">I examined this dog and the photo matches.</span></div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,113,227,.28)">Save and verify Rani</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N4 My dogs" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N4 My dogs <span style="font-weight:400;color:#6e6e73">· Feeder / NGO · what needs doing</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:17px;color:#0066cc"><span>‹ Me</span><span>+ Register</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:0 20px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">My dogs</div><div style="font-size:15px;color:#6e6e73">7 dogs · 2 need you today</div></div>
+          <div style="display:flex;gap:8px;font-size:15px"><span style="height:36px;padding:0 14px;border-radius:999px;background:#1d1d1f;color:#fff;display:flex;align-items:center">Needs you · 2</span><span style="height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #d2d2d7;display:flex;align-items:center">All · 7</span></div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <sc-for list="{{ mine }}" as="d" hint-placeholder-count="7">
+              <div style="display:flex;gap:12px;align-items:center;min-height:66px;border-bottom:1px solid #e8e8ed">
+                <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="{{ d.id }}" shape="circle" placeholder="" style="width:44px;height:44px"></image-slot></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">{{ d.name }}</span><span style="font-size:13px;color:#6e6e73">{{ d.sub }}</span></div>
+                <span style="height:26px;padding:0 10px;border-radius:999px;background:{{ d.bg }};color:{{ d.fg }};font-size:12px;font-weight:600;display:flex;align-items:center">{{ d.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:52px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #d2d2d7;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Print a batch sheet</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N5 Notifications" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N5 Notifications <span style="font-weight:400;color:#6e6e73">· Feeder</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:24px 20px 0;overflow:hidden">
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Alerts</div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:8px 4px 0">Today</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <sc-for list="{{ alerts }}" as="n" hint-placeholder-count="5">
+              <div style="display:flex;gap:12px;min-height:72px;align-items:center;border-bottom:1px solid #e8e8ed">
+                <span style="width:10px;height:10px;border-radius:50%;background:{{ n.dot }};flex:none"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600;line-height:1.3">{{ n.t }}</span><span style="font-size:13px;color:#6e6e73">{{ n.d }}</span></div>
+                <span style="font-size:13px;color:#86868b">{{ n.when }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;height:84px;display:grid;grid-template-columns:repeat(4,1fr);align-items:start;padding-top:10px;background:rgba(255,255,255,.92);box-shadow:0 -1px 0 #e8e8ed;font-size:11px;font-weight:500;text-align:center;color:#86868b">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:24px;height:24px;border-radius:7px;background:#c7c7cc"></span>Home</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:24px;height:24px;border-radius:7px;background:#c7c7cc"></span>Map</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#0071e3"><span style="width:24px;height:24px;border-radius:7px;background:#0071e3"></span>Alerts</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:24px;height:24px;border-radius:7px;background:#c7c7cc"></span>Me</div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N6 Settings" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N6 Settings <span style="font-weight:400;color:#6e6e73">· Language, data, delete</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Me</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:0 20px">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Settings</div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:8px 4px 0">Language</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#e8e8ed;border-radius:12px;padding:2px;font-size:15px;font-weight:500;text-align:center"><span style="height:40px;line-height:40px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)">English</span><span style="height:40px;line-height:40px">हिंदी</span><span style="height:40px;line-height:40px">मराठी</span></div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:8px 4px 0">Account</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">Name shown</span><span style="font-size:17px;color:#6e6e73">Priya S. ›</span></div>
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">My wards</span><span style="font-size:17px;color:#6e6e73">K/W, H/W ›</span></div>
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:17px">Alerts</span><span style="font-size:17px;color:#6e6e73">SOS only ›</span></div>
+          </div>
+          <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6e6e73;padding:8px 4px 0">Your data</div>
+          <div style="background:#fff;border-radius:20px;padding:0 16px">
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">Download my data</span><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="min-height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">Sign out</span><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="min-height:56px;display:flex;align-items:center"><span style="font-size:17px;color:#d70015">Delete my account</span></div>
+          </div>
+          <div style="font-size:13px;line-height:1.45;color:#6e6e73;padding:0 4px">Deleting keeps the dogs you registered and their feed logs, with your name removed.</div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N7 Offline" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N7 No signal <span style="font-weight:400;color:#6e6e73">· Feed saved, sends later</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="font-size:13px">No service</span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="flex:none;margin:8px 20px 0;min-height:48px;border-radius:16px;background:#1d1d1f;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:15px"><span>Offline · 2 feeds waiting</span><span style="color:#c7c7cc">Auto-sends</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:32px 20px 0">
+          <div style="width:64px;height:64px;border-radius:50%;background:#e6f4ea;color:#1a7a35;font-size:30px;display:flex;align-items:center;justify-content:center">✓</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">Kalu's feed is saved.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">It goes to Hetja when you're back online. Other feeders won't see it until then, so tell anyone nearby.</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:15px">Kalu · rice and egg</span><span style="font-size:13px;color:#9a5200;font-weight:600">Waiting</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;min-height:56px"><span style="font-size:15px">Moti · water</span><span style="font-size:13px;color:#9a5200;font-weight:600">Waiting</span></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73;padding:0 4px">SOS needs signal. With no signal, call a vet directly: numbers for your wards are saved on this phone.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#0071e3;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Scan the next dog</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N8 Code not found" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N8 Code not found <span style="font-weight:400;color:#6e6e73">· Typo or fake tag</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#f5f5f7;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Scan</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:24px 20px 0">
+          <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:30px;font-weight:600;letter-spacing:0.08em;color:#86868b">RNI 428 PQ7</div>
+          <div style="font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em">No dog has this code.</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Two digits may be swapped. Did you mean this dog?</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px"><div style="display:flex;gap:12px;align-items:center;min-height:76px"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:#f5f5f7"><image-slot id="n8-rani" shape="circle" placeholder="" style="width:52px;height:52px"></image-slot></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Rani</span><span style="font-size:13px;color:#6e6e73;font-family:ui-monospace,Menlo,monospace">RNI 482 PQ7 · K/W</span></div><span style="font-size:20px;color:#86868b">›</span></div></div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">Type it again</span><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid #e8e8ed"><span style="font-size:17px">Find by ward and photo</span><span style="font-size:20px;color:#86868b">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:56px"><span style="font-size:17px">Tag looks fake</span><span style="font-size:20px;color:#86868b">›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="N9 Missing or passed away" style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:17px;font-weight:600">N9 Not seen / passed away <span style="font-weight:400;color:#6e6e73">· Feeder · handled gently</span></div>
+      <div style="width:390px;height:844px;border-radius:54px;background:#fbfbfa;box-shadow:0 0 0 10px #1d1d1f,0 30px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:50px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:16px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:18px;height:10px;border-radius:2px;background:currentColor"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></span></div>
+        <div style="height:52px;flex:none;display:flex;align-items:center;padding:0 20px;font-size:17px;color:#0066cc">‹ Moti</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:8px 20px 0">
+          <div style="font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.025em">Update on Moti</div>
+          <div style="font-size:17px;line-height:1.45;color:#6e6e73">Nobody has logged Moti in 9 days.</div>
+          <div style="background:#fff;border-radius:20px;padding:4px 16px">
+            <div style="display:flex;gap:12px;align-items:center;min-height:68px;border-bottom:1px solid #e8e8ed"><span style="width:22px;height:22px;border-radius:50%;border:7px solid #0071e3;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Not seen lately</span><span style="font-size:13px;color:#6e6e73">Asks feeders in K/W to look out</span></div></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:68px;border-bottom:1px solid #e8e8ed"><span style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c7c7cc;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Adopted or moved to a shelter</span><span style="font-size:13px;color:#6e6e73">Profile stays, feeding stops</span></div></div>
+            <div style="display:flex;gap:12px;align-items:center;min-height:68px"><span style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c7c7cc;box-sizing:border-box;flex:none"></span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:17px">Moti has passed away</span><span style="font-size:13px;color:#6e6e73">Needs a second feeder to confirm</span></div></div>
+          </div>
+          <div style="font-size:14px;line-height:1.45;color:#6e6e73;padding:0 4px">A dog who has passed keeps their page, with the names of everyone who fed them. Their code is never reused.</div>
+        </div>
+        <div style="flex:none;padding:14px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="height:56px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center">Ask K/W feeders to look</div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:center"><span style="width:134px;height:5px;border-radius:3px;background:#1d1d1f"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const p = 'uploads/hetja-current/';
+    const mk = (img, title, rows) => ({ img: p + img, title, items: rows.map(([issue, fix], i) => ({ n: i + 1, issue, fix })) });
+    const audit = [
+      mk('home-mobile-01.png', 'Home', [
+        ['Chip is clipped under the header and the page starts mid-glow.', 'Give the first section real top padding; keep the chip fully below the sticky header.'],
+        ['Buttons touch the "Collar code" label with no gap.', 'One spacing scale (8, 16, 24, 40). Section blocks at 40, related items at 16.'],
+        ['Helper text sits below the button it explains.', 'Order: label, helper, input, button.'],
+        ['"Scan a collar" is regular weight, "View profile" is bold. Two primaries on one screen.', 'One primary per screen, always 17px semibold. Scan is primary; typed code is the fallback.']
+      ]),
+      mk('scan-mobile-01.png', 'Scan', [
+        ['"Use camera" is an outlined secondary button. It is the main action.', 'Open the camera directly on this tab. Typing is the fallback sheet.'],
+        ['The code input is cut off by the tab bar.', 'Add bottom padding equal to the tab bar height plus safe area.'],
+        ['Placeholder is grey spaced monospace and reads like a filled value.', 'Show the 3-3-3 boxes from the design system; placeholder in #86868b, not letter-spaced.']
+      ]),
+      mk('scan-mobile-02.png', 'Scan, scrolled', [
+        ['The full website footer appears inside the app, above the tab bar.', 'No footer on app tabs. Footer lives only on About, FAQ, Privacy.'],
+        ['Footer links are justified across the width, so dots float in odd places.', 'Stack footer links in a simple list with 44px rows.'],
+        ['Header gains a blurred smear when scrolled.', 'Use a solid white header with a 1px hairline, or a proper backdrop blur at 80% white.']
+      ]),
+      mk('me-mobile-01.png', 'Me, signed out', [
+        ['Blue sentence plus a black "Sign in" that is neither link nor button.', 'One blue "Sign in" button, with a one-line reason above it in grey.'],
+        ['Page heading "My feeder profile" for someone who is not a feeder yet.', 'Signed out: "Me" with what signing in unlocks. Signed in: name and streak.']
+      ]),
+      mk('hetja-mobile-01.png', '/hetja memorial', [
+        ['Empty grey pill under the definition. Looks like a failed image or player.', 'Remove it, or replace with the real photo of Hetja in an image frame.'],
+        ['Tab bar shows no active tab on this page.', 'Pages outside the tabs should hide the tab bar and show a back button.']
+      ]),
+      mk('login-mobile-01.png', 'Sign in', [
+        ['A bordered card inside a white page adds a second frame for no reason.', 'Drop the card; put the field and button directly on the page.'],
+        ['"Email-based OTP" is developer wording.', 'Say "We\'ll email you a 6-digit code. No password."'],
+        ['Tab bar and footer both visible during sign-in.', 'Sign-in is a full-screen step with Cancel, no tabs, no footer.']
+      ])
+    ];
+    const global = [
+      { t: 'Tab bar active state', d: 'The active tab is an outlined arc with icons missing (grey dots peek above the bar). Use filled icon + label in blue, 83px tall with safe area.' },
+      { t: 'One spacing scale', d: 'Gaps vary from 0 to 120px between similar blocks. Use 8/16/24/40/64 only.' },
+      { t: 'One button spec', d: 'Primary: blue, 56px, 17px semibold. Secondary: white with hairline. Text link: 17px blue. Nothing else.' },
+      { t: 'Header does nothing', d: 'The logo bar takes 80px on every screen. Shrink to 52px and put the page title or back button in it.' },
+      { t: 'Pages vs app tabs', d: 'About, FAQ, Privacy are website pages; Home, Scan, Me are app tabs. Mixing them is why footers and tab bars collide.' },
+      { t: 'Missing states', d: 'No offline, not-found, empty or error states exist. Designed in N7 and N8 below, and in Tag Problems.' }
+    ];
+    const mine = [
+      ['Rani', 'Tag reported off · 12 min', 'Tag', '#fff3e0', '#9a5200'],
+      ['Moti', 'Not logged in 9 days', 'Missing?', '#fff3e0', '#9a5200'],
+      ['Kalu', 'Fed 2 h ago by Anil', 'Fed', '#e6f4ea', '#1a7a35'],
+      ['Bruno', 'Fed this morning', 'Fed', '#e6f4ea', '#1a7a35'],
+      ['Sheru', 'Vaccine due Oct', 'Vet', '#f2f2f5', '#48484d'],
+      ['Laxmi', 'Fed yesterday', 'Fed', '#e6f4ea', '#1a7a35'],
+      ['Tiger', 'Unverified', 'New', '#f2f2f5', '#48484d']
+    ].map(([name, sub, tag, bg, fg], i) => ({ name, sub, tag, bg, fg, id: 'mine-' + i }));
+    const alerts = [
+      { t: 'SOS · Rani is hurt', d: 'K/W · Anil is going', when: '4m', dot: '#d70015' },
+      { t: "Rani's tag came off", d: 'Reported by a passer-by', when: '12m', dot: '#ff9f0a' },
+      { t: 'Dr Mehta verified Tiger', d: 'Vaccinated · sterilised', when: '2h', dot: '#1a7a35' },
+      { t: 'Kalu was fed', d: 'Rice and egg · Anil', when: '2h', dot: '#c7c7cc' },
+      { t: 'Moti not seen in 9 days', d: 'Tap to update', when: '8h', dot: '#ff9f0a' }
+    ];
+    return { audit, global, mine, alerts };
+  }
+}
+</script>
+</body>
+</html>

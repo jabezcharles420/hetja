@@ -589,6 +589,10 @@ export interface CreateRegistrationInput {
    */
   vaccinatedReported?: boolean;
   sterilisedReported?: boolean;
+  /** v5 R2: the face photo, base64 JPEG/WebP; becomes the dog's portrait. */
+  photoBase64?: string;
+  /** v5 R4 "How to spot her": at most 8 short strings. */
+  markings?: string[];
 }
 
 export interface CreateRegistrationResult {
@@ -613,6 +617,167 @@ export interface FeederMe {
   capabilities: string[];
   /** SOS responder consent: the ONLY gate on being paged (routes/sos.ts fan-out). */
   sosOptIn: boolean;
+  // Design v5 additions (docs/design/v5-handoff/CONTRACT.md). Optional so an
+  // older server still type-checks: treat absence as the default.
+  /** BMC ward ids the feeder feeds in; pages are limited to these when set. */
+  wards?: string[];
+  /** Pushes other than SOS are held back in this window (Asia/Kolkata). */
+  quietHours?: QuietHours | null;
+  alertsMode?: AlertsMode;
+  /** False until N1 (/welcome) has been completed. */
+  onboarded?: boolean;
+  /** First name and initial, e.g. "Priya S." */
+  publicName?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Design v5 types (docs/design/v5-handoff/CONTRACT.md)
+// ---------------------------------------------------------------------------
+
+export interface QuietHours {
+  /** "HH:MM", 24-hour, Asia/Kolkata. */
+  start: string;
+  end: string;
+}
+
+export type AlertsMode = "sos_only" | "all";
+
+export interface FeederPatch {
+  sosOptIn?: boolean;
+  displayName?: string;
+  wards?: string[];
+  quietHours?: QuietHours | null;
+  alertsMode?: AlertsMode;
+  onboarded?: true;
+}
+
+export type AlertKind = "sos" | "tag" | "verified" | "fed" | "not_seen" | "status";
+
+export interface Alert {
+  id: string;
+  kind: AlertKind;
+  at: string;
+  dog: { slug: string; name: string | null } | null;
+  wardCode: string | null;
+  /** Public names only ("Anil", "Dr Mehta"). */
+  actorName: string | null;
+  detail: string | null;
+  /** Web route to open. */
+  href: string;
+}
+
+export type AttentionKind = "sos" | "tag" | "missing" | "vet" | "new";
+
+/** A dog the caller registered or fed in the last 60 days (v5 shape of MyDog). */
+export interface MyDogV5 extends Omit<MyDog, "myLastFedAt"> {
+  myLastFedAt: string | null;
+  photoUrl?: string | null;
+  status?: DogStatus | "pending_activation" | "expired";
+  verified?: boolean;
+  registeredByMe?: boolean;
+  lastFedByName?: string | null;
+  attention?: { kind: AttentionKind; since: string; detail: string | null } | null;
+}
+
+/** A dog as shown in a lookup or ward list: ward level only. */
+export interface DogCard {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardCode: string;
+  photoUrl: string | null;
+  markings: string[];
+  lastSeenAt: string | null;
+}
+
+export interface DogLookupResult {
+  exact: DogCard | null;
+  matches: DogCard[];
+  suggestions: DogCard[];
+}
+
+export type CoatColour = "brown" | "black" | "white" | "spotted";
+
+export interface WardDogsResult {
+  wardId: string;
+  total: number;
+  colourTotal: number;
+  dogs: DogCard[];
+}
+
+export type TagProblemKind = "damaged" | "found_on_ground" | "wrong_dog" | "too_tight";
+
+export interface TagReport {
+  id: string;
+  kind: TagProblemKind;
+  createdAt: string;
+  /** "a passer-by" or a public name. */
+  reporter: string;
+}
+
+export interface TagEvent {
+  kind: "reported" | "printed" | "registered" | "resolved";
+  at: string;
+  detail: string | null;
+  byName: string | null;
+}
+
+export interface DogTags {
+  open: TagReport[];
+  history: TagEvent[];
+  reportsThisWeek: number;
+  sturdierCollarSuggested: boolean;
+}
+
+export type PrintLayout = "tags" | "notice" | "batch";
+export type PaperSize = "a4" | "letter";
+
+export interface CollarForPrint {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  collarUrl: string;
+}
+
+export type StatusReportKind = "not_seen" | "adopted" | "passed_away";
+
+export interface StatusReport {
+  id: string;
+  kind: StatusReportKind;
+  createdAt: string;
+  reportedByName: string | null;
+  mine: boolean;
+}
+
+export type RabiesChoice = "given_today" | "up_to_date" | "due";
+
+export interface CheckupInput {
+  rabies: RabiesChoice;
+  sterilised: boolean;
+  /** "YYYY-MM" */
+  nextVaccineDue?: string;
+  noteForFeeders?: string;
+  examined: true;
+}
+
+/** v5 fields on GET /sos/cases/:id. `location` is filled only for the acker. */
+export interface SosCaseV5 extends SosCase {
+  dog?: { slug: string; name: string | null; photoUrl: string | null } | null;
+  reporterPhotoUrl?: string | null;
+  note?: string | null;
+  respondingName?: string | null;
+  respondersPaged?: number;
+  nearestCare?: { name: string; phoneE164: string | null } | null;
+  declinedByMe?: boolean;
+  location?: GeoPoint | null;
+}
+
+/** v5 fields on GET /dogs/:slug. */
+export interface DogProfileV5 extends DogProfile {
+  verified?: boolean;
+  tagUnderReview?: boolean;
+  sturdierCollarSuggested?: boolean;
+  memorial?: { feederNames: string[] } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -793,4 +958,91 @@ export const api = {
       method: "POST",
       body: { surface: "register" },
     }),
+
+  // -------------------------------------------------------------------------
+  // Design v5 endpoints (docs/design/v5-handoff/CONTRACT.md). If you add one,
+  // add it in this block and keep the contract doc in step.
+  // -------------------------------------------------------------------------
+
+  /** Profile, wards, quiet hours, alerts mode, onboarding (N1, N6). */
+  patchFeederMe: (input: FeederPatch) =>
+    request<Partial<FeederMe>>(`/feeders/me`, { method: "PATCH", body: input }),
+
+  /** N6 "Download my data": the caller's own data as JSON. */
+  exportMyData: () => request<Record<string, unknown>>(`/feeders/me/export`),
+
+  /** N6 "Delete my account". Registered dogs and feed logs stay, name removed. */
+  deleteMyAccount: () =>
+    request<{ deleted: true }>(`/feeders/me`, { method: "DELETE", body: { confirm: "DELETE" } }),
+
+  /** N5 Alerts. */
+  getAlerts: () => request<{ items: Alert[] }>(`/feeders/me/alerts`),
+
+  /** N4 My dogs (v5 shape). */
+  getMyDogsV5: () => request<{ dogs: MyDogV5[] }>(`/feeders/me/dogs`),
+
+  /** Second-feeder confirmation of a dog (Unverified until confirmed). */
+  confirmDog: (slug: string) =>
+    request<{ verified: true; via: "feeder" }>(`/dogs/${encodeURIComponent(slug)}/confirm`, { method: "POST" }),
+
+  /** N3 Vet checkup record; verifies the dog. Vet accounts only. */
+  createCheckup: (slug: string, input: CheckupInput) =>
+    request<{ verified: true; via: "vet" }>(`/dogs/${encodeURIComponent(slug)}/checkups`, {
+      method: "POST",
+      body: input,
+    }),
+
+  /** F2 / N8: partial code ("?" for unknown characters), or a full-code miss. */
+  lookupDogs: (code: string) =>
+    request<DogLookupResult>(`/dogs/lookup?code=${encodeURIComponent(code)}`, { auth: false }),
+
+  /** F3 / R3: dogs in a ward, optionally by coat colour. */
+  getWardDogs: (wardId: string, colour?: CoatColour) =>
+    request<WardDogsResult>(
+      `/wards/${encodeURIComponent(wardId)}/dogs${colour ? `?colour=${colour}` : ""}`,
+      { auth: false },
+    ),
+
+  /** F6 tag history and open reports (feeders of the dog). */
+  getDogTags: (slug: string) => request<DogTags>(`/dogs/${encodeURIComponent(slug)}/tags`),
+
+  resolveTagReport: (slug: string, reportId: string, resolution: "reprinted" | "spare" | "checked_ok") =>
+    request<{ id: string; resolution: string }>(
+      `/dogs/${encodeURIComponent(slug)}/tag-reports/${encodeURIComponent(reportId)}/resolve`,
+      { method: "POST", body: { resolution } },
+    ),
+
+  /** Record a print for the tag history. */
+  recordPrint: (slug: string, input: { layout: PrintLayout; paper: PaperSize; tagCount: number }) =>
+    request<{ id: string }>(`/dogs/${encodeURIComponent(slug)}/prints`, { method: "POST", body: input }),
+
+  /** Signed collar URL for reprinting (registrator or feeder of the dog). */
+  getCollar: (slug: string) => request<CollarForPrint>(`/dogs/${encodeURIComponent(slug)}/collar`),
+
+  /** R8 batch sheet: signed collar URLs for up to 8 dogs. */
+  getCollarBatch: (slugs: string[]) =>
+    request<{ dogs: CollarForPrint[]; skipped: string[] }>(`/collars/batch`, { method: "POST", body: { slugs } }),
+
+  /** N9 status update. */
+  createStatusReport: (slug: string, kind: StatusReportKind) =>
+    request<{ id: string; status: string; needsConfirmation: boolean }>(
+      `/dogs/${encodeURIComponent(slug)}/status-reports`,
+      { method: "POST", body: { kind } },
+    ),
+
+  getStatusReports: (slug: string) =>
+    request<{ reports: StatusReport[] }>(`/dogs/${encodeURIComponent(slug)}/status-reports`),
+
+  confirmStatusReport: (slug: string, reportId: string) =>
+    request<{ id: string; status: string }>(
+      `/dogs/${encodeURIComponent(slug)}/status-reports/${encodeURIComponent(reportId)}/confirm`,
+      { method: "POST" },
+    ),
+
+  /** N2 v5 case shape. */
+  getSosCaseV5: (id: string) => request<SosCaseV5>(`/sos/cases/${encodeURIComponent(id)}`),
+
+  /** N2 "I can't go right now". Never affects escalation. */
+  declineSosCase: (id: string) =>
+    request<{ declined: true }>(`/sos/cases/${encodeURIComponent(id)}/decline`, { method: "POST" }),
 };

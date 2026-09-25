@@ -52,6 +52,14 @@
   --h-danger-bg: #fde8ea;      /* SOS open, Needs a vet now                 */
   --h-danger: #b80012;
 
+  /* Design v5 (docs/design/v5-handoff). */
+  --h-vet-bg: #e8f0fe;         /* "Vet account" pill                        */
+  --h-vet: #0059b3;
+  --h-attention: #ff9f0a;      /* alert dots, F1 scan frame: never text     */
+  --h-control-off: #c7c7cc;    /* unselected radio ring, idle tab icon      */
+  --h-camera: #111111;         /* camera screens (R2, F1)                   */
+  --h-camera-surface: #2c2c2e;
+
   /* Aurora: static layered radial gradients over the base (marketing only). */
   --h-aurora-base: #fdf6f8;
   --h-aurora-pink: #ffb3dc;

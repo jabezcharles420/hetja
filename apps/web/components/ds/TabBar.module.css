@@ -1,11 +1,13 @@
-/* TabBar (handoff "TabBar"): 56 + safe area, 92% white, #e3e3e8 top line. */
+/* TabBar (design v5 audit, "Tab bar active state"; N5 mock): 83px with the
+ * home-indicator area, 96% white (the recorded .92 -> .96 exception), a 1px
+ * #e8e8ed line above, filled 24px icons over 11px labels. */
 
 .bar {
   background: var(--h-tab-bg);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  border-top: 1px solid var(--h-tab-line);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -1px 0 var(--h-divider);
+  padding-bottom: max(34px, env(safe-area-inset-bottom, 0px));
   padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
 }
 
@@ -23,41 +25,43 @@
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(var(--tab-count, 4), 1fr);
+  grid-template-columns: repeat(var(--tab-count, 5), 1fr);
   align-items: stretch;
 }
 
 .item {
   display: flex;
+  min-width: 0;
 }
 
 .tab {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
-  font-size: 13px;
-  line-height: 1.2;
-  font-weight: 600;
+  padding-top: 8px;
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 500;
+  /* The mock's #86868b label is 3.5:1; the secondary grey keeps AA. */
   color: var(--h-secondary);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.indicator {
-  width: 22px;
-  height: 4px;
-  border-radius: 2px;
-  background: transparent;
+.icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  color: var(--h-control-off);
 }
 
-.active {
-  color: var(--h-ink);
-}
-
-.active .indicator {
-  background: var(--h-ink);
+.active,
+.active .icon {
+  color: var(--h-blue);
 }
 
 @media print {

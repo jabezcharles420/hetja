@@ -13,7 +13,23 @@ import {
   type FeedOutcomeValue,
 } from "@/lib/api";
 import { parseCollarCode } from "@/lib/collar";
-import { blobToBase64, captureGeo, enqueueFeed, stripDataPrefix } from "@/lib/offline-queue";
+import {
+  blobToBase64,
+  captureGeo,
+  enqueueFeed,
+  flushOnOpen,
+  listWaiting,
+  stripDataPrefix,
+  type WaitingFeed,
+} from "@/lib/offline-queue";
+import {
+  cachedDogName,
+  loadCareNumbers,
+  refreshCareNumbers,
+  rememberDogNames,
+  telHref,
+  type CareNumber,
+} from "@/lib/care-cache";
 import { prepareFeedPhoto } from "@/lib/photo";
 import { dogName, kolkataDay, safeStreak, streakAfterFeed, streakCaption } from "@/lib/streak";
 import styles from "./feed.module.css";
@@ -28,7 +44,48 @@ import styles from "./feed.module.css";
  *
  * The feed goes through the offline queue (enqueueFeed), so it survives no
  * signal: the record is persisted first and flushed when there is a network.
+ *
+ * Design v5 N7 "No signal": a feed saved with no signal gets its own screen
+ * (the dark "Offline · N feeds waiting" banner, what is waiting, and the
+ * care numbers for the feeder's wards, which lib/care-cache.ts keeps on this
+ * phone while online). With no signal the dog profile cannot load, so the
+ * screen falls back to the collar code and the dog's remembered name, and
+ * the feed can still be logged.
  */
+
+/** N7 copy (Hetja Audit and New Pages, N7), verbatim. */
+export const OFFLINE_BODY =
+  "It goes to Hetja when you're back online. Other feeders won't see it until then, so tell anyone nearby.";
+export const SOS_NEEDS_SIGNAL =
+  "SOS needs signal. With no signal, call a vet directly: numbers for your wards are saved on this phone.";
+/** The same note when nothing is saved yet: it must not claim numbers it does not have. */
+export const SOS_NEEDS_SIGNAL_NONE = "SOS needs signal. With no signal, call a vet directly.";
+
+/** "Offline · 2 feeds waiting". */
+export function offlineBanner(count: number): string {
+  return `Offline · ${count} ${count === 1 ? "feed" : "feeds"} waiting`;
+}
+
+const OUTCOME_WORDS: Record<FeedOutcomeValue, string> = {
+  ate_all: "ate it all",
+  ate_some: "ate a little",
+  didnt_eat: "didn't eat",
+  unwell: "looks unwell",
+};
+
+/** One waiting row: "Kalu · ate a little", or the code when no name is known. */
+export function waitingLine(w: Pick<WaitingFeed, "dogName" | "dogSlug" | "outcome">): string {
+  const who = w.dogName?.trim() || collarGroups(w.dogSlug).join(" ");
+  return w.outcome ? `${who} · ${OUTCOME_WORDS[w.outcome]}` : who;
+}
+
+function browserOffline(): boolean {
+  try {
+    return typeof navigator !== "undefined" && navigator.onLine === false;
+  } catch {
+    return false;
+  }
+}
 
 export const OUTCOMES: { value: FeedOutcomeValue; label: string }[] = [
   { value: "ate_all", label: "Ate it all" },
@@ -68,7 +125,7 @@ type Load =
   | { kind: "no-dog" }
   | { kind: "not-found" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; dog: DogProfile };
+  | { kind: "ready"; dog: DogProfile; offline?: boolean };
 
 function PhotoIcon(): React.JSX.Element {
   return (
@@ -96,6 +153,10 @@ export default function FeedScreen(): React.JSX.Element {
   const [toast, setToast] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ name: string } | null>(null);
+  const [waiting, setWaiting] = useState<WaitingFeed[]>([]);
+  const [careNumbers, setCareNumbers] = useState<CareNumber[]>([]);
+  const [offlineNow, setOfflineNow] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -116,12 +177,39 @@ export default function FeedScreen(): React.JSX.Element {
     setSlug(parsed.slug);
 
     let cancelled = false;
+    // Online: keep this feeder's ward care numbers on the phone for N7.
+    if (!browserOffline()) void refreshCareNumbers();
     (async () => {
       try {
         const dog = await api.getDog(parsed.slug);
         if (!cancelled) setLoad({ kind: "ready", dog });
+        void rememberDogNames([dog]);
       } catch (err) {
         if (cancelled) return;
+        const unreachable = err instanceof ApiError && (err.status === 0 || err.status === 408);
+        if (unreachable && browserOffline()) {
+          // No signal: the collar code is enough to log the feed.
+          const name = await cachedDogName(parsed.slug);
+          if (cancelled) return;
+          setLoad({
+            kind: "ready",
+            offline: true,
+            dog: {
+              slug: parsed.slug,
+              name,
+              status: "active",
+              wardId: "",
+              photoKey: null,
+              abcStatus: null,
+              vaccineStatus: null,
+              microStory: null,
+              lastSeenAt: null,
+              geo: null,
+              photoUrl: null,
+            },
+          });
+          return;
+        }
         if (err instanceof ApiError && err.status === 404) setLoad({ kind: "not-found" });
         else
           setLoad({
@@ -150,6 +238,34 @@ export default function FeedScreen(): React.JSX.Element {
     },
     [preview],
   );
+
+  // N7: keep the waiting list and banner honest while the screen is up, and
+  // send the moment the signal comes back.
+  useEffect(() => {
+    if (!saved) return;
+    let live = true;
+    const refresh = async () => {
+      const [w, c] = await Promise.all([listWaiting(), loadCareNumbers()]);
+      if (!live) return;
+      setWaiting(w);
+      setCareNumbers(c?.numbers ?? []);
+      setOfflineNow(browserOffline());
+    };
+    const onOnline = async () => {
+      setOfflineNow(false);
+      await flushOnOpen();
+      await refresh();
+    };
+    const onOffline = () => setOfflineNow(true);
+    void refresh();
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      live = false;
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [saved]);
 
   const pickFile = (f: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
@@ -184,6 +300,7 @@ export default function FeedScreen(): React.JSX.Element {
         geo,
         deviceToken,
         ...(outcome ? { outcome } : {}),
+        ...(load.dog.name ? { dogName: load.dog.name } : {}),
       });
       if (res.dropped) {
         // Refused for good (recordDroppedFeed has it). Say so; do not pretend.
@@ -191,6 +308,13 @@ export default function FeedScreen(): React.JSX.Element {
         return;
       }
       setDone(true);
+      if (res.offline) {
+        // N7: its own screen, and no auto-leave: the feeder reads it standing
+        // next to the dog, with no signal.
+        setOfflineNow(true);
+        setSaved({ name: dogName(load.dog.name) });
+        return;
+      }
       const quiet = feedNote(res.result);
       setToast(
         res.offline
@@ -212,6 +336,55 @@ export default function FeedScreen(): React.JSX.Element {
   }, [busy, done, file, load, outcome]);
 
   const changeHref = `/scan?intent=feed${slug ? `&dog=${encodeURIComponent(slug)}` : ""}`;
+
+  if (saved) {
+    const count = waiting.length;
+    return (
+      <div className={styles.page}>
+        {(offlineNow || count > 0) && (
+          <div className={styles.offlineBanner} role="status">
+            <span>{offlineNow ? offlineBanner(count) : `Sending · ${count} ${count === 1 ? "feed" : "feeds"} waiting`}</span>
+            <span className={styles.offlineAuto}>Auto-sends</span>
+          </div>
+        )}
+        <div className={`${styles.body} ${styles.savedBody}`}>
+          <span className={styles.savedCheck} aria-hidden="true">
+            <StatusIcon name="check" size={30} strokeWidth={2.2} />
+          </span>
+          <h1 className={styles.title}>{saved.name}&rsquo;s feed is saved.</h1>
+          <p className={styles.state}>{OFFLINE_BODY}</p>
+          {count > 0 && (
+            <ul className={styles.waitList} aria-label="Waiting to send">
+              {waiting.map((w) => (
+                <li key={w.id} className={styles.waitRow}>
+                  <span>{waitingLine(w)}</span>
+                  <span className={styles.waitTag}>Waiting</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className={styles.sosNote}>{careNumbers.length > 0 ? SOS_NEEDS_SIGNAL : SOS_NEEDS_SIGNAL_NONE}</p>
+          {careNumbers.length > 0 && (
+            <ul className={styles.waitList} aria-label="Vets and NGOs for your wards">
+              {careNumbers.map((n) => (
+                <li key={n.id} className={styles.waitRow}>
+                  <span className={styles.careName}>{n.name}</span>
+                  <a href={telHref(n.phoneE164)} className={styles.careCall}>
+                    Call
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <StickyFooter background="mist" className={styles.footer}>
+          <Button href="/scan?intent=feed" fullWidth shadow={false}>
+            Scan the next dog
+          </Button>
+        </StickyFooter>
+      </div>
+    );
+  }
 
   if (load.kind !== "ready") {
     const msg =

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /**
- * New dog (design v4, screen 10) and Collar ready (screen 11).
+ * Design v5 register and print: R1 Start, R2 to R5 (one flow), R6 Code
+ * ready, R7 Print tag, R8 Batch sheet. The API is mocked to the v5 shapes in
+ * lib/api.ts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -29,6 +31,19 @@ vi.mock("@/lib/device", async () => {
   };
 });
 
+// The browser photo pipeline (compressorjs + canvas) does not run in jsdom.
+vi.mock("@/lib/photo", () => ({
+  prepareFeedPhoto: vi.fn(async () => ({
+    blob: new Blob(["face"], { type: "image/jpeg" }),
+    geo: { lat: 19.13, lng: 72.83 },
+  })),
+}));
+
+vi.mock("@/lib/offline-queue", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/offline-queue")>("@/lib/offline-queue");
+  return { ...actual, captureGeo: vi.fn(async () => undefined), blobToBase64: vi.fn(async () => "ZmFjZQ==") };
+});
+
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   return {
@@ -39,37 +54,85 @@ vi.mock("@/lib/api", async () => {
       getWards: vi.fn(),
       createRegistration: vi.fn(),
       getRegistration: vi.fn(),
+      getWardDogs: vi.fn(),
+      getCollar: vi.fn(),
+      getCollarBatch: vi.fn(),
+      recordPrint: vi.fn(),
+      getMyDogsV5: vi.fn(),
+      getDogTags: vi.fn(),
+      resolveTagReport: vi.fn(),
     },
   };
 });
 
-import NewRegistrationForm, {
+import StartClient from "@/app/(register)/register/StartClient";
+import RegisterFlow, {
   REGISTRATION_WEEKLY_CAP_MESSAGE,
+  nearestWard,
   wardLabel,
-} from "@/app/(register)/register/new/NewRegistrationForm";
-import ReadyClient, { readyTitle, tagLine } from "@/app/(register)/register/[slug]/ready/ReadyClient";
-import { api, ApiError } from "@/lib/api";
+} from "@/app/(register)/register/new/RegisterFlow";
+import ReadyClient, { readyTitle } from "@/app/(register)/register/[slug]/ready/ReadyClient";
+import PrintClient from "@/app/(register)/register/[slug]/print/PrintClient";
+import BatchClient, { batchNote, initialSelection } from "@/app/(register)/register/batch/BatchClient";
+import { api, ApiError, type MyDogV5 } from "@/lib/api";
+import { dogCopy, rememberDogSex } from "@/lib/dog-copy";
 
-const apiMock = api as unknown as {
-  getFeederMe: ReturnType<typeof vi.fn>;
-  getWards: ReturnType<typeof vi.fn>;
-  createRegistration: ReturnType<typeof vi.fn>;
-  getRegistration: ReturnType<typeof vi.fn>;
-};
+const apiMock = api as unknown as Record<
+  | "getFeederMe"
+  | "getWards"
+  | "createRegistration"
+  | "getRegistration"
+  | "getWardDogs"
+  | "getCollar"
+  | "getCollarBatch"
+  | "recordPrint"
+  | "getMyDogsV5"
+  | "getDogTags"
+  | "resolveTagReport",
+  ReturnType<typeof vi.fn>
+>;
 
 const WARDS = [
   { id: "A", code: "A", name: "Colaba" },
   { id: "K-West", code: "K/W", name: "Andheri West" },
 ];
 
+const SIG = "abcdEfGhIjKlMnOpQrStUvWxYz0123456789-_A1234";
+const collarUrl = (slug: string) => `https://hetja.in/d/${slug}?s=${SIG}`;
+
 function me(homeWard: string | null = "K-West") {
-  return { role: "registrator", capabilities: ["register"], homeWard };
+  return { role: "registrator", capabilities: ["register"], homeWard, displayName: "Priya", publicName: "Priya S." };
 }
 
 beforeEach(() => {
   push.mockReset();
+  localStorage.clear();
+  apiMock.getFeederMe.mockResolvedValue(me());
   apiMock.getWards.mockResolvedValue({ wards: WARDS });
   apiMock.createRegistration.mockResolvedValue({ slug: "rni482pq7" });
+  apiMock.recordPrint.mockResolvedValue({ id: "p1" });
+  apiMock.getDogTags.mockResolvedValue({ open: [], history: [], reportsThisWeek: 0, sturdierCollarSuggested: false });
+  apiMock.resolveTagReport.mockResolvedValue({ id: "x", resolution: "reprinted" });
+  apiMock.getWardDogs.mockResolvedValue({
+    wardId: "K-West",
+    total: 1,
+    colourTotal: 1,
+    dogs: [
+      {
+        slug: "bho2ri4xk",
+        name: "Bhoori",
+        wardId: "K-West",
+        wardCode: "K/W",
+        photoUrl: null,
+        markings: ["Brown", "White chest"],
+        lastSeenAt: new Date(Date.now() - 86_400_000 - 1000).toISOString(),
+      },
+    ],
+  });
+  if (typeof URL.createObjectURL !== "function") {
+    Object.defineProperty(URL, "createObjectURL", { value: vi.fn(() => "blob:x"), configurable: true, writable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: vi.fn(), configurable: true, writable: true });
+  }
 });
 
 afterEach(() => {
@@ -77,101 +140,348 @@ afterEach(() => {
   cleanup();
 });
 
-describe("New dog", () => {
-  it("shows the mock's copy and the feeder's own ward as 'K/W · Andheri West'", async () => {
-    apiMock.getFeederMe.mockResolvedValue(me());
-    render(<NewRegistrationForm />);
-    expect(await screen.findByText("New dog")).not.toBeNull();
+describe("R1 Start", () => {
+  it("shows the mock's copy and starts with a photo", async () => {
+    render(<StartClient />);
+    expect(await screen.findByText("Register a dog")).not.toBeNull();
     expect(
-      screen.getByText("A clear face photo. Strangers use it to check they found the right dog."),
+      screen.getByText("Know a street dog well? Give them a code so anyone can scan it and help. About two minutes."),
     ).not.toBeNull();
-    expect(screen.getByText("Only the ward is ever shown. Vets can confirm medical status later.")).not.toBeNull();
-    expect(await screen.findByText("K/W · Andheri West", { selector: "span" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Save & print collar" })).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Cancel" }).getAttribute("href")).toBe("/register");
-    expect(wardLabel(WARDS[1]!)).toBe("K/W · Andheri West");
+    for (const t of [
+      "A clear face photo",
+      "Taken now, in daylight if you can",
+      "The ward they live in",
+      "Never a street or building",
+      "A printer or print shop",
+      "One A4 page, black and white",
+      "New dogs show as Unverified until a vet or a second feeder confirms them.",
+    ]) {
+      expect(screen.getByText(t)).not.toBeNull();
+    }
+    expect(screen.getByRole("link", { name: "Start with a photo" }).getAttribute("href")).toBe("/register/new");
+    expect(screen.getByRole("link", { name: "‹ Me" }).getAttribute("href")).toBe("/me");
   });
 
-  it("sends name, ward and both self-reported toggles, then goes to Collar ready", async () => {
-    apiMock.getFeederMe.mockResolvedValue(me());
-    render(<NewRegistrationForm />);
-    await screen.findByText("K/W · Andheri West", { selector: "span" });
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: " Rani " } });
-    const vacc = screen.getByRole("switch", { name: "Vaccinated" });
-    fireEvent.click(vacc);
-    expect(vacc.getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("switch", { name: "Sterilised" }).getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "Save & print collar" }));
-    await waitFor(() => expect(apiMock.createRegistration).toHaveBeenCalledTimes(1));
-    expect(apiMock.createRegistration).toHaveBeenCalledWith(
-      { wardId: "K-West", name: "Rani", vaccinatedReported: true, sterilisedReported: false },
-      "dev.tok",
-    );
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/register/rni482pq7/ready"));
-  });
-
-  it("makes the feeder pick a ward rather than filing the dog under the first one", async () => {
-    apiMock.getFeederMe.mockResolvedValue(me(null));
-    render(<NewRegistrationForm />);
-    expect(await screen.findByText("Choose a ward", { selector: "span" })).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Save & print collar" }));
-    expect(await screen.findByText("Pick the ward the dog lives in.")).not.toBeNull();
-    expect(apiMock.createRegistration).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText(/Ward/), { target: { value: "A" } });
-    expect(screen.getByText("A · Colaba", { selector: "span" })).not.toBeNull();
-  });
-
-  it("explains the weekly cap plainly on 429 REGISTRATION_WEEKLY_CAP", async () => {
-    apiMock.getFeederMe.mockResolvedValue(me());
-    apiMock.createRegistration.mockRejectedValue(
-      new ApiError("weekly cap", { status: 429, code: "REGISTRATION_WEEKLY_CAP" }),
-    );
-    render(<NewRegistrationForm />);
-    await screen.findByText("K/W · Andheri West", { selector: "span" });
-    fireEvent.click(screen.getByRole("button", { name: "Save & print collar" }));
-    expect(await screen.findByText(REGISTRATION_WEEKLY_CAP_MESSAGE)).not.toBeNull();
-    expect(REGISTRATION_WEEKLY_CAP_MESSAGE).toBe(
-      "You've registered 6 dogs this week. The limit keeps fake dogs off the map. Try again in a few days.",
-    );
-    expect(push).not.toHaveBeenCalled();
+  it("keeps the capability gate: a feeder without it is offered the switch", async () => {
+    apiMock.getFeederMe.mockResolvedValue({ role: "feeder", capabilities: [] });
+    render(<StartClient />);
+    expect(await screen.findByText("One more step.")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Enable registration" })).not.toBeNull();
   });
 });
 
-describe("Collar ready", () => {
-  it("prints the dog's name, the grouped code and the QR, and prints on either button", async () => {
-    apiMock.getFeederMe.mockResolvedValue(me());
-    apiMock.getRegistration.mockResolvedValue({
-      slug: "rni482pq7",
-      name: "Rani",
-      status: "pending_activation",
-      wardId: "K-West",
-      registeredAt: null,
-      collarUrl: "https://hetja.in/d/rni482pq7?s=abcdEfGhIjKlMnOpQrStUvWxYz0123456789-_A",
-    });
-    const print = vi.fn();
-    Object.defineProperty(window, "print", { value: print, configurable: true, writable: true });
-    const { container } = render(<ReadyClient slug="rni482pq7" />);
-    expect(await screen.findByText("Rani has a code.")).not.toBeNull();
+async function throughPhoto(): Promise<void> {
+  expect(await screen.findByText("Face in the oval. Crouch to their eye level.")).not.toBeNull();
+  const gallery = screen.getByLabelText("Choose a photo from the gallery");
+  const file = new File(["jpg"], "dog.jpg", { type: "image/jpeg" });
+  await act(async () => {
+    fireEvent.change(gallery, { target: { files: [file] } });
+  });
+  expect(await screen.findByText("Is this dog already registered?")).not.toBeNull();
+}
+
+describe("R2 to R5, one flow", () => {
+  it("photo, duplicate check, about, confirm: sends photo, markings, sex and the health answers", async () => {
+    render(<RegisterFlow />);
+    await throughPhoto();
+
+    // R3: the ward comes from the photo's (ward-coarsened) position.
+    expect(await screen.findByText("K/W · Andheri West", { selector: "span" })).not.toBeNull();
+    expect(screen.getByText("Ward, from your location")).not.toBeNull();
+    expect(screen.getByText("Similar dogs in K/W. If one matches, add your photo to them instead.")).not.toBeNull();
+    expect(await screen.findByText("Bhoori")).not.toBeNull();
+    expect(screen.getByText("Brown, white chest · seen yesterday")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Same dog: Bhoori" }).getAttribute("href")).toBe("/d/bho2ri4xk");
+    expect(screen.getByText("2 of 4")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "None of these, continue" }));
+
+    // R4: pronouns follow the sex.
+    expect(await screen.findByText("About them")).not.toBeNull();
+    fireEvent.click(screen.getByLabelText("Female"));
+    expect(screen.getByText("About her")).not.toBeNull();
+    expect(screen.getByText("How to spot her")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Name people call her"), { target: { value: " Rani " } });
+    fireEvent.click(screen.getByRole("button", { name: "Brown" }));
+    fireEvent.click(screen.getByRole("button", { name: "White chest" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Add" }));
+    const add = screen.getByLabelText("Add a way to spot this dog");
+    fireEvent.change(add, { target: { value: "Torn ear" } });
+    fireEvent.keyDown(add, { key: "Enter" });
+    expect(screen.getByRole("button", { name: "Torn ear" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Health, if you know")).not.toBeNull();
+    const vacc = screen.getByRole("radiogroup", { name: "Vaccinated" });
+    fireEvent.click(vacc.querySelector('input[value="yes"]')!);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    // R5
+    expect(await screen.findByText("Check and confirm")).not.toBeNull();
+    expect(screen.getByText("Female · Brown, white chest, torn ear")).not.toBeNull();
+    expect(screen.getByText("Priya S.")).not.toBeNull();
     expect(
-      screen.getByText(
-        "Print it on waterproof paper, laminate it, and loop it on a soft collar. Not too tight: two fingers under.",
-      ),
+      screen.getByText("Your phone and email are never shown. The profile shows your first name and initial."),
+    ).not.toBeNull();
+    const register = screen.getByRole("button", { name: "Register Rani" });
+    expect((register as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("I see her at least once a week."));
+    expect((register as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("I won't post where she sleeps or eats."));
+    expect((register as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(register);
+
+    await waitFor(() => expect(apiMock.createRegistration).toHaveBeenCalledTimes(1));
+    const [input, token] = apiMock.createRegistration.mock.calls[0]!;
+    expect(token).toBe("dev.tok");
+    expect(input).toEqual({
+      wardId: "K-West",
+      name: "Rani",
+      sex: "female",
+      vaccinatedReported: true,
+      markings: ["Brown", "White chest", "Torn ear"],
+      photoBase64: expect.any(String),
+    });
+    expect((input as { photoBase64: string }).photoBase64.length).toBeGreaterThan(0);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/register/rni482pq7/ready"));
+    expect(localStorage.getItem("hetja.dogSex.rni482pq7")).toBe("female");
+  });
+
+  it("explains the weekly cap plainly on 429 REGISTRATION_WEEKLY_CAP", async () => {
+    apiMock.createRegistration.mockRejectedValue(
+      new ApiError("weekly cap", { status: 429, code: "REGISTRATION_WEEKLY_CAP" }),
+    );
+    render(<RegisterFlow />);
+    await throughPhoto();
+    await screen.findByText("K/W · Andheri West", { selector: "span" });
+    fireEvent.click(screen.getByRole("button", { name: "None of these, continue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    await screen.findByText("Check and confirm");
+    fireEvent.click(screen.getByLabelText("I see them at least once a week."));
+    fireEvent.click(screen.getByLabelText("I won't post where they sleep or eat."));
+    fireEvent.click(screen.getByRole("button", { name: "Register this dog" }));
+    expect(await screen.findByText(REGISTRATION_WEEKLY_CAP_MESSAGE)).not.toBeNull();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("maps a Mumbai position to its nearest ward and refuses one outside Mumbai", () => {
+    expect(nearestWard(19.13, 72.83)).toBe("K-West");
+    expect(nearestWard(18.92, 72.83)).toBe("A");
+    expect(nearestWard(28.6, 77.2)).toBeNull();
+    expect(wardLabel(WARDS[1]!)).toBe("K/W · Andheri West");
+  });
+});
+
+describe("R6 Code ready", () => {
+  const detail = {
+    slug: "rni482pq7",
+    name: "Rani",
+    status: "pending_activation",
+    wardId: "K-West",
+    registeredAt: null,
+    collarUrl: collarUrl("rni482pq7"),
+  };
+
+  it("shows the real QR, the grouped code, the Unverified pill and the activation line", async () => {
+    rememberDogSex("rni482pq7", "female");
+    apiMock.getRegistration.mockResolvedValue(detail);
+    const { container } = render(<ReadyClient slug="rni482pq7" />);
+    expect(await screen.findByText("Rani is on Hetja.")).not.toBeNull();
+    expect(
+      screen.getByText("Print her tag and tie it to a soft collar. Anyone who scans it can log a feed or send an SOS."),
     ).not.toBeNull();
     expect(["RNI", "482", "PQ7"].every((g) => screen.getByText(g))).toBe(true);
-    expect(screen.getByText("Rani · Scan me if I look lost")).not.toBeNull();
-    expect(container.querySelector("svg")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Print collar" }));
-    const pdf = screen.getByRole("button", { name: "Save as PDF" });
-    expect(pdf.getAttribute("title")).toMatch(/Save as PDF/);
-    fireEvent.click(pdf);
-    expect(print).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Unverified · needs one confirmation")).not.toBeNull();
+    expect(container.querySelector("svg path")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Print her tag" }).getAttribute("href")).toBe("/register/rni482pq7/print");
     expect(screen.getByRole("link", { name: /Switch the profile on/ }).getAttribute("href")).toBe("/register/rni482pq7");
+    expect(screen.getByRole("link", { name: "Done" }).getAttribute("href")).toBe("/me");
+  });
+
+  it("asks a vet through the share sheet with the dog's page", async () => {
+    apiMock.getRegistration.mockResolvedValue({ ...detail, status: "active" });
+    const share = vi.fn(async () => {});
+    Object.defineProperty(navigator, "share", { value: share, configurable: true, writable: true });
+    render(<ReadyClient slug="rni482pq7" />);
+    await screen.findByText("Rani is on Hetja.");
+    expect(screen.queryByRole("link", { name: /Switch the profile on/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Print their tag" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ask a vet to confirm" }));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    expect(share).toHaveBeenCalledWith({
+      title: "Rani is on Hetja.",
+      text: "Could you check Rani and confirm them on Hetja? Their collar code is RNI 482 PQ7.",
+      url: "https://hetja.in/d/rni482pq7",
+    });
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true, writable: true });
   });
 
   it("words a nameless dog sensibly", () => {
-    expect(readyTitle(null)).toBe("Your dog has a code.");
-    expect(tagLine("")).toBe("Scan me if I look lost");
-    expect(readyTitle("Rani")).toBe("Rani has a code.");
+    expect(readyTitle(null)).toBe("Your dog is on Hetja.");
+    expect(readyTitle("Rani")).toBe("Rani is on Hetja.");
   });
+});
+
+describe("pronouns", () => {
+  it("follow the sex and fall back to they/them", () => {
+    expect(dogCopy.aboutTitle("female")).toBe("About her");
+    expect(dogCopy.aboutTitle("male")).toBe("About him");
+    expect(dogCopy.aboutTitle("unknown")).toBe("About them");
+    expect(dogCopy.noPosting("female")).toBe("I won't post where she sleeps or eats.");
+    expect(dogCopy.noticeLead("female")).toBe(
+      "She lives on this street. Neighbours feed her and a vet checks on her.",
+    );
+    expect(dogCopy.noticeLead(null)).toBe("They live on this street. Neighbours feed them and a vet checks on them.");
+    expect(dogCopy.justFedBody("male")).toBe("Scan and log it, so he isn't fed three times today.");
+  });
+});
+
+describe("R7 Print tag", () => {
+  beforeEach(() => {
+    apiMock.getCollar.mockResolvedValue({ slug: "rni482pq7", name: "Rani", wardId: "K-West", collarUrl: collarUrl("rni482pq7") });
+  });
+
+  it("offers the three layouts and the paper, and records every sheet it makes", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<PrintClient slug="rni482pq7" />);
+    expect(await screen.findByText("Print tag")).not.toBeNull();
+    for (const t of [
+      "10 small tags + collar band",
+      "Coin-sized, 32 × 46 mm",
+      "1 large tag + wall notice",
+      "For a shop or society gate",
+      "Add to a batch sheet",
+      "8 different dogs on one page",
+      "Paper",
+    ]) {
+      expect(screen.getByText(t)).not.toBeNull();
+    }
+    expect(await screen.findByRole("link", { name: "‹ Rani" })).not.toBeNull();
+    expect(await screen.findByRole("img", { name: "Preview of the A4 sheet" })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download PDF" }));
+    await waitFor(() => expect(apiMock.recordPrint).toHaveBeenCalledTimes(1), { timeout: 10_000 });
+    expect(apiMock.recordPrint).toHaveBeenCalledWith("rni482pq7", { layout: "tags", paper: "a4", tagCount: 10 });
+    await waitFor(() => expect(click).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByLabelText("1 large tag + wall notice", { exact: false }));
+    fireEvent.click(screen.getByLabelText("Letter"));
+    expect(screen.getByRole("img", { name: "Preview of the Letter sheet" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Send to a print shop" }));
+    await waitFor(() => expect(apiMock.recordPrint).toHaveBeenCalledTimes(2), { timeout: 10_000 });
+    expect(apiMock.recordPrint).toHaveBeenLastCalledWith("rni482pq7", { layout: "notice", paper: "letter", tagCount: 1 });
+
+    fireEvent.click(screen.getByLabelText("Add to a batch sheet", { exact: false }));
+    expect(push).toHaveBeenCalledWith("/register/batch?add=rni482pq7");
+    click.mockRestore();
+  }, 20_000);
+
+  it("never lets a failed print record block the download", async () => {
+    apiMock.recordPrint.mockRejectedValue(new Error("offline"));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<PrintClient slug="rni482pq7" />);
+    await screen.findByRole("img", { name: "Preview of the A4 sheet" });
+    fireEvent.click(screen.getByRole("button", { name: "Download PDF" }));
+    await waitFor(() => expect(click).toHaveBeenCalled(), { timeout: 10_000 });
+    click.mockRestore();
+  }, 20_000);
+});
+
+describe("R7 reprint closes the tag problem", () => {
+  const OPEN = [
+    { id: "d1", kind: "damaged", createdAt: "2026-09-24T10:00:00Z", reporter: "a passer-by" },
+    { id: "w1", kind: "wrong_dog", createdAt: "2026-09-24T11:00:00Z", reporter: "a passer-by" },
+    { id: "f1", kind: "found_on_ground", createdAt: "2026-09-24T12:00:00Z", reporter: "Anil" },
+  ];
+
+  beforeEach(() => {
+    apiMock.getCollar.mockResolvedValue({ slug: "rni482pq7", name: "Rani", wardId: "K-West", collarUrl: collarUrl("rni482pq7") });
+    apiMock.getDogTags.mockResolvedValue({ open: OPEN, history: [], reportsThisWeek: 3, sturdierCollarSuggested: true });
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  async function downloadOnce(): Promise<void> {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<PrintClient slug="rni482pq7" />);
+    await screen.findByRole("img", { name: "Preview of the A4 sheet" });
+    fireEvent.click(screen.getByRole("button", { name: "Download PDF" }));
+    await waitFor(() => expect(click).toHaveBeenCalled(), { timeout: 10_000 });
+    click.mockRestore();
+  }
+
+  it("resolves the F6 report it was opened for as reprinted", async () => {
+    window.history.replaceState({}, "", "/register/rni482pq7/print?report=d1");
+    await downloadOnce();
+    await waitFor(() => expect(apiMock.resolveTagReport).toHaveBeenCalledWith("rni482pq7", "d1", "reprinted"));
+    expect(apiMock.resolveTagReport).toHaveBeenCalledTimes(1);
+  }, 20_000);
+
+  it("without a report id, resolves the open damaged and found-on-ground reports, never wrong_dog", async () => {
+    await downloadOnce();
+    await waitFor(() => expect(apiMock.resolveTagReport).toHaveBeenCalledTimes(2));
+    expect(apiMock.resolveTagReport).toHaveBeenCalledWith("rni482pq7", "d1", "reprinted");
+    expect(apiMock.resolveTagReport).toHaveBeenCalledWith("rni482pq7", "f1", "reprinted");
+    expect(apiMock.resolveTagReport).not.toHaveBeenCalledWith("rni482pq7", "w1", expect.anything());
+  }, 20_000);
+
+  it("leaves a wrong_dog report for a feeder's check even when it is handed over", async () => {
+    window.history.replaceState({}, "", "/register/rni482pq7/print?report=w1");
+    await downloadOnce();
+    await waitFor(() => expect(apiMock.getDogTags).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(apiMock.resolveTagReport).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it("still downloads when the tag endpoints fail", async () => {
+    apiMock.getDogTags.mockRejectedValue(new ApiError("forbidden", { status: 403, code: "FORBIDDEN" }));
+    apiMock.resolveTagReport.mockRejectedValue(new Error("offline"));
+    window.history.replaceState({}, "", "/register/rni482pq7/print?report=d1");
+    await downloadOnce();
+    await waitFor(() => expect(apiMock.resolveTagReport).toHaveBeenCalledWith("rni482pq7", "d1", "reprinted"));
+  }, 20_000);
+});
+
+describe("R8 Batch sheet", () => {
+  const dogs: MyDogV5[] = [
+    { slug: "rni482pq7", name: "Rani", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, status: "pending_activation" },
+    { slug: "bru017xk2", name: "Bruno", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, status: "active", attention: { kind: "tag", since: "2026-09-20", detail: null } },
+    { slug: "kab233mt8", name: "Kalu", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, status: "active" },
+    { slug: "tgr772nc5", name: "Tiger", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, status: "active" },
+  ];
+
+  it("notes New, Reprint and Printed and ticks what is not printed yet", () => {
+    const printed = { tgr772nc5: 1 };
+    expect(batchNote(dogs[0]!, printed)).toBe("New");
+    expect(batchNote(dogs[1]!, printed)).toBe("Reprint");
+    expect(batchNote(dogs[2]!, printed)).toBe("");
+    expect(batchNote(dogs[3]!, printed)).toBe("Printed");
+    const rows = dogs.map((d) => ({ slug: d.slug, name: d.name, note: batchNote(d, printed) }));
+    expect(initialSelection(rows, null)).toEqual(["rni482pq7", "bru017xk2", "kab233mt8"]);
+    expect(initialSelection(rows, "tgr772nc5")[0]).toBe("tgr772nc5");
+  });
+
+  it("builds the sheet from POST /collars/batch and records each dog", async () => {
+    localStorage.setItem("hetja.printedTags", JSON.stringify({ tgr772nc5: 1 }));
+    apiMock.getMyDogsV5.mockResolvedValue({ dogs });
+    apiMock.getCollarBatch.mockImplementation(async (slugs: string[]) => ({
+      dogs: slugs.map((slug) => ({ slug, name: "Dog", wardId: "K-West", collarUrl: collarUrl(slug) })),
+      skipped: [],
+    }));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<BatchClient />);
+    expect(await screen.findByText("Batch sheet")).not.toBeNull();
+    expect(await screen.findByText("3 of 8 slots on this A4 page")).not.toBeNull();
+    expect(screen.getByText("RNI 482 PQ7")).not.toBeNull();
+    expect(screen.getByText("New")).not.toBeNull();
+    expect(screen.getByText("Reprint")).not.toBeNull();
+    expect(screen.getByText("Printed")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(screen.getByText("4 of 8 slots on this A4 page")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Download sheet · 4 tags" }));
+    await waitFor(() => expect(apiMock.getCollarBatch).toHaveBeenCalledWith(["rni482pq7", "bru017xk2", "kab233mt8", "tgr772nc5"]));
+    await waitFor(() => expect(apiMock.recordPrint).toHaveBeenCalledTimes(4), { timeout: 10_000 });
+    expect(apiMock.recordPrint).toHaveBeenCalledWith("kab233mt8", { layout: "batch", paper: "a4", tagCount: 2 });
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    click.mockRestore();
+  }, 20_000);
 });

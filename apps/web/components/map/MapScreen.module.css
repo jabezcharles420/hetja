@@ -108,13 +108,33 @@
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* The four chips are wider than a 390px phone. The row scrolls sideways
+ * (snapping chip by chip) and fades out at the right edge, so the cut-off
+ * chip reads as "more this way", not as a layout bug. */
 .chips {
   pointer-events: auto;
   display: flex;
   gap: 8px;
   padding: 12px 20px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 20px;
+  touch-action: pan-x;
   scrollbar-width: none;
+}
+
+/* Room after the last chip so it can scroll fully clear of the fade. */
+.chips::after {
+  content: "";
+  flex: 0 0 12px;
+}
+
+@media (max-width: 599.98px) {
+  .chips {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
 }
 
 .chips::-webkit-scrollbar {
@@ -151,6 +171,7 @@
 
 .chip {
   position: relative;
+  scroll-snap-align: start;
 }
 
 .chip[aria-pressed="true"] {
@@ -224,7 +245,9 @@
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-  transform: translate(-50%, -50%);
+  /* --nudge: set by MapScreen's declutter so a ward label never covers a
+   * vet or NGO pin (logic.ts wardNudge). */
+  transform: translate(-50%, calc(-50% + var(--nudge, 0px)));
   position: absolute;
   left: 0;
   top: 0;

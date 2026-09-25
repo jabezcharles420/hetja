@@ -1,0 +1,148 @@
+/* N1 Become a feeder (v5 "Pages the site is missing"): the light aurora
+ * over mist, 40px top padding, 20px gutters, 16px between blocks. */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--h-ink);
+  background:
+    radial-gradient(70% 40% at 0% 0%, var(--h-aurora-light-pink) 0%, rgba(255, 201, 230, 0) 70%),
+    radial-gradient(60% 35% at 100% 5%, var(--h-aurora-light-peach) 0%, rgba(255, 217, 201, 0) 70%),
+    var(--h-mist);
+}
+
+.form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: calc(40px + env(safe-area-inset-top, 0px)) var(--h-gutter) 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: wrap;
+}
+
+.lead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-danger);
+}
+
+/* "Name shown to others": a white r20 card, 60 tall, 13px label, 19px value. */
+.field {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 8px 16px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.field:focus-within {
+  box-shadow: var(--h-ring-focus);
+}
+
+.fieldLabel {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.fieldInput {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--h-font);
+  font-size: 19px;
+  color: var(--h-ink);
+  outline: none;
+  width: 100%;
+}
+
+.card {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 0 16px;
+}
+
+.row {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--h-divider);
+}
+
+.rowButton {
+  appearance: none;
+  border: 0;
+  background: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  font-family: var(--h-font);
+  text-align: left;
+  color: var(--h-ink);
+  cursor: pointer;
+}
+
+.rowButton:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: 17px;
+}
+
+.rowSub {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.rowValue {
+  flex: none;
+  font-size: 17px;
+  color: var(--h-secondary);
+  white-space: nowrap;
+}
+
+.page .footer {
+  padding: 16px var(--h-gutter) max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+}

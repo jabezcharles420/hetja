@@ -126,6 +126,10 @@ describe("POST /api/v1/metrics/web-vitals: ingest cap", () => {
     const app = buildServer(config);
     // A distinctive path so "no row was written" is checkable directly.
     const path = `/flood-${randomUUID()}`;
+    // ready() first: plugin loading on the first inject takes long enough
+    // (more so with every route module added) for the bucket to refill a
+    // token between the drain and the request.
+    await app.ready();
     drainVitalsIngestBucket();
 
     const res = await app.inject({
@@ -150,6 +154,10 @@ describe("POST /api/v1/metrics/web-vitals: ingest cap", () => {
 
   it("accepts again once the bucket refills", async () => {
     const app = buildServer(config);
+    // ready() first: plugin loading on the first inject takes long enough
+    // (more so with every route module added) for the bucket to refill a
+    // token between the drain and the request.
+    await app.ready();
     drainVitalsIngestBucket();
     const dropped = await app.inject({
       method: "POST",

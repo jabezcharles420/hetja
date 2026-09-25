@@ -8,7 +8,7 @@
 }
 
 .inner {
-  padding: 36px calc(var(--h-gutter) + env(safe-area-inset-right, 0px)) 20px
+  padding: 40px calc(var(--h-gutter) + env(safe-area-inset-right, 0px)) 24px
     calc(var(--h-gutter) + env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
@@ -19,13 +19,14 @@
 
 .primary {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 20px;
+  flex-direction: column;
 }
 
+/* Mobile: a plain stacked list with 44px rows (v5 audit, "Scan, scrolled"),
+ * never links justified across the width. */
 .pLink {
-  min-height: 36px;
-  display: inline-flex;
+  min-height: var(--h-target);
+  display: flex;
   align-items: center;
   color: var(--h-ink);
   font-size: 15px;
@@ -34,18 +35,17 @@
 
 .secondary {
   border-top: 1px solid var(--h-line);
-  padding-top: 14px;
+  padding-top: 8px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
+  flex-direction: column;
 }
 
 .sLink {
   color: var(--h-secondary);
   text-decoration: none;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  min-height: 24px;
+  min-height: var(--h-target);
 }
 
 .deskTag {
@@ -53,7 +53,7 @@
 }
 
 .clear {
-  padding-bottom: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--h-tab-clear);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -74,12 +74,15 @@
 }
 .desktop .primary,
 .desktop .secondary {
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 24px;
   border: 0;
   padding: 0;
 }
 .desktop .pLink,
 .desktop .sLink {
+  display: inline-flex;
   font-size: 13px;
   line-height: 1.2;
   min-height: 0;
@@ -104,12 +107,15 @@
   }
   .responsive .primary,
   .responsive .secondary {
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 24px;
     border: 0;
     padding: 0;
   }
   .responsive .pLink,
   .responsive .sLink {
+    display: inline-flex;
     font-size: 13px;
     line-height: 1.2;
     min-height: 0;

@@ -46,6 +46,29 @@ export interface DogProfile {
   lastFedAt?: string | null;
   feederCount?: number;
   storyAuthorCount?: number;
+  /**
+   * Design v5 (DogProfileV5 in apps/web/lib/api.ts). `verified` false shows
+   * the grey Unverified pill; undefined (an older API) shows nothing.
+   */
+  verified?: boolean;
+  /** A "wrong dog" report is open. Feeds still log and SOS is never paused. */
+  tagUnderReview?: boolean;
+  /** Three tag reports in 7 days: the profile asks for a sturdier collar. */
+  sturdierCollarSuggested?: boolean;
+  /** Deceased dogs only: first name and initial of each feeder who fed them. */
+  memorial?: { feederNames: string[] };
+}
+
+/** GET /dogs/:slug answered 404 (or 400): no dog has this code. */
+export class NotFoundError extends Error {}
+
+/** A dog as shown in a lookup (DogCard in apps/web/lib/api.ts). Ward level only. */
+export interface DogCard {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardCode: string;
+  photoUrl: string | null;
 }
 
 export interface ProfileResult {
@@ -73,10 +96,44 @@ const API_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
 export async function fetchDogProfile(slug: string, sig: string): Promise<ProfileResult> {
   const url = `${API_BASE}/dogs/${encodeURIComponent(slug)}${sig ? `?s=${encodeURIComponent(sig)}` : ""}`;
   const res = await fetch(url, { headers: { accept: "application/json" } });
+  if (res.status === 404 || res.status === 400) throw new NotFoundError();
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const stale = res.headers.get("X-Hetja-Stale") === "1";
   const body: unknown = await res.json();
   return { profile: normalizeProfile(extractData(body)), stale };
+}
+
+/**
+ * GET /dogs/lookup?code= (design v5, N8): dogs one swap or one character
+ * away from a code that matched nothing. Any failure is an empty answer: the
+ * not-found screen is already useful without it.
+ */
+export async function lookupCode(code: string): Promise<{ exact: DogCard | null; suggestions: DogCard[] }> {
+  try {
+    const res = await fetch(`${API_BASE}/dogs/lookup?code=${encodeURIComponent(code)}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) return { exact: null, suggestions: [] };
+    const d = extractData(await res.json());
+    const list = Array.isArray(d.suggestions) ? d.suggestions.map(card).filter((c): c is DogCard => !!c) : [];
+    return { exact: card(d.exact), suggestions: list.slice(0, 5) };
+  } catch {
+    return { exact: null, suggestions: [] };
+  }
+}
+
+function card(v: unknown): DogCard | null {
+  if (!v || typeof v !== "object") return null;
+  const r = v as Record<string, unknown>;
+  const slug = optString(r.slug);
+  if (!slug) return null;
+  return {
+    slug,
+    name: optString(r.name) ?? null,
+    wardId: optString(r.wardId) ?? "",
+    wardCode: optString(r.wardCode) ?? "",
+    photoUrl: optString(r.photoUrl) ?? null,
+  };
 }
 
 function extractData(body: unknown): Record<string, unknown> {
@@ -121,7 +178,17 @@ function normalizeProfile(d: Record<string, unknown>): DogProfile {
     lastFedAt: d.lastFedAt === null ? null : optString(d.lastFedAt),
     feederCount: optCount(d.feederCount),
     storyAuthorCount: optCount(d.storyAuthorCount),
+    verified: typeof d.verified === "boolean" ? d.verified : undefined,
+    tagUnderReview: d.tagUnderReview === true,
+    sturdierCollarSuggested: d.sturdierCollarSuggested === true,
+    memorial: memorialFrom(d.memorial),
   };
+}
+
+function memorialFrom(v: unknown): { feederNames: string[] } | undefined {
+  const names = (v as { feederNames?: unknown } | null)?.feederNames;
+  if (!Array.isArray(names)) return undefined;
+  return { feederNames: names.filter((n): n is string => typeof n === "string" && n.length > 0) };
 }
 
 /**

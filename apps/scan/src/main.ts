@@ -1,6 +1,7 @@
-import { parseSlug, isValidSlug } from "./slug";
-import { fetchDogProfile } from "./api";
-import { setStatus, setSub, renderProfile, renderError, setNote, clearNote } from "./ui";
+import { parseSlug, isValidSlug, rawCode } from "./slug";
+import { fetchDogProfile, lookupCode, NotFoundError } from "./api";
+import { setStatus, setSub, renderProfile, renderError, renderNotFound, setNote, clearNote } from "./ui";
+import { flushTagQueue, openTagSheet, wireTag } from "./tag";
 import { flushOnOpen, evictionSoonCount } from "./offline";
 import { listQueued } from "./idb";
 import { listDroppedFeeds, clearDroppedFeeds } from "./dropped";
@@ -15,7 +16,7 @@ let viewInFlight = false;
 async function view(): Promise<void> {
   if (viewInFlight) return;
   if (!isValidSlug(SLUG)) {
-    renderError("Unrecognized code. Check the collar and scan again.");
+    void notFound(rawCode(location.pathname));
     return;
   }
   viewInFlight = true;
@@ -27,12 +28,32 @@ async function view(): Promise<void> {
     renderProfile(profile, stale);
     setPanelProfile(profile);
     document.title = `${profile.name} · Hetja`;
-  } catch {
+    document.querySelector("#tag-open")?.addEventListener("click", () => openTagSheet(profile, () => void view()));
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      setPanelProfile(undefined);
+      void notFound(SLUG);
+      return;
+    }
     renderError("Can't reach Hetja right now. If you're offline, medical status shown may be outdated.");
     setPanelProfile(undefined);
   } finally {
     viewInFlight = false;
   }
+}
+
+/**
+ * N8 on the collar page: the not-found screen at once, then the "Did you
+ * mean" card if a full-length code has a near miss. A lookup that finds the
+ * code itself (typed in capitals, or with 0 for o) goes straight there.
+ */
+async function notFound(code: string): Promise<void> {
+  renderNotFound(code, []);
+  document.title = "No dog has this code · Hetja";
+  if (code.length !== 9) return;
+  const r = await lookupCode(code);
+  if (r.exact && r.exact.slug !== SLUG) return location.replace(`/d/${r.exact.slug}`);
+  if (r.suggestions.length) renderNotFound(code, r.suggestions);
 }
 
 function registerServiceWorker(): void {
@@ -79,9 +100,11 @@ async function checkQueue(): Promise<void> {
 
 wirePanel(SLUG);
 wireHistory();
+wireTag();
 registerServiceWorker();
 void view();
 void checkQueue();
+void flushTagQueue();
 
 /**
  * Telemetry loads AFTER the page is usable, as its own chunk.

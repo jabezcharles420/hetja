@@ -1,0 +1,124 @@
+/* N6 Settings (v5 "Pages the site is missing"): mist, "‹ Me" in the 52px
+ * header, a 28px title, 12px between blocks, 20px gutters. */
+
+.page {
+  min-height: 100dvh;
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Side gutters come from .h-container. */
+  padding-block: 0 max(40px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  max-width: 720px;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.label {
+  margin: 0;
+  padding: 8px 4px 0;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.lead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+  padding: 0 4px;
+}
+
+.error {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-danger);
+}
+
+.sheetText {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.field {
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+  padding: 8px 16px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.field:focus-within {
+  box-shadow: var(--h-ring-focus);
+}
+
+.fieldLabel {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.fieldInput {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--h-font);
+  font-size: 19px;
+  color: var(--h-ink);
+  outline: none;
+  width: 100%;
+}
+
+/* The destructive confirm: a quiet danger pill, not the SOS red fill (red
+ * fill is for SOS only). */
+.dangerButton {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  width: 100%;
+  height: var(--h-btn-h);
+  border-radius: var(--h-r-pill);
+  background: var(--h-danger-bg);
+  color: var(--h-danger);
+  font-family: var(--h-font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dangerButton:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.dangerButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

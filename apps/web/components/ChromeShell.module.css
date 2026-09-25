@@ -2,10 +2,10 @@
 
 .shell {
   --page-top: 0px;
+  --tab-clear: 0px;
 }
 
-/* Marketing pages: the nav floats over the first section. Mobile nav 56,
- * desktop 52 (TopNav switches at the same 1024px breakpoint). */
+/* Home and the reading pages: the nav floats over the first section. */
 .overlay {
   --page-top: var(--h-nav-h);
 }
@@ -13,6 +13,17 @@
 @media (min-width: 1024px) {
   .overlay {
     --page-top: 52px;
+  }
+}
+
+/* A fixed TabBar is on screen: pages pad their bottom by --tab-clear. */
+.withTabs {
+  --tab-clear: var(--h-tab-clear);
+}
+
+@media (min-width: 1024px) {
+  .withTabsMobile {
+    --tab-clear: 0px;
   }
 }
 
@@ -31,23 +42,25 @@
   --h-frost: rgba(0, 0, 0, 0.6);
   --h-frost-strong: rgba(0, 0, 0, 0.72);
   --h-frost-line: rgba(255, 255, 255, 0.08);
+  --h-nav-hairline: rgba(255, 255, 255, 0.14);
   --h-ink: var(--h-band-ink);
   --h-white: var(--h-band);
   --h-link: var(--h-band-link);
 }
 
-.tabSolid {
-  --h-tab-bg: var(--h-white);
-}
-
 /* Room for the fixed TabBar under the last thing on the page. */
 .tabSpacer {
-  height: calc(var(--h-tab-h) + env(safe-area-inset-bottom, 0px));
-  background: var(--h-mist);
+  height: var(--h-tab-clear);
 }
 
 @media (min-width: 1024px) {
   .mobileOnly {
+    display: none;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .desktopOnly {
     display: none;
   }
 }

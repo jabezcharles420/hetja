@@ -23,10 +23,13 @@ import {
 import { PHOTO_ROUTE_BODY_LIMIT } from "../lib/body-limits.js";
 import { PHOTO_BUSY_RETRY_AFTER_SEC, PhotoBusyError, photoGate, type Release } from "../lib/photo-gate.js";
 import { logRateLimited, photoPerSubject, scanPerSubject, subjectKey } from "../lib/rate-limit.js";
+import { forgetDog } from "./dogs.js";
 
 interface DogIdRow {
   id: string;
+  slug: string;
   status: string;
+  tag_review_since: Date | null;
 }
 
 interface ScanRow {
@@ -356,9 +359,10 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
       }
 
       try {
-        const dogRes = await query<DogIdRow>(`SELECT id, status::text AS status FROM dogs WHERE slug = $1`, [
-          dogSlug,
-        ]);
+        const dogRes = await query<DogIdRow>(
+          `SELECT id, slug, status::text AS status, tag_review_since FROM dogs WHERE slug = $1`,
+          [dogSlug],
+        );
         const dog = dogRes.rows[0];
         if (!dog) {
           return reply
@@ -431,6 +435,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
               activatedSlug: null,
               sosEligibleAt: null,
               streak: null as StreakState | null,
+              foundAgain: false,
             };
           }
 
@@ -462,7 +467,14 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
             if (withinBackdateLimit(captured, receivedAt)) {
               streak = await updateFeedStreak(feederId, dateInKolkata(captured), client);
             }
-            if (await feedTrustCreditAllowed(feederId, dog.id, dog.status, client)) {
+            // Design v5: a 'wrong_dog' tag report puts the dog's tag under
+            // review (routes/tags.ts), and until a feeder checks it, feeds on
+            // that code earn no trust. The feed itself is still recorded, and
+            // nothing here (or anywhere) pauses SOS for the dog.
+            if (
+              dog.tag_review_since === null &&
+              (await feedTrustCreditAllowed(feederId, dog.id, dog.status, client))
+            ) {
               await logTrustEvent(
                 { feederId, eventType: "feed", reason: "feed scan logged", refScanId: scanId },
                 client,
@@ -477,13 +489,27 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
           // created:false above and can never re-stamp activated_at or re-run
           // corroboration. Both need an accepted (Mumbai) geotag: an
           // ungeotagged scan proves a camera, not a location.
+          // LOST -> ACTIVE (design v5, N9). A feed or view scan of a dog a
+          // feeder reported not seen is the dog being seen: it goes back to
+          // 'active'. Inside the `created` branch, so a replay cannot re-run
+          // it, and conditional on the row still being 'lost'. A view scan is
+          // what the collar page sends for "Seen her nearby? Yes, just now",
+          // from an anonymous device token; the scan limits above bound it.
+          let foundAgain = false;
+          if ((type === "feed" || type === "view") && dog.status === "lost") {
+            const back = await client.query(`UPDATE dogs SET status = 'active' WHERE id = $1 AND status = 'lost'`, [
+              dog.id,
+            ]);
+            foundAgain = (back.rowCount ?? 0) === 1;
+          }
+
           let activatedSlug: string | null = null;
           let sosEligibleAt: Date | null = null;
           if (acceptedGeo) {
             activatedSlug = await activatePendingRegistration(client, dog.id, scanId);
             sosEligibleAt = await corroborateSosEligibility(client, dog.id);
           }
-          return { created: true as const, scanId, activatedSlug, sosEligibleAt, streak };
+          return { created: true as const, scanId, activatedSlug, sosEligibleAt, streak, foundAgain };
         });
 
         if (result.created && result.scanId && photo && release) {
@@ -496,6 +522,10 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
             { dogSlug: result.activatedSlug, scanId: result.scanId },
             "registration activated by geotagged scan",
           );
+        }
+        if (result.foundAgain) {
+          forgetDog(dog.slug);
+          req.log.info({ dogId: dog.id }, "lost dog seen again: status back to active");
         }
         if (result.sosEligibleAt) {
           req.log.info({ dogId: dog.id }, "sos eligibility corroborated");

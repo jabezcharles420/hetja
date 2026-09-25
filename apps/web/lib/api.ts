@@ -677,7 +677,11 @@ export interface MyDogV5 extends Omit<MyDog, "myLastFedAt"> {
   registeredByMe?: boolean;
   lastFedByName?: string | null;
   attention?: { kind: AttentionKind; since: string; detail: string | null } | null;
+  /** For pronouns in copy; null when not recorded. */
+  sex?: DogSex | null;
 }
+
+export type DogSex = "male" | "female";
 
 /** A dog as shown in a lookup or ward list: ward level only. */
 export interface DogCard {
@@ -688,6 +692,7 @@ export interface DogCard {
   photoUrl: string | null;
   markings: string[];
   lastSeenAt: string | null;
+  sex?: DogSex | null;
 }
 
 export interface DogLookupResult {
@@ -762,7 +767,9 @@ export interface CheckupInput {
 
 /** v5 fields on GET /sos/cases/:id. `location` is filled only for the acker. */
 export interface SosCaseV5 extends SosCase {
-  dog?: { slug: string; name: string | null; photoUrl: string | null } | null;
+  dog?: { slug: string; name: string | null; photoUrl: string | null; sex?: DogSex | null } | null;
+  /** True when the SOS came from a device with no account. */
+  reporterAnonymous?: boolean;
   reporterPhotoUrl?: string | null;
   note?: string | null;
   respondingName?: string | null;
@@ -778,6 +785,7 @@ export interface DogProfileV5 extends DogProfile {
   tagUnderReview?: boolean;
   sturdierCollarSuggested?: boolean;
   memorial?: { feederNames: string[] } | null;
+  sex?: DogSex | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -982,8 +990,16 @@ export const api = {
   getMyDogsV5: () => request<{ dogs: MyDogV5[] }>(`/feeders/me/dogs`),
 
   /** Second-feeder confirmation of a dog (Unverified until confirmed). */
-  confirmDog: (slug: string) =>
-    request<{ verified: true; via: "feeder" }>(`/dogs/${encodeURIComponent(slug)}/confirm`, { method: "POST" }),
+  // The device token lets the API refuse a confirmation from the phone that
+  // registered the dog. `via` is the dog's actual verification ("vet" if a vet
+  // got there first).
+  confirmDog: async (slug: string) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<{ verified: true; via: "feeder" | "vet" }>(`/dogs/${encodeURIComponent(slug)}/confirm`, {
+      method: "POST",
+      deviceToken,
+    });
+  },
 
   /** N3 Vet checkup record; verifies the dog. Vet accounts only. */
   createCheckup: (slug: string, input: CheckupInput) =>
@@ -1002,6 +1018,10 @@ export const api = {
       `/wards/${encodeURIComponent(wardId)}/dogs${colour ? `?colour=${colour}` : ""}`,
       { auth: false },
     ),
+
+  /** F1 "Send SOS anyway" with no dog: nearest listed vets and NGOs (GET /care, public). */
+  getCare: (lat: number, lng: number, maxKm = 8) =>
+    request<{ providers: NearbyCareProvider[] }>(`/care?lat=${lat}&lng=${lng}&max_km=${maxKm}`, { auth: false }),
 
   /** F6 tag history and open reports (feeders of the dog). */
   getDogTags: (slug: string) => request<DogTags>(`/dogs/${encodeURIComponent(slug)}/tags`),

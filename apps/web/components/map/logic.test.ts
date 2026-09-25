@@ -30,6 +30,7 @@ import {
   wardLead,
   type MapPlace,
   type MapWard,
+  wardNudge,
 } from "./logic";
 
 const NOW = Date.parse("2026-09-24T12:00:00Z");
@@ -238,5 +239,26 @@ describe("Mumbai only", () => {
     // The city view on a phone needs 10.9: the floor gives way to it.
     expect(mumbaiMinZoom(11.16, 10.93)).toBe(10.75);
     expect(mumbaiMinZoom(11.16, 12)).toBe(11.25);
+  });
+});
+
+describe("wardNudge", () => {
+  const ward = { left: 100, top: 100, right: 180, bottom: 138 };
+
+  it("leaves a ward alone when no pin is near it", () => {
+    expect(wardNudge(ward, [{ left: 300, top: 300, right: 340, bottom: 332 }])).toBe(0);
+    expect(wardNudge(ward, [])).toBe(0);
+  });
+
+  it("moves the label the shorter way clear of a pin it covers", () => {
+    // Pin over the lower edge: 17px up clears it, 61px down would too.
+    const low = { left: 120, top: 125, right: 160, bottom: 157 };
+    expect(wardNudge(ward, [low])).toBe(125 - 138 - 4);
+    // Pin over the upper edge: 16px down is the shorter move.
+    const high = { left: 120, top: 80, right: 160, bottom: 112 };
+    const dy = wardNudge(ward, [high]);
+    expect(dy).toBe(112 - 100 + 4);
+    const moved = { ...ward, top: ward.top + dy, bottom: ward.bottom + dy };
+    expect(wardNudge(moved, [high])).toBe(0);
   });
 });

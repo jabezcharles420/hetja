@@ -21,6 +21,10 @@ export const STATIC_ROUTES = [
   "/how-it-works",
   "/contact",
   "/register",
+  /* Design v5 app screens that render without data when signed out. */
+  "/alerts",
+  "/me",
+  "/settings",
 ] as const;
 
 /* The absolute floor for a horizontal gutter, independent of what the design

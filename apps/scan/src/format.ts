@@ -199,3 +199,109 @@ export function careMeta(p: CareMetaInput): string {
   else if (!p.phoneVerified) bits.push("number not confirmed");
   return bits.filter(Boolean).join(" · ");
 }
+
+/* ---------------------------------------------------------------------------
+ * Design v5: pronouns, tag problems (F4, F5) and the memorial line.
+ * ------------------------------------------------------------------------- */
+
+export interface Pronouns {
+  /** her / him / them */
+  obj: string;
+  /** her / his / their */
+  poss: string;
+}
+
+/**
+ * The mocks say "her". The record may carry a sex; without one the words are
+ * they/them, never a guess.
+ */
+export function pronouns(sex?: string): Pronouns {
+  const s = sex?.toLowerCase();
+  if (s === "female" || s === "f") return { obj: "her", poss: "her" };
+  if (s === "male" || s === "m") return { obj: "him", poss: "his" };
+  return { obj: "them", poss: "their" };
+}
+
+export function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+export type TagKind = "damaged" | "found_on_ground" | "wrong_dog" | "too_tight";
+
+/** F4 rows, verbatim from the mock with the pronoun swapped in. */
+export function tagChoices(p: Pronouns): ReadonlyArray<{ kind: TagKind; title: string; sub: string }> {
+  return [
+    { kind: "damaged", title: "Damaged or faded", sub: `Still on ${p.obj}, hard to scan` },
+    { kind: "found_on_ground", title: "Found it on the ground", sub: "The dog isn't with me" },
+    { kind: "wrong_dog", title: "This isn't the dog in the photo", sub: "Tag is on a different dog" },
+    { kind: "too_tight", title: "Collar is too tight", sub: "Or cutting into the neck" },
+  ];
+}
+
+/** F4 footnote. With no feeders there is nobody to tell, so it says only what is true. */
+export function tagFootnote(p: Pronouns, feederCount?: number): string {
+  return feederCount === 0 ? "No sign-in needed." : `No sign-in needed. ${cap(p.poss)} feeders are told within a minute.`;
+}
+
+export type TagOutcome =
+  /** feedersNotified null: the API did not say how many. */
+  | { kind: "sent"; feedersNotified: number | null; wardCode: string | null }
+  | { kind: "queued" }
+  | { kind: "rate_limited" };
+
+/**
+ * F5 heading and message. The count and ward come from the API's answer; a
+ * report that reached nobody says so rather than "her feeders know".
+ */
+export function tagSentCopy(
+  kind: TagKind,
+  name: string | undefined,
+  p: Pronouns,
+  o: TagOutcome,
+): { title: string; msg: string; ok: boolean } {
+  const dog = name ?? "this dog";
+  if (o.kind === "queued") {
+    return {
+      title: "Your report is saved.",
+      msg: `It goes to Hetja when you're back online. ${cap(p.poss)} feeders won't hear until then.`,
+      ok: true,
+    };
+  }
+  if (o.kind === "rate_limited") {
+    return {
+      title: "Not sent this time.",
+      msg: "This phone has sent a lot of reports today, so Hetja is holding this one back. If the dog is hurt, the red button still works.",
+      ok: false,
+    };
+  }
+  const review = kind === "wrong_dog" ? " Until a feeder checks, this tag shows as under review. SOS still works." : "";
+  const n = o.feedersNotified;
+  if (n === 0) {
+    return {
+      title: "Report saved.",
+      msg: `Nobody feeds ${dog} on Hetja yet, so no one got an alert. Your report is saved for whoever does.${review}`,
+      ok: true,
+    };
+  }
+  const where = o.wardCode ? ` in ${o.wardCode}` : "";
+  const who = n === null ? `Feeders${where} got an alert` : `${n} feeder${n === 1 ? "" : "s"}${where} got an alert`;
+  const what =
+    kind === "found_on_ground"
+      ? ` that ${p.poss} tag came off. Someone will put a new one on ${p.obj}.`
+      : kind === "damaged"
+        ? ` that ${p.poss} tag is damaged. Someone will put a new one on ${p.obj}.`
+        : kind === "too_tight"
+          ? ` that ${p.poss} collar is too tight. Someone will loosen or change it.`
+          : `.${review}`;
+  return { title: `${name ? `${name}'s` : "This dog's"} feeders know.`, msg: who + what, ok: true };
+}
+
+/** Profile line once there are three tag reports in a week. */
+export function sturdierLine(name: string, p: Pronouns): string {
+  return `${name}'s tag keeps coming off. A sturdier collar would help ${p.obj}.`;
+}
+
+/** Memorial lead for a dog who has passed (N9: the page stays). */
+export function memorialLine(name: string, p: Pronouns): string {
+  return `${name} has passed away. ${cap(p.poss)} page stays, with the names of everyone who fed ${p.obj}.`;
+}

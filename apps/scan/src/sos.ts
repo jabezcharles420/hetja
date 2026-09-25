@@ -74,6 +74,8 @@ export function wireHistory(): void {
     const v = (ev.state as { hv?: string } | null)?.hv;
     if (v === "sos" && q("#v-sos")?.innerHTML) showView("sos");
     else if (v === "sent" && q("#v-sent")?.innerHTML) showView("sent");
+    else if (v === "tag" && q("#v-tag")?.innerHTML) showView("tag");
+    else if (v === "sheet") return; // the tag sheet sits over the profile (tag.ts)
     else showView("profile");
   });
 }

@@ -44,3 +44,18 @@ export { SectionFade } from "./SectionFade";
 export type { SectionFadeProps } from "./SectionFade";
 export { Progress } from "./Progress";
 export type { ProgressProps } from "./Progress";
+// Design v5 additions (the chrome: AppHeader for focused screens, the
+// five-tab TabBar's icons, and the settings controls). Hooks stay out of
+// this barrel: server components import it, and a hook module here breaks them.
+// Client components import useScrolled from "./useScrolled" by path.
+export { TabIcon } from "./TabBar";
+export { AppHeader } from "./AppHeader";
+export type { AppHeaderProps, AppHeaderBack } from "./AppHeader";
+export { Switch } from "./Switch";
+export type { SwitchProps } from "./Switch";
+export { Segmented } from "./Segmented";
+export type { SegmentedProps, SegmentedOption } from "./Segmented";
+export { Sheet } from "./Sheet";
+export type { SheetProps } from "./Sheet";
+export { SettingsGroup, SettingsRow } from "./SettingsList";
+export type { SettingsRowProps } from "./SettingsList";

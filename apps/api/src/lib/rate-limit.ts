@@ -266,6 +266,62 @@ export const sosAckPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, bur
  */
 export const deviceMintPerIp = new RateLimiter({ refillPerSec: 10 / 3600, burst: 10 });
 
+// ---------------------------------------------------------------------------
+// Design v5 (2026-09-25). Same rules as hardening batch 1: account or device
+// first. The anonymous READS below (lookup, ward dogs) are called by pages
+// that hold no credential at all (apps/web sends them with auth: false), so
+// when no valid device token accompanies the request they fall back to the
+// client address, IPv4 as is and IPv6 by its /64 (ipBucketKey). Those are the
+// second and third IP-keyed limits in this API, recorded in docs/INVARIANTS.md
+// #6 as that entry requires. Each is paired with a single global bucket, which
+// is what actually bounds enumeration of the register through these reads.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/v1/dogs/lookup, per device (or per IP without one): burst 10, then
+ * one a minute. A stranger retyping a scratched code tries a handful; walking
+ * the register four known characters at a time is not that.
+ */
+export const lookupPerSubject = new RateLimiter({ refillPerSec: 1 / 60, burst: 10 });
+
+/** GET /api/v1/dogs/lookup, whole system: 3000 a day, burst 200. */
+export const lookupGlobal = new RateLimiter({ refillPerSec: 3000 / 86_400, burst: 200 }, 1);
+
+/** GET /api/v1/wards/:wardId/dogs, per device or IP: burst 10, then one a minute. */
+export const wardDogsPerSubject = new RateLimiter({ refillPerSec: 1 / 60, burst: 10 });
+
+/** GET /api/v1/wards/:wardId/dogs, whole system: 3000 a day, burst 200. */
+export const wardDogsGlobal = new RateLimiter({ refillPerSec: 3000 / 86_400, burst: 200 }, 1);
+
+/**
+ * POST /api/v1/dogs/:slug/tag-reports, per account or device: burst 5, then 10
+ * a day. The 24 h dedupe per (reporter, dog, kind) is separate and silent.
+ */
+export const tagReportPerSubject = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+
+/**
+ * Tag reports, per client IP: burst 10, then 20 an hour. On top of the device
+ * limit, because device tokens are minted (10 an hour per address,
+ * deviceMintPerIp) and each fresh one would otherwise carry a fresh budget.
+ */
+export const tagReportPerIp = new RateLimiter({ refillPerSec: 20 / 3600, burst: 10 });
+
+/**
+ * Tag reports, per DOG: burst 10, then 10 a day, whoever files them. However
+ * many devices one person mints, one dog's feeders are not paged without
+ * bound. Keyed `dog:<id>`.
+ */
+export const tagReportPerDog = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 10 });
+
+/**
+ * Signed-in v5 writes (confirm, checkups, status reports, resolve, prints,
+ * collars, decline), per account: burst 20, then one a minute.
+ */
+export const feederWritePerAccount = new RateLimiter({ refillPerSec: 1 / 60, burst: 20 });
+
+/** GET /api/v1/feeders/me/export, per account: burst 3, then 5 a day. */
+export const exportPerAccount = new RateLimiter({ refillPerSec: 5 / 86_400, burst: 3 });
+
 /**
  * The key `deviceMintPerIp` uses: the IPv4 address as is, or the first four
  * hextets (the /64) of an IPv6 one. IPv4-mapped IPv6 (`::ffff:1.2.3.4`) is
@@ -316,4 +372,38 @@ interface WarnLogger {
  */
 export function logRateLimited(log: WarnLogger, limiter: string, subjectKind: SubjectKind): void {
   log.warn({ event: "rate_limited", limiter, subjectKind }, "rate limited");
+}
+
+interface ReplyLike {
+  status(code: number): ReplyLike;
+  header(name: string, value: string): ReplyLike;
+  send(payload: unknown): unknown;
+}
+
+/**
+ * Consume one token from each (limiter, key) pair, in order, stopping at the
+ * first refusal. On refusal: the standard log line, 429 RATE_LIMITED with
+ * retry-after, and false. The design v5 routes gate on several limiters at
+ * once (subject, IP, dog, global); peeking every one first means a request
+ * turned away by the third does not spend the first two.
+ */
+export function enforceLimits(
+  log: WarnLogger,
+  reply: ReplyLike,
+  checks: ReadonlyArray<{ limiter: RateLimiter; key: string; name: string; kind: SubjectKind }>,
+  message = "too many requests; try again shortly",
+): boolean {
+  for (const c of checks) {
+    const d = c.limiter.peek(c.key);
+    if (!d.allowed) {
+      logRateLimited(log, c.name, c.kind);
+      reply
+        .status(429)
+        .header("retry-after", String(d.retryAfterSec))
+        .send({ ok: false, error: { message, code: "RATE_LIMITED" } });
+      return false;
+    }
+  }
+  for (const c of checks) c.limiter.consume(c.key);
+  return true;
 }

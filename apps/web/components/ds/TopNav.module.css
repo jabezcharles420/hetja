@@ -1,4 +1,5 @@
-/* TopNav (handoff "TopNav"). Mobile 56 / desktop 52, frosted, hairline. */
+/* TopNav (handoff "TopNav"). 52 at every width (v5 audit), frosted over the
+ * page's first section, solid white with a hairline once scrolled. */
 
 .nav {
   position: relative;
@@ -17,6 +18,15 @@
 
 .solid {
   background: var(--h-frost-strong);
+}
+
+/* Scrolled: solid, a real 1px hairline, no blur (the audit's "smear"). The
+ * dark /privacy nav swaps --h-white and --h-nav-hairline for its own. */
+.scrolled {
+  background: var(--h-white);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom-color: var(--h-nav-hairline, var(--h-divider));
 }
 
 .inner {
@@ -98,7 +108,8 @@
 }
 
 /* /hetja: muted, no frost, no hairline, no blue. */
-.memorial {
+.memorial,
+.memorial.scrolled {
   background: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;

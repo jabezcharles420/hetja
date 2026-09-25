@@ -1,0 +1,235 @@
+/* F2 "Type what you can read" and N8 "No dog has this code."
+ * (Tag Problems F2, Audit and New Pages N8). A focused screen on mist:
+ * 52px "‹ Scan" header, 20px gutter, no tab bar, no footer. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+/* --- F2 --------------------------------------------------------------- */
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 var(--h-gutter);
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.boxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* 64 tall, radius 16, mono 26/600 +0.08em. The input's text is transparent
+ * and sits exactly over the glyph layer (same font, same left inset), so the
+ * caret lands after the typed characters while the layer draws the dots. */
+.box {
+  position: relative;
+  height: 64px;
+  border-radius: var(--h-r-input);
+  background: var(--h-white);
+}
+
+.boxFilled {
+  box-shadow: inset 0 0 0 1.5px var(--h-ink);
+}
+
+.boxActive {
+  box-shadow: inset 0 0 0 2px var(--h-blue);
+}
+
+.boxEmpty {
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+}
+
+.glyphs,
+.input {
+  font-family: var(--h-mono);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  /* Centre three characters: (box - 3ch - 3 x tracking) / 2. */
+  padding: 0 0 0 calc((100% - 3ch - 0.24em) / 2);
+  white-space: pre;
+}
+
+.glyphs {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--h-ink);
+}
+
+.dot {
+  color: var(--h-control-off);
+}
+
+.input {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--h-blue);
+  border-radius: inherit;
+  outline: none;
+}
+
+.input::selection {
+  background: rgba(0, 113, 227, 0.2);
+}
+
+.help {
+  margin: -6px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.label {
+  margin: 0;
+  padding: 6px 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.check,
+.note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.foot {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 14px var(--h-gutter) max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+}
+
+.footLink {
+  height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.footLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* --- N8 --------------------------------------------------------------- */
+.missBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px var(--h-gutter) max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+}
+
+.missCode {
+  margin: 0;
+  font-family: var(--h-mono);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  /* The mock's #86868b: large (30px) so it clears 3:1 on mist. */
+  color: var(--h-tertiary);
+}
+
+.missTitle {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.missLead {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+/* --- "Tag looks fake" sheet ------------------------------------------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.fakeSheet {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px var(--h-gutter) max(20px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+  border-radius: var(--h-r-sheet) var(--h-r-sheet) 0 0;
+  background: var(--h-white);
+  outline: none;
+  animation: sheet-up var(--h-dur) var(--h-ease);
+}
+
+.fakeTitle {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fakeText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

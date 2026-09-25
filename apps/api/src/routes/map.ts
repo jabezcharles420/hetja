@@ -348,6 +348,8 @@ interface Viewer {
   feederId: string;
   sosOptIn: boolean;
   trustScore: number;
+  /** Design v5: feeders.wards; the ward rule in lib/sos-eligibility.ts. */
+  wards: string[];
 }
 
 /**
@@ -364,17 +366,21 @@ async function optionalViewer(req: FastifyRequest): Promise<Viewer | null> {
   } catch {
     return null;
   }
-  const res = await query<{ sos_opt_in: boolean; trust_score: number }>(
-    `SELECT sos_opt_in, trust_score FROM feeders WHERE id = $1`,
+  const res = await query<{ sos_opt_in: boolean; trust_score: number; wards: string[] }>(
+    `SELECT sos_opt_in, trust_score, wards FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
     [feederId],
   );
   const row = res.rows[0];
-  return row ? { feederId, sosOptIn: row.sos_opt_in, trustScore: row.trust_score } : null;
+  return row ? { feederId, sosOptIn: row.sos_opt_in, trustScore: row.trust_score, wards: row.wards ?? [] } : null;
 }
 
 /** The shared responder rule (lib/sos-eligibility.ts), re-exported for existing callers. */
-export function canRespond(viewer: Pick<Viewer, "sosOptIn" | "trustScore"> | null, severity: Severity): boolean {
-  return canRespondShared(viewer, severity);
+export function canRespond(
+  viewer: (Pick<Viewer, "sosOptIn" | "trustScore"> & { wards?: string[] }) | null,
+  severity: Severity,
+  wardId?: string | null,
+): boolean {
+  return canRespondShared(viewer, severity, wardId);
 }
 
 interface WardDetailBase {
@@ -462,7 +468,7 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
     const sos: MapSos[] = base.cases.map((c) => {
       const severity = asSeverity(c.severity);
       const mine = !!viewer && c.acked_by === viewer.feederId;
-      const claimable = c.acked_by === null && canRespond(viewer, severity);
+      const claimable = c.acked_by === null && canRespond(viewer, severity, wardId);
       return {
         caseId: mine || claimable ? c.id : null,
         severity,
@@ -483,7 +489,7 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
           ? {
               sosOptIn: viewer.sosOptIn,
               trustScore: viewer.trustScore,
-              canRespond: (["minor", "serious", "critical"] as const).filter((s) => canRespond(viewer, s)),
+              canRespond: (["minor", "serious", "critical"] as const).filter((s) => canRespond(viewer, s, wardId)),
             }
           : null,
       },

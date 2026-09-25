@@ -8,10 +8,13 @@
  * carries an icon AND words (hard rule 2); an unknown status is a neutral
  * "unknown" pill, never a blank.
  */
-import type { DogProfile } from "./api";
+import type { DogCard, DogProfile } from "./api";
 import {
   collarGroups,
   lastFedText,
+  memorialLine,
+  pronouns,
+  sturdierLine,
   pastelIndex,
   PASTELS,
   possessive,
@@ -52,12 +55,12 @@ export function pill(tone: Tone, name: IconName, text: string, small = false): s
  * Views. The three screens are sections of one static page; switching is a
  * class toggle, not a navigation, so SOS never waits on a network round trip.
  * ------------------------------------------------------------------------- */
-export type View = "profile" | "sos" | "sent";
+export type View = "profile" | "sos" | "sent" | "tag";
 let current: View = "profile";
 
 export function showView(v: View): void {
   current = v;
-  for (const id of ["profile", "sos", "sent"] as const) $(`#v-${id}`).classList.toggle("hidden", id !== v);
+  for (const id of ["profile", "sos", "sent", "tag"] as const) $(`#v-${id}`).classList.toggle("hidden", id !== v);
   window.scrollTo(0, 0);
   // Move focus to the new screen's heading so a screen reader announces it.
   document.querySelector<HTMLElement>(`#v-${v} [data-focus]`)?.focus();
@@ -75,11 +78,19 @@ export function setSub(text: string): void {
   $("#sub").textContent = text;
 }
 
+/** A dog who has passed: the page stays, calm, with no feed or SOS actions. */
+export function isMemorial(p: DogProfile): boolean {
+  return p.status === "deceased";
+}
+
 export function renderProfile(p: DogProfile, stale: boolean): void {
   $("#state").classList.add("hidden");
   const app = $("#profile");
   app.classList.remove("hidden");
   app.innerHTML = buildProfile(p);
+  $("#v-profile").classList.remove("mist");
+  $("#main-foot").classList.toggle("hidden", isMemorial(p));
+  if (isMemorial(p)) return;
   // A dog nobody feeds on Hetja has no feeders to alert; say only what happens.
   $("#cta-cap").textContent =
     p.feederCount === 0 ? "Alerts a vet nearby." : `Alerts ${possessive(p.name, p.sex)} feeders and a vet nearby.`;
@@ -99,11 +110,69 @@ export function renderProfile(p: DogProfile, stale: boolean): void {
   }
 }
 
+/**
+ * N8 "No dog has this code." on the collar page. The rows always show; the
+ * "Did you mean" card only when the lookup found a near miss.
+ */
+export function renderNotFound(code: string, suggestions: DogCard[]): void {
+  $("#state").classList.add("hidden");
+  $("#v-profile").classList.add("mist");
+  const app = $("#profile");
+  app.classList.remove("hidden");
+  app.innerHTML = notFoundMarkup(code, suggestions);
+  // The red button stays (a tampered QR can still belong to a real dog), but
+  // with no known dog it can only promise what it will certainly do.
+  $("#cta-cap").textContent = "Shows vets and NGOs near you.";
+  // A code that is not even well-formed has nothing to report on (panel.ts
+  // leaves the button disabled): hide it rather than show a dead red button.
+  $("#main-foot").classList.toggle("hidden", $<HTMLButtonElement>("#primary-cta").disabled);
+}
+
+export function notFoundMarkup(code: string, suggestions: DogCard[]): string {
+  const groups = collarGroups(code.slice(0, 12)).join(" ");
+  const mail = `mailto:hello@hetja.in?subject=${encodeURIComponent("Tag looks fake")}&body=${encodeURIComponent(
+    `Code on the tag: ${groups}`,
+  )}`;
+  const near = suggestions.length
+    ? `<p class="lead">Two digits may be swapped. Did you mean this dog?</p><div class="card">${suggestions
+        .map(suggestionRow)
+        .join("")}</div>`
+    : `<p class="lead">Check the collar and scan again.</p>`;
+  return `
+    <div class="nf-top"><a class="back" href="/scan">‹ Scan</a></div>
+    ${groups ? `<p class="nf-code">${escapeHtml(groups)}</p>` : ""}
+    <h1 class="title" tabindex="-1" data-focus>No dog has this code.</h1>
+    ${near}
+    <div class="card">
+      ${navRow("/scan/code", "Type it again")}
+      ${navRow("/scan/find", "Find by ward and photo")}
+      ${navRow(mail, "Tag looks fake")}
+    </div>`;
+}
+
+function navRow(href: string, text: string): string {
+  return `<a class="nav" href="${escapeHtml(href)}"><span>${escapeHtml(text)}</span><span class="chev" aria-hidden="true">›</span></a>`;
+}
+
+function suggestionRow(c: DogCard): string {
+  const name = c.name ?? "No name yet";
+  const [bg, ink] = PASTELS[pastelIndex(c.slug)]!;
+  const av = c.photoUrl
+    ? `<img src="${escapeHtml(c.photoUrl)}" alt="" />`
+    : `<span style="background:${bg};color:${ink}">${escapeHtml((name.charAt(0) || "?").toUpperCase())}</span>`;
+  const meta = [collarGroups(c.slug).join(" "), c.wardCode || c.wardId].filter(Boolean).join(" · ");
+  return `<a class="sugg" href="/d/${encodeURIComponent(c.slug)}"><span class="av">${av}</span><span class="gtx"><span class="row-t">${escapeHtml(
+    name,
+  )}</span><span class="sugg-m">${escapeHtml(meta)}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
+}
+
 export function renderError(message: string): void {
   $("#state").classList.remove("hidden");
   const app = $("#profile");
   app.classList.add("hidden");
   app.innerHTML = "";
+  $("#v-profile").classList.remove("mist");
+  $("#main-foot").classList.remove("hidden");
   setStatus("Unavailable");
   setSub(message);
 }
@@ -125,15 +194,36 @@ export function toast(message: string, ms = 4000): void {
   toastTimer = setTimeout(() => el.classList.add("hidden"), ms);
 }
 
-function buildProfile(p: DogProfile): string {
+export function buildProfile(p: DogProfile): string {
   const ward = wardLine(p.wardId, p.wardName);
   const groups = collarGroups(p.slug);
-  return `
+  const pr = pronouns(p.sex);
+  const head = `
     <div class="photo">${photoMarkup(p)}</div>
     <div class="name-blk">
       <h1 class="name" tabindex="-1" data-focus>${escapeHtml(p.name)}</h1>
       ${ward ? `<p class="ward">${escapeHtml(ward)}</p>` : ""}
-    </div>
+      ${p.verified === false && !isMemorial(p) ? `<span class="badge">Unverified</span>` : ""}
+    </div>`;
+  if (isMemorial(p)) {
+    const names = p.memorial?.feederNames ?? [];
+    return `${head}
+    <p class="lead">${escapeHtml(memorialLine(p.name, pr))}</p>
+    ${
+      names.length
+        ? `<div class="code-card"><p class="label">Fed by</p><ul class="names">${names
+            .map((n) => `<li>${escapeHtml(n)}</li>`)
+            .join("")}</ul></div>`
+        : ""
+    }
+    ${p.microStory ? `<p class="story">${escapeHtml(p.microStory)}</p>` : ""}`;
+  }
+  return `${head}
+    ${
+      p.tagUnderReview
+        ? `<div class="review" role="note">${icon("alert", 18)}<p><b>Tag under review</b><br>Someone said this tag is on a different dog. A feeder will check it. SOS still works.</p></div>`
+        : ""
+    }
     <div class="pills">${statusPills(p)}</div>
     <div class="code-card">
       <div class="code-row">
@@ -145,7 +235,9 @@ function buildProfile(p: DogProfile): string {
       </div>
       <p class="say">Say it: ${escapeHtml(sayCollarCode(p.slug))}</p>
     </div>
+    ${p.sturdierCollarSuggested ? `<p class="by">${escapeHtml(sturdierLine(p.name, pr))}</p>` : ""}
     ${storyMarkup(p)}
+    <button type="button" id="tag-open" class="feedlink">Report a tag problem</button>
   `;
 }
 

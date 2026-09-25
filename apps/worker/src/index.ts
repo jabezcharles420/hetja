@@ -5,6 +5,9 @@
  *   validate_scan  → marks scan ai_validation/review_status (stub: calls AI)
  *   escalate_sos   → 8-min unacked SOS → tier 2 + notify BMC/vets
  *   send_sos_push  → VAPID-signed Web Push to each fanned-out responder
+ *   send_feeder_push → design v5 non-SOS pushes (tag reports, look-outs,
+ *                    status), honouring each recipient's alerts mode and
+ *                    quiet hours at send time
  *   retention      → raw-photo 7-day TTL + thumbnail rotation
  *   anchor_ledger  → daily ledger head publication, Merkle root and signature
  *                    (INVARIANT 10; see src/sign-anchor.ts for the key config)
@@ -219,6 +222,62 @@ async function sendOnePush(sub: PushSubRow, notificationId: string, payload: str
   }
 }
 
+/**
+ * Quiet hours (design v5, feeders.quiet_start / quiet_end: minutes after
+ * midnight, Asia/Kolkata). A window may wrap midnight (23:00 to 06:00). Equal
+ * ends are refused by the column's CHECK, and read here as "no window".
+ */
+export function inQuietHours(start: number | null, end: number | null, minute: number): boolean {
+  if (start == null || end == null || start === end) return false;
+  return start < end ? minute >= start && minute < end : minute >= start || minute < end;
+}
+
+/** Whole minutes from `minute` until the window's end (1..1440). */
+export function minutesUntilQuietEnd(end: number, minute: number): number {
+  const delta = (end - minute + 1440) % 1440;
+  return delta === 0 ? 1440 : delta;
+}
+
+/** Minutes after midnight in Asia/Kolkata (UTC+5:30, no DST). */
+export function minuteOfDayInKolkata(d: Date): number {
+  return Math.floor(((d.getTime() / 60_000 + 330) % 1440 + 1440) % 1440);
+}
+
+export interface FeederPushRecipient {
+  id: string;
+  alerts_mode: string | null;
+  quiet_start: number | null;
+  quiet_end: number | null;
+}
+
+/**
+ * Who gets a non-SOS push now, who later, and who never. alerts_mode NULL
+ * reads as 'all', the default (F4 promises "Her feeders are told within a
+ * minute."). Only an explicit 'sos_only' (chosen in Settings) receives no
+ * non-SOS push; those alerts are still in the feeder's Alerts list, which is
+ * built from the source rows (routes/feeders.ts), so nothing is lost but the
+ * buzz.
+ * Inside quiet hours the push is HELD, not dropped: `later` maps a delay in
+ * minutes to the recipients whose window ends then.
+ */
+export function partitionFeederPush(
+  rows: readonly FeederPushRecipient[],
+  minute: number,
+): { now: string[]; later: Map<number, string[]> } {
+  const now: string[] = [];
+  const later = new Map<number, string[]>();
+  for (const r of rows) {
+    if (r.alerts_mode === "sos_only") continue;
+    if (inQuietHours(r.quiet_start, r.quiet_end, minute)) {
+      const delay = minutesUntilQuietEnd(r.quiet_end as number, minute);
+      later.set(delay, [...(later.get(delay) ?? []), r.id]);
+    } else {
+      now.push(r.id);
+    }
+  }
+  return { now, later };
+}
+
 export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   validate_scan: async (p) => {
     // Phase 0 stub: AI worker (apps/ai) performs YOLO validation asynchronously.
@@ -322,6 +381,50 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
       for (const sub of subs.rows) {
         await sendOnePush(sub, notif.id, payload);
       }
+    }
+  },
+
+  /**
+   * Design v5 non-SOS push (lib/dog-feeders.ts enqueueFeederPush): a tag
+   * report, a "look out for" a dog not seen, a status change. The API decides
+   * WHO (feeders of the dog, a ward's feeders); this handler decides WHEN, at
+   * send time, from each recipient's live settings (partitionFeederPush):
+   * alerts mode, then quiet hours. A held push is re-queued as its own job for
+   * the end of the window, so a retry of this one cannot double-send it.
+   * Recipients re-read here, so an account anonymised since enqueue gets
+   * nothing. SOS never comes through here: send_sos_push has no quiet hours.
+   */
+  send_feeder_push: async (p) => {
+    if (!PUSH_ENABLED) return;
+    const ids = (Array.isArray(p?.feederIds) ? p.feederIds : []).filter(
+      (x: unknown): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x),
+    );
+    if (ids.length === 0) return;
+    const rows = await query<FeederPushRecipient>(
+      `SELECT id, alerts_mode, quiet_start, quiet_end FROM feeders
+        WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+      [ids],
+    );
+    const { now, later } = partitionFeederPush(rows.rows, minuteOfDayInKolkata(new Date()));
+    for (const [delay, held] of later) {
+      await query(
+        `INSERT INTO jobs (kind, payload, run_after)
+         VALUES ('send_feeder_push', $1::jsonb, now() + make_interval(mins => $2))`,
+        [JSON.stringify({ ...p, feederIds: held }), delay],
+      );
+    }
+    const payload = JSON.stringify({
+      title: String(p?.title ?? "Hetja"),
+      body: String(p?.body ?? ""),
+      url: String(p?.url ?? "/alerts"),
+      tag: String(p?.tag ?? "hetja"),
+    });
+    for (const feederId of now) {
+      const subs = await query<PushSubRow>(
+        `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE feeder_id = $1`,
+        [feederId],
+      );
+      for (const sub of subs.rows) await sendPush(sub, payload);
     }
   },
 
@@ -832,6 +935,8 @@ export const JOB_PRODUCERS: Record<string, string> = {
   anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
   expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",
   send_registration_reminder: "apps/worker/src/index.ts (expire_stale_registrations handler enqueues send_registration_reminder)",
+  send_feeder_push:
+    "apps/api/src/lib/dog-feeders.ts enqueueFeederPush (routes/tags.ts tag reports, routes/dog-status.ts status reports); re-queued by itself for quiet hours",
 };
 
 /** `enqueueRetentionJobIfDue`, throttled, on its own transaction. */

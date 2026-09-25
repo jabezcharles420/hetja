@@ -21,13 +21,23 @@
 -- scanned here yesterday is a better page than one whose last local scan was
 -- four weeks ago. Supported by scans_feeder_recent_ix (migration 0020).
 --
--- Written below with representative literals (a stand-in report point and the
--- minor/serious trust floor) rather than $n parameters, following the
--- care_nearby.sql / sos_corroboration.sql precedent: check-queries.sh passes
--- 'x' to parameterised files, which fails on the geography cast, reporting a
--- fixture problem as if it were a schema one. routes/sos.ts's dispatchFanout
--- runs this exact shape with $1 = report GEOGRAPHY(Point,4326) and
--- $2 = trust floor (40 minor/serious, 60 critical); keep the two in lockstep.
+-- Design v5 ward rule (lib/sos-eligibility.ts wardAllows; migration 0026):
+-- a feeder who chose wards (feeders.wards, non-empty) is paged ONLY for dogs
+-- in those wards and for ANY dog in them, with or without a recent nearby
+-- scan; a feeder with no wards is selected by proximity exactly as above.
+-- Consent and the trust floor bind both branches. An anonymised account
+-- (feeders.deleted_at) is never paged. `NULLS LAST` because a ward-branch
+-- feeder may have no nearby scan at all. feeders_wards_gix serves the
+-- `@>` test.
+--
+-- Written below with representative literals (a stand-in report point, the
+-- minor/serious trust floor and a ward) rather than $n parameters, following
+-- the care_nearby.sql / sos_corroboration.sql precedent: check-queries.sh
+-- passes 'x' to parameterised files, which fails on the geography cast,
+-- reporting a fixture problem as if it were a schema one. routes/sos.ts's
+-- dispatchFanout runs this exact shape with $1 = report GEOGRAPHY(Point,4326)
+-- (NULL when the dog has no position), $2 = trust floor (40 minor/serious, 60
+-- critical) and a third parameter, the dog's ward_id; keep the two in lockstep.
 
 SELECT f.id
 FROM feeders f
@@ -40,7 +50,9 @@ CROSS JOIN LATERAL (
      AND ST_DWithin(s.geo, 'SRID=4326;POINT(72.8214 18.9767)'::geography, 2000)
 ) recent
 WHERE f.sos_opt_in
+  AND f.deleted_at IS NULL
   AND f.trust_score >= 40            -- 40 normally, 60 for critical
-  AND recent.last_nearby_scan IS NOT NULL
-ORDER BY f.trust_score DESC, recent.last_nearby_scan DESC
+  AND ((cardinality(f.wards) = 0 AND recent.last_nearby_scan IS NOT NULL)
+       OR ('K-West'::text IS NOT NULL AND f.wards @> ARRAY['K-West'::text]))
+ORDER BY f.trust_score DESC, recent.last_nearby_scan DESC NULLS LAST
 LIMIT 15;

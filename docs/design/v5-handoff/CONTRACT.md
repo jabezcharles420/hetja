@@ -101,7 +101,7 @@ feed scan of that dog in the last 60 days.
 ### Profile
 
 - `GET /feeders/me` adds `wards: string[]`, `quietHours: { start: "HH:MM", end: "HH:MM" } | null`,
-  `alertsMode: "sos_only" | "all"` (default `sos_only`), `onboarded: boolean`,
+  `alertsMode: "sos_only" | "all"` (default `all`; `sos_only` is an explicit choice in Settings), `onboarded: boolean`,
   `publicName: string` (first name and initial, e.g. "Priya S.").
 - `PATCH /feeders/me` also accepts `displayName` (1 to 40 chars), `wards`
   (0 to 6 BMC ward ids), `quietHours` (or null), `alertsMode`,

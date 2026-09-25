@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 /**
- * Me (design v4, screen 09), plus the SOS paging consent it keeps.
- *
- * The consent gap these exist for: `feeders.sos_opt_in` defaults to false, the
- * SOS fan-out (routes/sos.ts) pages only feeders who have it set, and
- * `PATCH /api/v1/feeders/me` is its only writer. Until a web surface called it,
- * every feeder was permanently opted out.
+ * Me, a tab root (design v4 screen 09, reshaped by the v5 audit): signed out
+ * it says what signing in unlocks and has one blue Sign in; signed in it is
+ * the name, the streak and links to My dogs, Register a dog, Alerts and
+ * Settings. The SOS paging consent moved to Settings > Alerts and to N1
+ * (SettingsPage.test.tsx, WelcomePage.test.tsx).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 vi.mock("next/link", async () => {
@@ -83,7 +82,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("MePage: design v4", () => {
+describe("MePage: signed in", () => {
   it("greets by the hour with the feeder's first name", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 8, 24, 9, 0));
@@ -111,7 +110,23 @@ describe("MePage: design v4", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("92");
   });
 
-  it("lists dogs not fed today first and points the button at the first of them", async () => {
+  it("links to My dogs, Register a dog, Alerts and Settings", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe());
+    render(<MePage />);
+    const group = await screen.findByRole("list", { name: "Your Hetja" });
+    const links = within(group).getAllByRole("link");
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/me/dogs", "/register", "/alerts", "/settings"]);
+    expect(links.map((l) => l.textContent?.replace(/\s*›$/, ""))).toEqual([
+      "My dogs",
+      "Register a dog",
+      "Alerts",
+      "Settings",
+    ]);
+    // The consent switch lives in Settings now: one loud button, no toggles here.
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("points the one button at the first dog not fed today", async () => {
     apiMock.getFeederMe.mockResolvedValue(feederMe());
     apiMock.getMyDogs.mockResolvedValue({
       dogs: [
@@ -121,30 +136,32 @@ describe("MePage: design v4", () => {
       ],
     });
     render(<MePage />);
-    await screen.findByText("Kaali");
-    const rows = screen.getAllByTestId("list-row");
-    expect(rows.map((r) => within(r).getByRole("link").textContent)).toEqual(["Kaali", "Motu", "Bruno"]);
-    expect(within(rows[0]!).getByText("Not fed today")).not.toBeNull();
-    expect(within(rows[2]!).getByText(/^Fed (just now|\d+m ago)$/)).not.toBeNull();
-    const cta = screen.getByRole("link", { name: "Scan to log Kaali's feed" });
+    const cta = await screen.findByRole("link", { name: "Scan to log Kaali's feed" });
     expect(cta.getAttribute("href")).toBe("/scan?intent=feed&dog=kaa234xyz");
-    // Profiles live on the /d/ app.
-    expect(within(rows[0]!).getByRole("link").getAttribute("href")).toBe("/d/kaa234xyz");
+    expect(within(screen.getByRole("link", { name: /My dogs/ })).getByText("3")).not.toBeNull();
   });
 
   it("keeps the page when the dog list fails, with a generic button", async () => {
     apiMock.getFeederMe.mockResolvedValue(feederMe());
     apiMock.getMyDogs.mockRejectedValue(new ApiError("boom", { status: 500 }));
     render(<MePage />);
-    expect(await screen.findByText(/No dogs yet/)).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Scan to log a feed" }).getAttribute("href")).toBe("/scan?intent=feed");
+    expect((await screen.findByRole("link", { name: "Scan to log a feed" })).getAttribute("href")).toBe(
+      "/scan?intent=feed",
+    );
   });
+});
 
-  it("gives a signed-out visitor a friendly card and a Sign in button, and no consent control", async () => {
+describe("MePage: signed out", () => {
+  it("says Me, what signing in unlocks, a one-line reason and one blue Sign in", async () => {
     setAccessToken(null);
     render(<MePage />);
-    expect(await screen.findByText("Hello, stranger.")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Sign in" }).getAttribute("href")).toBe("/login?next=%2Fme");
+    expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("Me");
+    expect(screen.getByText("A streak for every day you feed")).not.toBeNull();
+    expect(screen.getByText("SOS alerts for hurt dogs in your wards")).not.toBeNull();
+    expect(screen.getByText("No password, just a 6-digit code by email.")).not.toBeNull();
+    const signIn = screen.getByRole("link", { name: "Sign in" });
+    expect(signIn.getAttribute("href")).toBe("/login?next=%2Fme");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.queryByRole("switch")).toBeNull();
     expect(apiMock.getStreak).not.toHaveBeenCalled();
   });
@@ -153,47 +170,6 @@ describe("MePage: design v4", () => {
     apiMock.getStreak.mockRejectedValue(new ApiError("unauthenticated", { status: 401, code: "UNAUTHENTICATED" }));
     apiMock.getFeederMe.mockRejectedValue(new ApiError("unauthenticated", { status: 401, code: "UNAUTHENTICATED" }));
     render(<MePage />);
-    expect(await screen.findByText("Hello, stranger.")).not.toBeNull();
-  });
-});
-
-describe("MePage: SOS paging consent (the quiet settings row)", () => {
-  const sw = () => screen.findByRole("switch", { name: "SOS paging" });
-
-  it("reflects the server's sos_opt_in", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: true }));
-    render(<MePage />);
-    expect((await sw()).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByText("Page me when a dog near where I feed needs help")).not.toBeNull();
-  });
-
-  it("PATCHes sosOptIn when toggled and confirms in a status line", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false }));
-    apiMock.updateFeederMe.mockResolvedValue({ sosOptIn: true });
-    render(<MePage />);
-    const toggle = await sw();
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(toggle);
-    await waitFor(() => expect(apiMock.updateFeederMe).toHaveBeenCalledWith({ sosOptIn: true }));
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/You'll be paged/));
-    expect((await sw()).getAttribute("aria-checked")).toBe("true");
-  });
-
-  it("reverts and shows the API's message when the PATCH fails", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false }));
-    apiMock.updateFeederMe.mockRejectedValue(
-      new ApiError("body must contain { sosOptIn?: boolean ... }", { status: 400, code: "INVALID_SOS_OPT_IN" }),
-    );
-    render(<MePage />);
-    fireEvent.click(await sw());
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/body must contain/));
-    expect((await sw()).getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("tells a low-trust feeder why opting in will not page them yet", async () => {
-    apiMock.getFeederMe.mockResolvedValue(feederMe({ sosOptIn: false, trustScore: 30 }));
-    render(<MePage />);
-    await sw();
-    expect(screen.getByText(/trust score of 40 or more/).textContent).toMatch(/Yours is 30/);
+    expect(await screen.findByRole("link", { name: "Sign in" })).not.toBeNull();
   });
 });

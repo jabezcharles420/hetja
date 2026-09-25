@@ -142,8 +142,11 @@
   --h-btn-h: 56px;             /* primary                                   */
   --h-btn-sos-h: 60px;         /* SOS                                       */
   --h-target: 44px;            /* minimum touch target                      */
-  --h-nav-h: 56px;             /* mobile top nav                            */
-  --h-tab-h: 56px;             /* bottom tab bar                            */
+  --h-nav-h: 52px;             /* top nav / app header (v5 audit: 80 -> 52) */
+  --h-tab-h: 49px;             /* tab bar row: icon + label                 */
+  /* The whole tab bar, 83px with the home-indicator area (v5 audit). Use this,
+   * not --h-tab-h, to clear a fixed TabBar. */
+  --h-tab-clear: calc(var(--h-tab-h) + max(34px, env(safe-area-inset-bottom, 0px)));
 
   /* --- Motion --------------------------------------------------------------
    * App screens: native press state only. Marketing sections may fade in.

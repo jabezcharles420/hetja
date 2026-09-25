@@ -120,7 +120,50 @@ a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus
 .tint{height:48px;padding:0 20px;border-radius:var(--h-r-pill);background:var(--h-blue-tint);color:var(--h-blue-tint-ink);font-size:16px;font-weight:600;display:flex;align-items:center;flex:none}
 .tint:active{background:#d5e6fa}
 .link-btn{height:52px;width:100%;font-size:17px;color:var(--h-link)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom));width:calc(100% - 40px);max-width:440px;background:var(--h-ink);color:#fff;border-radius:var(--h-r-input);padding:12px 16px;font-size:15px;text-align:center;z-index:10}
+/* v5: badges, review banner, memorial (docs/design/v5-handoff) */
+.badge{align-self:flex-start;height:28px;padding:0 12px;border-radius:var(--h-r-pill);background:var(--h-neutral-bg);color:var(--h-neutral);font-size:13px;font-weight:600;display:inline-flex;align-items:center}
+.review{display:flex;gap:10px;align-items:flex-start;background:var(--h-warn-bg);color:var(--h-warn);border-radius:var(--h-r-input);padding:12px 16px;font-size:15px;line-height:1.4}
+.review svg{flex:none;margin-top:1px}
+.names{list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:17px}
+#tag-open{width:100%}
+/* F4 sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:480px;margin:0 auto;background:var(--h-white);border-radius:32px 32px 0 0;padding:10px var(--h-gutter) max(26px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.grab{align-self:center;width:40px;height:5px;border-radius:3px;background:var(--h-line)}
+.sheet-t{font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;padding-top:4px}
+.group{background:var(--h-mist);border-radius:var(--h-r-inner);padding:4px 16px;display:flex;flex-direction:column}
+.grow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:62px;width:100%;text-align:left}
+.grow+.grow{border-top:1px solid var(--h-divider)}
+.grow:disabled{opacity:.5}
+.gtx{display:flex;flex-direction:column;gap:1px}
+.g-t{font-size:17px}
+.g-s{font-size:13px;color:var(--h-secondary)}
+.chev{font-size:20px;color:#86868b;flex:none}
+.fn{font-size:13px;line-height:1.45;color:var(--h-secondary);padding:0 4px}
+/* F5 */
+#v-tag,.view.mist,.view.mist .foot{background:var(--h-mist)}
+.top.end{justify-content:flex-end}
+.tag-body{gap:18px;padding-top:8px}
+.big-ic.lg{width:64px;height:64px}
+.wcard{background:var(--h-white);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.wc-t{font-size:17px;font-weight:600}
+.steps{list-style:none;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.45}
+.steps li{display:flex;gap:12px}
+.num{width:26px;height:26px;border-radius:50%;background:var(--h-mist);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none}
+.wcard.seen{border-radius:var(--h-r-inner);min-height:60px;padding:8px 16px;flex-direction:row;align-items:center;justify-content:space-between}
+.chip{min-height:var(--h-target);padding:0 14px;border-radius:var(--h-r-pill);background:var(--h-mist);font-size:15px;font-weight:600;color:var(--h-link);flex:none}
+/* N8 */
+.nf-top{height:44px;display:flex;align-items:center}
+.nf-code{font-family:var(--h-mono);font-size:30px;font-weight:600;letter-spacing:0.08em;color:#86868b;overflow-wrap:anywhere}
+.card{background:var(--h-white);border-radius:var(--h-r-inner);padding:4px 16px;display:flex;flex-direction:column}
+.nav,.sugg{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;color:var(--h-ink);font-size:17px}
+.nav+.nav,.sugg+.sugg{border-top:1px solid var(--h-divider)}
+.sugg{min-height:76px;justify-content:flex-start}
+.sugg .gtx{flex:1;min-width:0}
+.sugg-m{font-family:var(--h-mono);font-size:13px;color:var(--h-secondary)}
+.av{width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;background:var(--h-mist)}
+.av img,.av span{width:100%;height:100%;object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom));width:calc(100% - 40px);max-width:440px;background:var(--h-ink);color:#fff;border-radius:var(--h-r-input);padding:12px 16px;font-size:15px;text-align:center;z-index:30}
 </style>
 </head>
 <body>
@@ -133,7 +176,7 @@ a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus
     <div id="note"></div>
     <section id="profile" class="hidden" aria-live="polite"></section>
   </div>
-  <div class="foot line">
+  <div class="foot line" id="main-foot">
     <button type="button" id="primary-cta" class="btn sos" disabled>
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="11" fill="#fff"/><path d="M11 5.8v6.4" stroke="#d70015" stroke-width="2.8" stroke-linecap="round"/><circle cx="11" cy="16" r="1.6" fill="#d70015"/></svg>
       <span>This dog needs help</span>
@@ -144,6 +187,8 @@ a:focus-visible,button:focus-visible,textarea:focus-visible,.opt:has(input:focus
 </main>
 <section id="v-sos" class="view hidden" aria-label="SOS"></section>
 <section id="v-sent" class="view hidden" aria-label="SOS sent"></section>
+<section id="v-tag" class="view hidden" aria-label="Tag problem reported"></section>
+<div id="sheet" class="hidden"></div>
 <div id="toast" class="toast hidden" role="status"></div>
 <!-- Served under /d/ on purpose. A relative "./main.js" resolves to
      /d/main.js only for /d/<slug> and breaks for any other depth, while a

@@ -112,6 +112,33 @@ holding the slug could read a `pending_activation` or `expired` dog. It now
 answers 404 for both, except to the registrator who filed it
 (`dogs.ts`, `NON_PUBLIC_STATUSES`; `dogs.test.ts`).
 
+### New surfaces in design v5 (2026-09-25), checked against 1, 2, 3, 6 and 8
+
+- **`GET /api/v1/dogs/lookup`** and **`GET /api/v1/wards/:wardId/dogs`**
+  (`routes/finding.ts`) return DogCards: slug, name, ward, portrait, markings,
+  a last-seen time. Ward level only (2). They hand out slugs by design, so the
+  bound on enumerating the register through them (1) is the rate limiting in
+  #6 above, including a global bucket each; at most 5 and 30 cards. Active and
+  lost dogs only.
+- **`GET /api/v1/dogs/:slug`** adds flags (`verified`, `tagUnderReview`,
+  `sturdierCollarSuggested`) and, for a deceased dog only, `memorial.feederNames`:
+  first name and initial of each signed-in feeder who fed them. That is the one
+  public read naming people, by the owner's decision (CONTRACT.md, N9); every
+  other v5 surface that shows a person does so to signed-in feeders of the
+  same dog, by the same public form (`lib/public-name.ts`), never contact data (3).
+- **`GET /api/v1/sos/cases/:id`** returns the dog's EXACT last position only to
+  the responder who acked the case; a paged responder sees the ward (2).
+- **Tag reports** are anonymous (device token) and can put a tag under review,
+  which withholds feed trust on the dog. They cannot pause SOS, change
+  `sos_eligible_at` or touch the fan-out. The reporter's device is stored only
+  as a SHA-256 of the canonical device id, for the 24 h dedupe.
+- **The vet checkup** (`POST /dogs/:slug/checkups`) appends through the one
+  chain writer (`appendMedicalRecord`, routes/medical.ts), one record per
+  checkup, so it stays append-only and hash-chained (8, 9).
+- **`DELETE /api/v1/feeders/me`** anonymises rather than deletes (11's shape):
+  name, identity HMAC, consent, wards, sessions and push subscriptions go;
+  dogs, scans and ledger references stay.
+
 ## Why this exists
 
 The reasoning below used to live only in the build guide, which cites the
@@ -193,6 +220,26 @@ spec PDFs directly. Migrated here so it survives independently of them.
    deploy workflow) so `request.ip` is the forwarded client rather than the
    loopback proxy; without it every request would share one bucket, which fails
    closed. Any second IP-keyed limit needs its own entry here.
+
+   **Design v5 IP-keyed limits (2026-09-25).** Three more, each for a request
+   that may carry no device or account at all, and each paired with a subject
+   or global bucket (`lib/rate-limit.ts`):
+   - `lookupPerSubject` (`GET /api/v1/dogs/lookup`) and `wardDogsPerSubject`
+     (`GET /api/v1/wards/:wardId/dogs`): keyed on the device when the request
+     presents a valid `x-device-token`, and on the address (`ipBucketKey`)
+     only when it presents none, which is how the web pages call them. Burst
+     10, then one a minute. These reads hand out slugs by design (F2 partial
+     code, F3 find by ward), so what bounds walking the register through them
+     is `lookupGlobal` / `wardDogsGlobal` (3000 a day each); the per-address
+     bucket only stops one client draining that. Refusal is a read refused,
+     never a report or a sign-in, so a shared CGNAT address costs nothing that
+     matters on the life-safety path.
+   - `tagReportPerIp` (`POST /api/v1/dogs/:slug/tag-reports`): on top of the
+     per-device (`tagReportPerSubject`) and per-dog (`tagReportPerDog`) limits,
+     never instead of them. Burst 10, then 20 an hour. Device tokens are
+     minted, 10 an hour per address, and each fresh one would otherwise bring
+     a fresh budget for paging a dog's feeders.
+   None of the three gates SOS, a scan or sign-in.
 
    Every other limiter added in the same batch is per account or per device:
    scans (burst 30, then 1 a minute), scan photos (40 a day; over budget the

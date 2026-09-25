@@ -31,6 +31,12 @@ export interface QueuedScan {
    * record, so no DB_VERSION bump: older records simply have none.
    */
   outcome?: "ate_all" | "ate_some" | "didnt_eat" | "unwell";
+  /**
+   * The dog's name when the feed was captured, for the N7 "waiting" list
+   * only. Never sent: flush builds the POST body field by field. Schemaless,
+   * so no DB_VERSION bump for this field.
+   */
+  dogName?: string | null;
 }
 
 const DB_NAME = "hetja-feeder";
@@ -42,8 +48,14 @@ const DB_NAME = "hetja-feeder";
  * nobody vouched for when they were taken. Tokenless leftovers are handled by
  * the flush-time drop path.
  */
-const DB_VERSION = 2;
+/*
+ * v3: adds the `offline-cache` store (key/value) for what the feeder needs
+ * with no signal: the care numbers for their wards (N7) and the names of
+ * their dogs. The scan queue is untouched by the upgrade.
+ */
+const DB_VERSION = 3;
 const STORE = "scan-queue";
+const CACHE_STORE = "offline-cache";
 
 let dbPromise: Promise<IDBDatabase> | undefined;
 
@@ -62,6 +74,9 @@ function openDb(): Promise<IDBDatabase> {
         const db = req.result;
         if (!db.objectStoreNames.contains(STORE)) {
           db.createObjectStore(STORE, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(CACHE_STORE)) {
+          db.createObjectStore(CACHE_STORE);
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -94,6 +109,18 @@ export async function listQueued(): Promise<QueuedScan[]> {
 export async function removeQueued(id: string): Promise<void> {
   const db = await openDb();
   await request(db.transaction(STORE, "readwrite").objectStore(STORE).delete(id));
+}
+
+/** Offline cache: store a small JSON value under a key. */
+export async function putCached(key: string, value: unknown): Promise<void> {
+  const db = await openDb();
+  await request(db.transaction(CACHE_STORE, "readwrite").objectStore(CACHE_STORE).put(value, key));
+}
+
+/** Offline cache: the value stored under a key, or undefined. */
+export async function getCached<T>(key: string): Promise<T | undefined> {
+  const db = await openDb();
+  return request<T | undefined>(db.transaction(CACHE_STORE, "readonly").objectStore(CACHE_STORE).get(key));
 }
 
 export function uuid(): string {

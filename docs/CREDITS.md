@@ -79,6 +79,12 @@ so the history of what Hetja once used stays checkable.
 | CARTO basemap (light_all) | carto.com/attributions | CARTO attribution terms | `apps/web/components/map/tiles.ts` | The keyless fallback when there is no Esri key or Esri refuses the tiles, so the map never goes blank. Attributed "© OpenStreetMap contributors © CARTO". |
 | OpenStreetMap data | openstreetmap.org/copyright | ODbL-1.0 | via both basemaps | Attributed in the map's attribution control ("© OpenStreetMap contributors"). |
 
+## Wave 7: design v5, register and print (2026-09-25)
+
+| Adoption | Source (canonical) | License | Where used | Notes |
+|---|---|---|---|---|
+| `Hopding/pdf-lib`: the collar sheet PDF | github.com/Hopding/pdf-lib | MIT | `apps/web/lib/collar-pdf.ts` (`pdf-lib` 1.17.1), reached from R7 Print tag and R8 Batch sheet | Builds the A4 or Letter collar sheets in the browser as a vector PDF (no server-side rendering in the room). Each QR is one filled path of module rectangles from `lib/qr.ts`'s matrix, so the printed size is exact; text uses the PDF standard fonts, so nothing is embedded and a sheet is 5 to 25 KB. About 200 KB gzipped, dynamic-imported only when a sheet is built, never in the initial bundle of any page. |
+
 ## Evaluated and deliberately NOT adopted
 
 Recording these so nobody re-does the analysis, and so "not done" is

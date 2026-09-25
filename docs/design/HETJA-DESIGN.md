@@ -217,7 +217,8 @@ Numbers match the mock labels.
 | 06 | Log a feed | `apps/web/app/feed` |
 | 07, 08 | Sign in, code | `apps/web/app/login` |
 | 09 | Me | `apps/web/app/me` |
-| 10, 11 | New dog, Collar ready | `apps/web/app/(register)/register/new`, `.../[slug]/ready` |
+| 10, 11 | New dog, Collar ready (replaced by v5 R1 to R6) | `apps/web/app/(register)/register/new`, `.../[slug]/ready` |
+| v5 R1 to R8 | Register a dog, photo, duplicate check, about, confirm, code ready, print tag, batch sheet | `apps/web/app/(register)/register` (`page`, `new`, `[slug]/ready`, `[slug]/print`, `batch`); PDF in `apps/web/lib/collar-pdf.ts` |
 | 12 to 16 | About, How it works, FAQ, Privacy, Contact | `apps/web/app/{about,how-it-works,faq,privacy,contact}` |
 | 17 | `/hetja` | `apps/web/app/hetja` |
 | 19 | Map | `apps/web/app/map`, `components/map` |

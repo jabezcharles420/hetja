@@ -1,0 +1,485 @@
+/* Register flow R2 to R5 ("Hetja Register and Print"). */
+
+/* ---- R2 Photo: the dark camera screen ------------------------------------ */
+.camPage {
+  height: 100dvh;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-camera);
+  color: var(--h-white);
+}
+
+.camTop {
+  flex: none;
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.camCancel {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-white);
+  text-decoration: none;
+}
+
+.camCount {
+  font-size: 15px;
+  color: var(--h-control-off);
+}
+
+.camCancel:focus-visible,
+.gallery:focus-visible,
+.shutter:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.shutter:focus-visible {
+  border-radius: 50%;
+}
+
+.viewfinder {
+  flex: 1;
+  margin: 0 12px;
+  border-radius: 28px;
+  overflow: hidden;
+  position: relative;
+  background: var(--h-camera-surface);
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.video[data-live] {
+  opacity: 1;
+}
+
+.oval {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 230px;
+  height: 260px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2.5px dashed rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.hint {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 15px;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+
+.camBar {
+  flex: none;
+  height: 150px;
+  padding: 0 28px env(safe-area-inset-bottom, 0px);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.gallery {
+  justify-self: start;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: var(--h-target);
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-white);
+  cursor: pointer;
+}
+
+.shutter {
+  appearance: none;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border-radius: 50%;
+  border: 4px solid var(--h-white);
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shutter:active .shutterDot {
+  transform: scale(0.92);
+}
+
+.shutter:disabled {
+  opacity: 0.5;
+}
+
+.shutterDot {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--h-white);
+  transition: transform 80ms ease-out;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- R3 duplicate check ------------------------------------------------ */
+.wardRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--h-white);
+  border-radius: 16px;
+  min-height: 52px;
+  padding: 0 16px;
+}
+
+.wardRow:focus-within {
+  box-shadow: var(--h-ring-focus);
+}
+
+.wardText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wardLabel {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.wardValue {
+  font-size: 17px;
+}
+
+.wardValue[data-empty] {
+  color: var(--h-secondary);
+}
+
+.change {
+  font-size: 15px;
+  color: var(--h-link);
+}
+
+.select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.dupList {
+  list-style: none;
+  margin: 0;
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 4px 16px;
+}
+
+.dupRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 76px;
+}
+
+.dupRow + .dupRow {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.same {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-mist);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--h-link);
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  position: relative;
+}
+
+/* 44px hit area around the 36px pill. */
+.same::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.same:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* ---- R4 about the dog -------------------------------------------------- */
+.aboutBody {
+  gap: 14px;
+}
+
+.formCard {
+  background: var(--h-white);
+  border-radius: 20px;
+  padding: 0 16px;
+}
+
+.formCard > * + * {
+  box-shadow: inset 0 1px 0 var(--h-divider);
+}
+
+.nameRow {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.fieldLabel,
+.segLegend {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.health .segLegend {
+  font-size: 15px;
+  color: var(--h-ink);
+}
+
+.muted {
+  color: var(--h-secondary);
+}
+
+.nameInput {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  font-size: 19px;
+  color: var(--h-ink);
+  min-height: 26px;
+  outline: none;
+}
+
+.nameRow:focus-within .fieldLabel {
+  color: var(--h-blue);
+}
+
+.formRow {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-line);
+  color: var(--h-ink);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.chipOn {
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: none;
+}
+
+.chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chip:focus-visible,
+.chipInput:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.chipInput {
+  height: 36px;
+  width: 140px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  box-shadow: var(--h-ring-focus);
+  font: inherit;
+  font-size: 16px;
+  color: var(--h-ink);
+  background: var(--h-white);
+}
+
+.sectionLabel {
+  margin: 0;
+  padding: 4px 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+/* ---- R5 confirm --------------------------------------------------------- */
+.summary {
+  background: var(--h-white);
+  border-radius: 24px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summaryHead {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.summaryPhoto {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--h-mist);
+}
+
+.summaryPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.summaryName {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.summarySub {
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.fact {
+  background: var(--h-mist);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fact dt {
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.fact dd {
+  margin: 0;
+}
+
+.promise {
+  cursor: pointer;
+  position: relative;
+}
+
+.promise:focus-within .promiseText {
+  text-decoration: underline;
+  text-decoration-color: var(--h-blue);
+  text-underline-offset: 3px;
+}
+
+.promiseText {
+  font-size: 15px;
+  line-height: 1.35;
+}

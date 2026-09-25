@@ -1,0 +1,118 @@
+/* AppHeader: the 52px focused-screen header (v5 audit; N3, N4, N6 mocks:
+ * "‹ Me" at 17px link blue, 20px gutter). */
+
+.header {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-shadow: 0 1px 0 transparent;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+}
+
+.s_none {
+  background: transparent;
+}
+
+.s_mist {
+  background: var(--h-mist);
+}
+
+.s_white {
+  background: var(--h-white);
+}
+
+/* Scrolled: solid white and a hairline, no blur (the audit's "smear"). */
+.scrolled {
+  background: var(--h-white);
+  box-shadow: 0 1px 0 var(--h-divider);
+}
+
+.inner {
+  height: var(--h-nav-h);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding-inline: calc(var(--h-gutter) + env(safe-area-inset-left, 0px))
+    calc(var(--h-gutter) + env(safe-area-inset-right, 0px));
+}
+
+.side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  grid-column: 1;
+}
+
+.end {
+  grid-column: 3;
+  justify-content: flex-end;
+}
+
+.title {
+  grid-column: 2;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--h-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action,
+.end :global(a),
+.end :global(button) {
+  appearance: none;
+  border: 0;
+  background: none;
+  margin: 0;
+  padding: 0;
+  min-height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--h-font);
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--h-link);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .action:hover {
+    text-decoration: underline;
+  }
+}
+
+/* /hetja: calm, no blue. */
+.memorial {
+  background: var(--h-memorial-bg);
+}
+
+.memorial .action {
+  color: var(--h-ink);
+}
+
+.memorial.scrolled {
+  background: var(--h-memorial-bg);
+  box-shadow: 0 1px 0 var(--h-memorial-divider);
+}
+
+@media print {
+  .header {
+    display: none;
+  }
+}

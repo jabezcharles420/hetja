@@ -1,23 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Badge,
-  Button,
-  Card,
-  DogAvatar,
-  Label,
-  ListGroup,
-  ListRow,
-  Progress,
-  StatusPill,
-  StickyFooter,
-} from "@/components/ds";
+import { Badge, Button, Label, Progress, StickyFooter } from "@/components/ds";
+import { SettingsGroup, SettingsRow } from "@/components/ds/SettingsList";
 import { api, ApiError, getAccessToken, type FeederMe, type MyDog } from "@/lib/api";
 import {
   badgeSlots,
-  dogName,
-  fedAgoLabel,
   greetingLine,
   isFedToday,
   nextFeedLabel,
@@ -30,16 +18,13 @@ import {
 import styles from "./me.module.css";
 
 /**
- * Screen 09, Me (design v4): greeting, streak card with four badges, trust
- * level, my dogs (not fed today first), and one button to log the next feed.
- * The TabBar comes from the global chrome (ChromeShell shows only it here).
+ * Me, a tab root (design v4 screen 09, reshaped by the v5 audit).
+ *
+ * Signed out: "Me", what signing in unlocks, a one-line grey reason and one
+ * blue Sign in. Signed in: the feeder's name and streak, the trust bar, and
+ * links to My dogs, Register a dog, Alerts and Settings, with the one button
+ * (log the next feed) pinned above the tab bar.
  */
-
-/**
- * Trust floor the SOS fan-out applies before paging a feeder for a minor or
- * serious case (routes/sos.ts; critical needs 60).
- */
-const SOS_PAGE_TRUST_FLOOR = 40;
 
 type State =
   | { kind: "loading" }
@@ -47,11 +32,16 @@ type State =
   | { kind: "error"; message: string }
   | { kind: "ready"; streak: SafeStreak; me: FeederMe; dogs: MyDog[] };
 
+const UNLOCKS = [
+  "A streak for every day you feed",
+  "SOS alerts for hurt dogs in your wards",
+  "Register a dog and print their tag",
+  "Your dogs, and who fed them today",
+];
+
 export default function MePage(): React.JSX.Element {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [now, setNow] = useState<Date | null>(null);
-  const [optBusy, setOptBusy] = useState(false);
-  const [optStatus, setOptStatus] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setNow(new Date());
@@ -64,7 +54,7 @@ export default function MePage(): React.JSX.Element {
       const [streak, me, dogs] = await Promise.all([
         api.getStreak(),
         api.getFeederMe(),
-        // The dog list is a nice-to-have: its failure must not cost the page.
+        // The dog list only names the button: its failure must not cost the page.
         api.getMyDogs().catch(() => ({ dogs: [] as MyDog[] })),
       ]);
       setState({ kind: "ready", streak: safeStreak(streak), me, dogs: Array.isArray(dogs?.dogs) ? dogs.dogs : [] });
@@ -84,51 +74,36 @@ export default function MePage(): React.JSX.Element {
     void load();
   }, [load]);
 
-  /**
-   * SOS responder consent. feeders.sos_opt_in defaults to false, the fan-out
-   * filters on it, and PATCH /feeders/me is its only writer: without this
-   * switch nobody can ever be paged. Optimistic, reverted on failure.
-   */
-  const setSosOptIn = async (next: boolean) => {
-    if (state.kind !== "ready") return;
-    const previous = state.me.sosOptIn;
-    const patch = (v: boolean) =>
-      setState((s) => (s.kind === "ready" ? { ...s, me: { ...s.me, sosOptIn: v } } : s));
-    patch(next);
-    setOptBusy(true);
-    setOptStatus(null);
-    try {
-      const res = await api.updateFeederMe({ sosOptIn: next });
-      const stored = res.sosOptIn ?? next;
-      patch(stored);
-      setOptStatus(
-        stored
-          ? "You'll be paged when a dog near where you feed needs help."
-          : "You won't be paged for SOS cases.",
-      );
-    } catch (err) {
-      patch(previous);
-      setOptStatus(err instanceof ApiError ? err.message : "Could not update SOS paging.");
-    } finally {
-      setOptBusy(false);
-    }
-  };
-
   if (state.kind === "signed-out") {
     return (
       <div className={styles.page}>
-        <div className={styles.body}>
-          <h1 className={styles.title}>Hello, stranger.</h1>
-          <Card className={styles.signedOut}>
-            <p className={styles.signedOutText}>
-              Sign in to see your streak, your badges and the dogs you feed. No password, just a code by
-              email. The dogs will not notice either way.
-            </p>
-            <Button href="/login?next=%2Fme" fullWidth>
-              Sign in
-            </Button>
-          </Card>
+        <div className={`h-container ${styles.body}`}>
+          <h1 className={styles.title}>Me</h1>
+          <Label as="h2" className={styles.label}>
+            Signing in gets you
+          </Label>
+          <ul className={styles.unlocks}>
+            {UNLOCKS.map((u) => (
+              <li key={u} className={styles.unlock}>
+                <span className={styles.tick} aria-hidden="true">
+                  ✓
+                </span>
+                {u}
+              </li>
+            ))}
+          </ul>
+          <p className={styles.aside}>The dogs will not notice either way.</p>
         </div>
+        <StickyFooter
+          background="none"
+          className={styles.footer}
+          captionPosition="above"
+          caption="No password, just a 6-digit code by email."
+        >
+          <Button href="/login?next=%2Fme" fullWidth>
+            Sign in
+          </Button>
+        </StickyFooter>
       </div>
     );
   }
@@ -136,16 +111,18 @@ export default function MePage(): React.JSX.Element {
   if (state.kind !== "ready" || !now) {
     return (
       <div className={styles.page}>
-        <div className={styles.body}>
+        <div className={`h-container ${styles.body}`}>
+          <h1 className={styles.title}>Me</h1>
           {state.kind === "error" ? (
             <>
-              <h1 className={styles.title}>Me</h1>
               <p className={styles.error} role="alert">
                 {state.message}
               </p>
-              <Button variant="quiet" onClick={() => void load()}>
-                Try again
-              </Button>
+              <div>
+                <Button variant="quiet" onClick={() => void load()}>
+                  Try again
+                </Button>
+              </div>
             </>
           ) : (
             <p className={styles.loading} role="status">
@@ -165,7 +142,7 @@ export default function MePage(): React.JSX.Element {
 
   return (
     <div className={styles.page}>
-      <div className={styles.body}>
+      <div className={`h-container ${styles.body}`}>
         <h1 className={styles.title}>{greetingLine(now, me.displayName)}</h1>
 
         <section className={styles.streak} aria-label="Streak">
@@ -190,76 +167,16 @@ export default function MePage(): React.JSX.Element {
 
         <Progress label={trust.label} target={trust.target} value={trust.value} valueText={trust.valueText} />
 
-        <Label className={styles.dogsLabel}>My dogs</Label>
-        <ListGroup as="ul" className={styles.dogs}>
-          {sorted.length === 0 ? (
-            <li className={styles.empty}>No dogs yet. Scan a collar and log a feed, and they show up here.</li>
-          ) : (
-            sorted.map((d) => {
-              const fed = isFedToday(d.lastFedAt, now);
-              return (
-                <ListRow
-                  key={d.slug}
-                  as="li"
-                  density="compact"
-                  leading={<DogAvatar id={d.slug} name={dogName(d.name)} size={44} />}
-                  title={
-                    <a href={`/d/${d.slug}`} className={styles.dogLink}>
-                      {dogName(d.name)}
-                    </a>
-                  }
-                  trailing={
-                    fed && d.lastFedAt ? (
-                      <StatusPill variant="ok" icon="check" size="row">
-                        {fedAgoLabel(d.lastFedAt, now)}
-                      </StatusPill>
-                    ) : (
-                      <StatusPill variant="warn" icon="clock" size="row">
-                        Not fed today
-                      </StatusPill>
-                    )
-                  }
-                />
-              );
-            })
-          )}
-        </ListGroup>
-
-        <section className={styles.settings} aria-labelledby="sos-paging-heading">
-          <div className={styles.settingsRow}>
-            <div className={styles.settingsText}>
-              <h2 id="sos-paging-heading" className={styles.settingsTitle}>
-                SOS paging
-              </h2>
-              <p className={styles.settingsSub} id="sos-paging-desc">
-                Page me when a dog near where I feed needs help
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={me.sosOptIn}
-              aria-labelledby="sos-paging-heading"
-              aria-describedby="sos-paging-desc"
-              className={[styles.switch, me.sosOptIn ? styles.switchOn : ""].filter(Boolean).join(" ")}
-              disabled={optBusy}
-              onClick={() => void setSosOptIn(!me.sosOptIn)}
-            >
-              <span className={styles.knob} />
-            </button>
-          </div>
-          <p className={styles.settingsHint}>
-            Pages go out as a push notification to feeders who have fed nearby recently.
-            {me.trustScore < SOS_PAGE_TRUST_FLOOR
-              ? ` Only feeders with a trust score of ${SOS_PAGE_TRUST_FLOOR} or more are paged. Yours is ${me.trustScore}, so keep logging feeds.`
-              : " You can switch this off at any time."}
-          </p>
-          {optStatus && (
-            <p className={styles.settingsHint} role="status">
-              {optStatus}
-            </p>
-          )}
-        </section>
+        <SettingsGroup className={styles.links} label="Your Hetja">
+          <SettingsRow
+            label="My dogs"
+            value={dogs.length ? String(dogs.length) : undefined}
+            href="/me/dogs"
+          />
+          <SettingsRow label="Register a dog" href="/register" />
+          <SettingsRow label="Alerts" href="/alerts" />
+          <SettingsRow label="Settings" href="/settings" />
+        </SettingsGroup>
       </div>
 
       <StickyFooter background="fade" className={styles.footer}>

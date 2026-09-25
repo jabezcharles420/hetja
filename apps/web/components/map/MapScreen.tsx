@@ -20,6 +20,7 @@ import {
   wardFromHash,
   wardHash,
   wardHtml,
+  wardNudge,
   type ClassMap,
   type Filter,
   type Filters,
@@ -352,6 +353,36 @@ export function MapScreen(): React.JSX.Element {
 
   // --- markers ------------------------------------------------------------
 
+  /** Keep ward labels off the vet and NGO pins (see wardNudge). */
+  const declutter = useCallback(() => {
+    const rects = (prefix: string, sel: string) => {
+      const out: Array<{ el: HTMLElement; r: DOMRect }> = [];
+      for (const [key, { m }] of markers.current) {
+        if (!key.startsWith(prefix)) continue;
+        const el = m.getElement()?.querySelector<HTMLElement>(sel);
+        if (el) out.push({ el, r: el.getBoundingClientRect() });
+      }
+      return out;
+    };
+    const wardEls = rects("w:", `.${styles.ward}`);
+    for (const w of wardEls) w.el.style.removeProperty("--nudge");
+    const pins = rects("p:", `.${styles.pin}`).map((p) => p.r);
+    if (pins.length === 0) return;
+    for (const w of rects("w:", `.${styles.ward}`)) {
+      const dy = wardNudge(w.r, pins);
+      if (dy !== 0) w.el.style.setProperty("--nudge", `${Math.round(dy)}px`);
+    }
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.on("zoomend", declutter);
+    return () => {
+      map.off("zoomend", declutter);
+    };
+  }, [ready, declutter]);
+
   const nearbyPins = useMemo(
     () => (detail?.nearby ?? []).filter((p) => p.geoPrecision !== "locality"),
     [detail],
@@ -438,7 +469,9 @@ export function MapScreen(): React.JSX.Element {
       }
       if (refocus === key) el?.focus();
     }
-  }, [ready, wards, places, nearbyPins, filters, mode, selection, selectedWardId, select]);
+    const raf = window.requestAnimationFrame(declutter);
+    return () => window.cancelAnimationFrame(raf);
+  }, [ready, wards, places, nearbyPins, filters, mode, selection, selectedWardId, select, declutter]);
 
   // --- actions ------------------------------------------------------------
 

@@ -1,0 +1,313 @@
+/* F3 "Which dog is it?" (Tag Problems F3), and the SOS-anyway call list
+ * above it (v4 screen 05's "Call now" rows). A focused screen on mist. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 var(--h-gutter);
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  margin: -4px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+/* --- ward card: white, radius 16, 52 min, 13 label + 17 value ---------- */
+.wardCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: var(--h-r-input);
+  background: var(--h-white);
+}
+
+.wardText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 6px 0;
+}
+
+.wardLabel {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--h-secondary);
+}
+
+.wardValue {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.change {
+  appearance: none;
+  border: 0;
+  margin: 0 -8px 0 0;
+  padding: 0 8px;
+  min-height: var(--h-target);
+  background: transparent;
+  font-family: var(--h-font);
+  font-size: 15px;
+  color: var(--h-link);
+  cursor: pointer;
+}
+
+.change:focus-visible,
+.chip:focus-visible,
+.wardRow:focus-visible,
+.tile:focus-visible,
+.footLink:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+/* --- ward picker ------------------------------------------------------ */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pickerLabel {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.wardList {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px;
+  border-radius: var(--h-r-inner);
+  background: var(--h-white);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.wardList li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.wardRow {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  font-family: var(--h-font);
+  font-size: 17px;
+  text-align: left;
+  color: var(--h-ink);
+  cursor: pointer;
+}
+
+.wardRow[aria-pressed="true"] {
+  font-weight: 600;
+}
+
+.wardCode {
+  flex: none;
+  min-width: 44px;
+}
+
+.wardName {
+  color: var(--h-secondary);
+}
+
+/* --- colour chips: 36 tall, 14 side, 15 text ---------------------------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  position: relative;
+  appearance: none;
+  border: 0;
+  margin: 0;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1px var(--h-line);
+  font-family: var(--h-font);
+  font-size: 15px;
+  color: var(--h-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 44px touch target around the 36px chip. */
+.chip::before {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.chipOn {
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: none;
+}
+
+.count {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* --- grid: 3 columns, 10 gap, square radius-16 photos, 14/600 names ------ */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--h-ink);
+  text-decoration: none;
+  border-radius: var(--h-r-input);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tilePhoto,
+.skeleton {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: var(--h-r-input);
+  background: var(--h-divider);
+  font-size: 28px;
+}
+
+.tileName {
+  padding-left: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- SOS anyway: Call now ---------------------------------------------- */
+.care {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 20px;
+}
+
+.callLabel {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.careList {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: var(--h-r-inner);
+  background: var(--h-white);
+}
+
+.careRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 10px 0;
+}
+
+.careRow + .careRow {
+  border-top: 1px solid var(--h-divider);
+}
+
+.careText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.careName {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.careSub {
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--h-secondary);
+}
+
+/* --- bottom link ------------------------------------------------------- */
+.foot {
+  position: sticky;
+  bottom: 0;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 14px var(--h-gutter) max(34px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+  background: linear-gradient(to bottom, rgba(245, 245, 247, 0), var(--h-mist) 14px);
+}
+
+.footLink {
+  height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+  border-radius: 8px;
+}

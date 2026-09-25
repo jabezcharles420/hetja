@@ -1,0 +1,99 @@
+/* Print-friendly collar sheet: a toolbar on screen, the sheet alone on paper. */
+
+.page {
+  min-height: 100dvh;
+  background: var(--h-mist);
+  color: var(--h-ink);
+  padding-bottom: 24px;
+}
+
+.toolbar {
+  height: 52px;
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-target);
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+}
+
+.printBtn {
+  appearance: none;
+  border: 0;
+  height: var(--h-target);
+  padding: 0 20px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.printBtn:disabled {
+  opacity: 0.4;
+}
+
+.back:focus-visible,
+.printBtn:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.status,
+.error {
+  margin: 0;
+  padding: 0 var(--h-gutter);
+  font-size: 15px;
+  color: var(--h-secondary);
+}
+
+.error {
+  color: var(--h-danger);
+  font-weight: 600;
+}
+
+/* On a phone the real-size sheet scrolls sideways inside its own box, so the
+ * page itself never scrolls horizontally. */
+.sheetWrap {
+  overflow-x: auto;
+  padding: 8px var(--h-gutter);
+}
+
+.sheet {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  margin: 0 auto;
+}
+
+@media print {
+  .toolbar,
+  .status,
+  .error {
+    display: none;
+  }
+
+  .page {
+    min-height: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  .sheetWrap {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .sheet {
+    box-shadow: none;
+    margin: 0;
+  }
+}

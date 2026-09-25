@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Aurora, Button, Label, StickyFooter } from "@/components/ds";
+import { AppHeader } from "@/components/ds/AppHeader";
 import { api, ApiError, setSession } from "@/lib/api";
 import {
   clearCachedDeviceToken,
@@ -11,11 +12,22 @@ import {
   isBadDeviceTokenError,
   readCachedDeviceToken,
 } from "@/lib/device";
-import { formatCountdown, OTP_LENGTH, OTP_MINUTES, RESEND_COOLDOWN_S, safeNext } from "@/lib/login";
+import {
+  cancelHref,
+  formatCountdown,
+  OTP_LENGTH,
+  OTP_MINUTES,
+  RESEND_COOLDOWN_S,
+  safeNext,
+  verifyErrorMessage,
+  welcomeHref,
+} from "@/lib/login";
 import styles from "./login.module.css";
 
 /**
- * Screens 07 / 08, Login (design v4): email, then a 6-digit code.
+ * Screens 07 / 08, Login (design v4, with the v5 audit): email, then a
+ * 6-digit code. A full-screen step with Cancel: no card, no tab bar, no
+ * footer. A feeder who has not been through N1 yet lands on /welcome.
  *
  * The code boxes are ONE hidden input (autocomplete="one-time-code",
  * inputmode numeric) under six painted boxes, so iOS / Android autofill and
@@ -36,9 +48,15 @@ export default function LoginPage(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [cancelTo, setCancelTo] = useState("/");
   const codeRef = useRef<HTMLInputElement | null>(null);
   const submittedFor = useRef<string | null>(null);
   const inFlight = useRef(false);
+
+  // Read after hydration: the server render has no query string to read.
+  useEffect(() => {
+    setCancelTo(cancelHref(new URLSearchParams(window.location.search).get("next")));
+  }, []);
 
   // Resend cooldown tick.
   useEffect(() => {
@@ -151,9 +169,16 @@ export default function LoginPage(): React.JSX.Element {
         // BOTH halves: the refresh token is what outlives the 15-minute access token.
         setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
         setStatus(null);
-        router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
+        const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+        // N1 comes first for a feeder who has not chosen wards yet. An older
+        // API without `onboarded`, or a failed read, goes straight on.
+        const onboarded = await api
+          .getFeederMe()
+          .then((me) => me.onboarded)
+          .catch(() => undefined);
+        router.push(onboarded === false ? welcomeHref(next) : next);
       } catch (err) {
-        setStatus(err instanceof ApiError ? err.message : "That code didn't work. Try again.");
+        setStatus(err instanceof ApiError ? verifyErrorMessage(err.code, err.message) : "That code didn't work. Try again.");
       } finally {
         inFlight.current = false;
         setBusy(false);
@@ -175,17 +200,11 @@ export default function LoginPage(): React.JSX.Element {
   if (step === "email") {
     return (
       <Aurora variant="light" className={styles.page}>
+        <AppHeader cancel={{ href: cancelTo }} />
         <form className={styles.form} onSubmit={(e) => void requestCode(e)} noValidate>
           <div className={styles.bodyEmail}>
-            <h1 className={styles.title}>
-              Sign in.
-              <br />
-              No password.
-            </h1>
-            <p className={styles.lead}>
-              For feeders and vets. We email you a 6-digit code. You have enough to remember, like which dog
-              hates the red scooter.
-            </p>
+            <h1 className={styles.title}>Sign in.</h1>
+            <p className={styles.lead}>We&apos;ll email you a 6-digit code. No password.</p>
             <div className={styles.field}>
               <Label as="label" htmlFor="login-email">
                 Email
@@ -223,6 +242,16 @@ export default function LoginPage(): React.JSX.Element {
 
   return (
     <Aurora variant="light" className={styles.page}>
+      <AppHeader
+        cancel={{
+          label: "‹ Change email",
+          onClick: () => {
+            setStep("email");
+            setStatus(null);
+            setCode("");
+          },
+        }}
+      />
       <form
         className={styles.form}
         onSubmit={(e) => {
@@ -236,19 +265,6 @@ export default function LoginPage(): React.JSX.Element {
         }}
         noValidate
       >
-        <div className={styles.top}>
-          <button
-            type="button"
-            className={styles.back}
-            onClick={() => {
-              setStep("email");
-              setStatus(null);
-              setCode("");
-            }}
-          >
-            ‹ Change email
-          </button>
-        </div>
         <div className={styles.bodyCode}>
           <h1 className={styles.title}>Check your email.</h1>
           <p className={styles.lead}>

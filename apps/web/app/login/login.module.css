@@ -1,4 +1,5 @@
-/* Screens 07 / 08, Login (Mobile App mock). Light aurora, no motion. */
+/* Screens 07 / 08, Login (Mobile App mock; v5 audit: no card, a 52px header
+ * with Cancel, no tab bar, no footer). Light aurora, no motion. */
 
 .page {
   min-height: 100dvh;
@@ -14,29 +15,6 @@
   margin: 0;
 }
 
-.top {
-  flex: none;
-  height: 52px;
-  box-sizing: content-box;
-  padding: env(safe-area-inset-top, 0px) var(--h-gutter) 0;
-  display: flex;
-  align-items: center;
-}
-
-.back {
-  appearance: none;
-  border: 0;
-  background: none;
-  margin: 0;
-  padding: 0;
-  min-height: var(--h-target);
-  font-family: var(--h-font);
-  font-size: 17px;
-  color: var(--h-link);
-  cursor: pointer;
-}
-
-.back:focus-visible,
 .resendBtn:focus-visible {
   outline: var(--h-focus);
   outline-offset: 2px;
@@ -48,16 +26,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 72px 24px 16px;
-}
-
-.bodyEmail {
-  padding-top: calc(72px + env(safe-area-inset-top, 0px));
-}
-
-.bodyCode {
-  padding-top: 20px;
+  gap: 16px;
+  padding: 24px var(--h-gutter) 16px;
 }
 
 .title {
@@ -81,7 +51,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .input {
@@ -110,7 +80,7 @@
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 /* One real input over the six painted boxes: autofill, paste and the

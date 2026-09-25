@@ -24,6 +24,7 @@
  *                acker, the responders paged for it, or a moderator.
  * POST /api/v1/sos/cases/:id/ack:      first writer wins (below).
  * POST /api/v1/sos/cases/:id/resolve:  closes a case (acker or moderator).
+ * POST /api/v1/sos/cases/:id/decline:  design v5, "I can't go right now".
  */
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -47,6 +48,9 @@ import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storag
 import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
 import { capabilitiesFor, requireFeeder } from "../lib/require-role.js";
 import { getNearbyCare, type NearbyCareProvider } from "./care.js";
+import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
+import { publicName } from "../lib/public-name.js";
+import { dogSex } from "../lib/dog-feeders.js";
 
 // INVARIANT 7: anonymous SOS is capped per attested device token.
 const SOS_DAILY_CAP = 2;
@@ -91,6 +95,7 @@ interface DogRow {
   lat: number | null;
   lng: number | null;
   sos_eligible_at: Date | null;
+  ward_id: string | null;
 }
 
 /**
@@ -177,13 +182,20 @@ async function dispatchFanout(
   lat: number | null,
   lng: number | null,
   severity: SosSeverity,
+  dogWard: string | null,
 ): Promise<boolean> {
-  if (lat == null || lng == null) {
-    await client.query(`UPDATE sos_cases SET tier = 2 WHERE id = $1`, [caseId]);
-    return false;
-  }
   // The floors live in lib/sos-eligibility.ts, shared with the ack route and
   // the map, so "who gets paged" and "who may claim" cannot drift apart.
+  //
+  // DESIGN V5 WARD RULE (lib/sos-eligibility.ts wardAllows, CONTRACT.md
+  // "Profile"). A feeder who chose wards is paged ONLY for dogs in those
+  // wards, and for ANY dog in them, with or without a recent nearby scan. A
+  // feeder with no wards is paged exactly as before: by a geotagged scan
+  // within 2000 m in the last 30 days. The trust floor and consent apply to
+  // both branches unchanged. A dog with no recorded position can therefore
+  // still reach the feeders of its ward (the proximity branch simply matches
+  // nothing: ST_DWithin against NULL is never true), where before it went
+  // straight to tier 2.
   const trustFloor = TRUST_FLOOR[severity];
   const res = await client.query<{ id: string }>(
     `SELECT f.id
@@ -197,11 +209,13 @@ async function dispatchFanout(
           AND ST_DWithin(s.geo, $1::geography, 2000)
      ) recent
      WHERE f.sos_opt_in
+       AND f.deleted_at IS NULL
        AND f.trust_score >= $2
-       AND recent.last_nearby_scan IS NOT NULL
-     ORDER BY f.trust_score DESC, recent.last_nearby_scan DESC
+       AND ((cardinality(f.wards) = 0 AND recent.last_nearby_scan IS NOT NULL)
+            OR ($3::text IS NOT NULL AND f.wards @> ARRAY[$3::text]))
+     ORDER BY f.trust_score DESC, recent.last_nearby_scan DESC NULLS LAST
      LIMIT 15`,
-    [geoWkt(lat, lng), trustFloor],
+    [lat != null && lng != null ? geoWkt(lat, lng) : null, trustFloor, dogWard],
   );
   if (res.rows.length === 0) {
     await client.query(`UPDATE sos_cases SET tier = 2 WHERE id = $1`, [caseId]);
@@ -472,7 +486,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // here would silently widen the 2km responder radius.
         const dogRes = await client.query<DogRow>(
           `SELECT id, ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng,
-                  sos_eligible_at
+                  sos_eligible_at, ward_id
            FROM dogs WHERE slug = $1`,
           [dogSlug],
         );
@@ -507,10 +521,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         }
 
         const caseRes = await client.query<{ id: string }>(
-          `INSERT INTO sos_cases (scan_id, dog_id, severity, state, tier)
-           VALUES ($1, $2, $3, 'open', 1)
+          `INSERT INTO sos_cases (scan_id, dog_id, severity, state, tier, note)
+           VALUES ($1, $2, $3, 'open', 1, $4)
            RETURNING id`,
-          [scanId, dog.id, severity],
+          // The note (design v5, migration 0026) was validated and then used
+          // only in the dedupe key; the N2 responder screen shows it now.
+          [scanId, dog.id, severity, note?.trim() ? note.trim() : null],
         );
         const caseId = caseRes.rows[0].id;
 
@@ -545,7 +561,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         let escalateNow = false;
         if (severity === "critical") {
           if (dog.sos_eligible_at != null) {
-            const notified = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity);
+            const notified = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity, dog.ward_id);
             tier = notified ? 1 : 2;
             fanout = "responders";
             escalateNow = !notified;
@@ -743,12 +759,43 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         error: { message: "case id must be a UUID", code: "INVALID_CASE_ID" },
       });
     }
-    const res = await query<CaseRow & { acked_by: string | null; fanned_out: boolean; ward_id: string | null }>(
+    const res = await query<
+      CaseRow & {
+        acked_by: string | null;
+        fanned_out: boolean;
+        declined_by_me: boolean;
+        ward_id: string | null;
+        dog_id: string | null;
+        slug: string | null;
+        dog_name: string | null;
+        dog_sex: string | null;
+        reporter_anonymous: boolean;
+        note: string | null;
+        reporter_photo: string | null;
+        portrait: string | null;
+        acker_name: string | null;
+        acker_deleted: Date | null;
+        paged: number;
+      }
+    >(
       `SELECT c.id, c.severity, c.state, c.tier, c.opened_at, c.acked_at, c.escalated_at,
-              c.resolved_at, c.resolution, c.acked_by, d.ward_id,
+              c.resolved_at, c.resolution, c.acked_by, c.note, d.ward_id, d.id AS dog_id, d.slug,
+              d.name AS dog_name, d.sex AS dog_sex,
+              (SELECT s.feeder_id IS NULL AND s.device_token IS NOT NULL FROM scans s WHERE s.id = c.scan_id)
+                AS reporter_anonymous,
               EXISTS (SELECT 1 FROM sos_notifications n
-                       WHERE n.case_id = c.id AND n.feeder_id = $2) AS fanned_out
-       FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id WHERE c.id = $1`,
+                       WHERE n.case_id = c.id AND n.feeder_id = $2) AS fanned_out,
+              EXISTS (SELECT 1 FROM sos_notifications n
+                       WHERE n.case_id = c.id AND n.feeder_id = $2 AND n.declined_at IS NOT NULL) AS declined_by_me,
+              (SELECT count(*)::int FROM sos_notifications n
+                WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL) AS paged,
+              (SELECT s.photo_s3_key FROM scans s WHERE s.id = c.scan_id) AS reporter_photo,
+              ${PORTRAIT_SQL} AS portrait,
+              af.display_name AS acker_name, af.deleted_at AS acker_deleted
+       FROM sos_cases c
+       LEFT JOIN dogs d ON d.id = c.dog_id
+       LEFT JOIN feeders af ON af.id = c.acked_by
+       WHERE c.id = $1`,
       [id, auth.feederId],
     );
     const row = res.rows[0];
@@ -771,6 +818,38 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    // Design v5 (N2). Everything below is for the people already admitted
+    // above. Two rules on top of that:
+    //
+    //   location     the dog's last recorded position, EXACT, and ONLY to the
+    //                caller who acked the case ("The exact spot unlocks when
+    //                you tap I'm going"). A paged responder deciding whether
+    //                to go, or a moderator, gets the ward and nothing finer
+    //                (INVARIANT 2's reasoning: a precise point for a dog is a
+    //                precise point for the people who feed it).
+    //   nearestCare  the nearest listed provider to the dog: a published
+    //                organisation's name and number (INVARIANT 3 is about
+    //                people, not clinics). The dog's position ranks providers
+    //                and is not echoed.
+    //
+    // respondingName is the acker's public name (first name and initial);
+    // respondersPaged is a count; the reporter is never identified at all.
+    //
+    // SECURITY-GATE: public-coordinates -- exact dog position, acker only.
+    const geoRes = row.dog_id
+      ? await query<{ lat: number | null; lng: number | null }>(
+          `SELECT ST_Y(last_seen_geo::geometry) AS lat, ST_X(last_seen_geo::geometry) AS lng
+             FROM dogs WHERE id = $1`,
+          [row.dog_id],
+        )
+      : null;
+    const geo = geoRes?.rows[0];
+    const lat = geo?.lat ?? null;
+    const lng = geo?.lng ?? null;
+    const care = lat != null && lng != null ? await getNearbyCare(lat, lng) : [];
+    const nearest = care.find((c) => c.phoneE164) ?? care[0] ?? null;
+    const isAcker = row.acked_by === auth.feederId;
+
     return {
       ok: true,
       data: {
@@ -789,9 +868,56 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         wardName: wardName(row.ward_id),
         // The caller holds this case (they acknowledged it): the web
         // /sos/[caseId] page shows Resolve only then.
-        mine: row.acked_by === auth.feederId,
+        mine: isAcker,
+        dog: row.slug
+          ? { slug: row.slug, name: row.dog_name ?? null, sex: dogSex(row.dog_sex), photoUrl: photoUrlFor(req, row.portrait) }
+          : null,
+        // "Sent by a passer-by, no account": the SOS scan carried a device
+        // token and no feeder account. Who it was is never said (INVARIANT 3).
+        reporterAnonymous: row.reporter_anonymous === true,
+        reporterPhotoUrl: photoUrlFor(req, row.reporter_photo),
+        note: row.note ?? null,
+        respondingName: row.acked_by ? publicName(row.acker_name, row.acker_deleted) : null,
+        respondersPaged: row.paged,
+        nearestCare: nearest ? { name: nearest.name, phoneE164: nearest.phoneE164 } : null,
+        declinedByMe: row.declined_by_me,
+        location: isAcker && lat != null && lng != null ? { lat, lng } : null,
       },
     };
+  });
+
+  /**
+   * POST /api/v1/sos/cases/:id/decline: N2 "I can't go right now".
+   *
+   * Stamps the caller's OWN page for the case as declined, and nothing else.
+   * It NEVER affects escalation: the worker's escalate_sos promotes on
+   * `state = 'open' AND acked_by IS NULL` and does not read declined_at, so
+   * even every paged responder declining leaves the case to escalate on its
+   * timer exactly as silence would. Only a responder who was paged has a page
+   * to decline (403 otherwise). Idempotent.
+   */
+  app.post("/api/v1/sos/cases/:id/decline", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const id = parseUuidParam((req.params as { id: string }).id);
+    if (!id) {
+      return reply.status(400).send({
+        ok: false,
+        error: { message: "case id must be a UUID", code: "INVALID_CASE_ID" },
+      });
+    }
+    const res = await query(
+      `UPDATE sos_notifications SET declined_at = COALESCE(declined_at, now())
+        WHERE case_id = $1 AND feeder_id = $2 AND channel = 'push'`,
+      [id, auth.feederId],
+    );
+    if ((res.rowCount ?? 0) === 0) {
+      return reply.status(403).send({
+        ok: false,
+        error: { message: "only a responder paged for this case can decline it", code: "SOS_CASE_FORBIDDEN" },
+      });
+    }
+    return { ok: true, data: { declined: true } };
   });
 
   /**
@@ -992,9 +1118,11 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         acked_by: string | null;
         acked_at: Date | null;
         resolved_at: Date | null;
+        ward_id: string | null;
       }>(
-        `SELECT severity::text AS severity, acked_by, acked_at, resolved_at
-           FROM sos_cases WHERE id = $1 FOR UPDATE`,
+        `SELECT c.severity::text AS severity, c.acked_by, c.acked_at, c.resolved_at,
+                (SELECT d.ward_id FROM dogs d WHERE d.id = c.dog_id) AS ward_id
+           FROM sos_cases c WHERE c.id = $1 FOR UPDATE OF c`,
         [id],
       );
       const current = caseRes.rows[0];
@@ -1005,18 +1133,34 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         return { status: "claimed" as const, ackedAt: current.acked_at as Date };
       }
 
-      const standing = await client.query<{ sos_opt_in: boolean; trust_score: number; notified: boolean }>(
-        `SELECT f.sos_opt_in, f.trust_score,
+      const standing = await client.query<{
+        sos_opt_in: boolean;
+        trust_score: number;
+        wards: string[];
+        notified: boolean;
+      }>(
+        `SELECT f.sos_opt_in, f.trust_score, f.wards,
                 EXISTS (SELECT 1 FROM sos_notifications n WHERE n.case_id = $2 AND n.feeder_id = f.id) AS notified
            FROM feeders f WHERE f.id = $1`,
         [feederId, id],
       );
       const me = standing.rows[0];
+      // Design v5: the ward rule is part of standing (lib/sos-eligibility.ts),
+      // so a feeder who chose wards may claim by standing only inside them,
+      // the same set the fan-out would have paged them for. Being paged or a
+      // moderator still suffices on its own.
       const eligible =
         !!me &&
         mayAck(
-          { sosOptIn: me.sos_opt_in, trustScore: me.trust_score, notified: me.notified, moderator: isModerator },
+          {
+            sosOptIn: me.sos_opt_in,
+            trustScore: me.trust_score,
+            wards: me.wards ?? [],
+            notified: me.notified,
+            moderator: isModerator,
+          },
           current.severity,
+          current.ward_id,
         );
       if (!eligible) return { status: "forbidden" as const };
 

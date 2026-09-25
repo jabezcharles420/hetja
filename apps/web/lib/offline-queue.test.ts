@@ -49,6 +49,7 @@ import {
   flush,
   flushOnOpen,
   listDroppedFeeds,
+  listWaiting,
   clearDroppedFeeds,
   DROPPED_FEEDS_KEY,
   queueBackoffUntil,
@@ -300,6 +301,25 @@ describe("lib/offline-queue", () => {
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as Record<string, unknown>;
     expect(body.outcome).toBe("unwell");
     expect(body.type).toBe("feed");
+  });
+
+  it("keeps the dog's name for the N7 waiting list and never sends it", async () => {
+    const { queued } = await enqueueOffline({
+      dogSlug: "abc234567",
+      deviceToken: "tok",
+      outcome: "ate_some",
+      dogName: "Kalu",
+    });
+    expect(idbMock.store.get(queued.id)!.dogName).toBe("Kalu");
+    expect(await listWaiting()).toEqual([
+      { id: queued.id, dogSlug: "abc234567", dogName: "Kalu", outcome: "ate_some", capturedAt: queued.capturedAt },
+    ]);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { created: true } }));
+    expect(await flush()).toBe(1);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as Record<string, unknown>;
+    expect("dogName" in body).toBe(false);
+    expect(await listWaiting()).toEqual([]);
   });
 
   it("sends no outcome key at all when the feeder picked none", async () => {

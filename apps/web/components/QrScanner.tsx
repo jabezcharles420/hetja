@@ -1,28 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, CollarCodeInput } from "@/components/ds";
+import { ChoiceRows } from "@/components/scan/ScanParts";
 import { api, ApiError } from "@/lib/api";
 import { parseCollarCode } from "@/lib/collar";
+import { destinationFor, normaliseCode, withIntent, type ScannedCollar } from "@/lib/scan-code";
 import styles from "./QrScanner.module.css";
 
 /**
- * Screen 02, Scan (design v4). Full-screen dark camera with a 250px bracket
- * frame, and a white bottom sheet for typing the code when there is no camera
- * or the QR is muddy.
+ * The Scan tab (design v4 screen 02, design v5 F1 and the audit's "Scan" rows).
  *
- * The camera opens by itself ("It opens by itself. No button needed."). The
- * native BarcodeDetector is used where it exists; elsewhere the small
+ * The camera opens by itself ("It opens by itself. No button needed."); the
+ * white sheet under it is the typed fallback ("No camera, or the QR is
+ * muddy?"). After 6 seconds of the camera running without a read, and while
+ * nobody is typing, the sheet becomes F1: "Can't read this QR." with Type the
+ * code (F2, /scan/code), Find by ward and photo (F3, /scan/find) and the red
+ * "Dog is hurt · Send SOS anyway" (/scan/find?sos=1: nearest vets and NGOs
+ * first, then the finder, because an SOS with no dog pages nobody; see the
+ * adapted list in docs/design/v5-handoff/CONTRACT.md). The frame turns
+ * --h-attention at the same moment. With no camera, or the camera refused,
+ * the F1 choices are the sheet from the start.
+ *
+ * The camera keeps reading behind F1: a QR that comes clean a second later
+ * still opens the dog.
+ *
+ * The native BarcodeDetector is used where it exists; elsewhere the small
  * `barcode-detector` polyfill is imported lazily, so it only ever loads here.
+ * A scanned collar is checked against GET /dogs/:slug before we leave, and a
+ * typed code that is not a dog (or not all there) goes to /scan/code, where
+ * F2 narrows a partial code and N8 handles a miss. /d/<slug> is a different
+ * app behind Caddy, so that hop is a full navigation.
  *
- * Every code, scanned or typed, is checked against GET /dogs/:slug before we
- * leave the page, so a wrong code gets the inline "No dog with that code"
- * instead of a dead profile. The profile (/d/<slug>) is a different app
- * served by Caddy, so that hop is a full navigation (window.location.assign),
- * not a client-side route change. With `?intent=feed` (from Me) a scan goes
- * to /feed?dog=<scanned slug> instead.
+ * This is a tab root: ChromeShell draws the TabBar, so the screen is the
+ * viewport less the tab bar and the home-indicator inset. No footer.
  */
 
 declare global {
@@ -34,10 +46,11 @@ declare global {
   }
 }
 
-export interface ScannedCollar {
-  slug: string;
-  sig: string | null;
-}
+export type { ScannedCollar } from "@/lib/scan-code";
+export { destinationFor } from "@/lib/scan-code";
+
+/** F1 comes up after this long with the camera running and nothing read. */
+export const FAIL_AFTER_MS = 6000;
 
 /**
  * Extracts a collar slug (and an optional `?s=` signature) from decoded QR
@@ -75,18 +88,16 @@ export function extractCollarFromScan(rawValue: string): ScannedCollar | null {
 export const NO_DOG_MESSAGE = "No dog with that code. Check the letters and try again.";
 export const NOT_A_COLLAR_MESSAGE = "That QR isn't a Hetja collar. Try the one on the collar tag.";
 
-/** Where a resolved collar goes. /d/ is the profile app, so it is a full URL. */
-export function destinationFor(collar: ScannedCollar, intent: string | null): string {
-  if (intent === "feed") return `/feed?dog=${encodeURIComponent(collar.slug)}`;
-  const qs = collar.sig ? `?s=${encodeURIComponent(collar.sig)}` : "";
-  return `/d/${collar.slug}${qs}`;
-}
-
-type CameraState = "checking" | "starting" | "scanning" | "off";
+/** checking/starting: opening; scanning: live; off: no camera; denied: refused. */
+type CameraState = "checking" | "starting" | "scanning" | "off" | "denied";
 
 interface TorchCapable {
   getCapabilities?: () => MediaTrackCapabilities & { torch?: boolean };
   applyConstraints: (c: MediaTrackConstraints) => Promise<void>;
+}
+
+function intentNow(): string | null {
+  return new URLSearchParams(window.location.search).get("intent");
 }
 
 export default function QrScanner(): React.JSX.Element {
@@ -97,6 +108,9 @@ export default function QrScanner(): React.JSX.Element {
   routerRef.current = router;
 
   const [camera, setCamera] = useState<CameraState>("checking");
+  const [failed, setFailed] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [intent, setIntent] = useState<string | null>(null);
   const [mismatch, setMismatch] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -140,25 +154,23 @@ export default function QrScanner(): React.JSX.Element {
     setTorchOn(false);
   }, []);
 
-  const go = useCallback(
-    (collar: ScannedCollar) => {
-      // Read at the moment of leaving rather than via useSearchParams, so the
-      // page needs no Suspense boundary and server-renders the whole screen.
-      const intent = new URLSearchParams(window.location.search).get("intent");
-      const dest = destinationFor(collar, intent);
-      if (intent === "feed") routerRef.current.push(dest);
-      else window.location.assign(dest);
-    },
-    [],
-  );
+  const go = useCallback((collar: ScannedCollar) => {
+    // Read at the moment of leaving rather than via useSearchParams, so the
+    // page needs no Suspense boundary and server-renders the whole screen.
+    const now = intentNow();
+    const dest = destinationFor(collar, now);
+    if (now === "feed") routerRef.current.push(dest);
+    else window.location.assign(dest);
+  }, []);
 
   /**
-   * Checks the code exists, then leaves. Only a 404 stops us: on a network
-   * failure the profile app (which works from cache) is the better place to
-   * be than an error here.
+   * Checks the code exists, then leaves. A 404 sends a typed code to N8
+   * (/scan/code, "No dog has this code.") and shows the inline message for a
+   * scanned one. On a network failure the profile app (which works from
+   * cache) is the better place to be than an error here.
    */
   const resolve = useCallback(
-    async (collar: ScannedCollar): Promise<boolean> => {
+    async (collar: ScannedCollar, typed = false): Promise<boolean> => {
       if (resolvingRef.current) return false;
       resolvingRef.current = true;
       setBusy(true);
@@ -166,10 +178,13 @@ export default function QrScanner(): React.JSX.Element {
         await api.getDog(collar.slug, collar.sig);
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
-          setError(NO_DOG_MESSAGE);
-          setCode(collar.slug);
           resolvingRef.current = false;
           setBusy(false);
+          if (typed) {
+            routerRef.current.push(withIntent(`/scan/code?code=${collar.slug}`, intentNow()));
+          } else {
+            setMismatch(NO_DOG_MESSAGE);
+          }
           return false;
         }
       }
@@ -259,10 +274,11 @@ export default function QrScanner(): React.JSX.Element {
       // frame by the time the camera opens.
       void tick();
       intervalRef.current = setInterval(() => void tick(), 350);
-    } catch {
-      // Denied, no camera, busy, or no decoder: the typed code is the way in.
+    } catch (err) {
+      // Denied, no camera, busy, or no decoder: the fallbacks are the way in.
       stopCamera();
-      setCamera("off");
+      const name = (err as { name?: string } | null)?.name;
+      setCamera(name === "NotAllowedError" || name === "SecurityError" ? "denied" : "off");
     }
   }, [stopCamera, tick]);
 
@@ -271,6 +287,7 @@ export default function QrScanner(): React.JSX.Element {
   // when the feeder comes back.
   useEffect(() => {
     aliveRef.current = true;
+    setIntent(intentNow());
     void startCamera();
     const onVisibility = () => {
       if (document.hidden) {
@@ -292,15 +309,22 @@ export default function QrScanner(): React.JSX.Element {
     };
   }, [startCamera, stopCamera]);
 
-  // No camera: hide the frame and put the cursor where the feeder can use it.
+  // F1: six seconds of a live camera with no read, unless someone is typing.
   useEffect(() => {
-    if (camera === "off") focusInput();
-  }, [camera, focusInput]);
+    if (camera !== "scanning" || failed || typing) return;
+    const t = setTimeout(() => {
+      if (!resolvingRef.current) setFailed(true);
+    }, FAIL_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [camera, failed, typing]);
 
   // The home page's "Or type a collar code ›" links to /scan#code: the person
-  // chose typing, so the cursor goes straight to the input.
+  // chose typing, so the cursor goes straight to the input (and F1 waits).
   useEffect(() => {
-    if (window.location.hash === "#code") focusInput();
+    if (window.location.hash === "#code") {
+      setTyping(true);
+      focusInput();
+    }
   }, [focusInput]);
 
   const toggleTorch = async () => {
@@ -317,24 +341,56 @@ export default function QrScanner(): React.JSX.Element {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseCollarCode(code);
-    if (!parsed.ok) {
-      setError(code.length < 9 ? "That code is 9 characters. Check the collar and try again." : NO_DOG_MESSAGE);
+    const typed = normaliseCode(code);
+    if (typed.length === 0) {
+      setError("Type the code printed under the QR.");
       focusInput();
       return;
     }
+    const parsed = parseCollarCode(typed);
+    if (!parsed.ok) {
+      // Part of a code: F2 narrows it down from what they could read.
+      router.push(withIntent(`/scan/code?code=${typed}`, intentNow()));
+      return;
+    }
     setError(null);
-    void resolve({ slug: parsed.slug, sig: null });
+    void resolve({ slug: parsed.slug, sig: null }, true);
   };
 
-  const off = camera === "off";
+  const noCamera = camera === "off" || camera === "denied";
+  const showChoices = failed || noCamera;
+
+  const choices = [
+    {
+      title: "Type the code",
+      sub: "Printed under the QR. Part of it is fine.",
+      href: withIntent("/scan/code", intent),
+    },
+    { title: "Find by ward and photo", sub: "When the code is gone too", href: withIntent("/scan/find", intent) },
+  ];
+
+  const sheetTitle = noCamera
+    ? camera === "denied"
+      ? "Camera is off for Hetja."
+      : "No camera here."
+    : "Can't read this QR.";
+  const sheetSub = noCamera
+    ? camera === "denied"
+      ? "Allow it in your browser settings, or try one of these."
+      : "Type the code printed under the QR, or try one of these."
+    : "Mud and rain do this. Try one of these.";
 
   return (
-    <div className={styles.screen}>
-      <div className={styles.top}>
-        <Link href="/" className={styles.back} aria-label="Home">
-          ‹ Home
-        </Link>
+    <div className={styles.screen} data-state={showChoices ? "fallback" : "scanning"}>
+      <div className={styles.camera} data-camera={camera}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          ref={videoRef}
+          className={[styles.video, camera === "scanning" ? styles.live : ""].filter(Boolean).join(" ")}
+          muted
+          playsInline
+          aria-hidden="true"
+        />
         {torchSupported && (
           <button
             type="button"
@@ -345,36 +401,21 @@ export default function QrScanner(): React.JSX.Element {
             Torch
           </button>
         )}
-      </div>
-
-      <div className={styles.camera} data-camera={camera}>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video
-          ref={videoRef}
-          className={[styles.video, camera === "scanning" ? styles.live : ""].filter(Boolean).join(" ")}
-          muted
-          playsInline
-          aria-hidden="true"
-        />
-        {!off && (
-          <div className={styles.frame} aria-hidden="true" data-testid="scan-frame">
-            <span className={styles.tl} />
-            <span className={styles.tr} />
-            <span className={styles.bl} />
-            <span className={styles.br} />
-          </div>
-        )}
-        {off ? (
-          <>
-            <h1 className={styles.title}>No camera here.</h1>
-            <p className={styles.sub}>Type the code printed under the QR.</p>
-          </>
-        ) : (
-          <>
-            <h1 className={styles.title}>Point at the QR on the collar.</h1>
-            <p className={styles.sub}>It opens by itself. No button needed.</p>
-          </>
-        )}
+        {!noCamera &&
+          (failed ? (
+            <div className={styles.failFrame} aria-hidden="true" data-testid="scan-frame" data-failed="true" />
+          ) : (
+            <div className={styles.frameWrap}>
+              <div className={styles.frame} aria-hidden="true" data-testid="scan-frame">
+                <span className={styles.tl} />
+                <span className={styles.tr} />
+                <span className={styles.bl} />
+                <span className={styles.br} />
+              </div>
+              <h1 className={styles.title}>Point at the QR on the collar.</h1>
+              <p className={styles.sub}>It opens by itself. No button needed.</p>
+            </div>
+          ))}
         {mismatch && (
           <p className={styles.mismatch} role="alert">
             {mismatch}
@@ -382,25 +423,43 @@ export default function QrScanner(): React.JSX.Element {
         )}
       </div>
 
-      <div className={styles.sheet} ref={sheetRef}>
-        <form className={styles.form} onSubmit={submit} noValidate>
-          <label className={styles.prompt} htmlFor="scan-collar-code">
-            No camera, or the QR is muddy?
-          </label>
-          <CollarCodeInput
-            id="scan-collar-code"
-            value={code}
-            onChange={(next) => {
-              setCode(next);
-              if (error) setError(null);
-            }}
-            error={error ?? undefined}
-          />
-          <Button type="submit" fullWidth shadow={false} disabled={busy}>
-            View profile
+      {showChoices ? (
+        <section
+          className={[styles.sheet, styles.failSheet].join(" ")}
+          aria-labelledby="scan-fallback-title"
+          data-testid="scan-fallback"
+        >
+          <h1 id="scan-fallback-title" className={styles.failTitle}>
+            {sheetTitle}
+          </h1>
+          <p className={styles.failSub}>{sheetSub}</p>
+          <ChoiceRows items={choices} tone="mist" />
+          <Button variant="sos" bang={false} fullWidth href="/scan/find?sos=1" className={styles.sosBtn}>
+            Dog is hurt · Send SOS anyway
           </Button>
-        </form>
-      </div>
+        </section>
+      ) : (
+        <div className={styles.sheet} ref={sheetRef}>
+          <form className={styles.form} onSubmit={submit} onFocus={() => setTyping(true)} noValidate>
+            <label className={styles.prompt} htmlFor="scan-collar-code">
+              No camera, or the QR is muddy?
+            </label>
+            <CollarCodeInput
+              id="scan-collar-code"
+              value={code}
+              onChange={(next) => {
+                setCode(next);
+                setTyping(true);
+                if (error) setError(null);
+              }}
+              error={error ?? undefined}
+            />
+            <Button type="submit" fullWidth shadow={false} disabled={busy}>
+              View profile
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,6 +33,8 @@ export interface EnqueueInput {
   deviceToken?: string;
   /** "How did it go?" (optional). Stored with the record and replayed as-is. */
   outcome?: FeedOutcomeValue;
+  /** The dog's name, kept with the record for the N7 waiting list. Never sent. */
+  dogName?: string | null;
 }
 
 export interface FeedOutcome {
@@ -107,6 +109,7 @@ export async function enqueueFeed(input: EnqueueInput): Promise<FeedOutcome> {
     capturedAt: new Date().toISOString(),
     deviceToken: input.deviceToken,
     ...(input.outcome ? { outcome: input.outcome } : {}),
+    ...(input.dogName ? { dogName: input.dogName } : {}),
   });
 
   const offline = !isOnLine();
@@ -448,6 +451,30 @@ export async function queuedCount(): Promise<number> {
     return (await listQueued()).length;
   } catch {
     return 0;
+  }
+}
+
+/** A queued feed as the N7 screen lists it: no photo bytes, no token. */
+export interface WaitingFeed {
+  id: string;
+  dogSlug: string;
+  dogName: string | null;
+  outcome: FeedOutcomeValue | null;
+  capturedAt: string;
+}
+
+/** Feeds still on this phone, oldest first. Never throws. */
+export async function listWaiting(): Promise<WaitingFeed[]> {
+  try {
+    return (await listQueued()).map((q) => ({
+      id: q.id,
+      dogSlug: q.dogSlug,
+      dogName: q.dogName ?? null,
+      outcome: q.outcome ?? null,
+      capturedAt: q.capturedAt,
+    }));
+  } catch {
+    return [];
   }
 }
 

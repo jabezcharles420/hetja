@@ -397,3 +397,29 @@ export function showPlace(
   const onlyPlaces = !f.sos && !f.hungry;
   return zoom >= 13 || onlyPlaces || selectedId === p.id || nearbyIds.has(p.id);
 }
+
+export interface ScreenRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+function overlaps(a: ScreenRect, b: ScreenRect, gap: number): boolean {
+  return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
+}
+
+/**
+ * How far (px, positive = down) to move a ward label so it covers no vet or
+ * NGO pin. The pin sits on a real place; the ward label sits on a hand-placed
+ * ward centre that means nothing finer than "this ward", so the label is the
+ * one that moves: just above or just below the pins it would cover, whichever
+ * is the shorter move. 0 when nothing overlaps.
+ */
+export function wardNudge(ward: ScreenRect, places: readonly ScreenRect[], gap = 4): number {
+  const hit = places.filter((p) => overlaps(ward, p, gap));
+  if (hit.length === 0) return 0;
+  const down = Math.max(...hit.map((p) => p.bottom)) - ward.top + gap;
+  const up = Math.min(...hit.map((p) => p.top)) - ward.bottom - gap;
+  return Math.abs(up) <= Math.abs(down) ? up : down;
+}

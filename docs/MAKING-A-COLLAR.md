@@ -48,24 +48,32 @@ ECC M via `qrcode-generator`. `apps/scan` must never import it, because of INVAR
 
 ## The printable sheet
 
-`/register/<slug>/print` renders the sheet from `GET /api/v1/registrations/:slug`,
-so the signature never appears in a URL bar or browser history and the page
-survives reload.
+Design v5 replaced the single etched-tag sheet with printable paper sheets
+("Hetja Collar Sheet A4" in `docs/design/v5-handoff/`), made on the phone:
 
-- Cut lines (hairline) at the sheet border.
-- The QR (40 × 40 mm).
-- The 9-character slug as the **typeable fallback** in `.h-plate` with
-  `--h-num-tabular`; a stranger must be able to type it when the QR is dirty.
-- Design tokens only (`packages/design/tokens.css`): `--h-ink` modules on
-  `--h-base`, and `--h-accent` on the Print button and nowhere else (one accent
-  per screen).
-- Print CSS: `@media print { @page { margin: 10mm } }`, chrome hidden,
-  `print-color-adjust: exact`.
+- `/register/<slug>/print` (R7) builds a **vector PDF in the browser**
+  (`apps/web/lib/collar-pdf.ts`, pdf-lib) in one of two layouts: ten 32 × 46 mm
+  collar tags plus two 150 × 22 mm collar bands, or the wall notice with the
+  large QR. A4 or Letter; Letter reflows the same content. `/register/batch`
+  (R8) puts up to eight dogs, two tags each, on one A4 page.
+- The collar URL comes from `GET /api/v1/dogs/:slug/collar` (falling back to
+  `GET /api/v1/registrations/:slug`), or `POST /api/v1/collars/batch` for a
+  batch, so the signature never appears in a URL bar.
+- Same QR as ever: version 5, ECC M, the signed URL byte for byte. Only the
+  printed size changes. The tag QR box is **22 mm including the 4-module quiet
+  zone, 0.49 mm per module**; the band draws 18 mm of modules and takes its
+  quiet zone from its own 2 mm margin; the notice QR is 68.8 mm. The
+  arithmetic is in `apps/web/lib/qr.ts`.
+- The code is printed under every QR as the typeable fallback, upper case in
+  three groups (`RNI 482 PQ7`).
+- Black ink only, **print at 100% scale**; the sheet says so.
+- If the phone cannot make the PDF, `/register/<slug>/print/sheet` (and
+  `/register/batch/sheet`) is the same sheet as HTML at real millimetres with
+  an `@page` rule, for the browser's own Print.
 
-The sheet is served at `/register/<slug>/print`; `ChromeShell.tsx` treats it as
-a bare route so no header, bottom nav, or install banner is rendered, and print
-CSS hides chrome as a second layer (a fixed bottom nav printed across a collar
-sheet is a wasted sheet of TPU).
+These are paper tags: cut, laminate or seal both sides in clear packing tape,
+and replace them when they wear. The laser-etched TPU tag below is still the
+long-lived option, and the 40 mm arithmetic above still applies to it.
 
 ## Fitting
 
@@ -88,6 +96,7 @@ After etching, scan the tag with a cheap Android phone’s native camera (not
 only a developer iPhone). If it does not decode to
 `https://hetja.in/d/<slug>?s=<sig>` byte for byte, re-etch. Playwright test
 `apps/web/e2e/collar-print.spec.ts` builds the SVG for a known slug+signature
-and asserts `BarcodeDetector` returns the exact URL, with no server, no database,
-no auth. It is the only thing standing between us and a thousand etched tags
+and asserts `BarcodeDetector` returns the exact URL, at the etched 40 mm and at
+the A4 sheet's 22 mm tag and 18 mm band inside their outlines, with no server,
+no database, no auth. It is the only thing standing between us and a thousand etched tags
 that do not scan.

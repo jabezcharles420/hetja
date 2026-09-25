@@ -94,6 +94,14 @@ describe("GET /api/v1/feeders/me/dogs", () => {
       wardName: "Andheri West",
       lastFedAt: "2026-09-12T06:00:00.000Z",
       myLastFedAt: "2026-09-12T06:00:00.000Z",
+      // Design v5 fields.
+      photoUrl: null,
+      status: "active",
+      sex: null,
+      verified: false,
+      registeredByMe: false,
+      lastFedByName: "MyDogsTest",
+      attention: null,
     });
     expect(list[1].lastFedAt).toBe("2026-09-13T06:00:00.000Z");
     expect(list[1].myLastFedAt).toBe("2026-09-11T06:00:00.000Z");

@@ -1,0 +1,32 @@
+.track {
+  display: grid;
+  grid-template-columns: repeat(var(--seg-count, 2), minmax(0, 1fr));
+  background: var(--h-quiet);
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.seg {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  height: 40px;
+  border-radius: 10px;
+  background: transparent;
+  font-family: var(--h-font);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--h-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.on {
+  background: var(--h-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.seg:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 1px;
+}

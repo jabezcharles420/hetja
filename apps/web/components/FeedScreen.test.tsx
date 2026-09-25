@@ -36,13 +36,38 @@ vi.mock("@/lib/offline-queue", async () => {
   return {
     ...actual,
     enqueueFeed: vi.fn(),
+    listWaiting: vi.fn().mockResolvedValue([]),
+    flushOnOpen: vi.fn().mockResolvedValue(0),
     captureGeo: vi.fn().mockResolvedValue({ lat: 19.13, lng: 72.84 }),
   };
 });
 
-import FeedScreen, { BUSY_TOAST, feedNote, loggedToast, OUTCOMES, QUEUED_TOAST } from "@/app/feed/FeedScreen";
+vi.mock("@/lib/care-cache", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/care-cache")>("@/lib/care-cache");
+  return {
+    ...actual,
+    refreshCareNumbers: vi.fn().mockResolvedValue(null),
+    loadCareNumbers: vi.fn().mockResolvedValue(null),
+    rememberDogNames: vi.fn().mockResolvedValue(undefined),
+    cachedDogName: vi.fn().mockResolvedValue(null),
+  };
+});
+
+import FeedScreen, {
+  BUSY_TOAST,
+  feedNote,
+  loggedToast,
+  offlineBanner,
+  OFFLINE_BODY,
+  OUTCOMES,
+  QUEUED_TOAST,
+  SOS_NEEDS_SIGNAL,
+  SOS_NEEDS_SIGNAL_NONE,
+  waitingLine,
+} from "@/app/feed/FeedScreen";
 import { api, ApiError, setAccessToken } from "@/lib/api";
-import { enqueueFeed } from "@/lib/offline-queue";
+import { enqueueFeed, listWaiting } from "@/lib/offline-queue";
+import { cachedDogName, loadCareNumbers, refreshCareNumbers } from "@/lib/care-cache";
 import { kolkataDay } from "@/lib/streak";
 
 const apiMock = api as unknown as {
@@ -112,6 +137,7 @@ describe("Log a feed", () => {
       geo: { lat: 19.13, lng: 72.84 },
       deviceToken: "dev-tok",
       outcome: "ate_some",
+      dogName: "Bruno",
     });
     expect(await screen.findByText("Logged. Bruno is thrilled, in their own way.")).not.toBeNull();
   });
@@ -142,11 +168,90 @@ describe("Log a feed", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it("says the feed is saved on the phone when offline", async () => {
-    enqueue.mockResolvedValue({ queued: {}, syncing: false, offline: true });
+  it("says the feed is saved on the phone when it stays pending online", async () => {
+    enqueue.mockResolvedValue({ queued: {}, syncing: false, offline: false, throttled: false, pending: true });
     render(<FeedScreen />);
     fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
     expect(await screen.findByText(QUEUED_TOAST)).not.toBeNull();
+  });
+
+  describe("N7 No signal", () => {
+    const waitingMock = listWaiting as unknown as ReturnType<typeof vi.fn>;
+    const careMock = loadCareNumbers as unknown as ReturnType<typeof vi.fn>;
+    let onLine: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      onLine = Object.getOwnPropertyDescriptor(window.navigator, "onLine");
+      enqueue.mockResolvedValue({ queued: {}, syncing: false, offline: true, throttled: false, pending: true });
+      waitingMock.mockResolvedValue([
+        { id: "q1", dogSlug: "ddr237xk2", dogName: "Bruno", outcome: "ate_all", capturedAt: "x" },
+        { id: "q2", dogSlug: "mtw482pq7", dogName: null, outcome: null, capturedAt: "y" },
+      ]);
+    });
+
+    afterEach(() => {
+      if (onLine) Object.defineProperty(window.navigator, "onLine", onLine);
+      else delete (window.navigator as { onLine?: boolean }).onLine;
+    });
+
+    function goOffline(): void {
+      Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => false });
+    }
+
+    it("shows the saved screen: banner, check, title, body, waiting list, SOS note, Scan the next dog", async () => {
+      careMock.mockResolvedValue({
+        wards: ["K-West"],
+        savedAt: new Date().toISOString(),
+        numbers: [{ id: "v1", name: "Dr Mehta", kind: "vet", wardId: "K-West", phoneE164: "+91 22 2600 1234", is24x7: true }],
+      });
+      render(<FeedScreen />);
+      await screen.findByRole("button", { name: "Log feed" });
+      goOffline();
+      fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
+      expect(await screen.findByRole("heading", { name: "Bruno’s feed is saved." })).not.toBeNull();
+      expect(await screen.findByText("Offline · 2 feeds waiting")).not.toBeNull();
+      expect(screen.getByText("Auto-sends")).not.toBeNull();
+      expect(screen.getByText(OFFLINE_BODY)).not.toBeNull();
+      expect(screen.getByText("Bruno · ate it all")).not.toBeNull();
+      expect(screen.getByText("MTW 482 PQ7")).not.toBeNull();
+      expect(screen.getAllByText("Waiting")).toHaveLength(2);
+      expect(await screen.findByText(SOS_NEEDS_SIGNAL)).not.toBeNull();
+      expect(screen.getByRole("link", { name: "Call" }).getAttribute("href")).toBe("tel:+912226001234");
+      expect(screen.getByRole("link", { name: "Scan the next dog" }).getAttribute("href")).toBe("/scan?intent=feed");
+      // No auto-leave: the feeder reads this with no signal.
+      await new Promise((r) => setTimeout(r, 50));
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("never claims saved numbers it does not have", async () => {
+      careMock.mockResolvedValue(null);
+      render(<FeedScreen />);
+      fireEvent.click(await screen.findByRole("button", { name: "Log feed" }));
+      expect(await screen.findByText(SOS_NEEDS_SIGNAL_NONE)).not.toBeNull();
+      expect(screen.queryByText(SOS_NEEDS_SIGNAL)).toBeNull();
+    });
+
+    it("opened with no signal: logs the feed from the collar code and the remembered name", async () => {
+      goOffline();
+      (cachedDogName as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("Kalu");
+      apiMock.getDog.mockRejectedValue(new ApiError("Could not reach Hetja.", { status: 0, code: "NETWORK_ERROR" }));
+      render(<FeedScreen />);
+      expect(await screen.findByText("Kalu")).not.toBeNull();
+      expect(refreshCareNumbers).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Log feed" }));
+      await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
+      expect((enqueue.mock.calls[0]![0] as { dogSlug: string; dogName: string }).dogName).toBe("Kalu");
+      expect(await screen.findByRole("heading", { name: "Kalu’s feed is saved." })).not.toBeNull();
+    });
+
+    it("keeps its words", () => {
+      expect(offlineBanner(1)).toBe("Offline · 1 feed waiting");
+      expect(offlineBanner(2)).toBe("Offline · 2 feeds waiting");
+      expect(waitingLine({ dogName: "Kalu", dogSlug: "x", outcome: "ate_some" })).toBe("Kalu · ate a little");
+      expect(SOS_NEEDS_SIGNAL).toBe(
+        "SOS needs signal. With no signal, call a vet directly: numbers for your wards are saved on this phone.",
+      );
+    });
   });
 
   it("says the server is busy (and the feed is kept) on 429 / 503", async () => {

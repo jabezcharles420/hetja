@@ -38,15 +38,46 @@ export const MAX_OPEN_ACKS = 2;
 export interface ResponderStanding {
   sosOptIn: boolean;
   trustScore: number;
+  /**
+   * Design v5: the wards the feeder chose (feeders.wards). Empty or absent
+   * means "no ward preference", which is every account older than 0026.
+   */
+  wards?: readonly string[];
 }
 
 /**
- * Opted in to being paged AND at or above the floor for this severity. This is
- * the whole standing rule; being notified for a specific case or holding the
- * `moderate` capability are separate grounds the ack route adds on top.
+ * The ward half of the rule (design v5, N1 "We only alert you about dogs in
+ * these wards."). A feeder with no wards set is not restricted; one with wards
+ * set is a responder only for dogs in them. `dogWard` null (a caller with no
+ * ward context) leaves the standing rule as it was.
  */
-export function canRespond(viewer: ResponderStanding | null | undefined, severity: SosSeverity): boolean {
-  return !!viewer && viewer.sosOptIn && viewer.trustScore >= TRUST_FLOOR[severity];
+export function wardAllows(wards: readonly string[] | undefined, dogWard: string | null | undefined): boolean {
+  if (!wards || wards.length === 0) return true;
+  if (dogWard == null) return true;
+  return wards.includes(dogWard);
+}
+
+/**
+ * Opted in to being paged AND at or above the floor for this severity AND (v5)
+ * the dog is in one of the feeder's wards when they chose any. This is the
+ * whole standing rule; being notified for a specific case or holding the
+ * `moderate` capability are separate grounds the ack route adds on top.
+ *
+ * The trust floors are unchanged by the ward rule: a ward makes a feeder
+ * eligible without recent-scan proximity (routes/sos.ts dispatchFanout), never
+ * without the floor.
+ */
+export function canRespond(
+  viewer: ResponderStanding | null | undefined,
+  severity: SosSeverity,
+  dogWard?: string | null,
+): boolean {
+  return (
+    !!viewer &&
+    viewer.sosOptIn &&
+    viewer.trustScore >= TRUST_FLOOR[severity] &&
+    wardAllows(viewer.wards, dogWard)
+  );
 }
 
 export interface AckGrounds extends ResponderStanding {
@@ -60,6 +91,6 @@ export interface AckGrounds extends ResponderStanding {
  * May this caller claim a case of this severity? Paged for it, a moderator, or
  * standing that would have got them paged.
  */
-export function mayAck(grounds: AckGrounds, severity: SosSeverity): boolean {
-  return grounds.notified || grounds.moderator || canRespond(grounds, severity);
+export function mayAck(grounds: AckGrounds, severity: SosSeverity, dogWard?: string | null): boolean {
+  return grounds.notified || grounds.moderator || canRespond(grounds, severity, dogWard);
 }

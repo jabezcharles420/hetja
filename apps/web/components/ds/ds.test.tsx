@@ -4,8 +4,11 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { createElement, useState } from "react";
 import type { ReactNode } from "react";
 
+const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/me",
+  useRouter: () => router,
 }));
 
 vi.mock("next/link", async () => {
@@ -17,13 +20,19 @@ vi.mock("next/link", async () => {
 });
 
 import {
+  AppHeader,
   Button,
   CollarCode,
   CollarCodeInput,
   DogAvatar,
   SectionFade,
   StatusPill,
+  Segmented,
+  SettingsGroup,
+  SettingsRow,
+  Sheet,
   StickyFooter,
+  Switch,
   TabBar,
   avatarPalette,
   sayCollarCode,
@@ -179,6 +188,117 @@ describe("TabBar", () => {
   it("honours an explicit active tab", () => {
     render(createElement(TabBar, { active: "scan" }));
     expect(screen.getByRole("link", { name: "Scan" }).getAttribute("aria-current")).toBe("page");
+  });
+
+  it("has the owner's five tabs, in order, each a filled icon over its label", () => {
+    const { container } = render(createElement(TabBar, {}));
+    const links = screen.getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual(["Home", "Scan", "Map", "Alerts", "Me"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/scan", "/map", "/alerts", "/me"]);
+    const icons = Array.from(container.querySelectorAll("svg[data-icon]"));
+    expect(icons.map((i) => i.getAttribute("data-icon"))).toEqual(["home", "scan", "map", "alerts", "me"]);
+    expect(icons.every((i) => i.getAttribute("aria-hidden") === "true")).toBe(true);
+  });
+});
+
+describe("AppHeader", () => {
+  it("renders the back link as '‹ Me' pointing home", () => {
+    render(<AppHeader back={{ href: "/me", label: "Me" }} />);
+    const link = screen.getByRole("link", { name: /Me/ });
+    expect(link.getAttribute("href")).toBe("/me");
+    expect(link.textContent).toBe("‹ Me");
+  });
+
+  it("goes back in history only when the previous page was on this site", () => {
+    router.back.mockReset();
+    render(<AppHeader back={{ href: "/", label: "Back", history: true }} />);
+    fireEvent.click(screen.getByRole("link", { name: /Back/ }));
+    // jsdom has no referrer, so the link's own href is followed.
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
+  it("renders Cancel as a button when given a handler", () => {
+    const onClick = vi.fn();
+    render(<AppHeader cancel={{ onClick }} title="New dog" trailing={<a href="/x">Next</a>} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClick).toHaveBeenCalled();
+    expect(screen.getByText("New dog")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Next" })).toBeTruthy();
+  });
+});
+
+describe("Switch, Segmented, SettingsRow", () => {
+  it("Switch is a role=switch that flips", () => {
+    const onChange = vi.fn();
+    render(<Switch checked={false} onChange={onChange} label="SOS alerts" />);
+    const sw = screen.getByRole("switch", { name: "SOS alerts" });
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(sw);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("Segmented is a radiogroup; arrows move the choice", () => {
+    const onChange = vi.fn();
+    render(
+      <Segmented
+        label="Which alerts"
+        value="a"
+        onChange={onChange}
+        options={[
+          { value: "a", label: "SOS only" },
+          { value: "b", label: "All" },
+        ]}
+      />,
+    );
+    const on = screen.getByRole("radio", { name: "SOS only" });
+    expect(on.getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(on, { key: "ArrowRight" });
+    expect(onChange).toHaveBeenCalledWith("b");
+    fireEvent.click(screen.getByRole("radio", { name: "All" }));
+    expect(onChange).toHaveBeenLastCalledWith("b");
+  });
+
+  it("SettingsRow: a value with a chevron, a link, a button, a red row", () => {
+    const onClick = vi.fn();
+    render(
+      <SettingsGroup>
+        <SettingsRow label="Name shown" value="Priya S." onClick={onClick} />
+        <SettingsRow label="Settings" href="/settings" />
+        <SettingsRow label="Delete my account" tone="danger" chevron={false} onClick={onClick} />
+      </SettingsGroup>,
+    );
+    const name = screen.getByRole("button", { name: /Name shown/ });
+    expect(name.textContent).toBe("Name shownPriya S. ›");
+    fireEvent.click(name);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: /Settings/ }).getAttribute("href")).toBe("/settings");
+    expect(screen.getByRole("button", { name: "Delete my account" }).textContent).toBe("Delete my account");
+  });
+});
+
+describe("Sheet", () => {
+  it("is a labelled modal dialog that Escape and Cancel close", () => {
+    const onClose = vi.fn();
+    render(
+      <Sheet open onClose={onClose} title="Quiet hours">
+        <input aria-label="From" />
+      </Sheet>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Quiet hours" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(screen.getByLabelText("From"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders nothing while closed", () => {
+    render(
+      <Sheet open={false} onClose={() => undefined} title="Quiet hours">
+        <p>body</p>
+      </Sheet>,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

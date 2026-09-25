@@ -15,3 +15,17 @@ export function parseSlug(pathname: string): string {
 export function isValidSlug(slug: string): boolean {
   return SLUG_RE.test(slug);
 }
+
+/**
+ * Whatever follows /d/ as a code, for the not-found screen: lowercased,
+ * letters and digits only, at most 12 characters. Never trusted as a slug.
+ */
+export function rawCode(pathname: string): string {
+  let seg = pathname.replace(/^\/d\/?/, "").split("/")[0] ?? "";
+  try {
+    seg = decodeURIComponent(seg);
+  } catch {
+    /* malformed escape: use it as it is */
+  }
+  return seg.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+}

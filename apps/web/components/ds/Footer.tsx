@@ -2,8 +2,9 @@ import Link from "next/link";
 import styles from "./Footer.module.css";
 
 /**
- * Site footer on mist: 15px ink links (min-height 36), a hairline, the
- * secondary links, then the tagline. At >=1024px (or layout="desktop") it
+ * Site footer on mist: 15px ink links stacked one per 44px row (v5 audit),
+ * a hairline, the secondary links, then the tagline. Reading pages only
+ * (About, How it works, FAQ, Privacy, Contact) and Home at desktop width. At >=1024px (or layout="desktop") it
  * collapses to the desktop mock's single 13px line.
  */
 

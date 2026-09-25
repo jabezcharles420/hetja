@@ -27,6 +27,7 @@ import { extractCollarFromScan } from "@/components/QrScanner";
 import { captureGeo } from "@/lib/offline-queue";
 import { uuid } from "@/lib/idb";
 import { clearPendingPhoto, readPendingPhoto } from "@/lib/registration-photo";
+import { prettyCode } from "@/lib/dog-copy";
 import RequireCapability from "@/components/RequireCapability";
 import PageHeader from "@/components/PageHeader";
 import contentStyles from "@/components/Content.module.css";
@@ -145,7 +146,7 @@ function ActivateInner({ slug }: { slug: string }): React.JSX.Element {
     <>
       <PageHeader
         kicker="Register"
-        title={detail.slug}
+        title={prettyCode(detail.slug)}
         intro={isPending ? "Print the sheet, attach the collar, then confirm it’s on the dog." : `Status: ${detail.status}, Ward ${detail.wardId}`}
       />
 

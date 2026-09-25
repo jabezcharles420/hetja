@@ -25,6 +25,10 @@ export interface CareProvider {
   /** Place label ("Andheri West"); the ward slot of a row's meta line. */
   locality?: string;
   hoursNote?: string;
+  /** v6: the API says whether it is open now, where its hours are structured. */
+  openNow?: boolean;
+  /** "opens 10 am", with openNow false. */
+  opensNote?: string;
 }
 
 export interface CareResult {
@@ -92,6 +96,8 @@ function normalizeProvider(raw: unknown): CareProvider | null {
     address: str(r.address),
     locality: str(r.locality),
     hoursNote: str(r.hoursNote) ?? str(r.hours_note),
+    openNow: typeof r.openNow === "boolean" ? r.openNow : undefined,
+    opensNote: str(r.opensNote),
   };
 }
 

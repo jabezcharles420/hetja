@@ -394,7 +394,12 @@ describe("T2: feed trust dedupe, daily cap and backdating guard", () => {
     );
     expect(before.rows[0]).toEqual({ streak_days: 0, last_feed_date: null });
 
-    const live = await feed(app, f.auth, dog.slug);
+    // The live feed at the latest 12:00 IST (06:30Z), not "now": run at night,
+    // a feed captured now would earn night_owl honestly and fail this test.
+    const noon = new Date();
+    noon.setUTCHours(6, 30, 0, 0);
+    if (noon.getTime() > Date.now()) noon.setTime(noon.getTime() - day);
+    const live = await feed(app, f.auth, dog.slug, noon);
     expect(live.json().data.streak.streakDays).toBe(1);
     const badges = await app.inject({
       method: "POST",

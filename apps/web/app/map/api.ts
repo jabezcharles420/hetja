@@ -9,8 +9,8 @@
  * queue in the root layout can refresh on page load too, so this page must
  * share lib/api's single-flight refresh instead of racing it with its own.
  */
-import { parseRetryAfter, refreshSession } from "@/lib/api";
-import type { CitySummary, MapPlace, MapSos, MapWard, NotLoggedDog, Severity } from "@/components/map/logic";
+import { parseRetryAfter, refreshSession, type MapWardDetailV6, type MapWardsV6, type SosCaseV6 } from "@/lib/api";
+import type { MapPlace, MapSos, MapWard, Severity } from "@/components/map/logic";
 
 export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
 const API_BASE = `${API_ORIGIN}/api/v1`;
@@ -80,12 +80,11 @@ async function call<T>(
   return payload.data;
 }
 
-export interface WardDetail extends MapWard {
+/** GET /map/wards/:id, with the v6 additions (dogNames, notLoggedToday). */
+export interface WardDetail extends MapWard, MapWardDetailV6 {
   sos: MapSos[];
   nearby: MapPlace[];
   viewer: { sosOptIn: boolean; trustScore: number; canRespond: Severity[] } | null;
-  /** v6: the ward's dogs nobody has logged today, first names only (M6). */
-  notLogged?: NotLoggedDog[];
 }
 
 export interface Me {
@@ -98,18 +97,11 @@ export interface Me {
 }
 
 /** The bits of GET /sos/cases/:id the map uses after taking a case (M4). */
-export interface TakenCase {
-  id: string;
-  dog?: { slug: string; name: string | null } | null;
-  /** Filled only for the responder who took the case. */
-  location?: { lat: number; lng: number } | null;
-  /** v6: from the caller's last known position, rounded to 100 m. */
-  distanceM?: number | null;
-}
+export type TakenCase = Pick<SosCaseV6, "id" | "dog" | "location" | "distanceM">;
 
 export const mapApi = {
-  /** v6 adds `summary` (M1); an older API sends only the wards. */
-  wards: () => call<{ wards: MapWard[]; summary?: CitySummary | null }>("/map/wards"),
+  /** v6 adds `summary` and `sos` (M1); an older API sends only the wards. */
+  wards: () => call<{ wards: MapWard[] } & MapWardsV6>("/map/wards"),
   /** Sends the session when there is one: an eligible responder gets case ids. */
   ward: (id: string) => call<WardDetail>(`/map/wards/${encodeURIComponent(id)}`, { auth: true }),
   places: (bbox: string, kind: "vet" | "ngo" | null) =>

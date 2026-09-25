@@ -9,6 +9,7 @@ import { captureGeo, enqueueFeed } from "@/lib/offline-queue";
 import { rememberDogNames } from "@/lib/care-cache";
 import { dogName } from "@/lib/streak";
 import { FeedDone, type FedDog } from "./FeedDone";
+import { countFeeds } from "./FeedScreen";
 import styles from "./feed.module.css";
 
 /**
@@ -55,7 +56,7 @@ export function FeedRound({ onEmpty }: { onEmpty: () => React.JSX.Element }): Re
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ dogs: FedDog[]; streak: number | null; note: string | null } | null>(null);
+  const [done, setDone] = useState<{ dogs: FedDog[]; streak: number | null; note: string | null; first?: boolean } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -123,7 +124,7 @@ export function FeedRound({ onEmpty }: { onEmpty: () => React.JSX.Element }): Re
       const note = refused.length
         ? `${refused.map((r) => dogName(bySlug.get(r.dogSlug)?.name)).join(", ")}: not logged. ${refused[0]!.error!.message}`
         : null;
-      setDone({ dogs: fed(ok), streak: res.streak?.streakDays ?? null, note });
+      setDone({ dogs: fed(ok), streak: res.streak?.streakDays ?? null, note, first: countFeeds(ok.length) });
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 429
@@ -135,7 +136,7 @@ export function FeedRound({ onEmpty }: { onEmpty: () => React.JSX.Element }): Re
     }
   }, [busy, load, picked]);
 
-  if (done) return <FeedDone dogs={done.dogs} streakDays={done.streak} note={done.note} />;
+  if (done) return <FeedDone dogs={done.dogs} streakDays={done.streak} note={done.note} firstFeed={!!done.first} />;
   if (load.kind === "none") return onEmpty();
 
   return (

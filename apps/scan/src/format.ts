@@ -443,7 +443,7 @@ export interface SosDog {
  * (`feedersNotifiedNames`, opt-outs respected); until they arrive, or when
  * nobody is named, the words claim only what is known.
  */
-export function sentCopy(d: SosDog, names?: string[], vets?: number): { title: string; lead: string } {
+export function sentCopy(d: SosDog, names?: string[], vets?: number, told?: number): { title: string; lead: string } {
   const tail = " This page updates when someone's on the way.";
   const withVet = vets === 0 ? "" : ", along with a vet nearby";
   if (d.dogless) return { title: "Your SOS is out.", lead: `Feeders and vets in your ward got it just now.${tail}` };
@@ -454,7 +454,10 @@ export function sentCopy(d: SosDog, names?: string[], vets?: number): { title: s
       lead: `${names.length === 1 ? `${names[0]} feeds` : "They feed"} ${dog} and got your message just now${withVet}.${tail}`,
     };
   }
-  if (d.feederCount === 0) {
+  if (told) {
+    return { title: `${plural(told, "feeder")} ${told === 1 ? "knows" : "know"}.`, lead: `They got your message just now${withVet}.${tail}` };
+  }
+  if (d.feederCount === 0 || told === 0) {
     return vets === 0
       ? { title: "Nobody nearby was reached.", lead: "Please call someone below." }
       : { title: "A vet nearby knows.", lead: `They got your message just now.${tail}` };

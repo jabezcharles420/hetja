@@ -7,7 +7,6 @@
  * The reference is loaded from the workspace store by path because apps/scan
  * must not depend on it (it would break the 40 KB budget).
  */
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { qrMatrix, qrSvg } from "./qr.js";
 
@@ -19,9 +18,8 @@ type Ref = (v: number, l: string) => {
 };
 
 async function reference(): Promise<Ref> {
-  const path = fileURLToPath(
-    new URL("../../../node_modules/.pnpm/qrcode-generator@2.0.4/node_modules/qrcode-generator/dist/qrcode.mjs", import.meta.url),
-  );
+  const path = new URL("../../../node_modules/.pnpm/qrcode-generator@2.0.4/node_modules/qrcode-generator/dist/qrcode.mjs", import.meta.url)
+    .href;
   const mod = (await import(/* @vite-ignore */ path)) as { default: Ref };
   return mod.default;
 }

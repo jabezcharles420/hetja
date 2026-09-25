@@ -44,6 +44,8 @@ vi.mock("@/lib/api", async () => {
       recordPrint: vi.fn(),
       getDogTags: vi.fn(),
       resolveTagReport: vi.fn(),
+      getMyDogsV5: vi.fn(),
+      getDog: vi.fn(),
     },
   };
 });
@@ -55,6 +57,8 @@ import RegistrationsClient, {
 import RegistrationClient from "@/app/(register)/register/[slug]/RegistrationClient";
 import PrintClient from "@/app/(register)/register/[slug]/print/PrintClient";
 import RegisterFlow from "@/app/(register)/register/new/RegisterFlow";
+import ReadyClient from "@/app/(register)/register/[slug]/ready/ReadyClient";
+import { loadSexes } from "@/lib/collar-print";
 import { api, ApiError } from "@/lib/api";
 import { rememberDogSex } from "@/lib/dog-copy";
 
@@ -85,6 +89,8 @@ beforeEach(() => {
   apiMock.recordPrint!.mockResolvedValue({ id: "p" });
   apiMock.getDogTags!.mockResolvedValue({ open: [], history: [], reportsThisWeek: 0, sturdierCollarSuggested: false });
   apiMock.resolveTagReport!.mockResolvedValue({ id: "x", resolution: "reprinted" });
+  apiMock.getMyDogsV5!.mockResolvedValue({ dogs: [] });
+  apiMock.getDog!.mockRejectedValue(new ApiError("not found", { status: 404, code: "DOG_NOT_FOUND" }));
 });
 
 afterEach(() => {
@@ -330,5 +336,32 @@ describe("P6 at the slot limit", () => {
     expect(screen.getByRole("link", { name: "Confirm Kalu's collar" }).getAttribute("href")).toBe("/register/k2au9pd3z");
     // The camera never opened.
     expect(screen.queryByText("Face in the oval. Crouch to their eye level.")).toBeNull();
+  });
+});
+
+describe("pronouns come from the API's sex", () => {
+  it("V14 reads it from GET /feeders/me/dogs, over the phone's memory", async () => {
+    rememberDogSex("k2au9pd3z", "male");
+    apiMock.getMyDogsV5!.mockResolvedValue({
+      dogs: [{ slug: "k2au9pd3z", name: "Kalu", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, sex: "female" }],
+    });
+    apiMock.getRegistration!.mockResolvedValue({ ...PENDING });
+    render(<ReadyClient slug="k2au9pd3z" />);
+    expect(
+      await screen.findByText("This is her code, for good. Print the tag, put it on, and scan it once to switch her page on."),
+    ).not.toBeNull();
+  });
+
+  it("an API null means not known (they/them); the phone's memory is only for silence", async () => {
+    rememberDogSex("aaa", "male");
+    rememberDogSex("bbb", "female");
+    apiMock.getMyDogsV5!.mockResolvedValue({
+      dogs: [{ slug: "aaa", name: "A", wardId: "K-West", wardName: null, lastFedAt: null, myLastFedAt: null, sex: null }],
+    });
+    apiMock.getDog!.mockImplementation(async (slug: string) => {
+      if (slug === "ccc") return { slug, sex: "male" };
+      throw new ApiError("nf", { status: 404, code: "DOG_NOT_FOUND" });
+    });
+    expect(await loadSexes(["aaa", "bbb", "ccc"])).toEqual({ aaa: null, bbb: "female", ccc: "male" });
   });
 });

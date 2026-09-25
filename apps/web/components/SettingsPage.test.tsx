@@ -120,17 +120,46 @@ describe("SettingsPage", () => {
     expect((await row(/My wards/)).textContent).toBe("My wardsK/W, H/W, K/E ›");
   });
 
-  it("Alerts ›: the mode and the SOS paging consent, in one PATCH", async () => {
+  it("Alerts ›: saves the mode", async () => {
     render(<SettingsPage />);
     fireEvent.click(await row(/^Alerts/));
     const dialog = screen.getByRole("dialog", { name: "Alerts" });
     fireEvent.click(within(dialog).getByRole("radio", { name: "All" }));
-    const sw = within(dialog).getByRole("switch", { name: "SOS alerts" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledWith({ alertsMode: "all" }));
+    expect((await row(/^Alerts/)).textContent).toBe("AlertsAll ›");
+  });
+
+  it("the SOS switch never flips silently: on opens the alerts ask (N13)", async () => {
+    render(<SettingsPage />);
+    fireEvent.click(await row(/^Alerts/));
+    const sw = within(screen.getByRole("dialog", { name: "Alerts" })).getByRole("switch", { name: "SOS alerts" });
     expect(sw.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(sw);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledWith({ alertsMode: "all", sosOptIn: true }));
-    expect((await row(/^Alerts/)).textContent).toBe("AlertsAll ›");
+    const ask = screen.getByRole("dialog", { name: "Know when a dog near you is hurt." });
+    fireEvent.click(within(ask).getByRole("button", { name: "Turn on alerts" }));
+    await waitFor(() =>
+      expect(apiMock.patchFeederMe).toHaveBeenCalledWith(expect.objectContaining({ sosOptIn: true, sosPausedUntil: null })),
+    );
+  });
+
+  it("the SOS switch never flips silently: off opens the pause sheet (L1)", async () => {
+    apiMock.getFeederMe.mockResolvedValue(me({ sosOptIn: true }));
+    render(<SettingsPage />);
+    fireEvent.click(await row(/^Alerts/));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Alerts" })).getByRole("switch", { name: "SOS alerts" }));
+    expect(screen.getByRole("dialog", { name: "Need a break from alerts?" })).toBeTruthy();
+    expect(apiMock.patchFeederMe).not.toHaveBeenCalled();
+  });
+
+  it("Show my first name on dogs' pages: on by default, PATCHes showFirstName", async () => {
+    render(<SettingsPage />);
+    const sw = await screen.findByRole("switch", { name: "Show my first name on dogs' pages" });
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Shown as Priya. Never your surname.")).toBeTruthy();
+    fireEvent.click(sw);
+    await waitFor(() => expect(apiMock.patchFeederMe).toHaveBeenCalledWith({ showFirstName: false }));
+    expect(await screen.findByText("You're counted as a feeder, not named.")).toBeTruthy();
   });
 
   it("tells a low-trust feeder why opting in will not page them yet", async () => {

@@ -311,3 +311,106 @@
   text-decoration: none;
   border-radius: 8px;
 }
+
+/* --- SOS anyway: "How bad is it?" (v4 screen 04's radio cards) ---------- */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.choice {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  width: 100%;
+  min-height: 84px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--h-r-inner);
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1.5px var(--h-line);
+  font-family: var(--h-font);
+  text-align: left;
+  color: var(--h-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.choiceOn {
+  box-shadow: inset 0 0 0 3px var(--h-ink);
+}
+
+.choice:focus-visible,
+.retry:focus-visible {
+  outline: var(--h-focus);
+  outline-offset: 2px;
+}
+
+.radio {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--h-control-off);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.choiceOn .radio {
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: none;
+}
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.choiceTitle {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.choiceSub {
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--h-secondary);
+}
+
+.privacy {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+/* "Your SOS is out." / "SOS not sent." (v4 screen 05's 52px circle). */
+.bigIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.bigIconDanger {
+  background: var(--h-danger-bg);
+  color: var(--h-danger);
+}
+
+.retry {
+  align-self: flex-start;
+}

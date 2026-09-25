@@ -44,34 +44,30 @@ function renderAt(path: string): void {
   );
 }
 
-const topNav = () => screen.queryByRole("navigation", { name: "Main" });
 const tabBar = () => screen.queryByRole("navigation", { name: "Primary" });
 const footer = () => screen.queryByRole("navigation", { name: "Footer" });
 const installCard = () => screen.queryByRole("region", { name: "Install Hetja" });
+const invite = () => screen.queryByTestId("desktop-invite");
 
 describe("chromeFor (route matrix)", () => {
-  it("the tab roots are the owner's five", () => {
-    expect([...TAB_ROOTS]).toEqual(["/", "/scan", "/map", "/alerts", "/me"]);
+  it("the tab roots are the owner's four (v6)", () => {
+    expect([...TAB_ROOTS]).toEqual(["/", "/map", "/scan", "/me"]);
   });
 
-  it("/: TopNav over the aurora, mobile TabBar, the Footer only at desktop width", () => {
+  it("/: TopNav over the aurora and the tab bar; D1 on a desktop; no footer, no install card", () => {
     expect(chromeFor("/")).toMatchObject({
       kind: "tab",
       nav: "light",
       overlay: true,
-      footer: "desktop",
-      tabBar: "mobile",
-      install: true,
+      footer: false,
+      tabBar: true,
+      install: false,
+      desktop: "invite",
     });
   });
 
-  it.each(READING_ROUTES.map((r) => [r]))("%s: a website page, TopNav + Footer, never the tab bar", (route) => {
-    expect(chromeFor(route)).toMatchObject({
-      kind: "reading",
-      footer: "always",
-      tabBar: null,
-      overlay: true,
-    });
+  it.each(READING_ROUTES.map((r) => [r]))("%s: a website page, TopNav + Footer, the phone layout at 480px", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "reading", footer: true, tabBar: false, overlay: true, desktop: "frame" });
     expect(chromeFor(route).nav).not.toBeNull();
   });
 
@@ -87,21 +83,25 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/me/")).toEqual(chromeFor("/me"));
   });
 
-  it.each([["/scan"], ["/alerts"], ["/me"]])("%s: tab root, the tab bar at every width, no nav, no footer", (route) => {
-    expect(chromeFor(route)).toMatchObject({ kind: "tab", nav: null, footer: null, tabBar: "always" });
+  it.each([["/scan"], ["/me"]])("%s: tab root, the tab bar, no nav, no footer, D1 on a desktop", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: true, desktop: "invite" });
   });
 
   it("/map: a tab root that draws the shared TabBar in its own sheet", () => {
-    expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: null, tabBar: null });
+    expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: false, desktop: "invite" });
   });
 
-  it("/hetja: the memorial header with a back link, no footer, no tab bar", () => {
+  it("/alerts left the tab bar (v6): a focused screen reached from Me", () => {
+    expect(chromeFor("/alerts")).toMatchObject({ kind: "focused", tabBar: false });
+  });
+
+  it("/hetja: the memorial header, no footer, no tab bar, framed at 480px", () => {
     expect(chromeFor("/hetja")).toMatchObject({
       kind: "memorial",
       nav: "memorial",
-      footer: null,
-      tabBar: null,
-      install: false,
+      footer: false,
+      tabBar: false,
+      desktop: "frame",
     });
   });
 
@@ -109,65 +109,74 @@ describe("chromeFor (route matrix)", () => {
     ["/login"],
     ["/welcome"],
     ["/settings"],
+    ["/alerts"],
     ["/feed"],
     ["/scan/code"],
     ["/scan/find"],
     ["/register"],
     ["/register/new"],
-    ["/register/batch"],
     ["/register/ab3de4fgh/ready"],
-    ["/register/ab3de4fgh/print"],
     ["/me/dogs"],
+    ["/me/dogs/ab3de4fgh"],
     ["/me/dogs/ab3de4fgh/status"],
     ["/me/dogs/ab3de4fgh/tag"],
     ["/vet/ab3de4fgh"],
     ["/d/ddr017xk2"],
-    ["/d/ddr017xk2/sos"],
     ["/dog/ddr017xk2"],
-    ["/sos"],
-    ["/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f"],
-    ["/design"],
-  ])("%s: focused, no chrome at all", (route) => {
+  ])("%s: focused, no chrome at all, D1 on a desktop", (route) => {
     expect(chromeFor(route)).toMatchObject({
       kind: "focused",
       nav: null,
-      footer: null,
-      tabBar: null,
+      footer: false,
+      tabBar: false,
       install: false,
+      desktop: "invite",
     });
   });
 
+  it("the SOS responder page is never blocked by D1: framed at 480px", () => {
+    expect(chromeFor("/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f")).toMatchObject({ kind: "focused", tabBar: false, desktop: "frame" });
+  });
+
+  it.each([["/register/ab3de4fgh/print"], ["/register/batch"], ["/design"]])(
+    "%s: printed or dev-only, left as it is on a desktop",
+    (route) => {
+      expect(chromeFor(route)).toMatchObject({ tabBar: false, desktop: "none" });
+    },
+  );
+
   it("does not treat look-alike prefixes as app routes", () => {
-    expect(chromeFor("/designs").nav).toBe("light");
-    expect(chromeFor("/mapping").footer).toBe("always");
-    expect(chromeFor("/sosa").nav).toBe("light");
+    expect(chromeFor("/designs").kind).toBe("fallback");
+    expect(chromeFor("/mapping").kind).toBe("fallback");
+    expect(chromeFor("/sosa").kind).toBe("fallback");
     expect(chromeFor("/medley").kind).toBe("fallback");
     expect(chromeFor("/scanner").kind).toBe("fallback");
   });
 
-  it("unknown routes keep a way home: TopNav + Footer", () => {
-    expect(chromeFor("/nowhere")).toMatchObject({ kind: "fallback", nav: "light", footer: "always", tabBar: null });
+  it("unknown routes: no chrome (V1 draws its own way home), framed on a desktop", () => {
+    expect(chromeFor("/nowhere")).toMatchObject({ kind: "fallback", nav: null, footer: false, tabBar: false, desktop: "frame" });
   });
 });
 
 describe("ChromeShell", () => {
-  it("home: TopNav, footer, the five-tab bar, install card and the page", () => {
+  it("home: TopNav, the four-tab bar, D1 for wide screens, no footer, no install card", () => {
     renderAt("/");
-    expect(topNav()).not.toBeNull();
-    expect(footer()).not.toBeNull();
-    expect(tabBar()).not.toBeNull();
-    expect(installCard()).not.toBeNull();
-    expect(screen.getByText("page body")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Sign in" }).getAttribute("href")).toBe("/login");
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("aria-current")).toBe("page");
-    for (const t of ["Scan", "Map", "Alerts", "Me"]) expect(screen.getByRole("link", { name: t })).toBeTruthy();
+    expect(footer()).toBeNull();
+    expect(installCard()).toBeNull();
+    expect(invite()).not.toBeNull();
+    const bar = tabBar();
+    expect(bar).not.toBeNull();
+    const tabs = Array.from(bar!.querySelectorAll("a")).map((a) => a.textContent);
+    expect(tabs).toEqual(["Home", "Map", "Scan", "Me"]);
+    expect(bar!.querySelector('a[aria-current="page"]')?.textContent).toBe("Home");
   });
 
-  it("a reading page: TopNav and Footer, no tab bar", () => {
+  it("a reading page: TopNav and Footer, no tab bar, no D1", () => {
     renderAt("/about");
-    expect(topNav()).not.toBeNull();
     expect(footer()).not.toBeNull();
     expect(tabBar()).toBeNull();
+    expect(invite()).toBeNull();
   });
 
   it("/hetja: a calm back link, no Sign in, footer or tab bar", () => {
@@ -176,20 +185,16 @@ describe("ChromeShell", () => {
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(footer()).toBeNull();
     expect(tabBar()).toBeNull();
-    expect(installCard()).toBeNull();
   });
 
   it.each([
     ["/me", "Me"],
-    ["/alerts", "Alerts"],
     ["/scan", "Scan"],
   ])("%s: only the tab bar, with its tab active", (route, tab) => {
     renderAt(route);
-    expect(topNav()).toBeNull();
-    expect(screen.queryByRole("link", { name: "Hetja home" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(footer()).toBeNull();
-    expect(tabBar()).not.toBeNull();
-    expect(screen.getByRole("link", { name: tab }).getAttribute("aria-current")).toBe("page");
+    expect(tabBar()!.querySelector('a[aria-current="page"]')?.textContent).toBe(tab);
   });
 
   it.each([
@@ -197,18 +202,17 @@ describe("ChromeShell", () => {
     ["/login"],
     ["/welcome"],
     ["/settings"],
+    ["/alerts"],
     ["/register/new"],
     ["/me/dogs"],
-    ["/d/ddr017xk2"],
     ["/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f"],
     ["/map"],
-  ])("%s: renders the page and nothing else", (route) => {
+  ])("%s: renders the page and no chrome", (route) => {
     renderAt(route);
     expect(screen.getByText("page body")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Hetja home" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(footer()).toBeNull();
     expect(tabBar()).toBeNull();
-    expect(installCard()).toBeNull();
   });
 
   it("wraps the page in a single <main>", () => {

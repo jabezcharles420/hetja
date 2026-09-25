@@ -13,6 +13,7 @@ import { Switch } from "@/components/ds/Switch";
 import { api, ApiError, clearSession, getAccessToken, type FeederMe, type FeederPatch } from "@/lib/api";
 import { alertsModeLabel, cleanName, formatQuietHours, MAX_NAME, wardCode, wardsSummary } from "@/lib/feeder-prefs";
 import { isPaused, resumeLabel } from "@/lib/sos-pause";
+import { firstName } from "@/lib/streak";
 import styles from "./settings.module.css";
 
 /**
@@ -198,7 +199,11 @@ export default function SettingsPage(): React.JSX.Element {
           <SettingsRow
             label="Show my first name on dogs' pages"
             labelId={`${showId}-l`}
-            sub={showName ? "Strangers see you as one of the dog's feeders." : "You're counted as a feeder, not named."}
+            sub={
+              showName
+                ? `Shown as ${firstName(me.displayName) ?? "your first name"}. Never your surname.`
+                : "You're counted as a feeder, not named."
+            }
             subId={`${showId}-d`}
             control={
               <Switch

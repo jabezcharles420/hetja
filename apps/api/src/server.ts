@@ -110,6 +110,10 @@ export function buildServer(config: AppConfig): FastifyInstance {
         ? config.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
         : true,
     credentials: false,
+    // The web app on hetja.in calls api.hetja.in cross-origin; without this the
+    // browser hides Retry-After and the "Too many codes" screen (V6) cannot
+    // show a clock time.
+    exposedHeaders: ["retry-after"],
   });
   app.decorate("config", config);
 

@@ -35,6 +35,7 @@ import { PAPER_MM, sheetText, type Paper, type SheetDog, type SheetLayout } from
 import {
   downloadSheet,
   loadCollar,
+  loadSexes,
   loadWards,
   makeSheetPdf,
   printerName,
@@ -131,12 +132,13 @@ function PrintInner({ slug }: { slug: string }): React.JSX.Element {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [collar, wards, me] = await Promise.all([
+      const [collar, wards, me, sexes] = await Promise.all([
         loadCollar(slug),
         loadWards(),
         api.getFeederMe().catch(() => null),
+        loadSexes([slug]),
       ]);
-      setDog(toSheetDog(collar, wards));
+      setDog(toSheetDog(collar, wards, sexes[slug]));
       setPrintedBy(printerName(me));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load this collar.");

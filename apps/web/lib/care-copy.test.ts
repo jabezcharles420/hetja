@@ -88,7 +88,7 @@ describe("care-copy", () => {
     });
     expect(myDogRow(d({ verified: false }), NOW)).toMatchObject({ tag: "New", sub: "Unverified" });
     expect(myDogRow(d({ lastFedAt: "2026-09-25T02:30:00Z", myLastFedAt: "2026-09-25T02:30:00Z", lastFedByName: "Me" }), NOW))
-      .toMatchObject({ tag: "Fed", sub: "Fed 2 h ago", href: "/d/abcdefgh2" });
+      .toMatchObject({ tag: "Fed", sub: "Fed 2 h ago", href: "/me/dogs/abcdefgh2" });
     expect(myDogRow(d({}), NOW)).toMatchObject({ tag: null, sub: "No feeds yet" });
   });
 

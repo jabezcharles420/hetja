@@ -31,6 +31,8 @@ vi.mock("@/lib/api", async () => {
       getCare: vi.fn(),
       getFeederMe: vi.fn(),
       getWards: vi.fn(),
+      createReportV6: vi.fn(),
+      getReportStatus: vi.fn(),
     },
   };
 });
@@ -40,7 +42,10 @@ import * as apiModule from "@/lib/api";
 import type { DogCard, WardDogsResult } from "@/lib/api";
 
 type Mock = ReturnType<typeof vi.fn>;
-const m = apiModule.api as unknown as Record<"getWardDogs" | "getCare" | "getFeederMe" | "getWards", Mock>;
+const m = apiModule.api as unknown as Record<
+  "getWardDogs" | "getCare" | "getFeederMe" | "getWards" | "createReportV6" | "getReportStatus",
+  Mock
+>;
 const getAccessToken = apiModule.getAccessToken as unknown as Mock;
 
 const dog = (slug: string, name: string | null): DogCard => ({
@@ -79,7 +84,8 @@ function fakeGeo(pos: { lat: number; lng: number } | null): void {
 }
 
 beforeEach(() => {
-  for (const k of ["getWardDogs", "getCare", "getFeederMe", "getWards"] as const) m[k].mockReset();
+  for (const k of ["getWardDogs", "getCare", "getFeederMe", "getWards", "createReportV6", "getReportStatus"] as const)
+    m[k].mockReset();
   getAccessToken.mockReturnValue(null);
   m.getWardDogs.mockResolvedValue(KW);
   m.getWards.mockRejectedValue(new Error("not needed"));
@@ -183,7 +189,7 @@ describe("?sos=1: Send SOS anyway", () => {
     expect(screen.queryByRole("link", { name: "Call No Phone Clinic" })).toBeNull();
     expect(m.getCare).toHaveBeenCalledWith(19.13, 72.83);
     expect(screen.getByRole("heading", { name: "Which dog is it?" })).not.toBeNull();
-    expect(screen.getByText("Pick the dog to send the SOS to their feeders.")).not.toBeNull();
+    expect(screen.getByText("If you can find the dog, pick them so their own feeders hear too.")).not.toBeNull();
   });
 
   it("uses the picked ward's centre for help when location is off", async () => {
@@ -203,5 +209,114 @@ describe("?sos=1: Send SOS anyway", () => {
     render(<FindScreen />);
     expect(await screen.findByText(/Couldn't load nearby help right now/)).not.toBeNull();
     expect(screen.queryByRole("link", { name: /^Call/ })).toBeNull();
+  });
+});
+
+describe("?sos=1: the dogless SOS (v6 P8)", () => {
+  const CARE = {
+    id: "c9",
+    name: "Dr. Mehta, Pet Clinic",
+    kind: "private_clinic",
+    phoneE164: "+912226200001",
+    phoneVerifiedAt: "2026-01-01",
+    hasAmbulance: false,
+    is24x7: false,
+    hoursNote: "open till 9 pm",
+    locality: "Andheri West",
+  };
+
+  beforeEach(() => {
+    setUrl("?sos=1");
+    m.getCare.mockResolvedValue({ providers: [] });
+  });
+
+  it("asks how bad it is with the collar page's choices, then sends with the phone's position", async () => {
+    fakeGeo({ lat: 19.13, lng: 72.83 });
+    m.createReportV6.mockResolvedValue({ created: true, caseId: "case1", tier: 1, wardId: "K-West", nearbyCare: [CARE] });
+    m.getReportStatus.mockResolvedValue({ feedersNotified: 3, vetsNotified: 1 });
+    render(<FindScreen />);
+    expect(await screen.findByRole("heading", { name: "How bad is it?" })).not.toBeNull();
+    expect(screen.getByText("Limping, a wound, not eating")).not.toBeNull();
+    expect(screen.getByText("Missing, scared, or being harmed")).not.toBeNull();
+    expect(screen.getByText("Shares K/W ward with feeders and vets. Never your exact spot.")).not.toBeNull();
+    const send = screen.getByRole("button", { name: "Send SOS" }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: /Can't get up, or bleeding/ }));
+    expect(send.disabled).toBe(false);
+    fireEvent.click(send);
+    expect(await screen.findByRole("heading", { name: "Your SOS is out." })).not.toBeNull();
+    expect(m.createReportV6).toHaveBeenCalledWith({ severity: "critical", geo: { lat: 19.13, lng: 72.83 } });
+    expect(await screen.findByText("3 feeders and 1 vet in K/W got it just now.")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Call Dr. Mehta, Pet Clinic" }).getAttribute("href")).toBe("tel:+912226200001");
+    // The finder stays, for the dog's own feeders.
+    expect(screen.getByRole("heading", { name: "Which dog is it?" })).not.toBeNull();
+  });
+
+  it("maps Hurt, but moving and Something else to serious", async () => {
+    fakeGeo({ lat: 19.13, lng: 72.83 });
+    m.createReportV6.mockResolvedValue({ created: true, caseId: "c", tier: 1, wardId: "K-West" });
+    m.getReportStatus.mockRejectedValue(new Error("no"));
+    render(<FindScreen />);
+    fireEvent.click(await screen.findByRole("radio", { name: /Something else/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));
+    expect(await screen.findByText("Feeders and vets in K/W got it just now.")).not.toBeNull();
+    expect(m.createReportV6).toHaveBeenCalledWith({ severity: "serious", geo: { lat: 19.13, lng: 72.83 } });
+  });
+
+  it("says plainly when nobody was reached", async () => {
+    fakeGeo({ lat: 19.13, lng: 72.83 });
+    m.createReportV6.mockResolvedValue({ created: true, caseId: "c", tier: 1, wardId: "K-West" });
+    m.getReportStatus.mockResolvedValue({ feedersNotified: 0, vetsNotified: 0 });
+    render(<FindScreen />);
+    fireEvent.click(await screen.findByRole("radio", { name: /Hurt, but moving/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));
+    expect(await screen.findByRole("heading", { name: "Nobody nearby was reached." })).not.toBeNull();
+  });
+
+  it("an SOS already open from this phone in this ward is shown, not doubled", async () => {
+    fakeGeo({ lat: 19.13, lng: 72.83 });
+    m.createReportV6.mockRejectedValue(
+      new apiModule.ApiError("open", {
+        status: 429,
+        code: "SOS_CASE_OPEN",
+        data: { openCase: { caseId: "c1", raisedAt: "2026-09-25T08:35:00Z", responderFirstName: "Priya", takenAt: "2026-09-25T08:40:00Z" } },
+      }),
+    );
+    render(<FindScreen />);
+    fireEvent.click(await screen.findByRole("radio", { name: /Hurt, but moving/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));
+    expect(await screen.findByRole("heading", { name: "Your SOS is already out." })).not.toBeNull();
+    expect(screen.getByText(/Priya is on the way\./)).not.toBeNull();
+  });
+
+  it("a failed send says so, keeps the numbers, and can try again", async () => {
+    fakeGeo({ lat: 19.13, lng: 72.83 });
+    m.createReportV6
+      .mockRejectedValueOnce(new apiModule.ApiError("boom", { status: 500 }))
+      .mockResolvedValueOnce({ created: true, caseId: "c", tier: 1, wardId: "K-West" });
+    m.getReportStatus.mockResolvedValue({ feedersNotified: 2, vetsNotified: 0 });
+    render(<FindScreen />);
+    fireEvent.click(await screen.findByRole("radio", { name: /Hurt, but moving/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send SOS" }));
+    expect(await screen.findByRole("heading", { name: "SOS not sent." })).not.toBeNull();
+    expect(screen.getByText("Call now")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("2 feeders in K/W got it just now.")).not.toBeNull();
+  });
+
+  it("without a location explains why and offers the care list, no Send SOS", async () => {
+    fakeGeo(null);
+    render(<FindScreen />);
+    expect(await screen.findByText(/Hetja needs your location to send an SOS without the dog's code/)).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Send SOS" })).toBeNull();
+    expect(screen.getByText("Call now")).not.toBeNull();
+    expect(m.createReportV6).not.toHaveBeenCalled();
+  });
+
+  it("outside Mumbai explains and does not send", async () => {
+    fakeGeo({ lat: 28.6, lng: 77.2 });
+    render(<FindScreen />);
+    expect(await screen.findByText(/Hetja only covers Mumbai for now/)).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Send SOS" })).toBeNull();
   });
 });

@@ -25,6 +25,7 @@ import {
   distanceM as metresBetween,
   readWardsCache,
   writeWardsCache,
+  type CitySos,
   type CitySummary,
   type ClassMap,
   type Filter,
@@ -127,10 +128,13 @@ export function MapScreen(): React.JSX.Element {
   const [mode, setMode] = useState<MarkerMode>("mini");
   const [wards, setWards] = useState<MapWard[] | null>(null);
   const [summary, setSummary] = useState<CitySummary | null>(null);
+  const [citySos, setCitySos] = useState<CitySos[] | null>(null);
   const [wardsError, setWardsError] = useState(false);
   /** M7: the counts on the map are the cached ones, saved at this time. */
   const [staleAt, setStaleAt] = useState<number | null>(null);
   const [attrOpen, setAttrOpen] = useState(false);
+  /** No street map (no key, or Esri refused it): the wards sit on a plain background. */
+  const [noTiles, setNoTiles] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const caseMarker = useRef<Leaflet.Marker | null>(null);
@@ -159,8 +163,9 @@ export function MapScreen(): React.JSX.Element {
       .then((d) => {
         setWards(d.wards);
         setSummary(d.summary ?? null);
+        setCitySos(d.sos ?? null);
         setStaleAt(null);
-        writeWardsCache(storage(), d.wards, d.summary ?? null);
+        writeWardsCache(storage(), d.wards, d.summary ?? null, d.sos ?? null);
       })
       .catch(() => {
         setWardsError(true);
@@ -169,6 +174,7 @@ export function MapScreen(): React.JSX.Element {
         if (cached) {
           setWards((cur) => cur ?? cached.wards);
           setSummary((cur) => cur ?? cached.summary);
+          setCitySos((cur) => cur ?? cached.sos);
           setStaleAt(cached.at);
         }
       });
@@ -246,7 +252,7 @@ export function MapScreen(): React.JSX.Element {
       };
       lockZoom();
       map.on("resize", lockZoom);
-      addBaseLayer(L, map, process.env.NEXT_PUBLIC_ESRI_API_KEY);
+      addBaseLayer(L, map, process.env.NEXT_PUBLIC_ESRI_API_KEY, (src) => setNoTiles(src === "none"));
       L.control.zoom({ position: "topright" }).addTo(map);
       map.on("zoomend", () => setMode(markerMode(map!.getZoom())));
       mapRef.current = map;
@@ -369,6 +375,17 @@ export function MapScreen(): React.JSX.Element {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [fitCity, selection]);
+
+  // The no-tiles line sits under the chips and makes the top taller: keep the
+  // wards clear of it.
+  useEffect(() => {
+    if (!noTiles || !ready) return;
+    const t = window.setTimeout(() => {
+      if (!selection) fitCity();
+    }, 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noTiles, ready]);
 
   // --- places (pins) ------------------------------------------------------
 
@@ -580,7 +597,7 @@ export function MapScreen(): React.JSX.Element {
 
   /** After taking a case: its exact spot (acker only) and how far it is. */
   const locateCase = useCallback(
-    async (caseId: string | null, dogName: string | null, dogSex: "female" | "male" | null) => {
+    async (caseId: string | null, dogName: string | null) => {
       if (!caseId) return;
       try {
         const c = await mapApi.takenCase(caseId);
@@ -589,7 +606,7 @@ export function MapScreen(): React.JSX.Element {
           typeof c.distanceM === "number" ? c.distanceM : location && here ? metresBetween(here, location) : null;
         setFoot((f) =>
           f.kind === "acked" && f.caseId === caseId
-            ? { ...f, dogName: f.dogName ?? c.dog?.name ?? dogName, dogSex, location, distanceM: dist }
+            ? { ...f, dogName: f.dogName ?? c.dog?.name ?? dogName, dogSex: c.dog?.sex ?? null, location, distanceM: dist }
             : f,
         );
         if (location) window.setTimeout(() => flyTo(location.lat, location.lng), 200);
@@ -608,11 +625,11 @@ export function MapScreen(): React.JSX.Element {
     }
     const held = detail.sos.find((s) => s.mine);
     if (held) {
-      setFoot({ kind: "acked", caseId: held.caseId, dogName: held.dogName ?? null, dogSex: held.dogSex ?? null });
-      void locateCase(held.caseId, held.dogName ?? null, held.dogSex ?? null);
+      setFoot({ kind: "acked", caseId: held.caseId, dogName: held.dogName ?? null });
+      void locateCase(held.caseId, held.dogName ?? null);
       return;
     }
-    const claimable = detail.sos.find((s) => s.caseId && s.state !== "acked");
+    const claimable = detail.sos.find((s) => s.caseId && !(s.taken ?? s.state === "acked"));
     if (!claimable?.caseId) {
       if (!detail.viewer) setFoot({ kind: "needSignIn" });
       else setFoot({ kind: "notResponder", viewer: detail.viewer, severity: detail.sos[0]?.severity ?? "serious" });
@@ -621,8 +638,8 @@ export function MapScreen(): React.JSX.Element {
     setFoot({ kind: "busy" });
     try {
       await mapApi.ack(claimable.caseId);
-      setFoot({ kind: "acked", caseId: claimable.caseId, dogName: claimable.dogName ?? null, dogSex: claimable.dogSex ?? null });
-      void locateCase(claimable.caseId, claimable.dogName ?? null, claimable.dogSex ?? null);
+      setFoot({ kind: "acked", caseId: claimable.caseId, dogName: claimable.dogName ?? null });
+      void locateCase(claimable.caseId, claimable.dogName ?? null);
       void loadDetail(detail.id);
     } catch (e) {
       // Same words as the case page (lib/sos-ack.ts): the server decides who
@@ -687,6 +704,7 @@ export function MapScreen(): React.JSX.Element {
       <CityView
         wards={wards}
         summary={summary}
+        sos={citySos}
         staleAt={staleAt}
         error={wardsError}
         peek={peek}
@@ -698,7 +716,13 @@ export function MapScreen(): React.JSX.Element {
 
   return (
     <div
-      className={[styles.root, staleAt ? styles.stale : "", attrOpen ? styles.attrOpen : ""].filter(Boolean).join(" ")}
+      className={[
+        styles.root,
+        staleAt ? styles.stale : "",
+        attrOpen ? styles.attrOpen : "",
+        noTiles ? styles.noTiles : "",
+        foot.kind === "acked" && foot.location ? styles.caseFocus : "",
+      ].filter(Boolean).join(" ")}
       ref={rootRef}
     >
       <div className={styles.map} ref={mapEl} aria-label="Map of Mumbai wards" role="region" />
@@ -729,6 +753,7 @@ export function MapScreen(): React.JSX.Element {
             </button>
           ))}
         </div>
+        {noTiles && <p className={styles.noTilesLine}>Street map unavailable. Wards are shown at their centres.</p>}
       </div>
 
       <section

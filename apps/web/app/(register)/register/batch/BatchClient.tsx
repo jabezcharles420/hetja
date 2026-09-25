@@ -27,8 +27,9 @@ import {
   recordPrints,
   resolveReprinted,
   toSheetDog,
+  apiSex,
 } from "@/lib/collar-print";
-import { prettyCode } from "@/lib/dog-copy";
+import { prettyCode, type DogSex } from "@/lib/dog-copy";
 import RequireCapability from "@/components/RequireCapability";
 import s from "../register.module.css";
 import styles from "./batch.module.css";
@@ -42,7 +43,7 @@ export function batchNote(d: Pick<MyDogV5, "slug" | "status" | "attention">, pri
   return "";
 }
 
-type Row = { slug: string; name: string | null; note: BatchNote };
+type Row = { slug: string; name: string | null; note: BatchNote; sex?: DogSex | null };
 
 /** Which rows start ticked: the handed-over dog, then everything not yet printed, up to 8. */
 export function initialSelection(rows: Row[], add: string | null): string[] {
@@ -73,7 +74,7 @@ function BatchInner(): React.JSX.Element {
         const printed = readPrinted();
         const list: Row[] = mine.dogs
           .filter((d) => d.status !== "deceased")
-          .map((d) => ({ slug: d.slug, name: d.name, note: batchNote(d, printed) }));
+          .map((d) => ({ slug: d.slug, name: d.name, note: batchNote(d, printed), sex: apiSex(d) }));
         if (add && !list.some((r) => r.slug === add)) {
           // A dog registered a moment ago may not be listed yet.
           try {
@@ -112,7 +113,8 @@ function BatchInner(): React.JSX.Element {
     setFailed(false);
     try {
       const [res, wards] = await Promise.all([api.getCollarBatch(ordered), loadWards()]);
-      const dogs = res.dogs.map((d) => toSheetDog(d, wards));
+      // Pronouns on the sheet come from GET /feeders/me/dogs (the rows).
+      const dogs = res.dogs.map((d) => toSheetDog(d, wards, rows?.find((r) => r.slug === d.slug)?.sex));
       if (res.skipped.length > 0) {
         setStatus(
           `${res.skipped.length} ${res.skipped.length === 1 ? "dog was" : "dogs were"} left off: you can print dogs you registered or fed in the last 60 days.`,

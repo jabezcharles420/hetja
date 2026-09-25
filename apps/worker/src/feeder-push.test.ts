@@ -55,6 +55,16 @@ describe("partitionFeederPush", () => {
     expect([...later.entries()]).toEqual([[400, ["asleep"]]]);
   });
 
+  it("the SOS push carries severity, dog name, ward and time, never a position", async () => {
+    const { sosPushPayload } = await import("./index.js");
+    const p = JSON.parse(
+      sosPushPayload("c1", { severity: "critical", dog_name: "Rani", ward_id: "K-West", opened_at: new Date("2026-09-25T10:00:00Z") }),
+    );
+    expect(p).toMatchObject({ caseId: "c1", url: "/sos/c1", severity: "critical", dogName: "Rani", wardId: "K-West", openedAt: "2026-09-25T10:00:00.000Z" });
+    expect(JSON.stringify(p)).not.toMatch(/lat|lng/);
+    expect(JSON.parse(sosPushPayload("c2", undefined))).toMatchObject({ dogName: null, wardId: null, openedAt: null });
+  });
+
   it("is a registered handler with a producer", () => {
     expect(HANDLERS.send_feeder_push).toBeTypeOf("function");
     expect(JOB_PRODUCERS.send_feeder_push).toMatch(/enqueueFeederPush/);

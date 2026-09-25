@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ back: vi.fn(), push: vi.fn() }) }));
+
 vi.mock("next/link", async () => {
   const { createElement: el } = await import("react");
   return {
@@ -46,6 +48,8 @@ describe("AlertsPage", () => {
     getAlerts.mockResolvedValue({ items: ITEMS });
     render(<AlertsPage />);
     expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("Alerts");
+    // A focused screen since v6: the way back is to Me.
+    expect(screen.getByRole("link", { name: "Me" }).getAttribute("href")).toBe("/me");
     const today = await screen.findByRole("region", { name: "Today" });
     const links = within(today).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
@@ -84,7 +88,8 @@ describe("AlertsPage", () => {
     getAlerts.mockResolvedValue({ items: [] });
     render(<AlertsPage />);
     expect(await screen.findByText("Nothing yet.")).toBeTruthy();
-    expect(screen.queryByRole("link")).toBeNull();
+    // Only the way back to Me.
+    expect(screen.getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/me"]);
   });
 
   it("offers a retry when the list fails", async () => {

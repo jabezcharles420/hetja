@@ -20,6 +20,7 @@ import { Button, StickyFooter } from "@/components/ds";
 import { api, ApiError, type RegistrationDetail } from "@/lib/api";
 import { dogCopyV6, possessive, prettyCode, recallDogSex, type DogSex } from "@/lib/dog-copy";
 import { buildCollarQrSvg } from "@/lib/qr";
+import { loadSexes } from "@/lib/collar-print";
 import RequireCapability from "@/components/RequireCapability";
 import s from "../../register.module.css";
 import styles from "./ready.module.css";
@@ -49,8 +50,16 @@ function ReadyInner({ slug }: { slug: string }): React.JSX.Element {
   }, [slug]);
 
   useEffect(() => {
+    // Pronouns from the API (loadSexes), the phone's memory only as fallback.
     setSex(recallDogSex(slug));
+    let cancelled = false;
+    void loadSexes([slug]).then((m) => {
+      if (!cancelled) setSex(m[slug] ?? null);
+    });
     void load();
+    return () => {
+      cancelled = true;
+    };
   }, [load, slug]);
 
   const qr = useMemo(

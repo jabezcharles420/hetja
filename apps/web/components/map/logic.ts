@@ -5,6 +5,8 @@
  * can be used (tests pass identity names).
  */
 
+import type { DogSex, MapCitySosV6, MapCitySummaryV6 } from "@/lib/api";
+
 export type Severity = "minor" | "serious" | "critical";
 export type MarkerMode = "dot" | "mini" | "full";
 export type Filter = "sos" | "hungry" | "vet" | "ngo";
@@ -22,8 +24,6 @@ export interface MapWard {
   notFedToday: number;
   sosOpen: number;
   latestSos: { severity: Severity; raisedAt: string } | null;
-  /** v6: first names of a few of the ward's dogs (ward level only). */
-  dogNames?: string[];
 }
 
 export interface MapPlace {
@@ -51,12 +51,10 @@ export interface MapSos {
   state: "open" | "acked" | "escalated";
   feedersTold: boolean;
   mine: boolean;
-  /** v6: the dog's first name, when the case has a known dog. */
+  /** v6 (lib/api MapSosV6Fields): the dog's first name, when the case has a known dog. */
   dogName?: string | null;
-  /** v6: "female" / "male" when known, for "her 2 feeders told". */
-  dogSex?: "female" | "male" | null;
-  /** v6: how many of the dog's feeders were paged. */
-  feedersToldCount?: number;
+  /** v6: someone has taken it. */
+  taken?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -436,27 +434,12 @@ export function wardNudge(ward: ScreenRect, places: readonly ScreenRect[], gap =
 /* Design v6 (M1, M2, M4, M5, M6, M7, V20)                                   */
 /* ------------------------------------------------------------------------- */
 
-/** v6 city summary on GET /map/wards (all optional: an older API sends none). */
-export interface CitySummary {
-  withCollars?: number;
-  feeders?: number;
-  fedToday?: number;
-  notLoggedToday?: number;
-  sos?: CitySos[];
-}
+/** GET /map/wards v6 (lib/api MapWardsV6): the city summary and its SOS rows. */
+export type CitySummary = Partial<MapCitySummaryV6>;
+/** A city SOS row. Public and cached, so no case id: it opens the ward. */
+export type CitySos = MapCitySosV6;
 
-/** v6: one open SOS in the city list, led by the dog's name. */
-export interface CitySos {
-  caseId: string | null;
-  wardId: string;
-  dogName: string | null;
-  severity: Severity;
-  raisedAt: string;
-  /** Someone has already taken it. */
-  taken: boolean;
-}
-
-/** v6: a dog in the ward nobody has logged today (ward level: first name only). */
+/** A ward-detail dog nobody has logged today (first name only, no slug). */
 export interface NotLoggedDog {
   name: string | null;
   lastLoggedAt: string | null;
@@ -496,10 +479,11 @@ export function cityWords(
   wards: readonly MapWard[],
   summary: CitySummary | null | undefined,
   now: number = Date.now(),
+  sosRows?: readonly CitySos[] | null,
 ): { h1: string; lead: string | null } {
   const t = totals([...wards]);
   const dogs = summary?.withCollars ?? t.dogs;
-  const sos = summary?.sos?.length ?? t.sos;
+  const sos = sosRows?.length ?? t.sos;
   const notLogged = summary?.notLoggedToday ?? t.hungry;
   if (dogs === 0 && sos === 0) return { h1: "Hetja is new here. The first collars go on in K/W.", lead: null };
   if (sos > 0) {
@@ -546,18 +530,18 @@ export interface CitySosRow {
   initial: string;
 }
 
-/** The city "Needs help" rows: v6's dog-named rows, or one row per ward from an older API. */
-export function citySosRows(wards: readonly MapWard[], summary: CitySummary | null | undefined): CitySosRow[] {
+/** The city "Needs help" rows: v6's dog-named rows, or one row per ward from an older API. Both open the ward. */
+export function citySosRows(wards: readonly MapWard[], sos: readonly CitySos[] | null | undefined): CitySosRow[] {
   const byId = new Map(wards.map((w) => [w.id, w]));
-  if (summary?.sos) {
-    return [...summary.sos]
+  if (sos) {
+    return [...sos]
       .sort((a, b) => time(b.raisedAt) - time(a.raisedAt))
       .map((s, i) => {
         const ward = byId.get(s.wardId);
-        const place = ward ? firstLocality(ward.name) : s.wardId;
+        const place = ward ? firstLocality(ward.name) : `${s.wardCode} ward`;
         const name = s.dogName?.trim() || null;
         return {
-          key: s.caseId ?? `${s.wardId}-${i}`,
+          key: `${s.wardId}-${s.raisedAt}-${i}`,
           wardId: s.wardId,
           title: `${name ?? "A dog"} · ${place}`,
           severity: s.severity,
@@ -610,17 +594,16 @@ export function sosCardTitle(s: Pick<MapSos, "severity" | "dogName">): string {
   return `${name} needs checking`;
 }
 
-/** M2 SOS card sub-line: "13 min · her 2 feeders told · nobody yet". Claims only what is known. */
+/**
+ * M2 SOS card sub-line: "13 min · feeders told · nobody yet". Claims only
+ * what is known: the ward detail sends no feeder count and no sex, so the
+ * mock's "her 2 feeders told" becomes "feeders told".
+ */
 export function sosCardSub(s: MapSos, now: number = Date.now()): string {
   const bits = [shortAgo(s.raisedAt, now)];
-  const n = s.feedersToldCount;
-  if (typeof n === "number" && n > 0) {
-    const pos = s.dogSex === "female" ? "her " : s.dogSex === "male" ? "his " : "";
-    bits.push(`${pos}${n} ${n === 1 ? "feeder" : "feeders"} told`);
-  } else if (s.feedersTold) {
-    bits.push("feeders told");
-  }
-  bits.push(s.state === "acked" ? (s.mine ? "you're going" : "someone is going") : "nobody yet");
+  if (s.feedersTold) bits.push("feeders told");
+  const taken = s.taken ?? s.state === "acked";
+  bits.push(taken ? (s.mine ? "you're going" : "someone is going") : "nobody yet");
   return bits.join(" · ");
 }
 
@@ -661,7 +644,7 @@ export function ackTitle(dogName: string | null | undefined): string {
 }
 
 /** M4 body: "her" only when the dog's sex is known. */
-export function ackBody(dogName: string | null | undefined, sex: MapSos["dogSex"]): string {
+export function ackBody(dogName: string | null | undefined, sex: DogSex | null | undefined): string {
   const obj = sex === "female" ? "her" : sex === "male" ? "him" : dogName?.trim() || "the dog";
   const pos = sex === "female" ? "Her" : sex === "male" ? "His" : "The";
   return `The person who found ${obj} can see you're coming. ${pos} exact spot is on the map now, for you only.`;
@@ -769,6 +752,7 @@ export interface WardsCache {
   at: number;
   wards: MapWard[];
   summary: CitySummary | null;
+  sos: CitySos[] | null;
 }
 
 /** Last good /map/wards, or null. Storage can be missing or throw (private mode). */
@@ -778,7 +762,7 @@ export function readWardsCache(storage: Pick<Storage, "getItem"> | null | undefi
     if (!raw) return null;
     const c = JSON.parse(raw) as Partial<WardsCache>;
     if (typeof c?.at !== "number" || !Array.isArray(c.wards)) return null;
-    return { at: c.at, wards: c.wards, summary: c.summary ?? null };
+    return { at: c.at, wards: c.wards, summary: c.summary ?? null, sos: c.sos ?? null };
   } catch {
     return null;
   }
@@ -788,10 +772,11 @@ export function writeWardsCache(
   storage: Pick<Storage, "setItem"> | null | undefined,
   wards: MapWard[],
   summary: CitySummary | null,
+  sos: CitySos[] | null,
   at: number = Date.now(),
 ): void {
   try {
-    storage?.setItem(WARDS_CACHE_KEY, JSON.stringify({ at, wards, summary }));
+    storage?.setItem(WARDS_CACHE_KEY, JSON.stringify({ at, wards, summary, sos }));
   } catch {
     // Full or blocked storage: the cache is only a convenience.
   }

@@ -1420,3 +1420,35 @@ a.infoRow:focus-visible {
     padding-top: 24px;
   }
 }
+
+.peek .body.noPeek {
+  max-height: none;
+  padding-bottom: 28px;
+}
+
+/* M4: once the case is yours, the map shows only where the dog is. */
+.caseFocus .ward,
+.caseFocus .place {
+  visibility: hidden;
+}
+
+/* No street map: a plain mist background, said in one line on the map. */
+.noTiles .map,
+.noTiles :global(.leaflet-container) {
+  background: var(--h-mist);
+}
+
+.noTilesLine {
+  pointer-events: none;
+  width: fit-content;
+  max-width: calc(100% - 40px);
+  margin: -2px 20px 8px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--h-sh-chip);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--h-text-mid);
+  text-wrap: pretty;
+}

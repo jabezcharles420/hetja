@@ -31,7 +31,7 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { MAX_PHOTO_BASE64_CHARS, SLUG_REGEX, isInMumbai, nearestWard, wardName, type SosSeverity } from "@hetja/contracts";
+import { MAX_PHOTO_BASE64_CHARS, SLUG_REGEX, isInMumbai, nearestWard, wardDisplay, wardName, type SosSeverity } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { deviceTokenSubject } from "../lib/device.js";
 import { verifyAccessToken } from "../lib/jwt.js";
@@ -1190,6 +1190,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         },
         data: {
           forbiddenReason,
+          // V22 "This case went to feeders in H/W": the ward, nothing finer.
+          wardId: row.ward_id ?? null,
+          wardCode: row.ward_id ? wardDisplay(row.ward_id).code : null,
           checklist: {
             sosOptIn: standing?.sos_opt_in ?? false,
             paused,
@@ -1407,6 +1410,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           .default("resolved"),
         vetName: z.string().trim().min(1).max(80).optional(),
       })
+      // Still no silent close: a body must say either what happened (an
+      // outcome) or a resolution in words.
+      .refine(
+        (b) => b.resolution !== undefined || (req.body as { outcome?: unknown } | undefined)?.outcome !== undefined,
+        { message: "outcome or resolution required" },
+      )
       .safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({

@@ -4,8 +4,8 @@
  * which imports lib/collar-pdf.ts (and pdf-lib) on demand.
  */
 
-import { api, ApiError, type CollarForPrint, type FeederMe, type Ward } from "./api";
-import { recallDogSex } from "./dog-copy";
+import { api, ApiError, type CollarForPrint, type DogProfileV5, type FeederMe, type Ward } from "./api";
+import { recallDogSex, type DogSex } from "./dog-copy";
 import {
   markPrinted,
   sheetFileName,
@@ -20,13 +20,57 @@ function wardCodeFor(wards: Ward[] | null, wardId: string): string {
   return wards?.find((w) => w.id === wardId)?.code ?? wardId;
 }
 
-export function toSheetDog(c: CollarForPrint, wards: Ward[] | null): SheetDog {
+/**
+ * The dog's sex as the API has it, when a payload carries one: "male",
+ * "female", or null (not known). undefined means the payload says nothing.
+ */
+export function apiSex(x: unknown): DogSex | null | undefined {
+  if (!x || typeof x !== "object" || !("sex" in x)) return undefined;
+  const v = (x as { sex?: unknown }).sex;
+  return v === "male" || v === "female" ? v : null;
+}
+
+/**
+ * Sexes for pronouns (she / he / they), from the API: GET /feeders/me/dogs
+ * (which includes dogs not yet switched on), then GET /dogs/:slug for any
+ * still missing. The registrator's pick remembered on this phone
+ * (lib/dog-copy.ts) is only the fallback when the API says nothing; an API
+ * null ("not known") wins over it and reads as they/them.
+ */
+export async function loadSexes(slugs: string[]): Promise<Record<string, DogSex | null>> {
+  const out: Record<string, DogSex | null> = {};
+  try {
+    const mine = await api.getMyDogsV5();
+    for (const d of mine.dogs) {
+      const v = apiSex(d);
+      if (slugs.includes(d.slug) && v !== undefined) out[d.slug] = v;
+    }
+  } catch {
+    /* signed out or an older server */
+  }
+  const missing = slugs.filter((x) => !(x in out)).slice(0, 8);
+  await Promise.all(
+    missing.map(async (slug) => {
+      try {
+        const v = apiSex((await api.getDog(slug)) as DogProfileV5);
+        if (v !== undefined) out[slug] = v;
+      } catch {
+        /* not public yet */
+      }
+    }),
+  );
+  for (const slug of slugs) if (!(slug in out)) out[slug] = recallDogSex(slug);
+  return out;
+}
+
+export function toSheetDog(c: CollarForPrint, wards: Ward[] | null, sex?: DogSex | null): SheetDog {
+  const own = apiSex(c);
   return {
     slug: c.slug,
     name: c.name ?? null,
     wardCode: c.wardId ? wardCodeFor(wards, c.wardId) : null,
     collarUrl: c.collarUrl,
-    sex: recallDogSex(c.slug),
+    sex: own !== undefined ? own : sex !== undefined ? sex : recallDogSex(c.slug),
   };
 }
 

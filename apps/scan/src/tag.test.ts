@@ -1,15 +1,15 @@
 /**
  * Design v5 on the collar page: F4 (report a tag problem), F5 (the answer),
  * the Unverified / Tag under review / sturdier collar states, the memorial
- * page, and N8 on a code that matches no dog. The page has no DOM test
+ * page, and the code-miss path (P8, tested in v6.test.ts). The page has no DOM test
  * harness, so every state is pinned through the pure builders that render it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchDogProfile, lookupCode, NotFoundError, type DogProfile } from "./api.js";
+import { fetchDogProfile, NotFoundError, type DogProfile } from "./api.js";
 import { pronouns, tagChoices, tagFootnote, tagSentCopy } from "./format.js";
 import { rawCode } from "./slug.js";
 import { flushTagQueue, listTagQueue, queueTagReport, readTagReport, sendTagReport, tagSentMarkup, TAG_QUEUE_KEY } from "./tag.js";
-import { buildProfile, notFoundMarkup } from "./ui.js";
+import { buildProfile } from "./ui.js";
 
 const her = pronouns("female");
 const they = pronouns(undefined);
@@ -236,23 +236,7 @@ describe("profile states", () => {
   });
 });
 
-describe("N8 code not found", () => {
-  const rani = { slug: "rni482pq7", name: "Rani", wardId: "K-West", wardCode: "K/W", photoUrl: null };
-
-  it("the rows always, the Did you mean card only with suggestions", () => {
-    const bare = notFoundMarkup("rni428pq7", []);
-    expect(bare).toContain("RNI 428 PQ7");
-    expect(bare).toContain("No dog has this code.");
-    expect(bare).not.toContain("Did you mean");
-    for (const row of ["Type it again", "Find by ward and photo", "Tag looks fake"]) expect(bare).toContain(row);
-    expect(bare).toContain('href="/scan/find"');
-
-    const near = notFoundMarkup("rni428pq7", [rani]);
-    expect(near).toContain("Two digits may be swapped. Did you mean this dog?");
-    expect(near).toContain('href="/d/rni482pq7"');
-    expect(near).toContain("RNI 482 PQ7 · K/W");
-  });
-
+describe("a code that matches no dog", () => {
   it("reads whatever follows /d/ as the code", () => {
     expect(rawCode("/d/RNI428PQ7")).toBe("rni428pq7");
     expect(rawCode("/d/rni-428-pq7/")).toBe("rni428pq7");
@@ -264,19 +248,6 @@ describe("N8 code not found", () => {
     await expect(fetchDogProfile("rni428pq7", "")).rejects.toBeInstanceOf(NotFoundError);
     vi.stubGlobal("fetch", vi.fn(async () => json(503, { ok: false })));
     await expect(fetchDogProfile("rni428pq7", "")).rejects.not.toBeInstanceOf(NotFoundError);
-  });
-
-  it("parses GET /dogs/lookup and survives a failure", async () => {
-    const f = vi.fn(async () =>
-      json(200, { ok: true, data: { exact: null, matches: [], suggestions: [{ ...rani, markings: [], lastSeenAt: null }] } }),
-    );
-    vi.stubGlobal("fetch", f);
-    const r = await lookupCode("rni428pq7");
-    expect(r.exact).toBeNull();
-    expect(r.suggestions).toEqual([rani]);
-    expect((f.mock.calls[0] as unknown as [string])[0]).toContain("/dogs/lookup?code=rni428pq7");
-    vi.stubGlobal("fetch", vi.fn(async () => json(429, { ok: false })));
-    expect(await lookupCode("rni428pq7")).toEqual({ exact: null, suggestions: [] });
   });
 
   it("maps the v5 profile fields", async () => {

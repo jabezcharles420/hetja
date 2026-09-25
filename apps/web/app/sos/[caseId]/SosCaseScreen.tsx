@@ -657,7 +657,7 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
 
   const header = (
     <div className={styles.dogRow}>
-      <DogAvatar id={avatarId} name={name ?? "Dog"} photoUrl={c.dog?.photoUrl ?? null} size={56} />
+      {c.dog && <DogAvatar id={avatarId} name={name ?? "Dog"} photoUrl={c.dog.photoUrl ?? null} size={56} />}
       <span className={styles.dogLine}>
         {[name, where].filter(Boolean).join(" · ")}
         <br />
@@ -734,7 +734,7 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
         ) : (
           <>
             <div className={styles.dogRow}>
-              <DogAvatar id={avatarId} name={name ?? "Dog"} photoUrl={c.dog?.photoUrl ?? null} size={56} />
+              {c.dog && <DogAvatar id={avatarId} name={name ?? "Dog"} photoUrl={c.dog.photoUrl ?? null} size={56} />}
               <span className={styles.dogHead}>
                 <span className={styles.eyebrow}>{[name, where].filter(Boolean).join(" · ")}</span>
                 <h1 className={styles.title26}>{severityLine(c.severity)}</h1>

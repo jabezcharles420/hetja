@@ -32,7 +32,8 @@ import {
   type RegistrationV6Fields,
 } from "@/lib/api";
 import { readPrinted } from "@/lib/collar-sheet";
-import { dogCopyV6, nameOr, possessive, recallDogSex, scanTally } from "@/lib/dog-copy";
+import { dogCopyV6, nameOr, possessive, recallDogSex, scanTally, type DogSex } from "@/lib/dog-copy";
+import { apiSex, loadSexes } from "@/lib/collar-print";
 import s from "./register.module.css";
 import styles from "./registrations.module.css";
 
@@ -86,12 +87,18 @@ export interface RowModel {
 }
 
 /** V12: one sentence per dog, grouped and sorted by what needs doing. */
-export function registrationRows(regs: Reg[], printed: Record<string, number>, now = Date.now()) {
+export function registrationRows(
+  regs: Reg[],
+  printed: Record<string, number>,
+  now = Date.now(),
+  sexes: Record<string, DogSex | null> = {},
+) {
   const needs: (RowModel & { rank: number })[] = [];
   const live: RowModel[] = [];
   const other: RowModel[] = [];
   for (const r of regs) {
-    const sex = recallDogSex(r.slug);
+    const own = apiSex(r);
+    const sex = own !== undefined ? own : r.slug in sexes ? sexes[r.slug] : recallDogSex(r.slug);
     const days = daysLeftOf(r, now);
     const base = { slug: r.slug, name: r.name ?? null, href: `/register/${r.slug}` };
     if (r.status === "pending_activation") {
@@ -170,7 +177,7 @@ type State =
 function SignedOut(): React.JSX.Element {
   return (
     <div className={[s.page, s.aurora].join(" ")}>
-      <div className={[s.body, styles.l3Body].join(" ")}>
+      <div className={["h-container", s.body, styles.l3Body].join(" ")}>
         <span className={styles.unknown} aria-hidden="true">
           ?
         </span>
@@ -257,8 +264,15 @@ function FirstDog({ me, allowed }: { me: FeederMe; allowed: boolean }): React.JS
 
 function List({ regs, pending, max }: { regs: Reg[]; pending: number; max: number }): React.JSX.Element {
   const [printed, setPrinted] = useState<Record<string, number>>({});
-  useEffect(() => setPrinted(readPrinted()), []);
-  const { needs, live, other } = registrationRows(regs, printed);
+  const [sexes, setSexes] = useState<Record<string, DogSex | null>>({});
+  useEffect(() => {
+    setPrinted(readPrinted());
+    // Only the "Needs you" sentences use a pronoun; a registration that
+    // already carries the API's sex needs no lookup.
+    const want = regs.filter((r) => r.status === "pending_activation" && apiSex(r) === undefined).map((r) => r.slug);
+    if (want.length) void loadSexes(want).then(setSexes);
+  }, [regs]);
+  const { needs, live, other } = registrationRows(regs, printed, Date.now(), sexes);
   const first = needs[0]?.action ?? null;
   return (
     <div className={s.page}>

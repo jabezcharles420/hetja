@@ -23,6 +23,7 @@ import {
   withIntent,
 } from "@/lib/scan-code";
 import { DogPhoto, ScanHeader } from "./ScanParts";
+import SosAnyway, { type Care } from "./SosAnyway";
 import styles from "./FindScreen.module.css";
 
 /**
@@ -34,11 +35,12 @@ import styles from "./FindScreen.module.css";
  * chips narrow the ward's dogs (single select; tap again to clear). Tapping a
  * dog opens /d/<slug>, a full navigation to the profile app.
  *
- * With `?sos=1` the nearest vets and NGOs come first, with Call buttons, from
- * the same GET /care the SOS sent screen uses (the phone's position, or the
- * ward's centre when location is off). Then the finder: an SOS pages the
- * feeders of a known dog, so picking the dog opens its page, where the SOS
- * button is (CONTRACT.md, adapted list).
+ * With `?sos=1` (F1's "Send SOS anyway") SosAnyway comes first: with a
+ * location in Mumbai it sends a dogless SOS to the ward (v6 P8), and either
+ * way it lists the nearest vets and NGOs with Call buttons (GET /care, from
+ * the phone's position or the ward's centre when location is off). Then the
+ * finder: picking the dog opens its own page, whose SOS reaches that dog's
+ * own feeders.
  */
 
 const COLOURS: Array<{ id: CoatColour; label: string }> = [
@@ -66,12 +68,6 @@ type Dogs =
   | { kind: "loading" }
   | { kind: "ok"; data: WardDogsResult }
   | { kind: "error"; reason: "offline" | "failed" };
-
-type Care =
-  | { kind: "loading" }
-  | { kind: "ok"; providers: NearbyCareProvider[] }
-  | { kind: "nolocation" }
-  | { kind: "error" };
 
 const FALLBACK_WARDS: WardOption[] = BMC_WARD_CODES.map((id) => ({ id, ...wardDisplay(id) }));
 
@@ -101,6 +97,8 @@ export default function FindScreen(): React.JSX.Element {
   const [care, setCare] = useState<Care>({ kind: "loading" });
   const [retry, setRetry] = useState(0);
   const posRef = useRef<{ lat: number; lng: number } | undefined>(undefined);
+  /** undefined while locating, null when the phone gave no position. */
+  const [geo, setGeo] = useState<{ lat: number; lng: number } | null | undefined>(undefined);
 
   const loadCare = useCallback(async (at: { lat: number; lng: number } | null) => {
     if (!at) {
@@ -126,6 +124,7 @@ export default function FindScreen(): React.JSX.Element {
       const pos = await getPosition();
       if (!alive) return;
       posRef.current = pos;
+      setGeo(pos ?? null);
       const geoWard = pos ? nearestWard(pos.lat, pos.lng) : null;
       if (isSos && pos) void loadCare(pos);
       if (geoWard) {
@@ -217,10 +216,10 @@ export default function FindScreen(): React.JSX.Element {
     <div className={styles.screen}>
       <ScanHeader href={withIntent("/scan", intent)} />
       <div className={styles.body}>
-        {sos && <CareSection care={care} />}
+        {sos && <SosAnyway geo={geo} care={care} onCare={setCare} />}
 
         <Heading className={styles.title}>Which dog is it?</Heading>
-        {sos && <p className={styles.lead}>Pick the dog to send the SOS to their feeders.</p>}
+        {sos && <p className={styles.lead}>If you can find the dog, pick them so their own feeders hear too.</p>}
 
         <div className={styles.wardCard}>
           <div className={styles.wardText}>
@@ -360,58 +359,5 @@ function DogGrid({
         </ul>
       )}
     </>
-  );
-}
-
-function CareSection({ care }: { care: Care }): React.JSX.Element {
-  return (
-    <section className={styles.care} aria-labelledby="care-title">
-      <h1 id="care-title" className={styles.title}>
-        Get the dog help now.
-      </h1>
-      <p className={styles.lead}>Call the nearest vet or NGO first. Then find the dog below, so their feeders hear too.</p>
-      <p className={styles.callLabel}>Call now</p>
-      <ul className={styles.careList} aria-live="polite">
-        {care.kind === "loading" && (
-          <li className={styles.careRow}>
-            <span className={styles.careText}>
-              <span className={styles.careName}>Finding help near you&hellip;</span>
-            </span>
-          </li>
-        )}
-        {care.kind === "ok" &&
-          care.providers.map((p) => (
-            <li key={p.id} className={styles.careRow}>
-              <span className={styles.careText}>
-                <span className={styles.careName}>{p.name}</span>
-                <span className={styles.careSub}>{careLine(p)}</span>
-              </span>
-              {p.phoneE164 && (
-                <Button variant="tinted" size="lg" href={telHref(p.phoneE164)} aria-label={`Call ${p.name}`}>
-                  Call
-                </Button>
-              )}
-            </li>
-          ))}
-        {(care.kind === "nolocation" ||
-          care.kind === "error" ||
-          (care.kind === "ok" && care.providers.length === 0)) && (
-          <li className={styles.careRow}>
-            <span className={styles.careText}>
-              <span className={styles.careName}>No nearby help loaded</span>
-              <span className={styles.careSub}>
-                {care.kind === "nolocation"
-                  ? "Turn on location, or pick your ward below, to see help nearby. "
-                  : care.kind === "error"
-                    ? "Couldn't load nearby help right now. "
-                    : ""}
-                Call a local vet or animal helpline from your phone. If the dog is in traffic and you can do so safely,
-                move yourself out of the road first.
-              </span>
-            </span>
-          </li>
-        )}
-      </ul>
-    </section>
   );
 }

@@ -8,9 +8,11 @@
  * Verbs agree ("she sleeps", "they sleep"), so each line is written out in
  * full rather than assembled from a pronoun.
  *
- * GET /registrations/:slug and GET /dogs/:slug/collar do not return the sex,
- * so the flow remembers what the registrator picked, per slug, on this phone.
- * Every storage access is try/catch: no storage just means they/them.
+ * The sex comes from the API (GET /feeders/me/dogs, GET /dogs/:slug; see
+ * loadSexes in lib/collar-print.ts). What the registrator picked is also
+ * remembered per slug on this phone, as a fallback only for when the API
+ * says nothing (an older server, or no network). Every storage access is
+ * try/catch: no storage just means they/them.
  */
 
 export type DogSex = "female" | "male" | "unknown";

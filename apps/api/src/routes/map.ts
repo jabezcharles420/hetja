@@ -435,7 +435,7 @@ interface WardDetailBase {
   cases: WardCaseRow[];
   nearby: ReturnType<typeof toNearby>[];
   dogNames: string[];
-  notLoggedToday: { slug: string; name: string | null; lastLoggedAt: string | null }[];
+  notLoggedToday: { name: string | null; lastLoggedAt: string | null }[];
 }
 
 const BboxQuery = z.object({
@@ -544,8 +544,10 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         notLoggedToday: wardDogs.rows
           .filter((d) => !d.last_logged_at || d.last_logged_at.getTime() < since)
           .slice(0, 30)
+          // Names and times, no slugs: this read is public and cached, and a
+          // slug list per ward would be the register without a rate limit
+          // (GET /wards/:id/dogs is the rate-limited way to a slug).
           .map((d) => ({
-            slug: d.slug,
             name: d.name ?? null,
             lastLoggedAt: d.last_logged_at ? d.last_logged_at.toISOString() : null,
           })),

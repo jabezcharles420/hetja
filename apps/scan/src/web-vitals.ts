@@ -1,17 +1,28 @@
 /**
  * Web-vitals client for the scan landing (enhancement stack §M.16).
  *
- * This is the one addition the scan app allows itself beyond its core, kept
- * deliberately tiny (the web-vitals package is ~1.5 KB gzipped and esbuild
- * tree-shakes it down to the four on* functions actually used).
+ * Measured natively since design v6, not with the `web-vitals` package: that
+ * package cost 3,590 B gzipped of the 40,960 B budget (INVARIANT 13), and
+ * the v6 SOS screens needed the room. The four metrics are the same, with
+ * the same names, thresholds and ratings the package uses:
+ *
+ * - TTFB: the navigation entry's responseStart.
+ * - LCP: the last largest-contentful-paint entry before the first input or
+ *   the page being hidden.
+ * - CLS: the largest session window of layout shifts without recent input
+ *   (windows end after a 1 s gap or at 5 s).
+ * - INP: event timings grouped by interactionId; the worst interaction,
+ *   ignoring one for every 50 (the package's p98 approximation).
+ *
+ * Not reproduced: the package's back/forward-cache restores and prerender
+ * adjustments. Each metric is sent once, when the page is first hidden
+ * (TTFB and LCP earlier, as soon as they are final).
  *
  * Privacy rule: the path is slug-stripped before it leaves the page
  * ("/d/:slug", never "/d/abc123def"), so per-dog page identity is never
  * collected. The API enforces the same contract server-side (it rejects any
  * path carrying a 9-char collar slug or ?s=).
  */
-import { onCLS, onINP, onLCP, onTTFB } from "web-vitals";
-import type { MetricType } from "web-vitals";
 
 /**
  * A collar slug, anchored to the route prefix where scan pages actually live
@@ -51,29 +62,89 @@ export function slugStrippedPath(pathname: string): string {
   return pathname.replace(DOG_SLUG_PATH, "$1/:slug");
 }
 
-function send(m: MetricType): void {
+type Name = "CLS" | "INP" | "LCP" | "TTFB";
+
+/** The package's thresholds: good up to the first, poor above the second. */
+const LIMITS: Record<Name, [number, number]> = { CLS: [0.1, 0.25], INP: [200, 500], LCP: [2500, 4000], TTFB: [800, 1800] };
+
+export function rating(name: Name, value: number): "good" | "needs-improvement" | "poor" {
+  const [good, poor] = LIMITS[name];
+  return value <= good ? "good" : value <= poor ? "needs-improvement" : "poor";
+}
+
+const sent = new Set<Name>();
+
+function send(name: Name, value: number): void {
+  if (sent.has(name) || !(value >= 0)) return;
+  sent.add(name);
   try {
-    const payload = JSON.stringify({
-      path: slugStrippedPath(location.pathname),
-      name: m.name,
-      value: m.value,
-      rating: m.rating,
-    });
-    navigator.sendBeacon(
-      "/api/v1/metrics/web-vitals",
-      new Blob([payload], { type: "application/json" }),
-    );
+    const payload = JSON.stringify({ path: slugStrippedPath(location.pathname), name, value, rating: rating(name, value) });
+    navigator.sendBeacon("/api/v1/metrics/web-vitals", new Blob([payload], { type: "application/json" }));
   } catch {
     /* telemetry must never break the life-safety page */
   }
 }
 
+type Entry = PerformanceEntry & { hadRecentInput?: boolean; value?: number; interactionId?: number; responseStart?: number };
+
+function observe(type: string, fn: (list: Entry[]) => void, opts: Record<string, unknown> = {}): void {
+  try {
+    new PerformanceObserver((l) => fn(l.getEntries() as Entry[])).observe({ type, buffered: true, ...opts } as PerformanceObserverInit);
+  } catch {
+    /* this browser does not support that entry type */
+  }
+}
+
+/** CLS: the largest session window (gap under 1 s, window under 5 s). */
+export function clsOf(shifts: Array<{ startTime: number; value: number }>): number {
+  let best = 0;
+  let win = 0;
+  let first = 0;
+  let last = 0;
+  for (const s of shifts) {
+    if (win && s.startTime - last < 1000 && s.startTime - first < 5000) win += s.value;
+    else {
+      win = s.value;
+      first = s.startTime;
+    }
+    last = s.startTime;
+    best = Math.max(best, win);
+  }
+  return best;
+}
+
+/** INP: worst interaction, skipping one per 50 interactions. */
+export function inpOf(durations: number[]): number | undefined {
+  const d = [...durations].sort((a, b) => b - a);
+  return d.length ? d[Math.min(d.length - 1, Math.floor(d.length / 50))] : undefined;
+}
+
 export function reportWebVitals(): void {
   try {
-    onCLS(send);
-    onINP(send);
-    onLCP(send);
-    onTTFB(send);
+    const nav = performance.getEntriesByType("navigation")[0] as Entry | undefined;
+    if (nav?.responseStart) send("TTFB", nav.responseStart);
+    let lcp = -1;
+    const shifts: Array<{ startTime: number; value: number }> = [];
+    const worst = new Map<number, number>();
+    observe("largest-contentful-paint", (l) => l.forEach((e) => (lcp = e.startTime)));
+    observe("layout-shift", (l) => l.forEach((e) => e.hadRecentInput || shifts.push({ startTime: e.startTime, value: e.value ?? 0 })));
+    observe(
+      "event",
+      (l) => l.forEach((e) => e.interactionId && worst.set(e.interactionId, Math.max(worst.get(e.interactionId) ?? 0, e.duration))),
+      { durationThreshold: 40 },
+    );
+    const lcpDone = (): void => {
+      if (lcp >= 0) send("LCP", lcp);
+    };
+    addEventListener("pointerdown", lcpDone, { once: true, capture: true });
+    addEventListener("keydown", lcpDone, { once: true, capture: true });
+    addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "hidden") return;
+      lcpDone();
+      send("CLS", clsOf(shifts));
+      const inp = inpOf([...worst.values()]);
+      if (inp !== undefined) send("INP", inp);
+    });
   } catch {
     /* performance measurement is optional */
   }

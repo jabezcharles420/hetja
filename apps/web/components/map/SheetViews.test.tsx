@@ -32,7 +32,6 @@ const WARD: MapWard = {
   notFedToday: 5,
   sosOpen: 1,
   latestSos: null,
-  dogNames: ["Rani", "Kalu", "Bruno"],
 };
 
 const VET: MapPlace = {
@@ -65,10 +64,10 @@ function detail(over: Partial<WardDetail> = {}): WardDetail {
         feedersTold: true,
         mine: false,
         dogName: "Rani",
-        dogSex: "female",
-        feedersToldCount: 2,
+        taken: false,
       },
     ],
+    dogNames: ["Rani", "Kalu", "Bruno"],
     nearby: [VET],
     viewer: { sosOptIn: true, trustScore: 70, canRespond: ["minor", "serious", "critical"] },
     ...over,
@@ -102,24 +101,20 @@ describe("CityView (M1, V20, M7)", () => {
     { ...WARD, id: "H-West", code: "H/W", name: "Bandra West, Khar", sosOpen: 1, notFedToday: 12, dogs: 45 },
   ];
 
-  it("M1: dog-named SOS rows with Open / Taken, and one line of stats", () => {
+  it("M1: dog-named SOS rows with Open / Taken open the ward (no case ids), and one line of stats", () => {
+    const onWard = vi.fn();
     render(
       <CityView
         wards={wards}
-        summary={{
-          withCollars: 59,
-          feeders: 23,
-          fedToday: 41,
-          notLoggedToday: 17,
-          sos: [
-            { caseId: "c1", wardId: "K-West", dogName: "Rani", severity: "critical", raisedAt: minsAgo(13), taken: false },
-            { caseId: "c2", wardId: "H-West", dogName: "Bruno", severity: "serious", raisedAt: minsAgo(47), taken: true },
-          ],
-        }}
+        summary={{ dogs: 59, withCollars: 59, feeders: 23, fedToday: 41, notLoggedToday: 17 }}
+        sos={[
+          { wardId: "K-West", wardCode: "K/W", dogName: "Rani", severity: "critical", raisedAt: minsAgo(13), taken: false },
+          { wardId: "H-West", wardCode: "H/W", dogName: "Bruno", severity: "serious", raisedAt: minsAgo(47), taken: true },
+        ]}
         error={false}
         peek={false}
         onRetry={() => {}}
-        onWard={() => {}}
+        onWard={onWard}
       />,
     );
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Two dogs need help. 17 haven't been logged today.");
@@ -131,6 +126,8 @@ describe("CityView (M1, V20, M7)", () => {
     const bruno = screen.getByRole("button", { name: /Bruno · Bandra West/ });
     expect(within(bruno).getByText("Hurt, or needs checking · 47 min")).not.toBeNull();
     expect(within(bruno).getByText("Taken")).not.toBeNull();
+    fireEvent.click(rani);
+    expect(onWard).toHaveBeenCalledWith("K-West");
   });
 
   it("V20: the zero case is its own sentence", () => {
@@ -170,7 +167,7 @@ describe("WardView (M2, M3, M6)", () => {
     expect(screen.getByText("Rani, Kalu, Bruno and 11 others live here. 5 not logged today.")).not.toBeNull();
     const card = screen.getByRole("link", { name: /Rani can't get up/ });
     expect(card.getAttribute("href")).toBe("/sos/c1");
-    expect(within(card).getByText("13 min · her 2 feeders told · nobody yet")).not.toBeNull();
+    expect(within(card).getByText("13 min · feeders told · nobody yet")).not.toBeNull();
     expect(screen.getByText("Help nearby")).not.toBeNull();
     expect(screen.getByText("Vet · open now, 24 hours")).not.toBeNull();
     expect(screen.getByRole("button", { name: "I can go and help Rani" })).not.toBeNull();
@@ -203,7 +200,7 @@ describe("WardView (M2, M3, M6)", () => {
         ...malad,
         sos: [],
         nearby: [],
-        notLogged: [
+        notLoggedToday: [
           { name: "Sheru", lastLoggedAt: new Date(Date.now() - 26 * 3600_000).toISOString() },
           { name: "Tiger", lastLoggedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() },
           { name: "Lali", lastLoggedAt: new Date(Date.now() - 26 * 3600_000).toISOString() },

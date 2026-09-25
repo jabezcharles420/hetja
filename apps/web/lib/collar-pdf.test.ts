@@ -4,8 +4,10 @@
  * the printed QR itself is e2e/collar-print.spec.ts.
  */
 import { describe, expect, it } from "vitest";
-import { PDFDocument } from "pdf-lib";
-import { buildCollarPdf } from "./collar-pdf";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
+import { buildCollarPdf, devanagariRuns, needsDevanagari } from "./collar-pdf";
 import { sheetFileName, sheetText, tagsHeader, batchHeader, type SheetDog } from "./collar-sheet";
 import { BAND_QR_MODULE_MM, TAG_QR_MODULE_MM, buildCollarQrMatrix } from "./qr";
 
@@ -50,9 +52,48 @@ describe("collar PDF", () => {
     expect((await PDFDocument.load(batch)).getTitle()).toBe("Hetja batch sheet · 8 dogs");
   });
 
-  it("does not choke on a name the standard fonts cannot print", async () => {
-    const bytes = await buildCollarPdf({ layout: "tags", paper: "a4", dogs: [dog("rni482pq7", "राणी")], text: sheetText(null) });
+  it("does not choke on a name the standard fonts cannot print, even without the font", async () => {
+    const bytes = await buildCollarPdf({
+      layout: "tags",
+      paper: "a4",
+      dogs: [dog("rni482pq7", "राणी")],
+      text: sheetText(null),
+      loadDevanagariFont: () => Promise.reject(new Error("offline")),
+    });
     expect(bytes.byteLength).toBeGreaterThan(1000);
+  });
+
+  it("embeds a Noto Sans Devanagari subset only for a Devanagari name", async () => {
+    const font = readFileSync(path.join(__dirname, "..", "public", "fonts", "NotoSansDevanagari-700-devanagari.woff"));
+    let loads = 0;
+    const loadDevanagariFont = async () => {
+      loads++;
+      return font;
+    };
+    const deva = await buildCollarPdf({ layout: "notice", paper: "a4", dogs: [dog("rni482pq7", "राणी")], text: sheetText(null), loadDevanagariFont });
+    expect(loads).toBe(1);
+    // Object streams are compressed, so look for the font through pdf-lib.
+    const doc = await PDFDocument.load(deva);
+    const baseFonts = doc.context
+      .enumerateIndirectObjects()
+      .map(([, obj]) => (obj instanceof PDFDict ? obj.get(PDFName.of("BaseFont")) : undefined))
+      .filter((v): v is PDFName => v instanceof PDFName)
+      .map((n) => n.decodeText());
+    expect(baseFonts.some((f) => /NotoSansDevanagari/.test(f))).toBe(true);
+    // A subset, not the whole 72 KB font.
+    expect(deva.byteLength).toBeLessThan(40_000);
+    await buildCollarPdf({ layout: "notice", paper: "a4", dogs: [dog("rni482pq7", "Rani")], text: sheetText(null), loadDevanagariFont });
+    expect(loads).toBe(1);
+  }, 20_000);
+
+  it("splits a line into Devanagari and Latin runs", () => {
+    expect(needsDevanagari("This is राणी.")).toBe(true);
+    expect(needsDevanagari("Rani")).toBe(false);
+    expect(devanagariRuns("This is राणी.")).toEqual([
+      ["This is ", false],
+      ["राणी", true],
+      [".", false],
+    ]);
   });
 
   it("prints tags at 0.49 mm per module and bands at the same size", () => {

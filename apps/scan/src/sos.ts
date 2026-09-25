@@ -312,6 +312,8 @@ export interface ReportResult {
   network?: boolean;
   caseId?: string;
   openCase?: OpenCase;
+  /** The API's error code (GEO_OUTSIDE_MUMBAI, GEO_REQUIRED, ...). */
+  code?: string;
   care: CareProvider[];
 }
 
@@ -373,7 +375,7 @@ async function fileReport(c: Choice, text?: string, pos?: Pos): Promise<ReportRe
  */
 export function readReport(status: number, body: unknown): ReportResult {
   type D = { caseId?: unknown; nearbyCare?: unknown; openCase?: Record<string, unknown> };
-  const b = (body ?? {}) as { data?: D; error?: { data?: D } };
+  const b = (body ?? {}) as { data?: D; error?: { data?: D; code?: string } };
   const d = b.data;
   const care = normalizeList(d?.nearbyCare ?? b.error?.data?.nearbyCare ?? []);
   if (status < 200 || status >= 300) {
@@ -382,7 +384,8 @@ export function readReport(status: number, body: unknown): ReportResult {
       status === 429 && oc && typeof oc.caseId === "string"
         ? { caseId: oc.caseId, raisedAt: str(oc.raisedAt), responderFirstName: str(oc.responderFirstName), takenAt: str(oc.takenAt) }
         : undefined;
-    return { ok: false, rateLimited: status === 429, care: status === 429 ? care : [], ...(openCase ? { openCase } : {}) };
+    const code = str(b.error?.code);
+    return { ok: false, rateLimited: status === 429, care: status === 429 ? care : [], ...(openCase ? { openCase } : {}), ...(code ? { code } : {}) };
   }
   return { ok: true, caseId: typeof d?.caseId === "string" ? d.caseId : undefined, care };
 }
@@ -523,7 +526,7 @@ function renderOffline(): void {
 
 function renderSent(care: CareProvider[]): void {
   screen = "sent";
-  const c = sentCopy(dog(), status.feedersNotifiedNames, status.vetsNotified);
+  const c = sentCopy(dog(), status.feedersNotifiedNames, status.vetsNotified, status.feedersNotified);
   q("#v-sent")!.innerHTML = `
     <div class="body sent-body">
       <h1 class="title xl" tabindex="-1" data-focus>${escapeHtml(c.title)}</h1>
@@ -549,12 +552,14 @@ function renderFailed(r: ReportResult): void {
       <p class="lead2">${
         r.rateLimited
           ? "This phone has sent the most SOS reports allowed for now. Please call someone below."
+          : r.code === "GEO_OUTSIDE_MUMBAI"
+            ? "Hetja only works in Mumbai for now. Please call someone below."
           : "Hetja couldn't confirm it. Please call someone below."
       }</p>
       <div id="care">${careBlock(r.care) || rowHtml("Finding help near you…", "")}</div>
     </div>
     <div class="foot">
-      ${r.rateLimited ? "" : `<button type="button" class="btn sos" id="retry">Try again</button>`}
+      ${r.rateLimited || r.code === "GEO_OUTSIDE_MUMBAI" ? "" : `<button type="button" class="btn sos" id="retry">Try again</button>`}
       <button type="button" class="link-btn" id="sent-back">${escapeHtml(`Back to ${dogName() ?? "this dog"}`)}</button>
     </div>`;
   on("#retry", () => void post(lastPos));
@@ -614,7 +619,9 @@ interface Status {
   vetName?: string;
   resolvedAt?: string;
   feedersNotifiedNames?: string[];
+  feedersNotified?: number;
   vetsNotified?: number;
+  leftAt?: string;
 }
 
 /** GET /reports/:caseId/status, v6 fields. Anything unexpected is left out. */
@@ -631,7 +638,9 @@ export function readStatus(body: unknown): Status {
     vetName: str(s.vetName),
     resolvedAt: str(s.resolvedAt),
     feedersNotifiedNames: names,
+    feedersNotified: typeof s.feedersNotified === "number" ? s.feedersNotified : undefined,
     vetsNotified: typeof s.vetsNotified === "number" ? s.vetsNotified : undefined,
+    leftAt: str(s.leftAt),
   };
 }
 
@@ -672,7 +681,7 @@ function startPolling(): void {
         const el = q("#wait");
         if (el) el.innerHTML = waitPill();
         if (changed) {
-          const c = sentCopy(dog(), s.feedersNotifiedNames, s.vetsNotified);
+          const c = sentCopy(dog(), s.feedersNotifiedNames, s.vetsNotified, s.feedersNotified);
           q("#v-sent h1")!.textContent = c.title;
           q("#v-sent .lead2")!.textContent = c.lead;
         }
@@ -710,7 +719,7 @@ function renderComing(): void {
     </div>
     <div class="foot">
       <button type="button" class="btn blue" id="upd">${escapeHtml(`Send ${first} an update`)}</button>
-      ${left ? "" : `<button type="button" class="link-btn" id="left">I had to leave</button>`}
+      ${left || s.leftAt ? "" : `<button type="button" class="link-btn" id="left">I had to leave</button>`}
     </div>`;
   on("#upd", () => updateSheet(`Send ${first} an update`, `Sent to ${first}.`));
   on("#left", async () => {

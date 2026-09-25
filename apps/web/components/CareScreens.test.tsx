@@ -163,7 +163,7 @@ describe("N4 My dogs", () => {
     expect(screen.getByText("Vaccine due Oct 2099")).not.toBeNull();
     expect(screen.getAllByText("Unverified").length).toBeGreaterThan(0);
     for (const tag of ["Tag", "Missing?", "Fed", "Vet", "New"]) expect(screen.getAllByText(tag).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Kalu/ }).getAttribute("href")).toBe("/d/kaluaaaa2");
+    expect(screen.getByRole("link", { name: /Kalu/ }).getAttribute("href")).toBe("/me/dogs/kaluaaaa2");
   });
 
   it("confirms a dog another feeder registered, as a second feeder", async () => {

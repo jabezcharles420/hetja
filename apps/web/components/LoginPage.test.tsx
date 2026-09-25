@@ -176,7 +176,7 @@ describe("feeder sign-in", () => {
   });
 
   it.each([
-    ["invalid_code", 400, "That code didn't match. Check the email and try again."],
+    ["invalid_code", 400, "That's not the code. Check the newest email."],
     ["expired", 400, "That code has run out. Codes work for 5 minutes, so tap Resend for a new one."],
     ["too_many_attempts", 429, "Too many tries with that code. Tap Resend for a new one."],
   ])("says %s in words, never the raw result code", async (raw, status, words) => {
@@ -220,13 +220,20 @@ describe("design v4 login screens", () => {
 
   it("ships the audit's copy on both steps, with the 5-minute expiry", async () => {
     render(<LoginPage />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sign in.");
-    expect(screen.getByText("We'll email you a 6-digit code. No password.")).not.toBeNull();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sign in.No password.");
+    expect(
+      screen.getByText(
+        "We'll email you a 6-digit code. You already remember enough, like which dog hates the red scooter.",
+      ),
+    ).not.toBeNull();
     expect(screen.queryByText(/OTP/)).toBeNull();
     cleanup();
     await toCodeStep();
     expect(screen.getByText("Check your email.")).not.toBeNull();
-    expect(screen.getByText("6 digits sent to priya.feeds@gmail.com. It works for 5 minutes.")).not.toBeNull();
+    // V5's layout; the owner's 5-minute expiry, not the mock's 10.
+    expect(screen.getByText("priya.feeds@gmail.com").parentElement?.textContent).toBe(
+      "Sent to priya.feeds@gmail.com. It works for 5 minutes.",
+    );
     expect(screen.getByRole("button", { name: "‹ Change email" })).not.toBeNull();
   });
 
@@ -315,5 +322,28 @@ describe("design v4 login screens", () => {
     const input = await toCodeStep();
     fireEvent.change(input, { target: { value: "482190" } });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/me"));
+  });
+
+  it("V6: too many codes shows the clock time from Retry-After, and I have a code still works", async () => {
+    apiMock.requestOtp.mockRejectedValue(new ApiError("slow down", { status: 429, code: "RATE_LIMITED", retryAfterSec: 840 }));
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "priya.feeds@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    expect(await screen.findByRole("heading", { name: "Let's take a breath." })).toBeTruthy();
+    expect(screen.getByText(/You can ask for a new one at/).textContent).toMatch(/at \d{1,2}:\d{2} [ap]m, in 14 minutes\.$/);
+    expect(screen.getByText("A code from earlier may still be in your inbox and still work.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Scan a collar meanwhile" }).getAttribute("href")).toBe("/scan");
+    fireEvent.click(screen.getByRole("button", { name: "I have a code" }));
+    expect(await screen.findByLabelText("6-digit code")).toBeTruthy();
+  });
+
+  it("V4: an empty email is an error on the field, with an icon", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    const err = await screen.findByRole("alert");
+    expect(err.textContent).toBe("Type your email first.");
+    expect(err.querySelector("svg")).not.toBeNull();
+    expect(screen.getByLabelText("Email").getAttribute("aria-invalid")).toBe("true");
+    expect(apiMock.requestOtp).not.toHaveBeenCalled();
   });
 });

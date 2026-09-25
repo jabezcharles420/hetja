@@ -278,6 +278,26 @@ export function partitionFeederPush(
   return { now, later };
 }
 
+/** The SOS push body (send_sos_push). Exported for the test. */
+export function sosPushPayload(
+  caseId: string,
+  row: { severity: string; dog_name: string | null; ward_id: string | null; opened_at: Date } | undefined,
+): string {
+  const severity = row?.severity ?? "serious";
+  return JSON.stringify({
+    title: "Hetja SOS",
+    body: row?.dog_name
+      ? `${row.dog_name} needs help: a ${severity} report near you.`
+      : `A ${severity} report needs a responder nearby.`,
+    caseId,
+    url: `/sos/${caseId}`,
+    severity,
+    dogName: row?.dog_name ?? null,
+    wardId: row?.ward_id ?? null,
+    openedAt: row?.opened_at ? new Date(row.opened_at).toISOString() : null,
+  });
+}
+
 export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
   validate_scan: async (p) => {
     // Phase 0 stub: AI worker (apps/ai) performs YOLO validation asynchronously.
@@ -378,14 +398,15 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     );
     if (notifs.rowCount === 0) return;
 
-    const caseRow = await query<{ severity: string }>(`SELECT severity FROM sos_cases WHERE id = $1`, [p.caseId]);
-    const severity = caseRow.rows[0]?.severity ?? "serious";
-    const payload = JSON.stringify({
-      title: "Hetja SOS",
-      body: `A ${severity} report needs a responder nearby.`,
-      caseId: p.caseId,
-      url: `/sos/${p.caseId}`,
-    });
+    // Design v6 (L6): the payload also carries what the alert was about, so
+    // the case page can show it on a first open: the dog's name, the WARD
+    // (never a position) and when it was raised.
+    const caseRow = await query<{ severity: string; dog_name: string | null; ward_id: string | null; opened_at: Date }>(
+      `SELECT c.severity::text AS severity, d.name AS dog_name, COALESCE(c.ward_id, d.ward_id) AS ward_id, c.opened_at
+         FROM sos_cases c LEFT JOIN dogs d ON d.id = c.dog_id WHERE c.id = $1`,
+      [p.caseId],
+    );
+    const payload = sosPushPayload(p.caseId, caseRow.rows[0]);
 
     for (const notif of notifs.rows) {
       const subs = await query<PushSubRow>(

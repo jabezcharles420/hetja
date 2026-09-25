@@ -14,9 +14,15 @@
  *          which changes nothing on paper and keeps the file small.
  *   Fonts  the PDF standard 14 (Helvetica, Helvetica-Bold, Courier-Bold):
  *          nothing is embedded, so the file stays a few tens of KB. They
- *          encode WinAnsi only, so a name in another script falls back to
- *          what they can print (see `printable`); the code, which is what a
- *          stranger types, is always ASCII.
+ *          encode WinAnsi only. When a dog's name is in Devanagari (Hindi,
+ *          Marathi), and only then, Noto Sans Devanagari Bold (OFL,
+ *          public/fonts/, 72 KB), @pdf-lib/fontkit (MIT, which shapes the
+ *          conjuncts and vowel signs) and regenerator-runtime (MIT, which
+ *          that fontkit build needs) are loaded and the font is embedded as
+ *          a subset of just the glyphs used; Devanagari runs are drawn with it
+ *          and everything else stays standard. Any other script still falls
+ *          back to what the standard fonts can print (see `printable`). The
+ *          code, which is what a stranger types, is always ASCII.
  *
  * Layout and copy come from lib/collar-sheet.ts, shared with the HTML
  * fallback, and are the A4 mock's values in millimetres ("Hetja Collar Sheet
@@ -72,6 +78,31 @@ interface Fonts {
   reg: PDFFont;
   bold: PDFFont;
   mono: PDFFont;
+  /** Noto Sans Devanagari Bold, embedded only when a name needs it. */
+  deva?: PDFFont;
+}
+
+/** Devanagari (and its extended blocks); ZWJ / ZWNJ join a run. */
+const DEVA_CHAR = /[ऀ-ॿ᳐-᳿꣠-ꣿ‌‍]/;
+const DEVA_TEST = /[ऀ-ॿ᳐-᳿꣠-ꣿ]/;
+
+/** Where the browser fetches the Devanagari font from (apps/web/public). */
+export const DEVANAGARI_FONT_URL = "/fonts/NotoSansDevanagari-700-devanagari.woff";
+
+export function needsDevanagari(text: string | null | undefined): boolean {
+  return !!text && DEVA_TEST.test(text);
+}
+
+/** Split into runs: [text, isDevanagari]. Spaces are drawn with the standard font. */
+export function devanagariRuns(text: string): [string, boolean][] {
+  const runs: [string, boolean][] = [];
+  for (const ch of text) {
+    const deva = DEVA_CHAR.test(ch);
+    const last = runs[runs.length - 1];
+    if (last && last[1] === deva) last[0] += ch;
+    else runs.push([ch, deva]);
+  }
+  return runs;
 }
 
 interface Ctx {
@@ -126,25 +157,48 @@ function lineHeightMm(o: TextOpts): number {
   return (o.lh ?? 1.2) * o.size * PT_TO_MM;
 }
 
+type Run = { t: string; o: TextOpts };
+
+/** The line as drawable runs: Devanagari with the embedded font, the rest standard. */
+function runsOf(c: Ctx, raw: string, o: TextOpts): Run[] {
+  if (!c.fonts.deva || !DEVA_TEST.test(raw)) {
+    const t = printable(o.font, raw);
+    return t ? [{ t, o }] : [];
+  }
+  const deva = c.fonts.deva;
+  return devanagariRuns(raw)
+    .map(([t, isDeva]): Run => (isDeva ? { t, o: { ...o, font: deva, tracking: 0 } } : { t: printable(o.font, t) || t.replace(/[^ ]/g, ""), o }))
+    .filter((r) => r.t.length > 0);
+}
+
+/** Width of a line in mm, Devanagari runs included. */
+function measure(c: Ctx, raw: string, o: TextOpts): number {
+  const runs = runsOf(c, raw, o);
+  return runs.reduce((sum, r, i) => sum + widthMm(r.t, r.o) + (i < runs.length - 1 ? (r.o.tracking ?? 0) * r.o.size * PT_TO_MM : 0), 0);
+}
+
 /** Draw one line whose CSS line box starts at `topMm`. `x` is the left edge, centre or right edge per `align`. */
 function text(c: Ctx, raw: string, xMm: number, topMm: number, o: TextOpts): void {
-  const t = printable(o.font, raw);
-  if (!t) return;
+  const runs = runsOf(c, raw, o);
+  if (runs.length === 0) return;
   const m = o.metrics ?? HELV;
   const lh = o.lh ?? 1.2;
   const baselineMm = topMm + ((lh - (m.a + m.d)) / 2 + m.a) * o.size * PT_TO_MM;
-  const w = widthMm(t, o);
-  const left = o.align === "center" ? xMm - w / 2 : o.align === "right" ? xMm - w : xMm;
-  const tracking = (o.tracking ?? 0) * o.size;
-  if (tracking) c.page.pushOperators(c.lib.setCharacterSpacing(tracking));
-  c.page.drawText(t, {
-    x: pt(left),
-    y: pt(c.hMm - baselineMm),
-    size: o.size,
-    font: o.font,
-    color: o.color ?? c.lib.rgb(0, 0, 0),
+  const w = measure(c, raw, o);
+  let x = o.align === "center" ? xMm - w / 2 : o.align === "right" ? xMm - w : xMm;
+  runs.forEach((r, i) => {
+    const tracking = (r.o.tracking ?? 0) * r.o.size;
+    if (tracking) c.page.pushOperators(c.lib.setCharacterSpacing(tracking));
+    c.page.drawText(r.t, {
+      x: pt(x),
+      y: pt(c.hMm - baselineMm),
+      size: r.o.size,
+      font: r.o.font,
+      color: o.color ?? c.lib.rgb(0, 0, 0),
+    });
+    if (tracking) c.page.pushOperators(c.lib.setCharacterSpacing(0));
+    x += widthMm(r.t, r.o) + (i < runs.length - 1 ? tracking * PT_TO_MM : 0);
   });
-  if (tracking) c.page.pushOperators(c.lib.setCharacterSpacing(0));
 }
 
 /** Greedy word wrap at `maxMm`. */
@@ -272,7 +326,7 @@ function header(c: Ctx, m: number, wMm: number, left: string, right: string): nu
   const baseOff = (o: TextOpts) => ((1.2 - (HELV.a + HELV.d)) / 2 + HELV.a) * o.size * PT_TO_MM;
   const baseline = m + baseOff(brand);
   text(c, SHEET_COPY.brand, m, m, brand);
-  const subX = m + widthMm(SHEET_COPY.brand, brand) + 2;
+  const subX = m + measure(c, SHEET_COPY.brand, brand) + 2;
   text(c, left, subX, baseline - baseOff(sub), sub);
   text(c, right, m + wMm, m + boxH - lineHeightMm(meta), meta);
   const ruleTop = m + boxH + 3;
@@ -382,7 +436,7 @@ function noticePage(c: Ctx, d: SheetDog, wMm: number, hMm: number): void {
 
   const title: TextOpts = { font: c.fonts.bold, size: 60, lh: 0.95, tracking: -0.04, align: "center" };
   // A long name shrinks to fit the line rather than running off the page.
-  const tw = widthMm(noticeTitle(d), title);
+  const tw = measure(c, noticeTitle(d), title);
   if (tw > cw) title.size = Math.max(28, (title.size * cw) / tw);
   text(c, noticeTitle(d), cx, y, title);
   y += lineHeightMm(title) + 7;
@@ -448,6 +502,25 @@ export interface BuildSheetInput {
   /** One dog for "tags" and "notice"; 1 to 8 for "batch". */
   dogs: SheetDog[];
   text: SheetText;
+  /**
+   * The Devanagari font's bytes, fetched only when a name needs it. Defaults
+   * to DEVANAGARI_FONT_URL; tests pass the file from disk.
+   */
+  loadDevanagariFont?: () => Promise<ArrayBuffer | Uint8Array>;
+}
+
+let devanagariFont: Promise<ArrayBuffer> | null = null;
+
+/** Fetched once per page load; a failure is not cached, so the next sheet retries. */
+function fetchDevanagariFont(): Promise<ArrayBuffer> {
+  devanagariFont ??= fetch(DEVANAGARI_FONT_URL).then((res) => {
+    if (!res.ok) throw new Error(`font ${res.status}`);
+    return res.arrayBuffer();
+  });
+  devanagariFont.catch(() => {
+    devanagariFont = null;
+  });
+  return devanagariFont;
 }
 
 export async function buildCollarPdf(input: BuildSheetInput): Promise<Uint8Array> {
@@ -458,6 +531,23 @@ export async function buildCollarPdf(input: BuildSheetInput): Promise<Uint8Array
     bold: await doc.embedFont(lib.StandardFonts.HelveticaBold),
     mono: await doc.embedFont(lib.StandardFonts.CourierBold),
   };
+  if (input.dogs.some((d) => needsDevanagari(d.name))) {
+    try {
+      // @pdf-lib/fontkit's Indic shaper is compiled against a global
+      // regeneratorRuntime (a known issue in its 1.1.1 build): provide it,
+      // by assignment rather than the package's eval fallback.
+      const g = globalThis as unknown as { regeneratorRuntime?: unknown };
+      if (!g.regeneratorRuntime) g.regeneratorRuntime = (await import("regenerator-runtime")).default;
+      const [{ default: fontkit }, bytes] = await Promise.all([
+        import("@pdf-lib/fontkit"),
+        (input.loadDevanagariFont ?? fetchDevanagariFont)(),
+      ]);
+      doc.registerFontkit(fontkit);
+      fonts.deva = await doc.embedFont(bytes, { subset: true });
+    } catch {
+      /* no font: the name falls back to what the standard fonts can print */
+    }
+  }
   const { w, h } = PAPER_MM[input.paper];
   const page = doc.addPage([pt(w), pt(h)]);
   const c: Ctx = { lib, page, hMm: h, fonts };

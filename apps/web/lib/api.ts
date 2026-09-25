@@ -898,6 +898,9 @@ export interface SosCaseV6 extends SosCaseV5 {
 
 export interface SosCaseForbiddenData {
   forbiddenReason: SosForbiddenReason;
+  /** The case's ward (V22 "This case went to feeders in H/W"). */
+  wardId: string | null;
+  wardCode: string | null;
   checklist: SosResponderChecklist;
 }
 
@@ -1059,7 +1062,8 @@ export interface MapWardsV6 {
 /** GET /map/wards/:wardId, v6 additions (M2, M6). Ward level only. */
 export interface MapWardDetailV6 {
   dogNames?: string[];
-  notLoggedToday?: { slug: string; name: string | null; lastLoggedAt: string | null }[];
+  /** Names and times only: no slugs on this public, cached read. */
+  notLoggedToday?: { name: string | null; lastLoggedAt: string | null }[];
 }
 
 /** v6 fields on each row of the ward detail's `sos` list (MapSos in app/map). */

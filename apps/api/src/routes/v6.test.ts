@@ -457,6 +457,8 @@ describe("SOS v6: resolve outcomes, release, arrived, close-by", () => {
     expect(res.statusCode).toBe(403);
     expect(res.json().data).toEqual({
       forbiddenReason: "not_enough_trust",
+      wardId: "A",
+      wardCode: "A",
       checklist: { sosOptIn: true, paused: false, inMyWards: null, trustScore: 33, trustFloor: 60, feedsToGo: 27 },
     });
     expect(res.body).not.toContain(dog.slug);

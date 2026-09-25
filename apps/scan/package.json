@@ -18,7 +18,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@hetja/pow": "workspace:^",
-    "web-vitals": "^6.1.0"
+    "@hetja/pow": "workspace:^"
   }
 }

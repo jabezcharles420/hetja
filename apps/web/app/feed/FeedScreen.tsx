@@ -158,13 +158,14 @@ export function logLabel(tell: boolean, names: string | null): string {
 /** localStorage: feeds this phone has logged, for V23 after the FIRST one. */
 export const FEEDS_LOGGED_KEY = "hetja.feedsLogged";
 
-function countFeed(): number {
+/** Count logged feeds on this phone; true when these are the FIRST (V23). Never throws. */
+export function countFeeds(n = 1): boolean {
   try {
-    const n = (Number(localStorage.getItem(FEEDS_LOGGED_KEY)) || 0) + 1;
-    localStorage.setItem(FEEDS_LOGGED_KEY, String(n));
-    return n;
+    const before = Number(localStorage.getItem(FEEDS_LOGGED_KEY)) || 0;
+    localStorage.setItem(FEEDS_LOGGED_KEY, String(before + n));
+    return before === 0;
   } catch {
-    return 0;
+    return false;
   }
 }
 
@@ -382,7 +383,7 @@ export default function FeedScreen(): React.JSX.Element {
       if (res.result) {
         // Delivered while the feeder watched: V10. The first feed on this
         // phone is where V23 (add to home screen) belongs.
-        setFed({ streak: res.result.streak?.streakDays ?? streakDays, note: quiet, first: countFeed() === 1 });
+        setFed({ streak: res.result.streak?.streakDays ?? streakDays, note: quiet, first: countFeeds() });
         return;
       }
       setToast(
@@ -458,13 +459,12 @@ export default function FeedScreen(): React.JSX.Element {
   if (fed && load.kind === "ready") {
     const d = load.dog as DogProfileV5;
     return (
-      <div data-first-feed={fed.first ? "true" : undefined}>
-        <FeedDone
-          dogs={[{ slug: d.slug, name: dogName(d.name), photoUrl: d.photoUrl ?? null, sex: d.sex ?? null }]}
-          streakDays={fed.streak}
-          note={fed.note}
-        />
-      </div>
+      <FeedDone
+        dogs={[{ slug: d.slug, name: dogName(d.name), photoUrl: d.photoUrl ?? null, sex: d.sex ?? null }]}
+        streakDays={fed.streak}
+        note={fed.note}
+        firstFeed={fed.first}
+      />
     );
   }
 

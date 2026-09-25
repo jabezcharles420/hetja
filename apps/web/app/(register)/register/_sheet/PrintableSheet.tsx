@@ -16,7 +16,15 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import CollarSheet from "@/components/CollarSheet";
 import { BATCH_MAX_DOGS, PAPER_MM, sheetText, type Paper, type SheetDog, type SheetLayout } from "@/lib/collar-sheet";
-import { loadCollar, loadWards, printerName, recordPrints, resolveReprinted, toSheetDog } from "@/lib/collar-print";
+import {
+  loadCollar,
+  loadSexes,
+  loadWards,
+  printerName,
+  recordPrints,
+  resolveReprinted,
+  toSheetDog,
+} from "@/lib/collar-print";
 import RequireCapability from "@/components/RequireCapability";
 import styles from "./sheet.module.css";
 
@@ -51,11 +59,13 @@ function SheetInner({ slug, backHref }: { slug?: string; backHref: string }): Re
         const [wards, me] = await Promise.all([loadWards(), api.getFeederMe().catch(() => null)]);
         let list: SheetDog[];
         if (slug) {
-          list = [toSheetDog(await loadCollar(slug), wards)];
+          const [collar, sexes] = await Promise.all([loadCollar(slug), loadSexes([slug])]);
+          list = [toSheetDog(collar, wards, sexes[slug])];
         } else {
           if (q.slugs.length === 0) throw new Error("Pick the dogs on the batch screen first.");
           const res = await api.getCollarBatch(q.slugs);
-          list = res.dogs.map((d) => toSheetDog(d, wards));
+          const sexes = await loadSexes(res.dogs.map((d) => d.slug));
+          list = res.dogs.map((d) => toSheetDog(d, wards, sexes[d.slug]));
         }
         if (cancelled) return;
         setPrintedBy(printerName(me));

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, DogAvatar, Label } from "@/components/ds";
 import type { Me, WardDetail } from "@/app/map/api";
+import type { DogSex } from "@/lib/api";
 import type { AckMessage } from "@/lib/sos-ack";
 import {
   ackBody,
@@ -35,6 +36,7 @@ import {
   telHref,
   wardDogsLine,
   wardLead,
+  type CitySos,
   type CitySummary,
   type MapPlace,
   type MapWard,
@@ -60,7 +62,8 @@ export type FootState =
       kind: "acked";
       caseId?: string | null;
       dogName?: string | null;
-      dogSex?: "female" | "male" | null;
+      /** From GET /sos/cases/:id, for "her" / "his". */
+      dogSex?: DogSex | null;
       location?: { lat: number; lng: number } | null;
       distanceM?: number | null;
     }
@@ -136,6 +139,7 @@ function Back({ onBack, label = "All of Mumbai" }: { onBack: () => void; label?:
 export function CityView({
   wards,
   summary,
+  sos,
   error,
   staleAt,
   peek,
@@ -144,6 +148,8 @@ export function CityView({
 }: {
   wards: MapWard[] | null;
   summary?: CitySummary | null;
+  /** v6 city SOS rows (no case ids: a row opens its ward). */
+  sos?: CitySos[] | null;
   error: boolean;
   /** When the counts on the map are the cached ones (M7), their time. */
   staleAt?: number | null;
@@ -162,7 +168,8 @@ export function CityView({
   if (!wards || staleAt) {
     return (
       <>
-        <div className={styles.body} aria-live="polite">
+        {/* M7: the retry and the stale line never hide in the peek. */}
+        <div className={`${styles.body} ${error || staleAt ? styles.noPeek : ""}`} aria-live="polite">
           {error || staleAt ? (
             <>
               <h1 className={styles.h1}>The map is here. The numbers are not.</h1>
@@ -187,9 +194,9 @@ export function CityView({
     );
   }
 
-  const words = cityWords(wards, summary);
+  const words = cityWords(wards, summary, Date.now(), sos);
   const stats = cityStats(wards, summary);
-  const sosRows = citySosRows(wards, summary);
+  const sosRows = citySosRows(wards, sos);
   const quiet = hungriest(wards);
   // In peek only the headline shows; the rest is clipped, so keep it out of
   // the tab order and the accessibility tree until the sheet is opened.
@@ -431,7 +438,7 @@ function WardFoot({
   const cases = detail?.sos ?? [];
   // Open cases with nobody on them yet; a ward whose cases are all taken
   // needs feeders, not another volunteer.
-  const open = cases.filter((s) => s.state !== "acked" || s.mine);
+  const open = cases.filter((s) => !(s.taken ?? s.state === "acked") || s.mine);
   const needsSomeone = ward.sosOpen > 0 && (detail ? open.length > 0 : true);
   const busy = foot.kind === "busy";
 
@@ -557,11 +564,12 @@ export function WardView({
   const w = detail ?? ward;
   const cases = detail?.sos ?? [];
   const nearby = detail?.nearby ?? [];
-  const notLogged = detail?.notLogged ?? [];
+  const notLogged = detail?.notLoggedToday ?? [];
   const named = notLogged.filter((d) => d.name?.trim());
-  const dogsLine = wardDogsLine(w.dogNames ?? ward.dogNames, w.dogs, w.notFedToday);
+  const dogNames = detail?.dogNames ?? [];
+  const dogsLine = wardDogsLine(dogNames, w.dogs, w.notFedToday);
   const m6 = cases.length === 0 && w.sosOpen === 0 && named.length > 0;
-  const firstCase = cases.find((s) => s.state !== "acked") ?? cases[0] ?? null;
+  const firstCase = cases.find((s) => !(s.taken ?? s.state === "acked")) ?? cases[0] ?? null;
 
   return (
     <>
@@ -591,7 +599,7 @@ export function WardView({
         ) : dogsLine ? (
           <div className={styles.dogsLine}>
             <span className={styles.stack} aria-hidden="true">
-              {(w.dogNames ?? ward.dogNames ?? []).slice(0, 3).map((n) => (
+              {dogNames.slice(0, 3).map((n) => (
                 <DogAvatar key={n} id={`${w.id}:${n}`} name={n} size={36} className={styles.stackAv} />
               ))}
             </span>

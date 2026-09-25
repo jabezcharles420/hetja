@@ -61,6 +61,7 @@ vi.mock("@/lib/api", async () => {
       getMyDogsV5: vi.fn(),
       getDogTags: vi.fn(),
       resolveTagReport: vi.fn(),
+      getDog: vi.fn(),
     },
   };
 });
@@ -87,7 +88,8 @@ const apiMock = api as unknown as Record<
   | "recordPrint"
   | "getMyDogsV5"
   | "getDogTags"
-  | "resolveTagReport",
+  | "resolveTagReport"
+  | "getDog",
   ReturnType<typeof vi.fn>
 >;
 
@@ -112,6 +114,8 @@ beforeEach(() => {
   apiMock.recordPrint.mockResolvedValue({ id: "p1" });
   apiMock.getDogTags.mockResolvedValue({ open: [], history: [], reportsThisWeek: 0, sturdierCollarSuggested: false });
   apiMock.resolveTagReport.mockResolvedValue({ id: "x", resolution: "reprinted" });
+  apiMock.getMyDogsV5.mockResolvedValue({ dogs: [] });
+  apiMock.getDog.mockRejectedValue(new ApiError("not found", { status: 404, code: "DOG_NOT_FOUND" }));
   apiMock.getWardDogs.mockResolvedValue({
     wardId: "K-West",
     total: 1,

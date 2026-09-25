@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button, DogAvatar, StatusIcon, StickyFooter } from "@/components/ds";
+import { AddToHomeScreenAfterFeed } from "@/components/AddToHomeScreen";
 import { pronouns, type DogSex } from "@/lib/care-copy";
 import styles from "./feed.module.css";
 
@@ -55,9 +56,12 @@ export function FeedDone({
   dogs,
   streakDays,
   note,
+  firstFeed = false,
 }: {
   dogs: FedDog[];
   streakDays: number | null;
+  /** The first feed logged on this phone: V23 offers the home screen (once per browser). */
+  firstFeed?: boolean;
   /** A quiet second line (photo not kept, a feed in the round refused). */
   note?: string | null;
 }): React.JSX.Element {
@@ -100,6 +104,7 @@ export function FeedDone({
           Done for now
         </Link>
       </StickyFooter>
+      {firstFeed && <AddToHomeScreenAfterFeed dogName={first?.name ?? null} />}
     </div>
   );
 }

@@ -253,7 +253,8 @@ describe("GET /api/v1/map/wards/:wardId", () => {
     const mine = data.sos.filter((s: any) => Date.now() - new Date(s.raisedAt).getTime() < 26 * 60_000);
     expect(mine.map((s: any) => s.severity)).toEqual(["critical", "serious"]);
     for (const s of data.sos) {
-      expect(Object.keys(s).sort()).toEqual(["caseId", "feedersTold", "mine", "raisedAt", "severity", "state"]);
+      // v6 adds the dog's name and whether someone took it (M2).
+      expect(Object.keys(s).sort()).toEqual(["caseId", "dogName", "feedersTold", "mine", "raisedAt", "severity", "state", "taken"]);
       expect(s.caseId).toBeNull();
     }
     expect(data.viewer).toBeNull();

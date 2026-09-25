@@ -51,6 +51,11 @@ export function icon(name: IconName, size = 16, stroke = 2.2): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${inner}</svg>`;
 }
 
+/** The white "!" disc of the red button (index.html draws the same one). */
+export function sosIcon(size = 22): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="11" fill="#fff"/><path d="M11 5.8v6.4" stroke="#d70015" stroke-width="2.8" stroke-linecap="round"/><circle cx="11" cy="16" r="1.6" fill="#d70015"/></svg>`;
+}
+
 export type Tone = "ok" | "warn" | "neutral" | "danger";
 
 /** StatusPill. `small` is the 32px size screen 05 uses. */
@@ -345,7 +350,7 @@ export function deskMarkup(p: DogProfile, url: string): string {
       )}</p></div>
       <div class="dk-s"><p>${escapeHtml(
         `${pr.subj === "they" ? "Are" : "Is"} ${pr.subj} hurt right now? You can still raise an SOS from here.`,
-      )}</p><button type="button" class="btn sos dk-b" id="dk-sos">${icon("alert", 20)}${escapeHtml(`${p.name} needs help`)}</button></div>
+      )}</p><button type="button" class="btn sos dk-b" id="dk-sos">${sosIcon(20)}${escapeHtml(`${p.name} needs help`)}</button></div>
     </div>
   </div>`;
 }

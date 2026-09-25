@@ -50,6 +50,9 @@ vi.mock("@/lib/offline-queue", async () => {
   };
 });
 
+const { offerSpy } = vi.hoisted(() => ({ offerSpy: vi.fn(() => null) }));
+vi.mock("@/components/AddToHomeScreen", () => ({ AddToHomeScreenAfterFeed: offerSpy }));
+
 vi.mock("@/lib/care-cache", async () => {
   const actual = await vi.importActual<typeof import("@/lib/care-cache")>("@/lib/care-cache");
   return {
@@ -127,7 +130,7 @@ describe("V10 has eaten", () => {
     expect(screen.getByRole("link", { name: "Scan the next dog" })).not.toBeNull();
     // The first feed on this phone is marked for V23.
     expect(localStorage.getItem(FEEDS_LOGGED_KEY)).toBe("1");
-    expect(document.querySelector("[data-first-feed='true']")).not.toBeNull();
+    expect((offerSpy.mock.calls[0] as unknown[])[0]).toMatchObject({ dogName: "Rani" });
   });
 
   it("words", () => {

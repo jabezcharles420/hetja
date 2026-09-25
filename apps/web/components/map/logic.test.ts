@@ -305,9 +305,9 @@ describe("design v6 words", () => {
   it("city SOS rows lead with the dog and fall back to the ward", () => {
     const w = [ward({ id: "K-West", code: "K/W", name: "Andheri West", sosOpen: 1, latestSos: { severity: "critical", raisedAt: ago(5) } })];
     expect(citySosRows(w, null)[0]!.title).toBe("K/W ward · Andheri West");
-    const rows = citySosRows(w, {
-      sos: [{ caseId: "c", wardId: "K-West", dogName: "Rani", severity: "critical", raisedAt: ago(13), taken: true }],
-    });
+    const rows = citySosRows(w, [
+      { wardId: "K-West", wardCode: "K/W", dogName: "Rani", severity: "critical", raisedAt: ago(13), taken: true },
+    ]);
     expect(rows[0]).toMatchObject({ title: "Rani · Andheri West", taken: true, initial: "R" });
   });
 
@@ -319,9 +319,10 @@ describe("design v6 words", () => {
     const s = { caseId: "c", severity: "critical" as const, raisedAt: ago(13), state: "open" as const, feedersTold: true, mine: false };
     expect(sosCardTitle({ ...s, dogName: "Rani" })).toBe("Rani can't get up");
     expect(sosCardTitle({ ...s, severity: "serious", dogName: null })).toBe("A dog is hurt");
-    expect(sosCardSub({ ...s, dogSex: "female", feedersToldCount: 2 }, NOW)).toBe("13 min · her 2 feeders told · nobody yet");
-    expect(sosCardSub({ ...s, feedersToldCount: 1 }, NOW)).toBe("13 min · 1 feeder told · nobody yet");
+    expect(sosCardSub(s, NOW)).toBe("13 min · feeders told · nobody yet");
     expect(sosCardSub({ ...s, feedersTold: false, state: "acked" }, NOW)).toBe("13 min · someone is going");
+    // v6 `taken` wins over the state when the API sends it.
+    expect(sosCardSub({ ...s, taken: true }, NOW)).toBe("13 min · feeders told · someone is going");
   });
 
   it("M6 lead and last logged", () => {
@@ -355,12 +356,12 @@ describe("design v6 words", () => {
   it("M7 cache round trip, clock and a storage that throws", () => {
     const mem = new Map<string, string>();
     const st = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
-    writeWardsCache(st, [ward({})], { withCollars: 10 }, NOW);
+    writeWardsCache(st, [ward({})], { withCollars: 10 }, [], NOW);
     expect(mem.has(WARDS_CACHE_KEY)).toBe(true);
-    expect(readWardsCache(st)).toEqual({ at: NOW, wards: [ward({})], summary: { withCollars: 10 } });
+    expect(readWardsCache(st)).toEqual({ at: NOW, wards: [ward({})], summary: { withCollars: 10 }, sos: [] });
     const broken = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
     expect(readWardsCache(broken)).toBeNull();
-    expect(() => writeWardsCache(broken, [], null)).not.toThrow();
+    expect(() => writeWardsCache(broken, [], null, null)).not.toThrow();
     expect(clockIST(Date.parse("2026-09-25T10:10:00Z"))).toBe("3:40 pm");
   });
 });

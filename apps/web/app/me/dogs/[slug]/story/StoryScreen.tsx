@@ -162,9 +162,9 @@ export default function StoryScreen({ slug }: { slug: string }): React.JSX.Eleme
       <div className={`${care.body} ${styles.body}`}>
         <h1 className={styles.title}>{name}&rsquo;s story</h1>
         <p className={styles.lead}>{storyLead(p)}</p>
-        <label className={styles.editor}>
-          <span className="h-sr-only">{name}&rsquo;s story</span>
+        <div className={styles.editor}>
           <textarea
+            aria-label={`${name}’s story`}
             ref={area}
             className={styles.area}
             value={text}
@@ -175,7 +175,7 @@ export default function StoryScreen({ slug }: { slug: string }): React.JSX.Eleme
           <span className={styles.count} aria-live="polite">
             {text.length} / {STORY_MAX}
           </span>
-        </label>
+        </div>
         <div className={styles.prompts}>
           <span className={styles.promptLabel} id="story-prompts">
             Stuck? Try

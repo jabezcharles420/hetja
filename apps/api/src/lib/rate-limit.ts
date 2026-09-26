@@ -429,3 +429,73 @@ export const doglessReportPerIp = new RateLimiter({ refillPerSec: 6 / 86_400, bu
  * 2, then 4 a day, however many feeders file it. Keyed `dog:<id>`.
  */
 export const unwellPushPerDog = new RateLimiter({ refillPerSec: 4 / 86_400, burst: 2 });
+
+// ---------------------------------------------------------------------------
+// Design v7 (2026-09-26): portals. Every limiter below is per ACCOUNT except
+// the three anonymous-path pairs (health and ward-professional reads, and
+// "Report a problem"), which follow the v5 pattern: a device when the request
+// carries a valid x-device-token, else the address (ipBucketKey), each paired
+// with a subject or global bucket. They are recorded in docs/INVARIANTS.md #6
+// as that entry requires. None gates an SOS, a scan or sign-in.
+// ---------------------------------------------------------------------------
+
+/** Admin writes (verify, merge, suspend, publish, ...), per account: burst 60, then one every 5 s. */
+export const adminWritePerAccount = new RateLimiter({ refillPerSec: 1 / 5, burst: 60 });
+
+/** Admin search (the ⌘K box), per account: burst 30, then one a second. */
+export const adminSearchPerAccount = new RateLimiter({ refillPerSec: 1, burst: 30 });
+
+/** Avatar files (A3 bulk upload), per account: burst 100, then 600 a day. */
+export const avatarUploadPerAccount = new RateLimiter({ refillPerSec: 600 / 86_400, burst: 100 });
+
+/** Document opens by an admin (A2, A7), per account: burst 30, then 200 a day. Every open is audited too. */
+export const documentViewPerAccount = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 30 });
+
+/** Document uploads (V1, N1), per account: burst 6, then 12 a day. */
+export const documentUploadPerAccount = new RateLimiter({ refillPerSec: 12 / 86_400, burst: 6 });
+
+/** Vet applications and NGO registrations, per account: burst 3, then 5 a day. */
+export const applyPerAccount = new RateLimiter({ refillPerSec: 5 / 86_400, burst: 3 });
+
+/** Passkey registration, per account: burst 5, then 10 a day. */
+export const passkeyPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+
+/** Vet signing (options and records, V3/V5, drives), per account: burst 40, then 200 a day. */
+export const vetSignPerAccount = new RateLimiter({ refillPerSec: 200 / 86_400, burst: 40 });
+
+/** "Ask a vet to sign" (V4), per account: burst 5, then 10 a day. Also per dog, below. */
+export const signRequestPerAccount = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+export const signRequestPerDog = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+
+/** NGO writes (dispatch, team, beds, drives), per account: burst 30, then one a minute. */
+export const ngoWritePerAccount = new RateLimiter({ refillPerSec: 1 / 60, burst: 30 });
+
+/** Invitations (vets, team, NGO members), per account: burst 10, then 30 a day. */
+export const invitePerAccount = new RateLimiter({ refillPerSec: 30 / 86_400, burst: 10 });
+
+/** Invitation emails, whole system: 50 a day, burst 10. They share the Brevo quota with sign-in codes. */
+export const inviteMailGlobal = new RateLimiter({ refillPerSec: 50 / 86_400, burst: 10 }, 1);
+
+/** GET /dogs/:slug/health, per device or IP: burst 30, then one every 2 s; 20000 a day in all. */
+export const healthReadPerSubject = new RateLimiter({ refillPerSec: 1 / 2, burst: 30 });
+export const healthReadGlobal = new RateLimiter({ refillPerSec: 20_000 / 86_400, burst: 500 }, 1);
+
+/** GET /wards/:wardId/professionals and /dogs/:slug/vets, per device or IP: burst 30, then one every 2 s. */
+export const professionalsReadPerSubject = new RateLimiter({ refillPerSec: 1 / 2, burst: 30 });
+
+/** "Report a problem": per account or device burst 5 then 10 a day; per IP burst 10 then 20 an hour; per dog burst 10 then 20 a day. */
+export const problemReportPerSubject = new RateLimiter({ refillPerSec: 10 / 86_400, burst: 5 });
+export const problemReportPerIp = new RateLimiter({ refillPerSec: 20 / 3600, burst: 10 });
+export const problemReportPerDog = new RateLimiter({ refillPerSec: 20 / 86_400, burst: 10 });
+
+/** Vet dog search (V2 "Or search by name or ID"), per account: burst 30, then one every 2 s. */
+export const vetSearchPerAccount = new RateLimiter({ refillPerSec: 1 / 2, burst: 30 });
+
+/** Every v7 limiter, for tests to reset. */
+export const V7_LIMITERS: readonly RateLimiter[] = [
+  adminWritePerAccount, adminSearchPerAccount, avatarUploadPerAccount, documentViewPerAccount,
+  documentUploadPerAccount, applyPerAccount, passkeyPerAccount, vetSignPerAccount, signRequestPerAccount,
+  signRequestPerDog, ngoWritePerAccount, invitePerAccount, inviteMailGlobal, healthReadPerSubject,
+  healthReadGlobal, professionalsReadPerSubject, problemReportPerSubject, problemReportPerIp, problemReportPerDog,
+  vetSearchPerAccount,
+];

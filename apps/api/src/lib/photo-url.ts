@@ -24,5 +24,14 @@ export function photoUrlFor(req: FastifyRequest, photoKey: string | null | undef
  */
 export const PORTRAIT_SQL = `(SELECT p.photo_s3_key FROM scans p
     WHERE p.dog_id = d.id AND p.photo_s3_key IS NOT NULL AND p.scan_type <> 'sos'
-      AND p.review_status <> 'rejected'
+      AND p.review_status <> 'rejected' AND p.photo_hidden_at IS NULL
     ORDER BY p.received_at DESC LIMIT 1)`;
+
+/**
+ * Design v7 (A3, A4): the dog's PUBLISHED avatar, as a correlated subquery on
+ * `d.id`. For map pins, lists and share cards; the real photo (PORTRAIT_SQL)
+ * stays the dog page's record of truth. A moderator hiding a photo (D13,
+ * scans.photo_hidden_at) takes it off every surface PORTRAIT_SQL feeds.
+ */
+export const AVATAR_SQL = `(SELECT a.image_key FROM dog_avatars a
+    WHERE a.dog_id = d.id AND a.status = 'published' LIMIT 1)`;

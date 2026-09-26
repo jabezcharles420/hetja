@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { deviceBlockedBody, isDeviceBlocked, isSuspended, suspendedBody } from "../lib/moderation-state.js";
 import { ScanInput, isInMumbai } from "@hetja/contracts";
 import { query, withTx } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
@@ -240,6 +241,9 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
           .status(401)
           .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
       }
+      // Design v7 (D13): a suspended account logs no feeds (403 is final for
+      // the offline queue, which is what a suspension means).
+      if (await isSuspended(feederId)) return reply.status(403).send(suspendedBody);
       scanCallers.set(req, { feederId, deviceSubject: null });
       return;
     }
@@ -251,6 +255,7 @@ export default async function scanRoutes(app: FastifyInstance): Promise<void> {
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
     }
+    if (await isDeviceBlocked(deviceSubject)) return reply.status(403).send(deviceBlockedBody);
     scanCallers.set(req, { feederId: null, deviceSubject });
   };
 

@@ -1,7 +1,7 @@
 # Owner to-do (decisions and account access)
 
-Things the overnight work of 2026-09-24/25 (and the design v5 and v6 build
-that followed) could not do without you: they need your accounts, money, or a
+Things the overnight work of 2026-09-24/25 (and the design v5, v6 and v7
+builds that followed) could not do without you: they need your accounts, money, or a
 policy decision. Everything that could be done
 safely without you is already built, tested and deployed (see
 [WORK-REPORT.md](WORK-REPORT.md) and [BUGS.md](BUGS.md)).
@@ -29,7 +29,7 @@ Ordered by how much they matter.
    includes (the free plan has no point-in-time recovery). `/srv/hetja/photos`
    is not backed up (photos expire after 7 days anyway).
 
-## Before design v5 and v6 go live
+## Before launch (design v5 and v6)
 
 6. **Have a practising vet read the first-aid lines.** The reporter's "While
    you wait" card (N10, `apps/scan/src/firstaid.ts`) now ships by your
@@ -50,13 +50,47 @@ Ordered by how much they matter.
    was designed and deliberately not built: no Language row ships in Settings
    until human translations exist. Machine translation of SOS and first-aid
    copy is not an option. Sheets already print Devanagari dog names.
-10. **Confirm vet and NGO numbers before launch, or decide otherwise.** Since
-    v6 the collar page's SOS screens show **confirmed numbers only**
-    (`phone_verified_at` set); unconfirmed ones are hidden there (the map
-    and the web app's SOS with no dog still show them, marked unconfirmed). Until the first monthly CSV of
-    confirmed details is applied (see Monthly, below), a stranger's SOS
-    screen may list nobody to call. Either apply that file before launch or
-    ask for the collar page to show unconfirmed numbers, labelled, again.
+10. **Confirm vet and NGO numbers.** Every number is shown, confirmed ones
+    first, but until the first monthly CSV of confirmed details is applied
+    (see Monthly, below), each one says "Number not confirmed yet" on a
+    stranger's SOS screen.
+
+## Before the v7 portals go live
+
+11. **Add `admin.hetja.in` to the Cloudflare tunnel.** Zero Trust, then
+    Networks, then Tunnels, then the hetja tunnel, then Public Hostname: add
+    `admin.hetja.in` with service `http://localhost:80` (the same origin as
+    `hetja.in`; Caddy tells them apart by host and sends the bare host to
+    `/admin`). Until it exists the portal also works at `hetja.in/admin`.
+12. **Add the two new GitHub secrets.** `HETJA_OWNER_EMAILS`: your sign-in
+    address (comma-separated if there is more than one Owner). It is turned
+    into an identity HMAC when the API boots; it is never written to the
+    database or a log, and never committed (like every secret, it sits in
+    `api.env` on the box). `HETJA_DOCS_KEY`: `openssl rand -base64 32`. Both are optional
+    to the deploy: without the first nobody is Owner by configuration, and
+    without the second vet and NGO applications cannot upload documents
+    (503) while everything else runs.
+13. **Keep `HETJA_DOCS_KEY` in your password manager as well.** It encrypts
+    the certificates and photo IDs vets and NGOs upload. Losing it is not a
+    disaster (documents are deleted 30 days after each decision anyway): it
+    only makes the documents still awaiting review unreadable, and those
+    applicants would have to upload again. Unlike `HETJA_QR_SECRET`, it can be
+    replaced; do not rotate it while applications are waiting.
+14. **Sign in once with the Owner address.** Sign in at `admin.hetja.in` (or
+    `hetja.in/login`) with the address in `HETJA_OWNER_EMAILS`, so the account
+    exists. The Owner role is granted to the account whose identity matches;
+    from then on add the rest of the team in Team and roles (A6).
+15. **Upload the government vets and NGOs.** Put them in the monthly care CSV
+    with the new v7 columns (`is_person`, `is_government`, `reg_no`,
+    `wards`; see [VET-DATA-INTAKE.md](VET-DATA-INTAKE.md)) and run the "Care
+    directory import" workflow, dry run first. A government vet or hospital
+    must be `cost_tier` `free`: Hetja labels it "Government vet · free" or
+    "Government hospital · free" everywhere, and the import refuses anything
+    else. Once a government vet has a verified Hetja account, link the two in
+    the admin portal (A2, "link to directory").
+16. **The first-aid lines still need a vet's review** (item 6). v7 adds vets
+    who can sign records on Hetja; one of the first could read the three
+    "While you wait" lines.
 
 ## Cloudflare dashboard (free plan)
 
@@ -101,7 +135,7 @@ Ordered by how much they matter.
 | D10 | OTP: per-address daily cap, device token required to send | 10/day; device token after the client update |
 | D11 | Global device-token mint bucket | Raise to about 1000/day now that the per-IP limit exists |
 | D12 | Supabase: revoke `anon` on the three dog RPCs | Revoke (the web app does not use them) |
-| D13 | Moderation tooling (suspend account, block device, take down photo) | Build next |
+| D13 | Moderation tooling (suspend account, block device, take down photo) | **Built (v7 admin portal):** Feeders has suspend and block device, Dogs and Reports take down a photo; every action is in the audit log |
 | D14 | Feed-trust daily cap (shipped at 8) | Confirm or change `FEED_TRUST_DAILY_CAP` |
 | D15 | Image moderation | Only signed-in or reviewed photos become the public portrait |
 | D16 | Thumbnails / object storage | 480 px client thumbnails; R2 later |

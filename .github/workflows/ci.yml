@@ -129,6 +129,8 @@ jobs:
           # INVARIANT 9: medical_records stays append-only for the app role.
           # Re-applied after the blanket GRANT, which would hand DELETE back.
           psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
+          # Design v7: audit_log is append-only too (migration 0029); re-applied after any GRANT ALL.
+          psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM app_user;"
 
       - name: EXPLAIN gate (INVARIANT 12)
         run: bash ops/check-queries.sh

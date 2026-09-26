@@ -28,8 +28,9 @@ Everything else in the repository exists to make those two screens true.
 
 ## 2. The people involved
 
-Hetja has four kinds of user, and they do not share an interface. That
-separation is deliberate; see §4.
+Hetja has four kinds of user on the street, and they do not share an
+interface. That separation is deliberate; see §4. Design v7 added three
+professional ones, each with its own portal (§3.11 to §3.14).
 
 **The stranger.** Someone who happens to find a dog. They are the only user who
 matters at the moment of an emergency, they will never install anything, they
@@ -50,6 +51,22 @@ is told to stand down so five people don't drive to the same dog.
 **The tagger.** NGO or municipal staff who physically put collars on dogs and
 enrol them into the system. This is a small number of trained people doing
 bulk data entry, which is a completely different job from everything above.
+
+**The vet** (v7). A feeder account whose vet application an admin verified.
+A vet keeps every feeder action and adds the Vet tab: SOS cases in their
+wards, requests to sign a feeder's note, and signing vaccination,
+sterilisation and treatment records with a passkey, so the record is
+verifiable. A vet's professional phone number is public, like a clinic's.
+
+**The NGO member** (v7). A member of an NGO that Hetja approved: a
+coordinator (who invites, vouches for the NGO's vets and dispatches), rescue,
+collars or volunteer. The NGO covering a ward gets that ward's SOS cases after
+the dog's own feeders, and runs collar and vaccination drives.
+
+**The Hetja team** (v7). The few people with an admin role (Owner, Moderator,
+Avatar editor, Ward lead) who verify vets and NGOs, merge duplicate dogs,
+publish avatars, handle reports and SOS, on a laptop at `admin.hetja.in`.
+Everything they do is written to an audit log nobody can edit.
 
 ---
 
@@ -223,14 +240,13 @@ unless the coordinate is real, and the API states which contract applies via
 
 Phone numbers carry the same honesty rule. `phone_verified_at` is surfaced to
 the client, not collapsed into a boolean, so a number nobody has ever called is
-never presented as fact. The web app's map and its SOS with no dog show such
-a number *as unconfirmed*. **The collar page, since
-v6 (V19), goes further and hides it**: its "Can't wait? Call" rows, and the
-numbers it saves for a no-signal SOS, are confirmed numbers only, and a place
-that is closed keeps its row but loses its Call button. That makes the
-monthly confirmation of the list (`import-care.ts`, VET-DATA-INTAKE.md) a
-precondition for the collar page offering anyone to call at all: with no
-confirmed number near the dog, the reporter sees no Call rows. About thirty of
+never presented as fact, and never hidden either: it is shown *as
+unconfirmed*. The collar page's "Can't wait? Call" rows (V19) list confirmed
+numbers first and keep an unconfirmed one with its Call button and a grey
+"Number not confirmed yet"; only a place known to be closed right now loses
+its Call button. (For a few days before deploy the collar page hid
+unconfirmed numbers, which with nothing confirmed yet would have left a
+reporter nobody to call; the pre-deploy review reverted it.) About thirty of
 the seeded NGO numbers are still `NULL` here. Someone has to pick up a phone
 and call them; there is no way to shortcut that.
 
@@ -253,7 +269,9 @@ so they are not counted as told; see §9). A `serious` report ("Hurt, but
 moving", "Something else") notifies the dog's own feeders at report time,
 whatever their trust score, and escalates after eight minutes unless someone
 has taken it. Taking a case still needs the trust floor. The reporter's
-screen always leads with numbers to call.
+screen always leads with numbers to call. Since design v7 every report also
+goes to the NGO covering the ward and, if nobody takes it within 15 minutes,
+to the ward's verified vets (§3.12).
 
 `POST /api/v1/sos/cases/:id/ack` (**I'm going**) claims a case. It is a
 conditional update (`WHERE acked_by IS NULL AND resolved_at IS NULL`), so the
@@ -520,12 +538,14 @@ A registration proves one person stood next to a dog once. The page says
 - **A second feeder** (`POST /dogs/:slug/confirm`): a signed-in feeder of the
   dog who is not its registrator, not on the registering phone, and has fed
   it recently. My dogs lists the unverified dogs a feeder could confirm.
-- **A vet** (`/vet/<code>`, N3, `POST /dogs/:slug/checkups`, vet accounts in
-  the contracted-vets registry only): rabies given today, up to date or due;
-  sterilised; next vaccine due month; a note for feeders; and "I examined this
-  dog". Nothing is preselected. It is written through the one ledger writer,
-  so it is append-only and hash-chained (INVARIANTs 8 and 9), and it is what
-  turns the page's Vaccinated and Sterilised pills on.
+- **A vet.** Since v7, any verified vet's passkey-signed record (§3.11)
+  verifies the dog. v5's checkup record for contracted vets (N3, `POST
+  /dogs/:slug/checkups`: rabies, sterilised, next vaccine due, a note, "I
+  examined this dog") is still in the API, but its screen is gone: `/vet/<code>`
+  now redirects to the v7 vet view of the dog. Either way the record goes
+  through the one ledger writer, so it is append-only and hash-chained
+  (INVARIANTs 8 and 9), and it is what turns the page's Vaccinated and
+  Sterilised pills on.
 
 ### 3.9 Not seen, adopted, passed away
 
@@ -570,6 +590,226 @@ feed logs stay, because other people's care depends on them.
   changed by it. Turning alerts on asks for notification permission with
   Hetja's own explanation first (N13).
 
+### 3.11 Vets: verification and signing with a passkey (design v7)
+
+Until v7 a dog's health came from two sources: a registrator's self-report,
+which no public route reads (§3.5), and a contracted clinic's checkup
+(§3.8). v7 lets any registered vet sign records, and makes the difference
+between "a vet signed this" and "a feeder wrote this down" visible
+everywhere.
+
+**Becoming a vet** (V1, `/vet/apply`, `POST /api/v1/vet/apply`). A signed-in
+feeder applies with their Maharashtra State Veterinary Council registration
+number, qualification, clinic, the wards they cover, whether and when they
+take SOS calls, and a public phone number, and uploads their registration
+certificate and a photo ID (§3.15). An admin reviews it in A2: there is no
+public API for the MSVC register, so the checklist item "Checked on the MSVC
+register" links to the council's public register and the admin ticks it (and
+can note the validity month) or marks the vet not found. Verify, Ask for
+more, or Decline, each with a reason the vet is sent. A vet invited by an
+admin, or vouched for by their NGO (§3.12), arrives already marked. The
+status is `invited`, `waiting`, `more_info`, `verified`, `suspended`,
+`declined` or `removed` (`vet_profiles`), and Me shows "Sign records as a
+vet" with that status until it is decided. A verified vet gets the Vet tab.
+
+**What a vet can do.** Everything a feeder can, plus the Vet tab (V2): SOS
+cases in their wards, feeders' requests to sign a record, and the dogs due a
+vaccine soon. A vet's view of a dog (V2b) shows its health list and "Sign a
+record". A verified vet's professional number is public by the owner's
+decision (INVARIANT 3 is rescoped to feeders and reporters): it appears
+where care providers do, on the SOS answer, the map and the dog page.
+
+**Signing** (V3). A vet signs with a **passkey** (WebAuthn): Face ID, a
+fingerprint or the phone's screen lock, whichever the phone offers ("Sign
+with Face ID" on an iPhone, "Sign with your screen lock" elsewhere). The
+first time, the vet sets one up (`/vet/passkey`, `POST
+/api/v1/vet/passkeys`; attestation `none`, user verification required, bound
+to `hetja.in`). To sign, the API computes the record's hash,
+`sha256(canonicalJSON({ v: 1, signer, record }))`, and makes **that hash the
+passkey challenge** (`POST /vet/records/options`); the phone signs it and
+`POST /vet/records` verifies the assertion and appends the record through
+the one chain writer. The record hash, the signing vet and the credential id
+are inside the chained payload, so none of them can change without breaking
+the ledger chain (INVARIANTs 8 and 9); the assertion is stored beside them
+and can be re-verified against the hash with the credential's public key.
+Challenges are single use and expire in five minutes; a changed draft or a
+reused challenge is refused. The mock's "Sign with Face ID" is, on the web,
+exactly this.
+
+**Vet-signed and feeder-noted** (V4). Every record on a dog's health list
+(`GET /api/v1/dogs/:slug/health`, public, on the collar page and in the app)
+is one of two kinds, and says which: **Vet signed** (the vet's name, council
+and registration number, the vaccine brand and batch) or **Feeder noted**
+(the feeder's first name, opt-out respected). Feeders can note care
+themselves (`POST /dogs/:slug/health-notes`) and **Ask a vet to sign** it
+(`POST /dogs/:slug/sign-requests`, optionally with a photo of the clinic
+slip); the request goes to one chosen vet or to up to ten vets covering the
+dog's ward, who confirm it with a new signed record that supersedes the note,
+or decline it. A vet can attach a photo of the vaccine sticker to a signed
+record, kept private (§3.15). The worker reminds a dog's feeders a week before a vet-signed
+vaccination is due.
+
+**Corrections and withdrawals** (V5). Nothing in `medical_records` is ever
+updated. A vet who got something wrong signs a **correction**: a new record
+pointing at the one it replaces (`corrects_record_id`) with a reason; the
+old one stays on the list, struck through. A **withdrawal** is a record of
+type `withdrawal` that takes an entry off the page with a reason. Only the
+signer may correct or withdraw their own records. Every signature, correction
+and withdrawal is also in the audit log (§3.14), so a disputed record can be
+traced. `/vet/signatures` lists a vet's own. A **vaccination certificate**
+(`/vet/<code>/certificate`) is a PDF built in the browser from the dog's
+vet-signed records, like the collar sheets.
+
+**Suspended and removed.** A suspended vet cannot sign, and their vet pages
+are no ground to take an SOS (with ordinary feeder standing they can still
+take one like any feeder); the records they already signed stay valid.
+Removing a vet asks whether their past signatures stay (the default) or are
+flagged for re-check, which marks all of them "Being re-checked" on the
+health list. Flagging is only possible at removal. Nothing is deleted.
+
+### 3.12 NGOs: routing, dispatch and drives (design v7)
+
+**Joining** (N1, `/ngo/register`). An NGO registers with its registration type
+and number, the year it started, whether it has 80G, the Mumbai wards it
+covers (Mumbai only: Hetja covers nothing else) and what it offers
+(ambulance, shelter beds, sterilisation, collars), a contact and public phone,
+and its registration document (§3.15). An admin approves, pauses or removes
+it in A7 (removing one also ends its members' membership). Its members are
+invited by a coordinator (N4): coordinator, rescue,
+collars or volunteer, and whether they have transport. A coordinator can
+**vouch** for a vet who works with the NGO, whose application then arrives in
+A2 already vouched for. A paused NGO keeps its portal but gets no new SOS; a
+removed one's vets are unlinked and keep their verification.
+
+**SOS routing** (one rule, `apps/api/src/lib/sos-eligibility.ts` and
+`packages/db/src/sos-routing.ts`, shared by the API and the worker). After
+v7 an SOS reaches, in order:
+
+1. **The dog's own feeders and responders nearby**, exactly as in §3.2.
+2. **The NGO covering the ward**, at filing: an active NGO naming the ward
+   (else a citywide one). Its coordinators are paged and see the case in the
+   NGO tab (N2) with **Send someone** (N3), which lists the NGO's members with
+   their distance to the case (rounded to 100 m, from their own last scan;
+   nobody's position is returned) and dispatches one (`sos_dispatches`). The
+   dispatched member is paged for that case, so the ordinary case page admits
+   them and the ordinary **I'm going** takes it. A coordinator who cannot help
+   **passes**, which opens the case to vets at once.
+3. **Every verified vet whose wards include the case's ward and who takes
+   SOS**, inside their SOS hours, government vets first, at most 15, after 15
+   minutes with nobody taking it (`sos_open_to_vets` job). It happens at once
+   when the NGO passes, or when no NGO covers the ward and no feeder could be
+   told. "Every vet nearby" in the contract is ward coverage, not distance.
+
+An admin can **Assign a vet** to a case until someone has taken it (A1, SOS
+cases). A vet or NGO page counts as "told" only once it was delivered. This
+runs for every severity; a report from a suspended account or blocked device
+skips it (§3.14).
+
+**The NGO tab** (N2) also keeps the NGO's live state that the public care
+lists use: ambulances in or out, shelter beds free, updated from quick sheets.
+**Drives** (N5): an NGO plans a collar, vaccination or sterilisation drive in
+a ward on a date, with a lead vet and volunteers, adds the dogs, and ticks
+each dog's tasks on the day; records signed during a drive carry it. The day
+before, the worker (`drive_headsup`) tells the feeders of those dogs, so they
+can help find them.
+
+### 3.13 Avatars, merges and reports (design v7)
+
+**Avatars** (A3, A4). A dog's real photo stays the record of truth on its
+page, because it is what a rescuer uses to recognise the dog. An **avatar**
+is a drawn portrait for map pins, lists, share cards and the collar print.
+An avatar editor drops a folder into a batch; each file is matched by name to
+a dog's code (`r4n7kw2ab.png`) or its collar batch number, and everything else
+is "No match · pick dog". The mock's photo-similarity matching is not built
+(the shared box's room cannot run an image model). Each tile shows the real
+photo next to the avatar so a wrong match is obvious; nothing goes live until
+Publish, and a replaced avatar can be restored for 30 days (the worker deletes
+retired files after that). The editor can ask the dog's feeder whether it
+looks right; the avatar is published either way and the feeder can ask for a
+redo.
+
+**Merges** (A5). Two records of the same dog are merged into one, the kept
+dog. The merged dog's scans move onto it (each remembers where it came
+from), its medical records **stay where they are and are read with the kept
+dog's** (the ledger is never rewritten), its slug and collar quietly serve
+the kept dog's page (the URL does not change), its registrator becomes a
+feeder of the kept dog, and its last-seen position is taken only if it is
+newer. Duplicate candidates come
+from reports and from similar names in the same ward; an admin can also say
+"They're different dogs", which is remembered.
+
+**Reports.** Anyone can **Report a problem** with a dog's page (a duplicate
+dog, a wrong or upsetting photo, something else: `POST
+/dogs/:slug/problems`, limited per device, per dog and per address). They
+land in the admin portal's Reports with the tag reports and fake tags, and
+are resolved with an outcome. A photo can be taken down: no API response
+returns it any more, and the scan and the feed stay (the file itself waits for
+the ordinary 7-day photo retention).
+
+### 3.14 The admin portal, roles and the audit log (design v7)
+
+`admin.hetja.in` (also `hetja.in/admin`) is the one part of Hetja made for a
+laptop; on a phone it says "Admin works on a laptop". A1 is a task list, not
+a dashboard: vets to verify, avatars to review, open SOS cases (with how long
+the oldest has gone unassigned), reports, each row opening the screen that
+clears it, and a global search over dogs, feeders, vets and collar codes.
+
+**Four roles** (A6, `admin_roles`), each a set of permissions
+(`apps/api/src/lib/admin.ts` `ROLE_PERMISSIONS`):
+
+- **Owner**: everything, including removing vets, NGOs and team members.
+- **Moderator**: verify vets, merge dogs, handle reports and SOS, plus NGOs
+  (not removal), the feeder tools below, collars, and reading the team and the
+  audit log.
+- **Avatar editor**: upload and publish avatars only (and read dogs, to match
+  them).
+- **Ward lead**: collars and SOS in their wards.
+
+Roles are live reads on every request, never JWT claims, so revoking one
+bites at once. The first Owner comes from the `HETJA_OWNER_EMAILS` secret:
+at boot each address becomes an identity HMAC, only the HMACs are compared,
+and the account whose identity matches is Owner on every request (it is never
+written to `admin_roles`, so it cannot be removed from the portal; take it
+out of the secret instead). Invitations (a vet, a team
+member, an NGO member) keep only the identity HMAC of the address.
+
+**The feeder tools** (the audit's D13). An admin can **suspend** an account
+(it keeps its ways out and can still report an emergency, but cannot write,
+is never paged and its held cases are released) and **block a device** (by a
+hash of its id: no scans, tag or problem reports or registrations; its SOS is
+still accepted and answered with numbers to call, but pages nobody and
+escalates at once).
+
+**The audit log** (A6, `audit_log`). Admin decisions, vet signatures,
+corrections and withdrawals, NGO decisions and dispatches, and every document
+an admin opens write a row, nearly all in the same transaction as the change
+(a few smaller writes are not audited yet; §9). **Nobody can edit it, the
+Owner included**: `app_user` has only
+SELECT and INSERT, and triggers refuse UPDATE, DELETE and TRUNCATE for every
+role. Unlike `medical_records`' Supabase trigger (§9), these triggers are in
+the migration itself, so they bind the production database too. Rows never
+hold contact details, positions or file bytes. It exports as CSV (formulas
+neutralised; the export is itself audited).
+
+### 3.15 Documents, and their 30-day deletion (design v7)
+
+Vets upload a registration certificate and a photo ID; NGOs their
+registration document; a vet can attach a vaccine sticker photo to a signed
+record. **They are never public** (owner decision). Each upload
+(`POST /api/v1/documents`) is checked by its bytes (PDF up to 5 MiB; images
+through the photo decoder, which caps and strips them), encrypted with
+AES-256-GCM under `HETJA_DOCS_KEY`, and written to a private directory
+(`DOCS_LOCAL_DIR`, `/srv/hetja/shared/documents` in production, 0700, never
+the photos directory Caddy serves). No file name is kept. Admins with the
+right permission can open them (`GET /admin/documents/:id`), and every open
+is audited. **The worker deletes each document 30 days after its
+application is decided** (`sweep_v7`), and an upload nobody attached after a
+day. (A record's sticker photo, once attached, is kept with the record, and
+is also visible to verified vets and the dog's feeders.) The row stays, so the audit log's "opened a certificate" still points at
+something. Without `HETJA_DOCS_KEY` uploads answer 503 and the rest of Hetja
+runs; losing the key makes only the documents still awaiting review
+unreadable.
+
 ---
 
 ## 4. The four apps, and why they are separate
@@ -599,18 +839,22 @@ because the person using it is on a phone on a street and every kilobyte is a
 second. The v6 screens brought it to 39,101 of 40,960 bytes; three cuts paid
 for them (build-time HTML minification, 20 rarely used ASCII symbols dropped
 from the Inter subset, and the `web-vitals` package replaced by the browser's
-own `PerformanceObserver`), and there is about 1.9 KB left. It runs as its own service (`hetja-scan`), so a crash in
+own `PerformanceObserver`). v7's health list brought it to 40,346, and there
+are about 600 bytes left. It runs as its own service (`hetja-scan`), so a crash in
 the web app or the API's heavier routes cannot take down the page a stranger
 needs. It does ship in the same release tarball as everything else, so a bad
 release is health-checked and rolled back as a whole.
 
 `apps/web` is everything else: the scan tab and finding a dog, logging feeds,
 signing in, Me with its alerts, settings and dogs, registering and printing,
-the responder's SOS page, the vet's checkup, the map, and the marketing and
-reading pages. Richer, heavier, and allowed to be. It has four tabs (Home,
-Map, Scan, Me), and on a desktop wider than 744 px every app route shows an
-invitation to open it on a phone instead (reading pages, `/hetja` and
-`/sos/**` open in a 480 px column; the print sheets are left alone). `/hetja` is the memorial page. `/privacy` is a DPDP notice and is
+the responder's SOS page, the map, the marketing and reading pages, and
+since v7 the three portals: `/vet/**` and `/ngo/**` on the phone, `/admin/**`
+on a laptop (also at `admin.hetja.in`). Richer, heavier, and allowed to be. It
+has four tabs (Home, Map, Scan, Me; a vet's third tab is Vet and an NGO
+member's NGO), and on a desktop wider than 744 px every app route except
+`/admin` shows an invitation to open it on a phone instead (reading pages,
+`/hetja` and `/sos/**` open in a 480 px column; the print sheets are left
+alone). `/hetja` is the memorial page. `/privacy` is a DPDP notice and is
 treated as a factual document: when the login moved from phone to email, that
 page had to change in the same commit, because a privacy notice that describes
 storage you no longer do is simply false.
@@ -631,15 +875,20 @@ staff who need to retag on day one, which is why access gates on role, not score
 
 ## 5. Data
 
-Twenty-six domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
+Forty-six domain tables plus `schema_migrations` in PostgreSQL 16, with PostGIS
 for geography and pgvector for image embeddings. Fifteen of them come from
 `0001_init.sql`; `care_providers` (0008), `otp_codes` (0010),
 `push_subscriptions` (0011), `web_vitals` (0013), `refresh_tokens` (0017),
 `spent_challenges` (0021), `collar_reissues` (0023), `tag_reports`,
 `tag_prints` and `dog_status_reports` (0026, design v5) and `sos_case_events`
-(0027, design v6) arrived later. Earlier versions of this paragraph said
+(0027, design v6) arrived later, and design v7's `0029` added twenty:
+`admin_roles`, `audit_log`, `invites`, `vet_profiles`, `documents`,
+`webauthn_credentials`, `webauthn_challenges`, `ngos`, `ngo_members`,
+`ngo_vets`, `sos_dispatches`, `sign_requests`, `drives`, `drive_dogs`,
+`avatar_batches`, `dog_avatars`, `dog_merges`, `duplicate_dismissals`,
+`reports` and `blocked_devices`. Earlier versions of this paragraph said
 "eighteen", then "nineteen" (which omitted the 0017 and 0021 tables), then
-"twenty-two", while `WORK-REPORT.md` said "15". None matched the database for
+"twenty-two" and "twenty-six", while `WORK-REPORT.md` said "15". None matched the database for
 long, which `\dt` counts even higher because PostGIS ships its own
 `spatial_ref_sys`. The count is checkable:
 `SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN
@@ -651,7 +900,13 @@ onboarding, deletion, name opt-out and alerts pause; a dog's markings,
 verification, tag review and vaccine due month; a declined page; and a case's
 note, ward, point, outcome, vet name and lifecycle times. `sos_cases.dog_id`
 became nullable for the dogless SOS, with a check that a case has a dog, or a
-ward and a point. All of it is additive. The ones to know:
+ward and a point. `0028` added `sos_notifications.notify_only` (told, not a
+responder). `0029` added columns too: the signing fields on
+`medical_records` (§3.11), a case's NGO and vet routing times and each page's
+`route`, a dog's `merged_into` (and a `merged` status) and a scan's
+`merged_from_dog_id`, a feeder's suspension, a hidden photo, a tag report's
+admin outcome, and the care directory's `is_government`, `is_person`,
+`reg_no` and `wards`. All of it is additive. The ones to know:
 
 | Table | What it holds |
 |---|---|
@@ -661,6 +916,11 @@ ward and a point. All of it is additive. The ones to know:
 | `medical_records` | append-only, hash-chained treatment ledger |
 | `sos_cases`, `sos_notifications` | the case machine and its delivery receipts |
 | `sos_case_events` | a case's lifecycle after the ack: released, close by, arrived, reporter updates, reporter left |
+| `vet_profiles`, `webauthn_credentials` | v7: a vet's application and standing, and their signing passkeys |
+| `ngos`, `ngo_members`, `ngo_vets`, `sos_dispatches`, `drives`, `drive_dogs` | v7: NGOs, their people and vets, who was sent to a case, and drives |
+| `admin_roles`, `audit_log` | v7: the Hetja team's roles, and the append-only record of what everyone did |
+| `documents` | v7: metadata of encrypted certificates and IDs; the bytes are in a private directory |
+| `dog_avatars`, `dog_merges`, `reports`, `blocked_devices` | v7: avatars, merges, problem reports and blocked devices |
 | `tag_reports`, `tag_prints` | reported tag problems (reporter device stored only as a hash) and every print, for a dog's tag history |
 | `dog_status_reports` | not seen, adopted, passed away, and who confirmed it |
 | `care_providers` | the public vets/NGO directory behind the danger flow |
@@ -714,6 +974,14 @@ ALTCHA v2 proof-of-work (an HMAC-signed, single-use challenge solved
 client-side), so the write endpoints are not open to trivial scripted abuse
 without demanding an account from someone standing next to a bleeding dog.
 
+**Passkeys sign records, not sign-ins** (design v7). A verified vet sets up a
+passkey only to sign medical records (§3.11); they still sign in with the
+emailed code like everyone else. The passkey is bound to `hetja.in`
+(`WEBAUTHN_RP_ID`) and accepted from `hetja.in`, `www.hetja.in` and
+`admin.hetja.in` (`WEBAUTHN_ORIGINS`). An admin role is never in the access
+token: it is read from `admin_roles` on every admin request, so taking a role
+away bites at once.
+
 ---
 
 ## 7. Where it runs
@@ -722,7 +990,8 @@ without demanding an account from someone standing next to a bleeding dog.
 phone ──https──> Cloudflare edge ──tunnel──> cloudflared ──> Caddy 127.0.0.1:80
                                                               ├── /api/v1/*  -> hetja-api    :8080
                                                               ├── /d/*       -> hetja-scan   :8081
-                                                              └── /*         -> hetja-web    :3100
+                                                              ├── /*         -> hetja-web    :3100
+                                                              └── admin.hetja.in -> hetja-web /admin
                                                                               hetja-worker (no port)
                                         all of the above ──TLS──> Supabase (PostgreSQL, Mumbai)
 ```
@@ -733,7 +1002,11 @@ back down that tunnel, so hetja.in works without a public web port, and
 Cloudflare terminates TLS. Caddy listens on loopback only, runs with
 `auto_https off`, and has no admin endpoint. `hetja.in` is registered at
 Dynadot with its nameservers pointed at Cloudflare; `api.hetja.in` reaches the
-same Caddy and is the origin the web app calls.
+same Caddy and is the origin the web app calls. `admin.hetja.in` (design v7)
+is a third public hostname on the same tunnel and the same Caddy: its own
+site block sends the bare host to `/admin` and everything else to the web
+app, so the admin portal is the same Next app on a separate origin, and an
+admin session never shares the street app's browser storage.
 
 **Since 2026-09-24 the box is shared** with an autonomous agent that has
 priority, and Hetja lives in a "room" built so it cannot hurt that agent: a
@@ -932,12 +1205,14 @@ box up, is historical now; the shared box is provisioned once with
   contracted vets (channel `sms`) and the municipal desk (`bmc`), but no code
   sends an SMS or reaches the desk: Hetja has no SMS provider and no desk
   integration. Those rows are not counted as told anywhere. What actually
-  reaches people today is Web Push to feeders and the numbers on the
-  reporter's screen.
+  reaches people today is Web Push to feeders, to v7's NGO coordinators and
+  verified vets (who get it as a push to their Hetja account, §3.12), and the
+  numbers on the reporter's screen.
 - **A `serious` SOS notifies only the dog's own feeders when it is filed.**
   Only a critical report ("Can't get up, or bleeding") fans out to every
   responder nearby at once; the other two choices escalate after eight
-  minutes as above.
+  minutes as above. Since v7 every severity also goes to the ward's NGO and,
+  after 15 minutes, its vets.
 - `validate_scan` has **no producer**. Nothing enqueues it, so `ai_validation`
   stays `NULL`, `review_status` stays `pending` forever, and INVARIANT 15's
   gate can never fire from real AI output. It is recorded in
@@ -988,6 +1263,29 @@ box up, is historical now; the shared box is provisioned once with
   is `lost` in the database and its ward's feeders are asked to look out, but
   a stranger scanning it sees the ordinary page; the first feed or view scan
   sets it back to active.
+- **Avatars match by name only.** The v7 board matches avatar files to dogs
+  "by photo · 94%"; photo similarity needs an image model the room cannot
+  run, so a file is matched by the dog's code or its collar batch number in
+  the file name, or picked by hand. `dogs.cv_embedding` stays unused, for
+  later. Duplicate dogs are likewise suggested from reports and same-ward
+  names, not photos.
+- **The MSVC register has no API.** Verifying a vet is an admin's tick on a
+  checklist after looking the number up on the council's public register;
+  Hetja does not check it itself.
+- **The audit log does not see every write yet.** Admin decisions, vet
+  signatures, NGO decisions and dispatches and document opens are recorded;
+  avatar file uploads, NGO ambulance and bed updates, dispatch accept and
+  decline, drive edits, a vet declining a sign request and a vet editing
+  their own profile are not (INVARIANTS.md, v7 section).
+- **Some portal actions have no way back yet.** A drive cannot be cancelled
+  (there is no cancel route), an invitation cannot be revoked, and a
+  suspended vet's signatures can be flagged for re-check only by removing
+  the vet, which flags all of them.
+- **A taken-down photo is hidden, not deleted.** No API response returns it,
+  but the file stays at its `/photos/` URL until the ordinary 7-day photo
+  retention removes it.
+- **The collar page has about 600 bytes left** of its 40 KB budget after v7's
+  health list. The next feature there needs a cut first.
 - `DEVICE_POW_DIFFICULTY` is **16**, capped at 20. It went 14 → 18 on 2026-08-13 (enhancement stack Phase 0 #6) and 18 → 16 on 2026-08-14, which needs explaining because it reads like a retreat.
 
   ALTCHA encodes difficulty as a hex key prefix, and a hex digit is 4 bits, so the configured number rounds **up** to a nibble boundary. 18 therefore meant **20** effective bits, ~2^20 ≈ 1.05M expected hashes, not the ~2^18 it looks like. The `apps/scan` solver could not finish that inside its own 20-second budget: measured 4/10 solves on a dev laptop, and a ₹8,000 Android is slower. When it fails, `getDeviceToken()` returns undefined, the SOS report 401s, and the stranger standing over a hurt dog is told to phone instead: the exact degrade the module exists to prevent. 16 lands on 16 exactly and solves 25/25 in about a second.

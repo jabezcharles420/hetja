@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import qrcode from "qrcode-generator";
 import { LogoMark, StatusPill } from "@/components/ds";
 import { API_BASE } from "@/lib/api";
+import { loadShowcaseDog, type ShowcaseDog } from "@/lib/showcase-dog";
 import styles from "./DesktopInvite.module.css";
 
 /**
@@ -14,8 +15,9 @@ import styles from "./DesktopInvite.module.css";
  * The QR encodes the current URL, so scanning the map on a laptop lands on
  * the map on the phone.
  *
- * The phone preview is an illustration (the v4 sample dog), labelled as
- * one: no fake dog is presented as real (v6 CONTRACT, adapted list).
+ * The phone preview shows a real public dog when one exists (ward level
+ * only: lib/showcase-dog), and otherwise the v4 sample dog, labelled as an
+ * example: no fake dog is presented as real (v6 CONTRACT, adapted list).
  */
 
 const NAV = [
@@ -86,9 +88,27 @@ function useDogCount(): number | null {
   return n;
 }
 
+function useShowcaseDog(): ShowcaseDog | null | undefined {
+  const [dog, setDog] = useState<ShowcaseDog | null | undefined>(undefined);
+  useEffect(() => {
+    // Only a desktop ever sees D1: skip the requests on a phone.
+    if (typeof window.matchMedia === "function" && !window.matchMedia("(min-width: 745px)").matches) return;
+    let alive = true;
+    loadShowcaseDog().then(
+      (d) => alive && setDog(d),
+      () => alive && setDog(null),
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return dog;
+}
+
 export function DesktopInvite({ className }: { className?: string }): React.JSX.Element {
   const url = useHereUrl();
   const dogs = useDogCount();
+  const real = useShowcaseDog();
 
   return (
     <div className={[styles.page, className ?? ""].filter(Boolean).join(" ")} data-testid="desktop-invite">
@@ -133,23 +153,55 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
         </div>
 
         <figure className={styles.phoneWrap}>
-          <div className={styles.phone} aria-hidden="true">
-            <span className={styles.found}>You found Rani</span>
-            <div className={styles.photo} />
-            <span className={styles.name}>Rani</span>
-            <span className={styles.ward}>K/W ward · Andheri West</span>
-            <div className={styles.pills}>
-              <StatusPill variant="ok" icon="check" size="small">
-                Vaccinated
-              </StatusPill>
-              <StatusPill variant="ok" icon="check" size="small">
-                Sterilised
-              </StatusPill>
+          {real ? (
+            <div className={styles.phone} aria-hidden="true" data-testid="d1-real-dog">
+              <span className={styles.found}>You found {real.name}</span>
+              {real.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.photo} src={real.photoUrl} alt="" />
+              ) : (
+                <div className={`${styles.photo} ${styles.initial}`}>{real.name.charAt(0).toUpperCase()}</div>
+              )}
+              <span className={styles.name}>{real.name}</span>
+              <span className={styles.ward}>{real.wardLine}</span>
+              {(real.vaccinated || real.sterilised) && (
+                <div className={styles.pills}>
+                  {real.vaccinated && (
+                    <StatusPill variant="ok" icon="check" size="small">
+                      Vaccinated
+                    </StatusPill>
+                  )}
+                  {real.sterilised && (
+                    <StatusPill variant="ok" icon="check" size="small">
+                      Sterilised
+                    </StatusPill>
+                  )}
+                </div>
+              )}
+              {real.fedLine && <span className={styles.fed}>{real.fedLine}</span>}
+              <span className={styles.sos}>This dog needs help</span>
             </div>
-            <span className={styles.fed}>Priya fed her 2 hours ago.</span>
-            <span className={styles.sos}>This dog needs help</span>
-          </div>
-          <figcaption className={styles.caption}>An example of a dog&apos;s page.</figcaption>
+          ) : (
+            <div className={styles.phone} aria-hidden="true">
+              <span className={styles.found}>You found Rani</span>
+              <div className={styles.photo} />
+              <span className={styles.name}>Rani</span>
+              <span className={styles.ward}>K/W ward · Andheri West</span>
+              <div className={styles.pills}>
+                <StatusPill variant="ok" icon="check" size="small">
+                  Vaccinated
+                </StatusPill>
+                <StatusPill variant="ok" icon="check" size="small">
+                  Sterilised
+                </StatusPill>
+              </div>
+              <span className={styles.fed}>Priya fed her 2 hours ago.</span>
+              <span className={styles.sos}>This dog needs help</span>
+            </div>
+          )}
+          <figcaption className={styles.caption}>
+            {real ? `${real.name} is one of Mumbai's dogs on Hetja.` : "An example of a dog's page."}
+          </figcaption>
         </figure>
       </div>
     </div>

@@ -61,6 +61,9 @@ import { query } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { normalizeIndianPhone } from "../lib/phone.js";
 import { TRUST_FLOOR, canRespond as canRespondShared } from "../lib/sos-eligibility.js";
+import { wardProfessionals } from "../lib/professionals.js";
+
+type WardProfessionals = Awaited<ReturnType<typeof wardProfessionals>>;
 
 const CACHE_TTL_MS = 60_000;
 /** Ward detail carries open SOS state, so it turns over twice as fast. */
@@ -399,6 +402,8 @@ interface Viewer {
   wards: string[];
   /** Design v6: a paused feeder has no standing (lib/sos-eligibility.ts). */
   pausedUntil: Date | null;
+  /** Design v7 (D13): a suspended account has no standing. */
+  suspended: boolean;
 }
 
 /**
@@ -415,8 +420,15 @@ async function optionalViewer(req: FastifyRequest): Promise<Viewer | null> {
   } catch {
     return null;
   }
-  const res = await query<{ sos_opt_in: boolean; trust_score: number; wards: string[]; sos_paused_until: Date | null }>(
-    `SELECT sos_opt_in, trust_score, wards, sos_paused_until FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
+  const res = await query<{
+    sos_opt_in: boolean;
+    trust_score: number;
+    wards: string[];
+    sos_paused_until: Date | null;
+    suspended: boolean;
+  }>(
+    `SELECT sos_opt_in, trust_score, wards, sos_paused_until, suspended_at IS NOT NULL AS suspended
+       FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
     [feederId],
   );
   const row = res.rows[0];
@@ -427,13 +439,14 @@ async function optionalViewer(req: FastifyRequest): Promise<Viewer | null> {
         trustScore: row.trust_score,
         wards: row.wards ?? [],
         pausedUntil: row.sos_paused_until,
+        suspended: row.suspended,
       }
     : null;
 }
 
 /** The shared responder rule (lib/sos-eligibility.ts), re-exported for existing callers. */
 export function canRespond(
-  viewer: (Pick<Viewer, "sosOptIn" | "trustScore"> & { wards?: string[]; pausedUntil?: Date | null }) | null,
+  viewer: (Pick<Viewer, "sosOptIn" | "trustScore"> & { wards?: string[]; pausedUntil?: Date | null; suspended?: boolean }) | null,
   severity: Severity,
   wardId?: string | null,
 ): boolean {
@@ -446,6 +459,7 @@ interface WardDetailBase {
   nearby: ReturnType<typeof toNearby>[];
   dogNames: string[];
   notLoggedToday: { name: string | null; lastLoggedAt: string | null }[];
+  professionals: WardProfessionals;
 }
 
 const BboxQuery = z.object({
@@ -551,6 +565,10 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         cases: cases.rows,
         nearby: nearby.rows.map(toNearby),
         dogNames: wardDogs.rows.map((d) => d.name).filter((n): n is string => !!n),
+        // Design v7: verified vets and active NGOs covering the ward, with
+        // their PUBLIC professional numbers (owner decision). Cached with the
+        // rest of the base: the same for every caller.
+        professionals: await wardProfessionals(wardId),
         notLoggedToday: wardDogs.rows
           .filter((d) => !d.last_logged_at || d.last_logged_at.getTime() < since)
           .slice(0, 30)
@@ -590,6 +608,7 @@ export default async function mapRoutes(app: FastifyInstance): Promise<void> {
         nearby: base.nearby,
         dogNames: base.dogNames,
         notLoggedToday: base.notLoggedToday,
+        professionals: base.professionals,
         viewer: viewer
           ? {
               sosOptIn: viewer.sosOptIn,

@@ -49,6 +49,13 @@ check() {  # check <desc> <cmd...>
 #
 # So this entry is a settled decision, not a backlog item. It is still printed on
 # every run because a reader of this gate should know the column is plaintext.
+#
+# Design v7 (2026-09-26) adds two more columns of the same kind, by the owner's
+# decision that vet and NGO numbers are PUBLIC professional contacts:
+# vet_profiles.phone_e164 (a verified vet's public number) and ngos.phone_e164
+# (an NGO's). They are named phone_e164 on purpose, so this same allowlist
+# covers them and the NOTE below counts them. A feeder's or reporter's contact
+# details are still HMAC-only (INVARIANT 3, rescoped in docs/INVARIANTS.md).
 KNOWN_PLAINTEXT_CONTACT='care_providers?\.?phone_e164|alt_phone_e164|phone_e164'
 
 bare_contact_hits() {
@@ -73,7 +80,7 @@ fi
 tracked=$(grep -rniE "[[:space:]]($KNOWN_PLAINTEXT_CONTACT)[[:space:]]+(TEXT|VARCHAR|CITEXT)" \
   packages/db/migrations/ 2>/dev/null | wc -l | tr -d ' ')
 if [ "${tracked:-0}" -gt 0 ]; then
-  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- published vet/NGO directory numbers; encryption evaluated and declined, see docs/INVARIANTS.md 'Spec corrections' #4"
+  echo "NOTE: $tracked tracked plaintext contact column declaration(s) -- published vet/NGO directory numbers and (v7) verified vets' and NGOs' public professional numbers; encryption evaluated and declined, see docs/INVARIANTS.md 'Spec corrections' #4 and the v7 section"
 fi
 
 # No secret-looking strings committed (API keys, private keys).

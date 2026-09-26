@@ -250,6 +250,9 @@ describe("?sos=1: the dogless SOS (v6 P8)", () => {
     expect(screen.getByRole("link", { name: "Call Dr. Mehta, Pet Clinic" }).getAttribute("href")).toBe("tel:+912226200001");
     // The finder stays, for the dog's own feeders.
     expect(screen.getByRole("heading", { name: "Which dog is it?" })).not.toBeNull();
+    // ...with its count line and grid, exactly as before sending.
+    expect(screen.getByText("24 dogs registered in K/W")).not.toBeNull();
+    expect(screen.getByRole("link", { name: /Rani/ }).getAttribute("href")).toBe("/d/rni482pq7");
   });
 
   it("maps Hurt, but moving and Something else to serious", async () => {

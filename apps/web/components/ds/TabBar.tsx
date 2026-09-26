@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { readTabRole, TAB_ROLE_EVENT, type TabRole } from "@/lib/tab-role";
 import styles from "./TabBar.module.css";
 
 /**
@@ -14,7 +16,7 @@ import styles from "./TabBar.module.css";
  * screens draw their own 52px header with a back or Cancel instead.
  */
 
-export type TabKey = "home" | "scan" | "map" | "alerts" | "me";
+export type TabKey = "home" | "scan" | "map" | "alerts" | "me" | "vet" | "ngo";
 
 export interface TabItem {
   key: TabKey;
@@ -29,9 +31,45 @@ export const DEFAULT_TABS: TabItem[] = [
   { key: "me", href: "/me", label: "Me" },
 ];
 
+/** v7 role tab bars: Scan moves inside the Vet or NGO tab. */
+export const VET_TABS: TabItem[] = [
+  { key: "home", href: "/", label: "Home" },
+  { key: "map", href: "/map", label: "Map" },
+  { key: "vet", href: "/vet", label: "Vet" },
+  { key: "me", href: "/me", label: "Me" },
+];
+
+export const NGO_TABS: TabItem[] = [
+  { key: "home", href: "/", label: "Home" },
+  { key: "map", href: "/map", label: "Map" },
+  { key: "ngo", href: "/ngo", label: "NGO" },
+  { key: "me", href: "/me", label: "Me" },
+];
+
+export function tabsForRole(role: TabRole): TabItem[] {
+  return role === "ngo" ? NGO_TABS : role === "vet" ? VET_TABS : DEFAULT_TABS;
+}
+
+/** The tab role kept on this phone (lib/tab-role), read after hydration. */
+export function useTabRole(): TabRole {
+  const [role, setRole] = useState<TabRole>(null);
+  useEffect(() => {
+    const read = () => setRole(readTabRole());
+    read();
+    window.addEventListener(TAB_ROLE_EVENT, read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener(TAB_ROLE_EVENT, read);
+      window.removeEventListener("storage", read);
+    };
+  }, []);
+  return role;
+}
+
 export interface TabBarProps {
   /** Active tab. Omit to derive it from the current path. */
   active?: TabKey | null;
+  /** Omit for the feeder's own tabs (four, or the vet / NGO set by role). */
   tabs?: TabItem[];
   /** fixed (default) pins to the viewport bottom; static flows in the page. */
   position?: "fixed" | "static";
@@ -98,6 +136,24 @@ export function TabIcon({ name }: { name: TabKey }): React.JSX.Element {
           />
         </svg>
       );
+    case "vet":
+      return (
+        <svg {...common}>
+          <path
+            fill="currentColor"
+            d="M9.5 3.5A1.5 1.5 0 0 1 11 2h2a1.5 1.5 0 0 1 1.5 1.5v6h6A1.5 1.5 0 0 1 22 11v2a1.5 1.5 0 0 1-1.5 1.5h-6v6A1.5 1.5 0 0 1 13 22h-2a1.5 1.5 0 0 1-1.5-1.5v-6h-6A1.5 1.5 0 0 1 2 13v-2a1.5 1.5 0 0 1 1.5-1.5h6v-6z"
+          />
+        </svg>
+      );
+    case "ngo":
+      return (
+        <svg {...common}>
+          <path
+            fill="currentColor"
+            d="M12 21.2l-1.3-1.2C5.9 15.7 2.75 12.8 2.75 9.2A4.95 4.95 0 0 1 7.7 4.25c1.66 0 3.26.78 4.3 2 1.04-1.22 2.64-2 4.3-2a4.95 4.95 0 0 1 4.95 4.95c0 3.6-3.15 6.5-7.95 10.8L12 21.2z"
+          />
+        </svg>
+      );
     case "me":
       return (
         <svg {...common}>
@@ -113,10 +169,12 @@ export function TabIcon({ name }: { name: TabKey }): React.JSX.Element {
 
 export function TabBar({
   active,
-  tabs = DEFAULT_TABS,
+  tabs: tabsProp,
   position = "fixed",
   className,
 }: TabBarProps): React.JSX.Element {
+  const role = useTabRole();
+  const tabs = tabsProp ?? tabsForRole(role);
   const pathname = usePathname() ?? "/";
   const current = active !== undefined ? active : fromPath(pathname, tabs);
   return (

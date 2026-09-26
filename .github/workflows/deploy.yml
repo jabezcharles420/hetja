@@ -259,6 +259,8 @@ jobs:
           # INVARIANT 9: medical_records stays append-only for the app role.
           # Re-applied after the blanket GRANT, which would hand DELETE back.
           psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE ON medical_records FROM app_user;"
+          # Design v7: audit_log is append-only too (migration 0029); re-applied after any GRANT ALL.
+          psql -v ON_ERROR_STOP=1 -c "REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM app_user;"
 
       - name: Typecheck (all packages)
         run: pnpm -r typecheck
@@ -565,6 +567,11 @@ jobs:
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASSWORD }}
+          # Design v7. Both optional: without HETJA_OWNER_EMAILS nobody is
+          # Owner by configuration; without HETJA_DOCS_KEY document upload
+          # answers 503 and everything else runs.
+          HETJA_OWNER_EMAILS: ${{ secrets.HETJA_OWNER_EMAILS }}
+          HETJA_DOCS_KEY: ${{ secrets.HETJA_DOCS_KEY }}
         run: |
           set -euo pipefail
           umask 077
@@ -580,10 +587,17 @@ jobs:
             printf 'VAPID_PUBLIC_KEY=%s\nVAPID_PRIVATE_KEY=%s\nVAPID_SUBJECT=mailto:no-reply@hetja.in\n' "$VAPID_PUBLIC_KEY" "$VAPID_PRIVATE_KEY"
             printf 'BREVO_SMTP_HOST=%s\nBREVO_SMTP_PORT=%s\nBREVO_SMTP_USER=%s\nBREVO_SMTP_PASS=%s\nMAIL_FROM=no-reply@hetja.in\n' "$BREVO_SMTP_HOST" "${BREVO_SMTP_PORT:-587}" "$BREVO_SMTP_USER" "$BREVO_SMTP_PASS"
             # One proxy hop: cloudflared -> Caddy (loopback) -> API.
-            printf 'TRUST_PROXY=1\nCORS_ORIGINS=https://hetja.in,https://www.hetja.in\n'
+            printf 'TRUST_PROXY=1\nCORS_ORIGINS=https://hetja.in,https://www.hetja.in,https://admin.hetja.in\n'
             printf 'STORAGE_BACKEND=local\nSTORAGE_LOCAL_DIR=/srv/hetja/photos\n'
             # Absolute photo URLs in dog profiles (Caddy serves /photos/* on api.hetja.in).
             printf 'PUBLIC_API_ORIGIN=https://api.hetja.in\n'
+            # Design v7: owner bootstrap (HMAC'd at boot, never logged), the
+            # document key, the PRIVATE document directory (never the photos
+            # dir Caddy serves; /srv/hetja/shared is already writable by the
+            # units), passkeys bound to hetja.in, the web origin for links.
+            printf 'HETJA_OWNER_EMAILS=%s\nHETJA_DOCS_KEY=%s\n' "$HETJA_OWNER_EMAILS" "$HETJA_DOCS_KEY"
+            printf 'DOCS_LOCAL_DIR=/srv/hetja/shared/documents\nWEBAUTHN_RP_ID=hetja.in\n'
+            printf 'WEBAUTHN_ORIGINS=https://hetja.in,https://www.hetja.in,https://admin.hetja.in\nPUBLIC_WEB_ORIGIN=https://hetja.in\n'
           } > "$RUNNER_TEMP/api.env"
           printf 'NEXT_PUBLIC_API_URL=https://api.hetja.in\n' > "$RUNNER_TEMP/web.env"
 

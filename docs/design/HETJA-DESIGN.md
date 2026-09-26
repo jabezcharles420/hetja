@@ -1,4 +1,4 @@
-# Hetja: Design System v4, with v5 and v6 (Claude Design handoffs)
+# Hetja: Design System v4, with v5, v6 and v7 (Claude Design handoffs)
 
 This replaces v3 (the Apple / Sidehoe direction built from `components/ui`,
 glass, Dogmoji stickers and a `/styleguide` page). v3 in turn replaced v2
@@ -17,8 +17,10 @@ live site against v4 and designed what it lacked: the missing pages, register
 and print, what happens when a tag breaks, and the A4 sheets. **v6** is a
 polish pass over every screen, a set of new screens (the SOS followed to its
 outcome, a dog's week and story, feeders' first names), the remaining map and
-edge states, and desktop as an invitation to use a phone. Sections "Design v5"
-and "Design v6" below record what each changed in the system.
+edge states, and desktop as an invitation to use a phone. **v7** adds the
+three portals for professionals: admin (on a laptop), vet and NGO (on a
+phone). Sections "Design v5", "Design v6" and "Design v7" below record what
+each changed in the system.
 
 ## Authority
 
@@ -29,8 +31,9 @@ Two things are the source of truth, in this order:
    (`README.md`), the mocks (`*.dc.html`), the rendered boards (`*.jpg`) and
    the copy deck (`COPY_DECK.txt`). The map (screen 19) came later as its own
    handoff under [`v4-handoff/map/`](v4-handoff/map/). v5 at
-   [`v5-handoff/`](v5-handoff/CONTRACT.md) and v6 at
-   [`v6-handoff/`](v6-handoff/CONTRACT.md), each a set of `.dc.html` boards,
+   [`v5-handoff/`](v5-handoff/CONTRACT.md), v6 at
+   [`v6-handoff/`](v6-handoff/CONTRACT.md) and v7 at
+   [`v7-portals/`](v7-portals/CONTRACT.md), each a set of `.dc.html` boards,
    their rendered `.jpg`, and a `CONTRACT.md` that records the owner's
    decisions, which route each screen replaces, the API it needs, and every
    place the build ships something other than the mock (with the reason).
@@ -47,7 +50,7 @@ This document explains how the pieces fit and why the rules exist. If a number
 here disagrees with `tokens.css`, `tokens.css` wins and this file has a bug. If
 `tokens.css` disagrees with the handoff, that is a bug in `tokens.css`, with
 one recorded exception (the tab bar background, below). v5 added six tokens;
-v6 added none.
+v6 and v7 added none.
 
 Two surfaces consume the tokens:
 
@@ -78,7 +81,7 @@ component to match its mock.
 | `ListRow` / `ListGroup` | Rows with avatar, title, sub and a trailing pill or button; dividers between rows, not after the last. |
 | `DogAvatar` | Pastel circle with the dog's initial; the pastel is picked by a stable hash of the dog id, so a dog keeps its colour forever. |
 | `Badge`, `Progress` | The Me screen's streak badges and trust bar. |
-| `Logo`, `TopNav`, `TabBar`, `Footer`, `PrivacyBand` | Global chrome. `TabBar` has four tabs: Home, Map, Scan, Me (v6; v5 briefly had five, with Alerts). `TopNav` is 52 px. |
+| `Logo`, `TopNav`, `TabBar`, `Footer`, `PrivacyBand` | Global chrome. `TabBar` has four tabs: Home, Map, Scan, Me (v6; v5 briefly had five, with Alerts). Since v7 a verified vet gets Home, Map, Vet, Me and an NGO member Home, Map, NGO, Me (`VET_TABS`, `NGO_TABS`, chosen by `lib/tab-role.ts`). `TopNav` is 52 px. |
 | `AppHeader` | v5. The 52 px header of every focused screen: a back link ("‹ Me", or history back) or Cancel, an optional title and trailing action, a `memorial` tone, and a white fill with a hairline once the page scrolls. |
 | `Segmented` | v5. A segmented control as a real radiogroup (arrow keys move the choice), 40 px segments. The vet checkup (N3) and Settings' SOS only / All. |
 | `SettingsList` | v5. `SettingsGroup` (white card, radius 20) and `SettingsRow` (56 px: label, value or sub-line, chevron, `danger` tone, disabled, or a `control` slot for a `Switch`). Settings, Me's rows. |
@@ -90,13 +93,15 @@ component to match its mock.
 
 Which chrome a route gets is decided in one place,
 `apps/web/components/ChromeShell.tsx`. Since v5's audit the rule is short:
-**only the tab roots carry the TabBar** (`/`, `/scan`, `/me`; `/map` draws
-the same bar inside its own sheet and hides it while a case is being taken).
+**only the tab roots carry the TabBar** (`/`, `/scan`, `/me`, and since v7
+`/vet` and `/ngo`; `/map` draws the same bar inside its own sheet and hides
+it while a case is being taken).
 **Every other app screen is a focused screen**: an `AppHeader` with back or
 Cancel, no tab bar, no footer. The website `Footer` appears only on the
 reading pages (About, How it works, FAQ, Privacy, Contact). `/hetja` keeps its muted header with a back link. 404s get a
-way home. The same file decides what happens on a desktop (below, "Design
-v6").
+way home. `/admin/**` (v7) gets no street chrome at all and draws its own
+sidebar. The same file decides what happens on a desktop (below, "Design
+v6" and "Design v7").
 
 `/design` lays the components out exactly like the handoff's Design System
 mock, so the two can be compared side by side. It is development only: it
@@ -271,6 +276,9 @@ Numbers match the mock labels.
 | v6 V1 to V14, V20, V23, L1 to L3, N13, N15, N16 | 404, scan tab, sign in, Me, feed, registrations, city summary, add to home screen, pause, alerts ask, dog week, story | across `apps/web/app` (see FEATURE-GUIDE.md Part 2 §2) |
 | v6 M1 to M7 | Map: city, ward, signed out, taking a case, place, not logged today, cached | `apps/web/components/map/*` |
 | v6 D1, D2 | Desktop invitation; collar page on desktop | `apps/web/components/DesktopInvite.tsx`; `apps/scan/src/ui.ts` |
+| v7 A1 to A7 and the designed admin sections | The admin portal | `apps/web/app/admin/**`, `apps/web/components/admin/*` |
+| v7 V1 to V5, V2b | The vet portal; V4's health list also on the collar page | `apps/web/app/vet/**`, `apps/web/components/vet/*`; `apps/scan/src/ui.ts` |
+| v7 N1 to N5 | The NGO portal | `apps/web/app/ngo/**`, `apps/web/components/ngo/*` |
 | 12 to 16 | About, How it works, FAQ, Privacy, Contact | `apps/web/app/{about,how-it-works,faq,privacy,contact}` |
 | 17 | `/hetja` | `apps/web/app/hetja` |
 | 19 | Map | `apps/web/app/map`, `components/map` |
@@ -389,6 +397,66 @@ V22's checklist is the real responder rule, not the mock's placeholder count;
 "open now" is shown only where the hours can be computed; D1's phone is an
 illustration, never a fake dog presented as real; and the dogless SOS that
 F1 and P8 both drew is built, with a location required and Mumbai only.
+
+## Design v7: the portals (2026-09-26)
+
+The v7 board (`v7-portals/`, one bundled page with A1 to A7 for admin, V1 to
+V5 and V2b for vets, N1 to N5 for NGOs; `portals-text.txt` is its text per
+screen) adds three portals for professionals. The screens it links to but
+does not draw (admin Dogs, Feeders, Collars, SOS cases, Reports, Settings;
+the vet and NGO status, profile and list screens) were designed during the
+build in the board's language. v7 added **no tokens**: every colour the
+portals use is already in `tokens.css`, plus a few local variables in
+`components/admin/admin.module.css` (`--a-warn`, `--a-selected` and the like).
+
+- **Black is the primary button in the portals.** The board draws the main
+  action of a professional screen (Verify Dr. Qureshi, Merge into Kalu, Send
+  Dr. Qureshi, Sign, Plan the drive) as a black pill (`--h-ink`), not blue:
+  it is a working tool, and blue stays the street app's "do the normal
+  thing". In code: admin `.btnDark`, vet `.dark`, NGO `.inkBtn`. Red is still
+  SOS and nothing else ("I'll take it", "This dog needs help"). Blue remains
+  for secondary header actions and links (admin `.btnBlue`, NGO `.pillBlue`).
+  Destructive actions are an outline in `--h-sos`, and the confirm dialog
+  names what will happen.
+- **The admin portal is the one desktop layout** (A1 to A7). A 232 px
+  sidebar (Today, Vets, NGOs, Dogs, Avatars, Feeders, Collars, SOS cases,
+  Reports; then Team & roles, Audit log, Settings) whose counts match the
+  rows so nothing hides; a content area that is either one column (40 to 48
+  px padding) or **list-with-detail**: a table with the selected row open in a
+  sticky right panel (`clamp(400px, 33vw, 520px)`), the selection in the URL
+  (`?id=`), Esc and the arrow keys to move. A1 is a task list, not a dashboard
+  of charts: each row opens the exact screen that clears it. Search is ⌘K /
+  Ctrl K. Below 1024 px it shows "Admin works on a laptop" instead of
+  squeezing; it never shows the phone invitation (D1).
+- **Vet and NGO are phone screens**, built from v4 and v6 patterns: the
+  52 px `AppHeader`, `SettingsList` rows, bottom `Sheet`s for every update
+  (ambulance in or out, beds free, SOS hours), `Segmented` and `Switch`. The
+  role tab bars put Vet or NGO third (Home, Map, Vet, Me; Home, Map, NGO, Me),
+  and "Scan a collar" moves inside that tab. The board labels the fourth tab
+  "Profile" on V2b and N2; the build keeps "Me", per the contract.
+- **Two kinds of health record, always labelled.** "✓ Vet signed" (a black
+  badge, with the vet's name, council number and the batch) and "Feeder
+  noted" (quiet, with the feeder's first name) on the collar page, the app
+  and the certificate. A correction shows the old value struck through; a
+  withdrawn record comes off the page. Colour never carries it alone: the
+  words do.
+- **"Government vet · free".** Wherever a government vet or hospital appears
+  it says so, with "free" in the label (`apps/web/lib/care-label.ts`,
+  `apps/scan/src/format.ts`). Private clinics show their cost tier as before.
+- **The signing moment.** The button names the phone's own method: "Sign
+  with Face ID" on an iPhone or iPad, "Sign with your screen lock" elsewhere.
+  It is a passkey assertion, and the copy says what it does ("It stays on
+  this phone, and it makes every record you sign checkable").
+- **The certificate** is a PDF built in the browser like the collar sheets:
+  vet-signed records only, and a footer saying so.
+
+Where v7 ships something other than its mock, `v7-portals/CONTRACT.md` says
+what and why. The visual ones: A2's "Found on the MSVC register" is an
+admin's checklist tick with a link to the council's register (there is no
+API); A3's "By photo · 94%" matching is not built (avatars match by the dog's
+code or the collar batch number in the file name, else "No match · pick
+dog"); collar numbers are the collar's batch number where set, else the
+3-3-3 code; and NGOs cover Mumbai wards only.
 
 ## Accessibility
 

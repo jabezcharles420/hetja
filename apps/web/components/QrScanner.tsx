@@ -159,7 +159,7 @@ export default function QrScanner(): React.JSX.Element {
     // page needs no Suspense boundary and server-renders the whole screen.
     const now = intentNow();
     const dest = destinationFor(collar, now);
-    if (now === "feed") routerRef.current.push(dest);
+    if (now === "feed" || now === "vet") routerRef.current.push(dest);
     else window.location.assign(dest);
   }, []);
 
@@ -309,6 +309,11 @@ export default function QrScanner(): React.JSX.Element {
     };
   }, [startCamera, stopCamera]);
 
+  // No camera: the field is the way in, so the cursor goes there.
+  useEffect(() => {
+    if (camera === "off" || camera === "denied") focusInput();
+  }, [camera, focusInput]);
+
   // F1: six seconds of a live camera with no read, unless someone is typing.
   useEffect(() => {
     if (camera !== "scanning" || failed || typing) return;
@@ -360,15 +365,24 @@ export default function QrScanner(): React.JSX.Element {
   const noCamera = camera === "off" || camera === "denied";
   const showChoices = failed || noCamera;
 
-  const choices = [
-    {
-      title: "Type the code",
-      sub: "Printed under the QR. Part of it is fine.",
-      // F2's boxes: this row promises "Part of it is fine."
-      href: withIntent("/scan/code?part=1", intent),
-    },
-    { title: "Find by ward and photo", sub: "When the code is gone too", href: withIntent("/scan/find", intent) },
-  ];
+  const findRow = {
+    title: "Find by ward and photo",
+    sub: "When the code is gone too",
+    href: withIntent("/scan/find", intent),
+  };
+  // With no camera the field itself is on the sheet, so "Type the code" is
+  // not a row to tap through (it would hide the one thing the person needs).
+  const choices = noCamera
+    ? [findRow]
+    : [
+        {
+          title: "Type the code",
+          sub: "Printed under the QR. Part of it is fine.",
+          // F2's boxes: this row promises "Part of it is fine."
+          href: withIntent("/scan/code?part=1", intent),
+        },
+        findRow,
+      ];
 
   const sheetTitle = noCamera
     ? camera === "denied"
@@ -377,9 +391,34 @@ export default function QrScanner(): React.JSX.Element {
     : "Can't read this QR.";
   const sheetSub = noCamera
     ? camera === "denied"
-      ? "Allow it in your browser settings, or try one of these."
-      : "Type the code printed under the QR, or try one of these."
+      ? "Allow it in your browser settings, or type the code printed under the QR."
+      : "Type the code printed under the QR."
     : "Mud and rain do this. Try one of these.";
+
+  const typingForm = (withPrompt: boolean) => (
+    <form className={styles.form} onSubmit={submit} onFocus={() => setTyping(true)} noValidate>
+      {withPrompt && (
+        <label className={styles.prompt} htmlFor="scan-collar-code">
+          No camera, or the QR is muddy?
+        </label>
+      )}
+      <CollarCodeInput
+        id="scan-collar-code"
+        value={code}
+        fold
+        aria-label="Collar code"
+        onChange={(next) => {
+          setCode(next);
+          setTyping(true);
+          if (error) setError(null);
+        }}
+        error={error ?? undefined}
+      />
+      <Button type="submit" fullWidth shadow={false} disabled={busy}>
+        View profile
+      </Button>
+    </form>
+  );
 
   return (
     <div className={styles.screen} data-state={showChoices ? "fallback" : "scanning"}>
@@ -434,6 +473,7 @@ export default function QrScanner(): React.JSX.Element {
             {sheetTitle}
           </h1>
           <p className={styles.failSub}>{sheetSub}</p>
+          {noCamera && <div ref={sheetRef}>{typingForm(false)}</div>}
           <ChoiceRows items={choices} tone="mist" />
           <Button variant="sos" bang={false} fullWidth href="/scan/find?sos=1" className={styles.sosBtn}>
             Dog is hurt · Send SOS anyway
@@ -441,25 +481,7 @@ export default function QrScanner(): React.JSX.Element {
         </section>
       ) : (
         <div className={styles.sheet} ref={sheetRef}>
-          <form className={styles.form} onSubmit={submit} onFocus={() => setTyping(true)} noValidate>
-            <label className={styles.prompt} htmlFor="scan-collar-code">
-              No camera, or the QR is muddy?
-            </label>
-            <CollarCodeInput
-              id="scan-collar-code"
-              value={code}
-              fold
-              onChange={(next) => {
-                setCode(next);
-                setTyping(true);
-                if (error) setError(null);
-              }}
-              error={error ?? undefined}
-            />
-            <Button type="submit" fullWidth shadow={false} disabled={busy}>
-              View profile
-            </Button>
-          </form>
+          {typingForm(true)}
         </div>
       )}
     </div>

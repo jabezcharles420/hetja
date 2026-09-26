@@ -317,6 +317,23 @@ describe("design v4 login screens", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/welcome?next=%2Ffeed%3Fdog%3Dabc234567"));
   });
 
+  it("v7: an admin sign-in goes back to /admin, even before onboarding", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Fadmin%2Fvets");
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: false });
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482190" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/vets"));
+    expect(push).not.toHaveBeenCalledWith(expect.stringContaining("/welcome"));
+  });
+
+  it("a look-alike path is not the admin portal: /welcome still comes first", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Fadministrator");
+    apiMock.getFeederMe.mockResolvedValue({ onboarded: false });
+    const input = await toCodeStep();
+    fireEvent.change(input, { target: { value: "482190" } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/welcome?next=%2Fadministrator"));
+  });
+
   it("goes straight on when the profile cannot be read (an older API)", async () => {
     apiMock.getFeederMe.mockRejectedValue(new Error("offline"));
     const input = await toCodeStep();

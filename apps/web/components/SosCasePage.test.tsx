@@ -323,6 +323,57 @@ describe("/sos/[caseId] (design v6)", () => {
     expect(screen.getByRole("link", { name: "Turn on alerts for H/W" }).getAttribute("href")).toBe("/settings");
   });
 
+  it("V22 on a fresh browser: the ward comes from the 403 itself, not the phone's cache", async () => {
+    (caseGlance as unknown as Mock).mockResolvedValue(null);
+    m.getSosCaseV6!.mockRejectedValue(
+      new ApiError("no", {
+        status: 403,
+        code: "SOS_CASE_FORBIDDEN",
+        data: {
+          forbiddenReason: "not_enough_trust",
+          wardId: "K-West",
+          wardCode: "K/W",
+          checklist: { sosOptIn: true, paused: false, inMyWards: true, trustScore: 36, trustFloor: 40, feedsToGo: 4 },
+        },
+      }),
+    );
+    render(<SosCaseScreen caseId={ID} />);
+    expect(await screen.findByRole("heading", { name: "This case went to feeders in K/W." })).not.toBeNull();
+    expect(screen.getByText("10 feeds logged (you have 6)")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Back to the map" })).not.toBeNull();
+    expect(screen.queryByTestId("case-summary")).toBeNull();
+    expect(caseGlance).not.toHaveBeenCalled();
+  });
+
+  it("V22 notify-only feeder: sees the dog, severity, ward and time, never the spot or note", async () => {
+    m.getSosCaseV6!.mockRejectedValue(
+      new ApiError("no", {
+        status: 403,
+        code: "SOS_CASE_FORBIDDEN",
+        data: {
+          forbiddenReason: "not_enough_trust",
+          wardId: "K-West",
+          wardCode: "K/W",
+          summary: {
+            dog: { slug: "rni482pq7", name: "Rani" },
+            severity: "critical",
+            wardId: "K-West",
+            openedAt: "2026-09-25T10:32:00Z",
+            state: "open",
+          },
+          checklist: { sosOptIn: true, paused: false, inMyWards: true, trustScore: 36, trustFloor: 60, feedsToGo: 24 },
+        },
+      }),
+    );
+    render(<SosCaseScreen caseId={ID} />);
+    expect(await screen.findByRole("heading", { name: "This case went to feeders in K/W." })).not.toBeNull();
+    const card = screen.getByTestId("case-summary");
+    expect(card.textContent).toContain("Can't get up, or bleeding");
+    expect(card.textContent).toContain("Rani · K/W Andheri West · raised 4:02 pm");
+    expect(screen.queryByText(/SV Road/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Directions" })).toBeNull();
+  });
+
   it("L6: a case that didn't load shows what the alert said, saved vets, and Try again", async () => {
     (caseGlance as unknown as Mock).mockResolvedValue({
       caseId: ID,

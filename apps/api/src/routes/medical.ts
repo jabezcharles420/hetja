@@ -162,6 +162,26 @@ export interface ChainAppend {
   vetId: string | null;
   isVerified: boolean;
   vetSignature: string | null;
+  /**
+   * Design v7 (routes/vet.ts, routes/v7-public.ts). Everything here is
+   * optional and absent for every older writer, whose rows hash exactly as
+   * before. `hashed` is merged into the payload that is hashed and stored
+   * (brand, batch, due date, the signer and the record hash the passkey
+   * signed), so none of it can be changed without breaking the chain.
+   */
+  v7?: {
+    recordSource: "vet_signed" | "feeder_noted";
+    hashed: Record<string, unknown>;
+    /** Replaces "feeder" / the vets-registry id as the hash's vet field: "vet:<feederId>". */
+    hashVetId?: string;
+    signedBy?: string | null;
+    credentialId?: string | null;
+    assertion?: unknown;
+    recordHash?: string | null;
+    correctionReason?: string | null;
+    driveDogId?: string | null;
+    notedBy?: string | null;
+  };
 }
 
 export interface ChainAppendResult {
@@ -181,15 +201,17 @@ export interface ChainAppendResult {
  * The caller must be inside withTx; the advisory lock is transaction-scoped.
  */
 export async function appendMedicalRecord(client: TxClient, rec: ChainAppend): Promise<ChainAppendResult> {
-  const { input, vetId, isVerified, vetSignature } = rec;
-  const payloadText = canonicalPayload({ ...input });
+  const { input, vetId, isVerified, vetSignature, v7 } = rec;
+  const hashedPayload: Record<string, unknown> = { ...input, ...(v7?.hashed ?? {}) };
+  const payloadText = canonicalPayload(hashedPayload);
+  const hashVetId = v7?.hashVetId ?? vetId ?? "feeder";
   const ts = new Date().toISOString();
   await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
   const head = await client.query<HeadRow>(
     `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
   );
   const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
-  const hashCurr = computeHash(prev, { ...input }, vetId ?? "feeder", ts);
+  const hashCurr = computeHash(prev, hashedPayload, hashVetId, ts);
 
   // Merkle root over THIS DOG's whole ledger including the row about to be
   // written (enhancement stack §D.1, Top-25 #15). Computed here, inside the
@@ -224,9 +246,11 @@ export async function appendMedicalRecord(client: TxClient, rec: ChainAppend): P
        (dog_id, vet_id, record_type, vaccine_name, vaccine_date, abc_date,
         diagnosis, treatment, severity, is_verified, vet_signature,
         corrects_record_id, payload_len, hash_prev, hash_curr,
-        payload, hash_vet_id, hash_ts, merkle_root)
+        payload, hash_vet_id, hash_ts, merkle_root,
+        record_source, signed_by, credential_id, assertion, record_hash, correction_reason, drive_dog_id, noted_by)
      SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::uuid, $13, $14, $15,
-            $16::jsonb, $17, $18, $19
+            $16::jsonb, $17, $18, $19,
+            $20, $21::uuid, $22, $23::jsonb, $24, $25, $26::uuid, $27::uuid
      RETURNING id`,
     [
       input.dogId,
@@ -245,9 +269,17 @@ export async function appendMedicalRecord(client: TxClient, rec: ChainAppend): P
       prev,
       hashCurr,
       payloadText,
-      vetId ?? "feeder",
+      hashVetId,
       ts,
       dogMerkleRoot,
+      v7?.recordSource ?? null,
+      v7?.signedBy ?? null,
+      v7?.credentialId ?? null,
+      v7?.assertion === undefined ? null : JSON.stringify(v7.assertion),
+      v7?.recordHash ?? null,
+      v7?.correctionReason ?? null,
+      v7?.driveDogId ?? null,
+      v7?.notedBy ?? null,
     ],
   );
   return {

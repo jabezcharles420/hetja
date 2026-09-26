@@ -33,6 +33,8 @@
  * surface, streak or trust.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { deviceBlockedBody, isDeviceBlocked } from "../lib/moderation-state.js";
+import { addDogToDrive, driveForMember } from "./ngo.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { BMC_WARD_CODES, MAX_PHOTO_BASE64_CHARS } from "@hetja/contracts";
@@ -115,6 +117,12 @@ const RegistrationInput = z.object({
   photoBase64: z.string().max(MAX_PHOTO_BASE64_CHARS).optional(),
   /** Design v5 R4 "How to spot her": at most 8 short strings. */
   markings: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
+  /**
+   * Design v7 (N5): registering a dog during a collar drive. When the caller
+   * is a member of that drive's NGO, the new dog is added to the drive with
+   * the collar task; otherwise 403 NOT_DRIVE_MEMBER, before anything is minted.
+   */
+  driveId: z.string().uuid().optional(),
 });
 
 /** Who is registering: filled by the onRequest hook, read by the handler. */
@@ -237,6 +245,8 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
         error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" },
       });
     }
+    // Design v7 (D13): a blocked device registers nothing.
+    if (await isDeviceBlocked(deviceSubject)) return reply.status(403).send(deviceBlockedBody);
     registrationCallers.set(req, { auth, deviceSubject });
   };
 
@@ -298,6 +308,14 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
             });
           }
         }
+      }
+
+      if (input.driveId && !(await driveForMember(input.driveId, auth.feederId))) {
+        release?.();
+        return reply.status(403).send({
+          ok: false,
+          error: { message: "you are not on that drive's NGO, or the drive is over", code: "NOT_DRIVE_MEMBER" },
+        });
       }
 
       try {
@@ -397,6 +415,9 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
             if (input.markings && input.markings.length > 0) {
               await client.query(`UPDATE dogs SET markings = $2 WHERE id = $1`, [minted.dogId, input.markings]);
             }
+            const driveDogId = input.driveId
+              ? await addDogToDrive(client, input.driveId, minted.dogId, { collar: true })
+              : null;
 
             // The portrait's scan row, in the same transaction as the dog; the
             // bytes are written after commit (persistRegistrationPhoto).
@@ -418,7 +439,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
               [minted.dogId],
             );
 
-            return { minted, registeredAt: stamped.rows[0].registered_at, photoScanId };
+            return { minted, registeredAt: stamped.rows[0].registered_at, photoScanId, driveDogId };
           });
         } catch (err) {
           if (err instanceof RegistrationBudgetError) {
@@ -474,6 +495,7 @@ export default async function registrationRoutes(app: FastifyInstance): Promise<
             slug: result.minted.slug,
             status: "pending_activation",
             wardId: input.wardId,
+            ...(result.driveDogId ? { driveDogId: result.driveDogId } : {}),
             registeredAt: result.registeredAt.toISOString(),
             expiresAt: expiresAtOf(result.registeredAt),
             // The whole point of the endpoint: the exact signed string to encode

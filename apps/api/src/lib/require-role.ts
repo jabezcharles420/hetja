@@ -98,11 +98,38 @@ function authenticate(req: FastifyRequest, reply: FastifyReply): string | null {
  * anonymised account must still read as gone to every capability check, or an
  * access token minted before the delete would keep working for up to its TTL.
  */
-async function loadRole(feederId: string): Promise<FeederRole | null> {
-  const res = await query<{ role: FeederRole }>(`SELECT role FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [
-    feederId,
-  ]);
-  return res.rows[0]?.role ?? null;
+async function loadRole(feederId: string): Promise<{ role: FeederRole; suspended: boolean } | null> {
+  const res = await query<{ role: FeederRole; suspended: boolean }>(
+    `SELECT role, suspended_at IS NOT NULL AS suspended FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
+    [feederId],
+  );
+  const r = res.rows[0];
+  return r ? { role: r.role, suspended: r.suspended } : null;
+}
+
+/**
+ * Design v7 (D13): the writes a SUSPENDED account may still make. Everything
+ * else that is not a read answers 403 ACCOUNT_SUSPENDED. These are the ways
+ * out (let go of a case, stop pushes, leave) and reporting an emergency.
+ */
+const SUSPENSION_EXEMPT = new Set([
+  "DELETE /api/v1/feeders/me",
+  "POST /api/v1/push/unsubscribe",
+  "POST /api/v1/sos/cases/:id/release",
+  "POST /api/v1/sos/cases/:id/decline",
+  "POST /api/v1/reports",
+  "POST /api/v1/reports/:caseId/updates",
+  "POST /api/v1/reports/:caseId/left",
+]);
+
+function refuseSuspended(req: FastifyRequest, reply: FastifyReply): boolean {
+  if (req.method === "GET" || req.method === "HEAD") return false;
+  const route = `${req.method} ${req.routeOptions?.url ?? req.url.split("?")[0]}`;
+  if (SUSPENSION_EXEMPT.has(route)) return false;
+  void reply
+    .status(403)
+    .send({ ok: false, error: { message: "this account is suspended", code: "ACCOUNT_SUSPENDED" } });
+  return true;
 }
 
 /**
@@ -117,8 +144,8 @@ export async function requireFeeder(
   const feederId = authenticate(req, reply);
   if (!feederId) return null;
 
-  const role = await loadRole(feederId);
-  if (!role) {
+  const loaded = await loadRole(feederId);
+  if (!loaded) {
     // A cryptographically valid token for an erased account must not pass as
     // "authenticated": INVARIANT 11's erasure deletes the feeders row, and
     // whatever survives in localStorage afterwards should be told the account
@@ -128,7 +155,8 @@ export async function requireFeeder(
       .send({ ok: false, error: { message: "account no longer exists", code: "FEEDER_GONE" } });
     return null;
   }
-  return { feederId, role };
+  if (loaded.suspended && refuseSuspended(req, reply)) return null;
+  return { feederId, role: loaded.role };
 }
 
 /**
@@ -149,8 +177,8 @@ export async function requireCapability(
   const feederId = authenticate(req, reply);
   if (!feederId) return null;
 
-  const role = await loadRole(feederId);
-  if (!role) {
+  const loaded = await loadRole(feederId);
+  if (!loaded) {
     // Same contract as requireFeeder above. (Both converted requireAdmin
     // copies used to answer 403 here, implying the account existed but
     // lacked the role. Saying WHY it fails is more honest than which of two
@@ -161,6 +189,8 @@ export async function requireCapability(
     return null;
   }
 
+  if (loaded.suspended && refuseSuspended(req, reply)) return null;
+  const role = loaded.role;
   if (!capabilitiesFor(role).has(cap)) {
     void reply
       .status(403)

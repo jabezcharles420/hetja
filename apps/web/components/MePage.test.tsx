@@ -137,8 +137,33 @@ describe("MePage: signed in", () => {
     render(<MePage />);
     const g = await rows();
     const links = g.getAllByRole("link");
-    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/me/dogs", "/alerts", "/register", "/settings"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([
+      "/me/dogs",
+      "/alerts",
+      "/register",
+      "/vet/apply",
+      "/ngo/register",
+      "/settings",
+    ]);
     expect(g.getByRole("switch", { name: "SOS alerts" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("v7: offers vet and NGO sign-up rows, with the application's status when there is one", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ vet: { status: "waiting" } }));
+    render(<MePage />);
+    const g = await rows();
+    const vet = g.getByRole("link", { name: /Sign records as a vet/ });
+    expect(vet.getAttribute("href")).toBe("/vet/apply");
+    expect(vet.textContent).toBe("Sign records as a vetWaiting ›");
+    expect(g.getByRole("link", { name: /Bring your NGO to Hetja/ }).getAttribute("href")).toBe("/ngo/register");
+  });
+
+  it("v7: a verified vet loses the sign-up row (the Vet tab takes over)", async () => {
+    apiMock.getFeederMe.mockResolvedValue(feederMe({ vet: { status: "verified" } }));
+    render(<MePage />);
+    const g = await rows();
+    expect(g.queryByRole("link", { name: /Sign records as a vet/ })).toBeNull();
+    expect(localStorage.getItem("hetja:tab-role")).toBe("vet");
   });
 
   it("counts alerts newer than the last visit to Alerts", async () => {

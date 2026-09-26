@@ -44,7 +44,9 @@ import { requireFeeder } from "../lib/require-role.js";
 import { capabilitiesFor } from "../lib/require-role.js";
 import { REGISTRATION_BUDGET_MAX, REGISTRATION_WEEKLY_CAP } from "../lib/enrol.js";
 import { FEEDER_WINDOW_DAYS, dogSex } from "../lib/dog-feeders.js";
-import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
+import { AVATAR_SQL, PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
+import { claimInvites, loadAdmin } from "../lib/admin.js";
+import { ngoMembership, regLabel, vetStanding } from "../lib/professionals.js";
 import { FORMER_FEEDER_NAME, publicName } from "../lib/public-name.js";
 import { exportPerAccount, logRateLimited } from "../lib/rate-limit.js";
 import { forgetAllDogs } from "./dogs.js";
@@ -66,6 +68,7 @@ interface MyDogRow {
   last_fed_by_deleted: Date | null;
   last_fed_by_id: string | null;
   photo_key: string | null;
+  avatar_key: string | null;
   sos_since: Date | null;
   tag_since: Date | null;
   tag_kind: string | null;
@@ -212,6 +215,15 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
 
     const capabilities = [...capabilitiesFor(auth.role)].sort();
     const holdsRegister = capabilities.includes("register");
+    // Design v7: an invitation addressed to this account (vet, NGO member,
+    // admin team) is claimed on this read, then the portals it opens are
+    // reported for the tab bar (vet / ngo) and the Me rows.
+    await claimInvites(auth.feederId);
+    const [vet, ngo, admin] = await Promise.all([
+      vetStanding(auth.feederId),
+      ngoMembership(auth.feederId),
+      loadAdmin(auth.feederId, app.config),
+    ]);
 
     // The budget is only meaningful for accounts that can file registrations;
     // everyone else reports a truthful zero without spending the query.
@@ -261,6 +273,10 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
           feeder.sos_paused_until && feeder.sos_paused_until.getTime() > Date.now()
             ? feeder.sos_paused_until.toISOString()
             : null,
+        // Design v7.
+        vet: vet ? { status: vet.status, regLabel: regLabel(vet.council, vet.regNo) } : null,
+        ngo: ngo ? { id: ngo.ngoId, name: ngo.name, status: ngo.status, role: ngo.role } : null,
+        adminRoles: admin ? [...new Set(admin.roles.map((r) => r.role))] : [],
       },
     };
   });
@@ -299,13 +315,14 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
        ), ids AS (
          SELECT dog_id FROM mine
          UNION
-         SELECT id FROM dogs WHERE registered_by = $1
+         -- v7: a dog this feeder registered that was merged shows as the kept dog.
+         SELECT COALESCE(merged_into, id) FROM dogs WHERE registered_by = $1
        )
        SELECT d.id, d.slug, d.name, d.ward_id, d.status::text AS status, d.verified_at, d.registered_by,
               d.registered_at, d.vaccine_due_month, d.sex, mine.my_last_fed_at,
               lf.captured_at AS last_fed_at, lf.display_name AS last_fed_by_name,
               lf.deleted_at AS last_fed_by_deleted, lf.feeder_id AS last_fed_by_id,
-              ${PORTRAIT_SQL} AS photo_key,
+              ${PORTRAIT_SQL} AS photo_key, ${AVATAR_SQL} AS avatar_key,
               (SELECT min(c.opened_at) FROM sos_cases c
                 WHERE c.dog_id = d.id AND c.resolved_at IS NULL
                   AND c.state IN ('open', 'acked', 'escalated')) AS sos_since,
@@ -344,6 +361,7 @@ export default async function feederRoutes(app: FastifyInstance): Promise<void> 
             lastFedAt: iso(r.last_fed_at),
             myLastFedAt: iso(r.my_last_fed_at),
             photoUrl: photoUrlFor(req, r.photo_key),
+            avatarUrl: photoUrlFor(req, r.avatar_key),
             status: r.status,
             sex: dogSex(r.sex),
             verified: r.verified_at !== null,

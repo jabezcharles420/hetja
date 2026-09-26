@@ -11,10 +11,17 @@
  *   retention      → raw-photo 7-day TTL + thumbnail rotation
  *   anchor_ledger  → daily ledger head publication, Merkle root and signature
  *                    (INVARIANT 10; see src/sign-anchor.ts for the key config)
+ *   sos_open_to_vets → design v7: NGO_WINDOW_MINUTES after filing with nobody
+ *                    taking the case, page every verified vet covering the ward
+ *   sweep_v7       → design v7 daily: delete documents 30 days after the
+ *                    decision, drop retired avatars' files after 30 days, expire
+ *                    passkey challenges, a vaccine-due reminder a week ahead
+ *   drive_headsup  → design v7 (N5): the day before a drive, tell the feeders
+ *                    of its dogs so they can help find them
  */
 import { unlink } from "node:fs/promises";
 import { join as joinPath } from "node:path";
-import { pool, query, withTx } from "@hetja/db";
+import { openCaseToVets, pool, query, withTx } from "@hetja/db";
 import type { PoolClient } from "pg";
 import webpush from "web-push";
 import {
@@ -37,6 +44,8 @@ const BATCH = 10;
 const PHOTO_TTL_DAYS = Number(process.env.HETJA_PHOTO_TTL_DAYS ?? 7);
 const STORAGE_BACKEND = process.env.STORAGE_BACKEND ?? "local";
 const STORAGE_LOCAL_DIR = process.env.STORAGE_LOCAL_DIR ?? "data/photos";
+/** Design v7: the private, encrypted document directory (never the photos dir). */
+const DOCS_LOCAL_DIR = process.env.DOCS_LOCAL_DIR ?? "data/documents";
 /** Bounded so one run cannot hold the queue for an unbounded time. */
 const RETENTION_BATCH = 200;
 const POLL_MS = 2_000;
@@ -395,7 +404,8 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
              JOIN feeders f ON f.id = n.feeder_id
             WHERE n.case_id = $1 AND n.channel = 'push' AND n.declined_at IS NULL AND NOT n.notify_only
               AND ($2::uuid IS NULL OR n.feeder_id <> $2::uuid)
-              AND f.deleted_at IS NULL AND f.sos_opt_in
+              AND f.deleted_at IS NULL AND f.suspended_at IS NULL
+              AND (f.sos_opt_in OR n.route IS NOT NULL)
               AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())`
         : `SELECT id, feeder_id FROM sos_notifications
             WHERE case_id = $1 AND channel = 'push' AND delivered_at IS NULL AND feeder_id IS NOT NULL`,
@@ -422,6 +432,33 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
         await sendOnePush(sub, notif.id, payload);
       }
     }
+  },
+
+  /**
+   * Design v7: the vets' turn. Queued by routes/sos.ts at filing (for
+   * NGO_WINDOW_MINUTES later, or now when nobody could be told) and by an NGO
+   * passing. openCaseToVets (@hetja/db, the one copy of the rule) does nothing
+   * once the case is taken, closed or already opened to vets.
+   */
+  sos_open_to_vets: async (p) => {
+    const caseId = typeof p?.caseId === "string" ? p.caseId : null;
+    if (!caseId) return;
+    await withTx(async (client) => {
+      const paged = await openCaseToVets(client, caseId);
+      if (paged > 0) {
+        await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`, [
+          JSON.stringify({ caseId }),
+        ]);
+      }
+    });
+  },
+
+  sweep_v7: async () => {
+    await sweepV7();
+  },
+
+  drive_headsup: async () => {
+    await driveHeadsUp();
   },
 
   /**
@@ -977,6 +1014,10 @@ export const JOB_PRODUCERS: Record<string, string> = {
   anchor_ledger: "apps/worker/src/index.ts (enqueueAnchorJobIfDue via tick)",
   expire_stale_registrations: "apps/worker/src/index.ts (enqueueRegistrationSweepIfDue via tick)",
   send_registration_reminder: "apps/worker/src/index.ts (expire_stale_registrations handler enqueues send_registration_reminder)",
+  sos_open_to_vets:
+    "packages/db/src/sos-routing.ts scheduleOpenToVets (apps/api/src/routes/sos.ts POST /api/v1/reports); routes/ngo.ts pass runs it inline",
+  sweep_v7: "apps/worker/src/index.ts (enqueueDailyIfDue via tick)",
+  drive_headsup: "apps/worker/src/index.ts (enqueueDailyIfDue via tick, hourly)",
   send_feeder_push:
     "apps/api/src/lib/dog-feeders.ts enqueueFeederPush (routes/tags.ts tag reports, routes/dog-status.ts status reports, routes/scans.ts unwell tellCoFeeders); re-queued by itself for quiet hours",
 };
@@ -1007,6 +1048,168 @@ async function ensureDailyRegistrationSweep(): Promise<void> {
   await withTx(enqueueRegistrationSweepIfDue);
 }
 
+/**
+ * Design v7 daily sweep. Every step is idempotent, and every file delete is
+ * file-then-pointer, as the photo retention above explains.
+ *
+ *   documents   delete_after has passed (30 days after the decision, or one
+ *               day for an upload nobody attached): unlink the encrypted blob,
+ *               stamp deleted_at, clear blob_key. The row stays, so the audit
+ *               log's "opened a certificate" still points at something.
+ *   avatars     retired more than 30 days ago (the restore window): unlink the
+ *               image and clear image_key.
+ *   challenges  WebAuthn challenges a day past expiry.
+ *   reminders   "reminded a week before it's due" (V3): the feeders of each
+ *               dog whose current vet-signed vaccination is due in 7 days.
+ */
+export async function sweepV7(): Promise<{ documents: number; avatars: number; challenges: number; reminders: number }> {
+  const docs = await query<{ id: string; blob_key: string | null }>(
+    `SELECT id, blob_key FROM documents WHERE deleted_at IS NULL AND delete_after IS NOT NULL AND delete_after < now() LIMIT 500`,
+  );
+  let documents = 0;
+  for (const d of docs.rows) {
+    if (d.blob_key) {
+      if (!/^documents\/[0-9a-f-]{36}\.bin$/.test(d.blob_key)) {
+        console.error(`sweep_v7: refusing unexpected document key on ${d.id}; clearing the pointer only`);
+      } else {
+        try {
+          await unlink(joinPath(DOCS_LOCAL_DIR, d.blob_key));
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+            console.error(`sweep_v7: could not delete document ${d.id}:`, err);
+            continue;
+          }
+        }
+      }
+    }
+    await query(`UPDATE documents SET deleted_at = now(), blob_key = NULL WHERE id = $1`, [d.id]);
+    documents++;
+  }
+  const av = await query<{ id: string; image_key: string }>(
+    `SELECT id, image_key FROM dog_avatars
+      WHERE status IN ('retired', 'rejected') AND image_key IS NOT NULL
+        AND COALESCE(retired_at, uploaded_at) < now() - interval '30 days' LIMIT 500`,
+  );
+  let avatars = 0;
+  for (const a of av.rows) {
+    if (STORAGE_BACKEND === "local" && /^photos\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(a.image_key)) {
+      try {
+        await unlink(joinPath(STORAGE_LOCAL_DIR, a.image_key));
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") continue;
+      }
+    }
+    await query(`UPDATE dog_avatars SET image_key = NULL WHERE id = $1`, [a.id]);
+    avatars++;
+  }
+  const ch = await query(`DELETE FROM webauthn_challenges WHERE expires_at < now() - interval '1 day'`);
+  const due = await query<{ dog_id: string; slug: string; name: string | null }>(
+    `SELECT DISTINCT ON (m.dog_id) m.dog_id, d.slug, d.name
+       FROM medical_records m JOIN dogs d ON d.id = m.dog_id AND d.status IN ('active', 'lost')
+      WHERE m.record_source = 'vet_signed' AND m.record_type = 'vaccination'
+        AND m.payload->>'dueOn' = to_char((now() AT TIME ZONE 'Asia/Kolkata')::date + 7, 'YYYY-MM-DD')
+        AND NOT EXISTS (SELECT 1 FROM medical_records w WHERE w.corrects_record_id = m.id)
+      LIMIT 500`,
+  );
+  for (const r of due.rows) {
+    const feeders = await query<{ id: string }>(
+      `SELECT f.id FROM feeders f WHERE f.deleted_at IS NULL
+          AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1)
+               OR EXISTS (SELECT 1 FROM scans s WHERE s.dog_id = $1 AND s.feeder_id = f.id AND s.scan_type = 'feed'
+                            AND s.review_status <> 'rejected' AND s.received_at >= now() - interval '60 days'))`,
+      [r.dog_id],
+    );
+    if (feeders.rows.length === 0) continue;
+    await query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_feeder_push', $1::jsonb, now())`, [
+      JSON.stringify({
+        feederIds: feeders.rows.map((f) => f.id),
+        kind: "v7",
+        title: `${r.name ?? "A dog you feed"} is due a vaccine`,
+        body: "Due in a week. A vet can sign it on Hetja.",
+        url: `/dog/${r.slug}`,
+        tag: `vaccine-due-${r.dog_id}`,
+      }),
+    ]);
+  }
+  const out = { documents, avatars, challenges: ch.rowCount ?? 0, reminders: due.rows.length };
+  if (out.documents || out.avatars || out.challenges || out.reminders) console.log("sweep_v7:", JSON.stringify(out));
+  return out;
+}
+
+/**
+ * N5: "Feeders of these dogs get a heads-up the day before so they can help
+ * find them." A drive starting TOMORROW (Mumbai date) that has not sent one:
+ * one push to the feeders of its dogs, then headsup_sent_at. Moving a drive's
+ * date clears the stamp (routes/ngo.ts), so a rescheduled drive tells again.
+ */
+export async function driveHeadsUp(): Promise<number> {
+  const drives = await query<{ id: string; title: string; starts_at: Date }>(
+    `SELECT id, title, starts_at FROM drives
+      WHERE headsup_sent_at IS NULL AND cancelled_at IS NULL AND finished_at IS NULL
+        AND (starts_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date + 1
+      LIMIT 50`,
+  );
+  let sent = 0;
+  for (const d of drives.rows) {
+    await withTx(async (client) => {
+      const claim = await client.query(`UPDATE drives SET headsup_sent_at = now() WHERE id = $1 AND headsup_sent_at IS NULL`, [d.id]);
+      if ((claim.rowCount ?? 0) === 0) return;
+      const feeders = await client.query<{ id: string }>(
+        `SELECT DISTINCT f.id FROM drive_dogs dd JOIN dogs g ON g.id = dd.dog_id JOIN feeders f ON f.deleted_at IS NULL
+          WHERE dd.drive_id = $1
+            AND (f.id = g.registered_by
+                 OR EXISTS (SELECT 1 FROM scans s WHERE s.dog_id = g.id AND s.feeder_id = f.id AND s.scan_type = 'feed'
+                              AND s.review_status <> 'rejected' AND s.received_at >= now() - interval '60 days'))`,
+        [d.id],
+      );
+      if (feeders.rows.length > 0) {
+        const time = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }).format(d.starts_at);
+        await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_feeder_push', $1::jsonb, now())`, [
+          JSON.stringify({
+            feederIds: feeders.rows.map((f) => f.id),
+            kind: "v7",
+            title: `${d.title} tomorrow`,
+            body: `A collar and vaccination drive starts tomorrow at ${time}. Help them find the dogs you feed.`,
+            url: "/alerts",
+            tag: `drive-${d.id}`,
+          }),
+        ]);
+      }
+      sent++;
+    });
+  }
+  return sent;
+}
+
+/** Advisory lock for the v7 schedulers. Distinct from the three above. */
+const V7_SCHEDULE_LOCK_KEY = 420_013;
+
+/** Enqueue `kind` unless one ran (or is queued) within `hours`. Same shape and failed_at rule as the others. */
+export async function enqueueDailyIfDue(client: PoolClient, kind: "sweep_v7" | "drive_headsup", hours: number): Promise<boolean> {
+  const lock = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1, hashtext($2)) AS locked", [
+    V7_SCHEDULE_LOCK_KEY,
+    kind,
+  ]);
+  if (!lock.rows[0].locked) return false;
+  const res = await client.query(
+    `INSERT INTO jobs (kind, payload, run_after)
+     SELECT $1, '{}'::jsonb, now()
+      WHERE NOT EXISTS (SELECT 1 FROM jobs WHERE kind = $1 AND failed_at IS NULL
+                          AND run_after > now() - make_interval(hours => $2))`,
+    [kind, hours],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+let lastV7ScheduleCheck = 0;
+async function ensureV7Jobs(): Promise<void> {
+  const now = Date.now();
+  if (now - lastV7ScheduleCheck < ANCHOR_SCHEDULE_CHECK_MS) return;
+  lastV7ScheduleCheck = now;
+  await withTx((c) => enqueueDailyIfDue(c, "sweep_v7", 24));
+  await withTx((c) => enqueueDailyIfDue(c, "drive_headsup", 1));
+}
+
 export async function runWorker(once = false): Promise<void> {
   const tick = async () => {
     // Before claiming work, make sure the daily anchor is on the queue. Errors
@@ -1029,6 +1232,11 @@ export async function runWorker(once = false): Promise<void> {
       await ensureDailyRegistrationSweep();
     } catch (err) {
       console.error("expire_stale_registrations: could not evaluate the daily schedule:", err);
+    }
+    try {
+      await ensureV7Jobs();
+    } catch (err) {
+      console.error("v7 jobs: could not evaluate the schedule:", err);
     }
     let processed = 0;
     while (processed < BATCH) {

@@ -52,6 +52,10 @@ function resolved(over: Partial<ResolvedRecord> = {}): ResolvedRecord {
     geoLat: 19.13,
     geoLng: 72.83,
     geoPrecision: "exact",
+    isGovernment: false,
+    isPerson: false,
+    regNo: null,
+    wards: ["K-West"],
     ...over,
   };
 }
@@ -100,7 +104,32 @@ describe("readRecords", () => {
     expect(records.map((r) => [r.sourceRef, r.kind, r.wardId, r.hasAmbulance])).toEqual([
       ["clinic-0001", "private_clinic", "K-West", false],
       ["ngo-0001", "ngo", "K-East", true],
+      ["govt-vet-0001", "govt", "K-West", false],
     ]);
+    const vet = records[2];
+    expect([vet.isGovernment, vet.isPerson, vet.regNo, vet.wards]).toEqual([true, true, "5190", ["K-West", "K-East"]]);
+  });
+
+  it("design v7: government care must be free, people carry a registration number and wards", () => {
+    const H = HEADER + ",is_person,is_government,reg_no,wards";
+    const ok = readRecords(parseCsv([H, "v-1,Dr Govt Vet,govt,free,,Andheri,K/W,,,+91 98200 00001,,no,no,,no,2026-09-01,,yes,,5190,K/W; K/E"].join("\n")), "2026-09-26");
+    expect(ok.errors).toEqual([]);
+    expect(ok.records[0]).toMatchObject({ isGovernment: true, isPerson: true, regNo: "5190", wards: ["K-West", "K-East"] });
+    const paid = readRecords(parseCsv([H, "v-2,Govt Hospital,govt,paid,,Parel,F/S,,,+91 22 2000 0000,,no,no,,no,2026-09-01,,no,yes,,"].join("\n")), "2026-09-26");
+    expect(paid.errors.map((e) => e.message).join()).toMatch(/must be cost_tier free/);
+    const badWard = readRecords(parseCsv([H, "v-3,Dr X,private_clinic,paid,,Andheri,K/W,,,+91 98200 00002,,no,no,,no,2026-09-01,,yes,no,77,Thane"].join("\n")), "2026-09-26");
+    expect(badWard.errors.map((e) => e.message).join()).toMatch(/not a BMC ward/);
+    // Older files without the v7 columns still import: a govt row is government by kind.
+    const old = readRecords(parseCsv(csv("g-1,BMC Clinic,govt,free,,Parel,F/S,,,+91 22 2000 0001,,no,no,,no,2026-09-01,")), "2026-09-26");
+    expect(old.errors).toEqual([]);
+    expect(old.records[0]).toMatchObject({ isGovernment: true, isPerson: false, regNo: null, wards: ["F-South"] });
+  });
+
+  it("design v7: a change of wards or registration number is an update", () => {
+    const r = resolved({ isPerson: true, regNo: "5190", wards: ["K-West"] });
+    const p = plan([stored(r, { wards: ["K-East"], reg_no: "5100" })], [r], new Map());
+    expect(p.updates[0].changes.map((c) => c.column).sort()).toEqual(["reg_no", "wards"]);
+    expect(plan([stored(r)], [r], new Map()).unchanged).toBe(1);
   });
 
   it("normalises phones to E.164 and warns (not fails) on a bad one", () => {

@@ -45,6 +45,16 @@
  * row has a phone: that column means "a human confirmed this number with the
  * provider", which is what the monthly file certifies.
  *
+ * Design v7: government vets AS PEOPLE, next to hospitals and NGOs. Optional
+ * columns, so older files still import unchanged:
+ *   is_person      yes for a vet listed as a person (name, registration number)
+ *   is_government  yes for government care; it MUST be cost_tier free (the
+ *                  owner's rule: "Government vets are free, and Hetja says so").
+ *                  Defaults to yes when kind is govt.
+ *   reg_no         the vet's council registration number (people only)
+ *   wards          the wards a person covers, separated by ; (K/W; K/E)
+ * A verified vet account is linked to its row by an admin (A2, link-care).
+ *
  * Warnings (printed, never block): a lat/lng outside @hetja/contracts
  * MUMBAI_BOUNDS (the row gets no pin), one phone on more than 3 rows under
  * different names, a confirmed_on more than 365 days old, and two rows of the
@@ -180,6 +190,11 @@ export interface CareRecord {
   lat: number | null;
   lng: number | null;
   confirmedOn: string | null;
+  /** Design v7. */
+  isGovernment: boolean;
+  isPerson: boolean;
+  regNo: string | null;
+  wards: string[];
 }
 
 export interface RowIssue {
@@ -244,7 +259,7 @@ export function readRecords(rows: string[][], today: string = todayInMumbai()): 
     }
 
     const flags: Record<string, boolean> = {};
-    for (const f of ["ambulance", "is_24x7", "handles_wildlife"]) {
+    for (const f of ["ambulance", "is_24x7", "handles_wildlife", "is_person"]) {
       const b = bool(col(r, f));
       if (b === null) return err(`${f} "${col(r, f)}" is not yes/no`);
       flags[f] = b;
@@ -277,6 +292,22 @@ export function readRecords(rows: string[][], today: string = todayInMumbai()): 
       }
     }
 
+    // Design v7: government care is free, always; a person carries a registration number.
+    const govRaw = col(r, "is_government");
+    const isGovernment = govRaw === "" ? kind === "govt" : bool(govRaw);
+    if (isGovernment === null) return err(`is_government "${govRaw}" is not yes/no`);
+    if (isGovernment && costTier !== "free") return err("a government vet or hospital must be cost_tier free (government care is free)");
+    const regNo = col(r, "reg_no") || null;
+    if (regNo && !/^[A-Za-z0-9/-]{1,32}$/.test(regNo)) return err(`reg_no "${regNo}" is not a registration number`);
+    if (regNo && !flags.is_person) warn("reg_no is set on a row that is not a person: it is kept, but only people show it");
+    const wardList: string[] = [];
+    for (const w of col(r, "wards").split(";").map((x) => x.trim()).filter(Boolean)) {
+      const id = normaliseWard(w);
+      if (!id) return err(`wards: "${w}" is not a BMC ward code`);
+      if (!wardList.includes(id)) wardList.push(id);
+    }
+    if (flags.is_person && wardList.length === 0 && !wardId) warn("a person with no wards: add the wards they cover");
+
     const confirmedOn = col(r, "confirmed_on");
     if (confirmedOn && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedOn)) return err(`confirmed_on "${confirmedOn}" is not YYYY-MM-DD`);
     if (confirmedOn && !isRealDate(confirmedOn)) return err(`confirmed_on "${confirmedOn}" is not a real date`);
@@ -305,6 +336,10 @@ export function readRecords(rows: string[][], today: string = todayInMumbai()): 
       lat,
       lng,
       confirmedOn: confirmedOn || null,
+      isGovernment,
+      isPerson: flags.is_person,
+      regNo,
+      wards: wardList.length > 0 ? wardList : wardId ? [wardId] : [],
     });
   });
   return { records, errors, warnings };
@@ -337,6 +372,10 @@ export interface StoredRow {
   lng: number;
   phone_verified_on: string | null;
   listed: boolean;
+  is_government: boolean;
+  is_person: boolean;
+  reg_no: string | null;
+  wards: string[];
 }
 
 export function columnsOf(r: ResolvedRecord): Omit<StoredRow, "id" | "source_ref" | "listed"> {
@@ -356,6 +395,10 @@ export function columnsOf(r: ResolvedRecord): Omit<StoredRow, "id" | "source_ref
     lat: r.geoLat,
     lng: r.geoLng,
     phone_verified_on: r.phone ? r.confirmedOn : null,
+    is_government: r.isGovernment,
+    is_person: r.isPerson,
+    reg_no: r.regNo,
+    wards: r.wards,
   };
 }
 
@@ -372,6 +415,8 @@ export function diff(stored: StoredRow, next: ReturnType<typeof columnsOf>): Cha
     const from = stored[column as keyof StoredRow];
     if (column === "lat" || column === "lng") {
       if (Math.abs(Number(from) - Number(to)) > 1e-5) out.push({ column, from, to });
+    } else if (Array.isArray(to) || Array.isArray(from)) {
+      if (JSON.stringify(from ?? []) !== JSON.stringify(to ?? [])) out.push({ column, from, to });
     } else if ((from ?? null) !== (to ?? null)) {
       out.push({ column, from, to });
     }
@@ -560,7 +605,8 @@ const STORED_SQL = `
 SELECT id, source_ref, name, kind::text AS kind, cost_tier::text AS cost_tier, phone_e164, alt_phone_e164,
        has_ambulance, is_24x7, hours_note, handles_wildlife, ward_id, locality,
        geo_precision::text AS geo_precision, ST_Y(geo::geometry) AS lat, ST_X(geo::geometry) AS lng,
-       to_char(phone_verified_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS phone_verified_on, listed
+       to_char(phone_verified_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS phone_verified_on, listed,
+       is_government, is_person, reg_no, wards
   FROM care_providers WHERE source = $1`;
 
 function values(r: ResolvedRecord): unknown[] {
@@ -569,15 +615,17 @@ function values(r: ResolvedRecord): unknown[] {
     c.name, c.kind, c.cost_tier, c.phone_e164, c.alt_phone_e164, c.has_ambulance, c.is_24x7, c.hours_note,
     c.handles_wildlife, c.ward_id, c.locality, c.geo_precision, `SRID=4326;POINT(${c.lng} ${c.lat})`,
     c.phone_verified_on,
+    c.is_government, c.is_person, c.reg_no, c.wards,
   ];
 }
 
-// $1..$14 as in values(); the confirmed date is Mumbai midnight of that day.
+// $1..$18 as in values(); the confirmed date is Mumbai midnight of that day.
 const SET_SQL = `
   name = $1, kind = $2::care_kind, cost_tier = $3::care_cost_tier, phone_e164 = $4, alt_phone_e164 = $5,
   has_ambulance = $6, is_24x7 = $7, hours_note = $8, handles_wildlife = $9, ward_id = $10, locality = $11,
   geo_precision = $12::geo_precision, geo = $13::geography,
   phone_verified_at = CASE WHEN $14::date IS NULL THEN NULL ELSE ($14::date::timestamp AT TIME ZONE 'Asia/Kolkata') END,
+  is_government = $15, is_person = $16, reg_no = $17, wards = $18::text[],
   listed = TRUE`;
 
 function fmt(v: unknown): string {
@@ -656,20 +704,21 @@ export async function runImport(args: Args, log: (s: string) => void = console.l
       await client.query(
         `INSERT INTO care_providers
            (name, kind, cost_tier, phone_e164, alt_phone_e164, has_ambulance, is_24x7, hours_note,
-            handles_wildlife, ward_id, locality, geo_precision, geo, phone_verified_at, listed, source, source_ref)
+            handles_wildlife, ward_id, locality, geo_precision, geo, phone_verified_at,
+            is_government, is_person, reg_no, wards, listed, source, source_ref)
          VALUES ($1, $2::care_kind, $3::care_cost_tier, $4, $5, $6, $7, $8, $9, $10, $11, $12::geo_precision,
                  $13::geography,
                  CASE WHEN $14::date IS NULL THEN NULL ELSE ($14::date::timestamp AT TIME ZONE 'Asia/Kolkata') END,
-                 TRUE, $15, $16)`,
+                 $15, $16, $17, $18::text[], TRUE, $19, $20)`,
         [...values(a), args.source, a.sourceRef],
       );
     }
     for (const u of p.updates) {
-      await client.query(`UPDATE care_providers SET ${SET_SQL} WHERE id = $15`, [...values(u.record), u.id]);
+      await client.query(`UPDATE care_providers SET ${SET_SQL} WHERE id = $19`, [...values(u.record), u.id]);
     }
     if (args.claim) {
       for (const c of p.conflicts) {
-        await client.query(`UPDATE care_providers SET ${SET_SQL}, source = $15, source_ref = $16 WHERE id = $17`, [
+        await client.query(`UPDATE care_providers SET ${SET_SQL}, source = $19, source_ref = $20 WHERE id = $21`, [
           ...values(c.record),
           args.source,
           c.record.sourceRef,

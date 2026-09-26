@@ -410,13 +410,16 @@ export function feederLine(
   return [fed, has].filter(Boolean).join(" ") || undefined;
 }
 
-/** "4:02 pm" (or "4:02" short), Asia/Kolkata wall time as the phone shows it. */
-export function clock(iso: string | undefined, short = false): string {
+/**
+ * "4:02 pm", the phone's wall time. One format everywhere, the same the
+ * responder's page uses ("12:28 am"): a bare "1:35" in N10's timeline was
+ * ambiguous after midnight.
+ */
+export function clock(iso: string | undefined): string {
   const t = iso ? new Date(iso) : undefined;
   if (!t || !Number.isFinite(t.getTime())) return "";
   const h = t.getHours();
-  const hm = `${h % 12 || 12}:${String(t.getMinutes()).padStart(2, "0")}`;
-  return short ? hm : `${hm} ${h < 12 ? "am" : "pm"}`;
+  return `${h % 12 || 12}:${String(t.getMinutes()).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 }
 
 /** "today", "yesterday", "3 Sep": for "Saved yesterday, 8:14 pm". */
@@ -424,7 +427,21 @@ export function dayWord(iso: string, now: number = Date.now()): string {
   const d = new Date(iso);
   const day = (x: Date): number => Math.floor((x.getTime() - x.getTimezoneOffset() * 60000) / 86400000);
   const diff = day(new Date(now)) - day(d);
-  return diff <= 0 ? "today" : diff === 1 ? "yesterday" : `${d.getDate()} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getMonth()]}`;
+  return diff <= 0 ? "today" : diff === 1 ? "yesterday" : `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+
+/**
+ * V4 dates as the mock writes them: "12 Sep 2026", or "Apr 2025" for a
+ * month-precision record ("2025-04"). Read as a calendar date, never shifted
+ * by the phone's time zone. "" for anything unparseable.
+ */
+export function recordDate(iso?: string): string {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso ?? "");
+  const mon = m ? MONTHS[Number(m[2]) - 1] : undefined;
+  if (!m || !mon) return "";
+  return m[3] ? `${Number(m[3])} ${mon} ${m[1]}` : `${mon} ${m[1]}`;
 }
 
 /**

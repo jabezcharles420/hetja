@@ -217,6 +217,40 @@ describe("R2 to R5, one flow", () => {
     expect(localStorage.getItem("hetja.dogSex.rni482pq7")).toBe("female");
   });
 
+  it("v7 N5: from a drive, sends driveId and returns to the drive", async () => {
+    window.history.replaceState({}, "", "/register/new?drive=drv_123");
+    render(<RegisterFlow />);
+    await throughPhoto();
+    await screen.findByText("K/W · Andheri West", { selector: "span" });
+    fireEvent.click(screen.getByRole("button", { name: "None of these, continue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    await screen.findByText("Check and confirm");
+    fireEvent.click(screen.getByLabelText("I see them at least once a week."));
+    fireEvent.click(screen.getByLabelText("I won't post where they sleep or eat."));
+    fireEvent.click(screen.getByRole("button", { name: "Register this dog" }));
+    await waitFor(() => expect(apiMock.createRegistration).toHaveBeenCalledTimes(1));
+    expect(apiMock.createRegistration.mock.calls[0]![0]).toMatchObject({ wardId: "K-West", driveId: "drv_123" });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/ngo/drives/drv_123"));
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("ignores a drive id that is not a plain id", async () => {
+    window.history.replaceState({}, "", "/register/new?drive=..%2Fadmin");
+    render(<RegisterFlow />);
+    await throughPhoto();
+    await screen.findByText("K/W · Andheri West", { selector: "span" });
+    fireEvent.click(screen.getByRole("button", { name: "None of these, continue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    await screen.findByText("Check and confirm");
+    fireEvent.click(screen.getByLabelText("I see them at least once a week."));
+    fireEvent.click(screen.getByLabelText("I won't post where they sleep or eat."));
+    fireEvent.click(screen.getByRole("button", { name: "Register this dog" }));
+    await waitFor(() => expect(apiMock.createRegistration).toHaveBeenCalledTimes(1));
+    expect(apiMock.createRegistration.mock.calls[0]![0]).not.toHaveProperty("driveId");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/register/rni482pq7/ready"));
+    window.history.replaceState({}, "", "/");
+  });
+
   it("explains the weekly cap plainly on 429 REGISTRATION_WEEKLY_CAP", async () => {
     apiMock.createRegistration.mockRejectedValue(
       new ApiError("weekly cap", { status: 429, code: "REGISTRATION_WEEKLY_CAP" }),

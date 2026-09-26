@@ -37,6 +37,7 @@ import { z } from "zod";
 import { wardDisplay } from "@hetja/contracts";
 import { isValidSlug, query, withTx } from "@hetja/db";
 import { deviceSubjectOf } from "../lib/anon-subject.js";
+import { deviceBlockedBody, isDeviceBlocked, isSuspended, suspendedBody } from "../lib/moderation-state.js";
 import { deviceTokenSubject } from "../lib/device.js";
 import { collarUrl } from "../lib/enrol.js";
 import { signSlug } from "../lib/hmac.js";
@@ -171,6 +172,10 @@ export default async function tagRoutes(app: FastifyInstance): Promise<void> {
       return reply
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
+    }
+    // Design v7 (D13): a blocked device or a suspended account files nothing here.
+    if (feederId ? await isSuspended(feederId) : await isDeviceBlocked(deviceSubject)) {
+      return reply.status(403).send(feederId ? suspendedBody : deviceBlockedBody);
     }
 
     const { slug } = req.params as { slug: string };

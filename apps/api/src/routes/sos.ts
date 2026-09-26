@@ -52,12 +52,23 @@ import {
 } from "../lib/rate-limit.js";
 import { PHOTO_ROUTE_BODY_LIMIT } from "../lib/body-limits.js";
 import { PHOTO_BUSY_RETRY_AFTER_SEC, PhotoBusyError, photoGate, type Release } from "../lib/photo-gate.js";
-import { MAX_OPEN_ACKS, TRUST_FLOOR, canRespond, mayAck } from "../lib/sos-eligibility.js";
+import {
+  MAX_OPEN_ACKS,
+  NGO_WINDOW_MINUTES,
+  N_IS_GROUND_SQL,
+  TRUST_FLOOR,
+  canRespond,
+  mayAck,
+  vetCoversWardSql,
+} from "../lib/sos-eligibility.js";
+import { routeCaseToNgo, scheduleOpenToVets } from "@hetja/db";
+import { isDeviceBlocked, isSuspended } from "../lib/moderation-state.js";
+import { wardProfessionals } from "../lib/professionals.js";
 import { decodePhotoUpload, storePhoto, type StorageConfig } from "../lib/storage.js";
 import { UnsupportedImageError, type StrippedImage } from "../lib/exif-strip.js";
 import { capabilitiesFor, requireFeeder } from "../lib/require-role.js";
 import { getNearbyCare, type NearbyCareProvider } from "./care.js";
-import { PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
+import { AVATAR_SQL, PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
 import { firstName, publicName } from "../lib/public-name.js";
 import { dogSex } from "../lib/dog-feeders.js";
 
@@ -296,6 +307,7 @@ async function dispatchFanout(
      ) recent
      WHERE f.sos_opt_in
        AND f.deleted_at IS NULL
+       AND f.suspended_at IS NULL
        AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())
        AND f.trust_score >= $2
        AND ((cardinality(f.wards) = 0 AND recent.last_nearby_scan IS NOT NULL)
@@ -344,10 +356,10 @@ async function notifyOwnFeeders(
   const floor = TRUST_FLOOR[severity];
   const res = await client.query<{ id: string; trust_score: number }>(
     `SELECT f.id, f.trust_score FROM feeders f
-      WHERE f.sos_opt_in AND f.deleted_at IS NULL
+      WHERE f.sos_opt_in AND f.deleted_at IS NULL AND f.suspended_at IS NULL
         AND (f.sos_paused_until IS NULL OR f.sos_paused_until <= now())
         AND (($1::uuid IS NOT NULL
-              AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1::uuid)
+              AND (f.id IN (SELECT registered_by FROM dogs WHERE id = $1::uuid OR merged_into = $1::uuid)
                    OR EXISTS (SELECT 1 FROM scans s
                                WHERE s.dog_id = $1::uuid AND s.feeder_id = f.id AND s.scan_type = 'feed'
                                  AND s.review_status <> 'rejected'
@@ -533,6 +545,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         .status(401)
         .send({ ok: false, error: { message: "attested device token required", code: "UNAUTHENTICATED_DEVICE" } });
     }
+
+    // Design v7 (D13): a device a moderator blocked, or a suspended account,
+    // may still file (an emergency is an emergency, and the answer still
+    // carries every number to call) but its report pages NOBODY: no feeder,
+    // NGO or vet. It escalates to the tier-2 record at once.
+    const silenced = feederId ? await isSuspended(feederId) : await isDeviceBlocked(deviceSubject);
 
     // Request-rate limit per account or device (hardening batch 1, T3),
     // never per IP (INVARIANT 6). Before any photo decode or database work.
@@ -841,7 +859,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         let fanout: FanoutDisposition = "escalated";
         let escalateNow = false;
         let anyTold = false;
-        if (severity === "critical") {
+        let anyToldProfessional = false;
+        if (silenced) {
+          tier = 2;
+          fanout = "escalated";
+          escalateNow = true;
+          await client.query(`UPDATE sos_cases SET tier = 2 WHERE id = $1`, [caseId]);
+        } else if (severity === "critical") {
           if (dog.sos_eligible_at != null) {
             const paged = await dispatchFanout(client, caseId, dog.lat, dog.lng, severity, dog.ward_id);
             // The dog's own feeders too (a dogless case's ward is already in
@@ -881,6 +905,21 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           // VAPID) rather than blocking this request on it. The worker writes
           // delivered_at on success and leaves it null on failure, so the
           // sos_notifications receipt columns mean something.
+          await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`, [
+            JSON.stringify({ caseId, dogId: dog.dogless ? null : dog.id }),
+          ]);
+        }
+
+        // Design v7 routing (lib/sos-eligibility.ts): the NGO covering the
+        // ward now, then every vet nearby after NGO_WINDOW_MINUTES with nobody
+        // taking it. Straight to the vets when there is no NGO and nobody at
+        // all was told: there is no one to wait fifteen minutes for.
+        if (!silenced) {
+          const ngo = await routeCaseToNgo(client, caseId, dog.ward_id);
+          if (ngo && ngo.paged > 0) anyToldProfessional = true;
+          await scheduleOpenToVets(client, caseId, ngo || anyTold ? NGO_WINDOW_MINUTES : 0);
+        }
+        if (anyToldProfessional && !anyTold) {
           await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`, [
             JSON.stringify({ caseId, dogId: dog.dogless ? null : dog.id }),
           ]);
@@ -947,8 +986,12 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     // STATUS-INDEPENDENT on purpose: an uncorroborated dog gets the same
     // phone numbers as a corroborated one.
     const nearbyCare = (await careNow()) ?? [];
+    // Design v7: verified vets and active NGOs covering the ward, with their
+    // PUBLIC professional numbers (owner decision; INVARIANT 3 is rescoped to
+    // feeders and reporters). Never who was paged.
+    const professionals = await wardProfessionals(result.wardId);
 
-    return { ok: true, data: { ...result, nearbyCare } };
+    return { ok: true, data: { ...result, nearbyCare, professionals } };
     } finally {
       if (release && !handedOff) release();
     }
@@ -1069,7 +1112,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       query<{ display_name: string; show_first_name: boolean; deleted_at: Date | null }>(
         `SELECT f.display_name, f.show_first_name, f.deleted_at
            FROM sos_notifications n JOIN feeders f ON f.id = n.feeder_id
-          WHERE n.case_id = $1 AND n.channel = 'push'
+          WHERE n.case_id = $1 AND n.channel = 'push' AND n.route IS NULL
           ORDER BY n.sent_at, n.id`,
         [own.caseId],
       ),
@@ -1077,7 +1120,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // Delivered only (pre-deploy review): escalation writes sms/bmc rows
         // that nothing sends yet, and a vet who was never reached must not be
         // counted as told.
-        `SELECT count(*)::int AS n FROM sos_notifications WHERE case_id = $1 AND vet_id IS NOT NULL AND delivered_at IS NOT NULL`,
+        `SELECT count(*)::int AS n FROM sos_notifications
+          WHERE case_id = $1 AND delivered_at IS NOT NULL
+            AND (vet_id IS NOT NULL OR route IN ('vet_escalation', 'admin_assign'))`,
         [own.caseId],
       ),
       query<{ created_at: Date; note: string }>(
@@ -1213,6 +1258,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         note: string | null;
         reporter_photo: string | null;
         portrait: string | null;
+        avatar: string | null;
         acker_name: string | null;
         acker_show: boolean | null;
         acker_deleted: Date | null;
@@ -1235,28 +1281,32 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
               (SELECT s.feeder_id IS NULL AND s.device_token IS NOT NULL FROM scans s WHERE s.id = c.scan_id)
                 AS reporter_anonymous,
               EXISTS (SELECT 1 FROM sos_notifications n
-                       WHERE n.case_id = c.id AND n.feeder_id = $2 AND NOT n.notify_only) AS fanned_out,
+                       WHERE n.case_id = c.id AND n.feeder_id = $2 AND ${N_IS_GROUND_SQL}) AS fanned_out,
               EXISTS (SELECT 1 FROM sos_notifications n
                        WHERE n.case_id = c.id AND n.feeder_id = $2 AND n.notify_only) AS told_only,
               EXISTS (SELECT 1 FROM sos_notifications n
                        WHERE n.case_id = c.id AND n.feeder_id = $2 AND n.declined_at IS NOT NULL) AS declined_by_me,
               (SELECT count(*)::int FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL) AS paged,
+                WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL AND n.route IS NULL) AS paged,
               (SELECT min(n.sent_at) FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL) AS first_told,
+                WHERE n.case_id = c.id AND n.channel = 'push' AND n.feeder_id IS NOT NULL AND n.route IS NULL) AS first_told,
               (SELECT count(*)::int FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL AND n.delivered_at IS NOT NULL
-                  AND NOT EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
+                WHERE n.case_id = c.id AND n.delivered_at IS NOT NULL
+                  AND ((n.vet_id IS NOT NULL
+                        AND NOT EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
+                       OR n.route IN ('vet_escalation', 'admin_assign')))
                 AS vets_told,
               (SELECT count(*)::int FROM sos_notifications n
-                WHERE n.case_id = c.id AND n.vet_id IS NOT NULL AND n.delivered_at IS NOT NULL
-                  AND EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
+                WHERE n.case_id = c.id AND n.delivered_at IS NOT NULL
+                  AND ((n.vet_id IS NOT NULL
+                        AND EXISTS (SELECT 1 FROM care_providers cp WHERE cp.vet_id = n.vet_id AND cp.kind = 'ngo'))
+                       OR n.route IN ('ngo_coordinator', 'ngo_dispatch')))
                 AS ngos_told,
               (SELECT min(j.run_after) FROM jobs j
                 WHERE j.kind = 'escalate_sos' AND j.failed_at IS NULL AND j.payload->>'caseId' = c.id::text)
                 AS escalates_at,
               (SELECT s.photo_s3_key FROM scans s WHERE s.id = c.scan_id) AS reporter_photo,
-              ${PORTRAIT_SQL} AS portrait,
+              ${PORTRAIT_SQL} AS portrait, ${AVATAR_SQL} AS avatar,
               af.display_name AS acker_name, af.show_first_name AS acker_show, af.deleted_at AS acker_deleted
        FROM sos_cases c
        LEFT JOIN dogs d ON d.id = c.dog_id
@@ -1283,7 +1333,14 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       trust_score: number;
       wards: string[];
       sos_paused_until: Date | null;
-    }>(`SELECT sos_opt_in, trust_score, wards, sos_paused_until FROM feeders WHERE id = $1`, [auth.feederId]);
+      suspended: boolean;
+      vet_covers: boolean;
+    }>(
+      `SELECT sos_opt_in, trust_score, wards, sos_paused_until, suspended_at IS NOT NULL AS suspended,
+              ${vetCoversWardSql("f.id", "$2::text")} AS vet_covers
+         FROM feeders f WHERE f.id = $1`,
+      [auth.feederId, row.ward_id],
+    );
     const standing = standingRes.rows[0];
     const standingOk =
       !!standing &&
@@ -1293,12 +1350,14 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
           trustScore: standing.trust_score,
           wards: standing.wards ?? [],
           pausedUntil: standing.sos_paused_until,
+          suspended: standing.suspended,
         },
         severity,
         row.ward_id,
       );
     const isAcker = row.acked_by === auth.feederId;
-    if (!isAcker && !row.fanned_out && !isModerator && !standingOk) {
+    const vetCovers = standing?.vet_covers === true && !standing.suspended;
+    if (!isAcker && !row.fanned_out && !isModerator && !standingOk && !vetCovers) {
       // 403 rather than 404 on purpose: the caller is authenticated and the
       // case exists, so saying NOT_FOUND would be its own small lie.
       //
@@ -1397,7 +1456,7 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
     const lng = geo?.lng ?? null;
     const care = lat != null && lng != null ? await getNearbyCare(lat, lng) : [];
     const nearest = care.find((c) => c.phoneE164) ?? care[0] ?? null;
-    const eligible = isAcker || row.fanned_out || standingOk;
+    const eligible = isAcker || row.fanned_out || standingOk || vetCovers;
     const distanceM =
       eligible && geo?.my_distance != null ? Math.round(Number(geo.my_distance) / 100) * 100 : null;
 
@@ -1450,8 +1509,15 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         // /sos/[caseId] page shows Resolve only then.
         mine: isAcker,
         dog: row.slug
-          ? { slug: row.slug, name: row.dog_name ?? null, sex: dogSex(row.dog_sex), photoUrl: photoUrlFor(req, row.portrait) }
+          ? {
+              slug: row.slug,
+              name: row.dog_name ?? null,
+              sex: dogSex(row.dog_sex),
+              photoUrl: photoUrlFor(req, row.portrait),
+              avatarUrl: photoUrlFor(req, row.avatar),
+            }
           : null,
+        dogAvatarUrl: row.slug ? photoUrlFor(req, row.avatar) : null,
         // "Sent by a passer-by, no account": the SOS scan carried a device
         // token and no feeder account. Who it was is never said (INVARIANT 3).
         reporterAnonymous: row.reporter_anonymous === true,
@@ -1881,13 +1947,17 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         wards: string[];
         sos_paused_until: Date | null;
         notified: boolean;
+        suspended: boolean;
+        vet_covers: boolean;
       }>(
-        `SELECT f.sos_opt_in, f.trust_score, f.wards, f.sos_paused_until,
-                -- A notify_only row (0028) is being told, not a ground to take it.
+        `SELECT f.sos_opt_in, f.trust_score, f.wards, f.sos_paused_until, f.suspended_at IS NOT NULL AS suspended,
+                ${vetCoversWardSql("f.id", "$3::text")} AS vet_covers,
+                -- A notify_only row (0028) is being told, not a ground to take it;
+                -- nor is a suspended vet's vet page (design v7, lib/sos-eligibility.ts).
                 EXISTS (SELECT 1 FROM sos_notifications n
-                         WHERE n.case_id = $2 AND n.feeder_id = f.id AND NOT n.notify_only) AS notified
+                         WHERE n.case_id = $2 AND n.feeder_id = f.id AND ${N_IS_GROUND_SQL}) AS notified
            FROM feeders f WHERE f.id = $1`,
-        [feederId, id],
+        [feederId, id, current.ward_id],
       );
       const me = standing.rows[0];
       // Design v5: the ward rule is part of standing (lib/sos-eligibility.ts),
@@ -1904,6 +1974,8 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
             pausedUntil: me.sos_paused_until,
             notified: me.notified,
             moderator: isModerator,
+            suspended: me.suspended,
+            vetCoversWard: me.vet_covers,
           },
           current.severity,
           current.ward_id,
@@ -1929,6 +2001,13 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       if (claimedRow) {
         await client.query(
           `UPDATE sos_notifications SET acked_at = now() WHERE case_id = $1 AND feeder_id = $2`,
+          [id, feederId],
+        );
+        // Design v7 (N3): a member an NGO sent who taps the ordinary "I'm
+        // going" has accepted that dispatch, exactly as /ngo/dispatches/:id/accept.
+        await client.query(
+          `UPDATE sos_dispatches SET accepted_at = now(), declined_at = NULL
+            WHERE case_id = $1 AND member_feeder_id = $2 AND accepted_at IS NULL`,
           [id, feederId],
         );
         return { status: "claimed" as const, ackedAt: claimedRow.acked_at };

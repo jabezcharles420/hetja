@@ -91,6 +91,14 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: false, desktop: "invite" });
   });
 
+  it.each([["/vet"], ["/ngo"]])("%s: a v7 role tab root with the tab bar", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "tab", tabBar: true, footer: false, desktop: "invite" });
+  });
+
+  it.each([["/vet/apply"], ["/vet/ab3de4fgh"], ["/ngo/register"], ["/ngo/team"]])("%s: focused", (route) => {
+    expect(chromeFor(route)).toMatchObject({ kind: "focused", tabBar: false });
+  });
+
   it("/alerts left the tab bar (v6): a focused screen reached from Me", () => {
     expect(chromeFor("/alerts")).toMatchObject({ kind: "focused", tabBar: false });
   });
@@ -138,7 +146,7 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f")).toMatchObject({ kind: "focused", tabBar: false, desktop: "frame" });
   });
 
-  it.each([["/register/ab3de4fgh/print"], ["/register/batch"], ["/design"]])(
+  it.each([["/register/ab3de4fgh/print"], ["/register/batch"], ["/vet/ab3de4fgh/certificate"], ["/design"]])(
     "%s: printed or dev-only, left as it is on a desktop",
     (route) => {
       expect(chromeFor(route)).toMatchObject({ tabBar: false, desktop: "none" });

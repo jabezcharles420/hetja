@@ -23,6 +23,7 @@ interface DogRow {
   verified_at: Date | null;
   tag_review_since: Date | null;
   sex: string | null;
+  merged_into: string | null;
 }
 
 interface CareCountsRow {
@@ -152,6 +153,13 @@ interface DogPagePayload {
   feeders: { firstName: string | null }[];
   lastFedBy: string | null;
   scanCount: number;
+  // Design v7 (A3 to A5). avatarKey: the published avatar, for pins, lists and
+  // share cards (the photo stays the page's record of truth). mergedFrom: the
+  // slug asked for was merged into this dog, whose page this is.
+  avatarKey: string | null;
+  mergedFrom: { slug: string; name: string | null } | null;
+  /** The collar's printed batch number ("HJ-0412"), a label, not a place; null when none was printed. */
+  collarBatchNo: string | null;
 }
 
 // In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
@@ -297,6 +305,12 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  *   (INVARIANT 2), no contact information anywhere (INVARIANT 3), moderated
  *   stories only.
  */
+/** A collar batch number worth printing: not the self-serve placeholder. */
+export function printedBatchNo(v: string | null | undefined): string | null {
+  const s = (v ?? "").trim();
+  return s && s !== "self-serve" ? s : null;
+}
+
 export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
@@ -322,19 +336,46 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
     // Only publicly visible dogs are ever cached (see NON_PUBLIC_STATUSES
     // below), so a hit is safe to serve to anyone.
     const cached = dogCache.get(slug);
-    if (cached) return { ok: true, data: { ...cached, photoUrl: photoUrlFor(req, cached.photoKey) } };
+    if (cached) {
+      return {
+        ok: true,
+        data: { ...cached, photoUrl: photoUrlFor(req, cached.photoKey), avatarUrl: photoUrlFor(req, cached.avatarKey) },
+      };
+    }
 
     const dogRes = await query<DogRow>(
       `SELECT d.id, d.slug, d.name, d.status, d.ward_id, d.abc_status, d.last_seen_at,
               ST_Y(d.last_seen_geo::geometry) AS lat,
               ST_X(d.last_seen_geo::geometry) AS lng,
-              d.registered_by, d.verified_at, d.tag_review_since, d.sex
+              d.registered_by, d.verified_at, d.tag_review_since, d.sex, d.merged_into
        FROM dogs d
        WHERE d.slug = $1`,
       [slug],
     );
-    const dog = dogRes.rows[0];
+    let dog = dogRes.rows[0];
     if (!dog) return notFound(reply);
+    // DESIGN V7 MERGE (A5): "Kaalu's link redirects to Kalu." A merged dog's
+    // slug (and its collar, whose signature was checked above against that
+    // slug) answers the KEPT dog's page, with mergedFrom naming the one asked
+    // for. One hop only: a merge never points at a dog that was merged itself
+    // (routes/admin.ts refuses it).
+    let mergedFrom: { slug: string; name: string | null } | null = null;
+    if (dog.merged_into) {
+      const kept = await query<DogRow>(
+        `SELECT d.id, d.slug, d.name, d.status, d.ward_id, d.abc_status, d.last_seen_at,
+                ST_Y(d.last_seen_geo::geometry) AS lat,
+                ST_X(d.last_seen_geo::geometry) AS lng,
+                d.registered_by, d.verified_at, d.tag_review_since, d.sex, d.merged_into
+           FROM dogs d WHERE d.id = $1`,
+        [dog.merged_into],
+      );
+      if (!kept.rows[0]) return notFound(reply);
+      mergedFrom = { slug: dog.slug, name: dog.name ?? null };
+      dog = kept.rows[0];
+    }
+    const dogIds = (
+      await query<{ id: string }>(`SELECT id FROM dogs WHERE id = $1 OR merged_into = $1`, [dog.id])
+    ).rows.map((r) => r.id);
     // Same 404 as an unknown slug, so the response does not confirm that an
     // inert registration exists. The filing registrator is the one exception.
     const isPublic = !NON_PUBLIC_STATUSES.has(dog.status);
@@ -358,10 +399,13 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         [dog.id],
       ),
       query<VaccineRow>(
-        `SELECT vaccine_name, vaccine_date FROM medical_records
-         WHERE dog_id = $1 AND record_type IN ('vaccination', 'vaccine') AND is_verified
-         ORDER BY created_at DESC LIMIT 1`,
-        [dog.id],
+        // v7: a merged dog's records are read with this one's, and a record a
+        // vet later withdrew (or corrected) is not the current one.
+        `SELECT m.vaccine_name, m.vaccine_date FROM medical_records m
+         WHERE m.dog_id = ANY($1::uuid[]) AND m.record_type IN ('vaccination', 'vaccine') AND m.is_verified
+           AND NOT EXISTS (SELECT 1 FROM medical_records w WHERE w.corrects_record_id = m.id)
+         ORDER BY m.created_at DESC LIMIT 1`,
+        [dogIds],
       ),
       query<PhotoRow>(
         // Not SOS photos: since POST /api/v1/reports accepts a photo, the
@@ -372,7 +416,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         // leave it there as the newest one. Pending and passed photos count.
         `SELECT photo_s3_key FROM scans
          WHERE dog_id = $1 AND photo_s3_key IS NOT NULL AND scan_type <> 'sos'
-           AND review_status <> 'rejected'
+           AND review_status <> 'rejected' AND photo_hidden_at IS NULL
          ORDER BY received_at DESC LIMIT 1`,
         [dog.id],
       ),
@@ -389,11 +433,12 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
            (SELECT count(DISTINCT ds.author_feeder_id)::int FROM dog_stories ds
              WHERE ds.dog_id = $1 AND ds.moderated_at IS NOT NULL) AS story_author_count,
            EXISTS (SELECT 1 FROM medical_records m
-             WHERE m.dog_id = $1 AND m.is_verified AND m.abc_date IS NOT NULL) AS abc_verified,
+             WHERE m.dog_id = ANY($2::uuid[]) AND m.is_verified AND m.abc_date IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM medical_records w WHERE w.corrects_record_id = m.id)) AS abc_verified,
            (SELECT count(DISTINCT COALESCE(t.reporter_feeder_id::text, t.reporter_device))::int
               FROM tag_reports t
              WHERE t.dog_id = $1 AND t.created_at >= now() - interval '7 days') AS tag_reporters_week`,
-        [dog.id],
+        [dog.id, dogIds],
       ),
     ]);
 
@@ -409,7 +454,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
         `SELECT f.display_name, f.show_first_name
            FROM feeders f
           WHERE f.deleted_at IS NULL
-            AND (f.id = (SELECT registered_by FROM dogs WHERE id = $1)
+            AND (f.id IN (SELECT registered_by FROM dogs WHERE id = $1 OR merged_into = $1)
                  OR EXISTS (SELECT 1 FROM scans s
                              WHERE s.dog_id = $1 AND s.feeder_id = f.id AND s.scan_type = 'feed'
                                AND s.review_status <> 'rejected'
@@ -427,6 +472,11 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       ),
       query<{ n: number }>(`SELECT count(*)::int AS n FROM scans WHERE dog_id = $1 AND scan_type <> 'sos'`, [dog.id]),
     ]);
+    const collarRes = await query<{ batch_no: string | null }>(`SELECT batch_no FROM collars WHERE dog_id = $1 LIMIT 1`, [dog.id]);
+    const avatarRes = await query<{ image_key: string }>(
+      `SELECT image_key FROM dog_avatars WHERE dog_id = $1 AND status = 'published' LIMIT 1`,
+      [dog.id],
+    );
     const feedersList = feederRows.rows.map((f) => ({ firstName: firstName(f.display_name, f.show_first_name) }));
     const lastFed = lastFedRes.rows[0];
 
@@ -495,9 +545,15 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       feeders: feedersList,
       lastFedBy: lastFed ? firstName(lastFed.display_name, lastFed.show_first_name, lastFed.deleted_at) : null,
       scanCount: scanCountRes.rows[0]?.n ?? 0,
+      avatarKey: avatarRes.rows[0]?.image_key ?? null,
+      mergedFrom,
+      collarBatchNo: printedBatchNo(collarRes.rows[0]?.batch_no),
     };
     if (isPublic) dogCache.set(slug, payload);
 
-    return { ok: true, data: { ...payload, photoUrl: photoUrlFor(req, payload.photoKey) } };
+    return {
+      ok: true,
+      data: { ...payload, photoUrl: photoUrlFor(req, payload.photoKey), avatarUrl: photoUrlFor(req, payload.avatarKey) },
+    };
   });
 }

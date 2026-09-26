@@ -69,6 +69,41 @@ export interface DogProfile {
   savedAt?: string;
 }
 
+/**
+ * Design v7 (V4): one row of the dog's public health list, as the page uses
+ * it (the API's HealthRecord, apps/web/lib/api.ts "Design v7 types", with the
+ * vet line and brand-batch already joined). "Vet signed" rows carry the
+ * signing vet (name, council and registration number) and the vaccine's
+ * brand and batch; "Feeder noted" rows say who added them.
+ */
+export interface HealthRecord {
+  id: string;
+  title: string;
+  signed: boolean;
+  date?: string;
+  dueOn?: string;
+  note?: string;
+  vet?: string;
+  batch?: string;
+  addedBy?: string;
+  /** An admin flagged this vet's signatures for re-check. */
+  flagged?: boolean;
+  /** Feeder noted, and a vet has already been asked to sign it. */
+  asked?: boolean;
+  /** A correction: the id of the record it replaces. */
+  supersedes?: string;
+  /** A withdrawal: the id of the record it takes off the page. */
+  withdraws?: string;
+  withdrawn?: boolean;
+}
+
+export interface Health {
+  records: HealthRecord[];
+  certificateUrl?: string;
+  /** Only when the session presented belongs to a verified, unsuspended vet. */
+  viewerIsVet: boolean;
+}
+
 /** GET /dogs/:slug answered 404 (or 400): no dog has this code. */
 export class NotFoundError extends Error {}
 
@@ -106,6 +141,67 @@ export async function fetchDogProfile(slug: string, sig: string): Promise<Profil
   const date = res.headers.get("date");
   if (stale && date && Number.isFinite(Date.parse(date))) profile.savedAt = new Date(date).toISOString();
   return { profile, stale };
+}
+
+/**
+ * GET /dogs/:slug/health (design v7, V4). Public. A signed-in browser also
+ * sends its session so the API can say whether the viewer is a verified vet
+ * (the "Open vet view" link); the API ignores a bad token. Any failure is
+ * undefined: the health list is extra, never in the way.
+ */
+export async function fetchHealth(slug: string, token?: string): Promise<Health | undefined> {
+  try {
+    const res = await fetch(`${API_BASE}/dogs/${encodeURIComponent(slug)}/health`, {
+      headers: { accept: "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) return undefined;
+    const d = extractData(await res.json());
+    const list = Array.isArray(d.records) ? (d.records as Record<string, unknown>[]) : [];
+    return {
+      // Kept in the API's order (oldest first), as the V4 mock lists them.
+      records: currentHealth(list.map(healthRecord)),
+      certificateUrl: optString(d.certificateUrl),
+      viewerIsVet: d.viewerIsVet === true,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function healthRecord(r: Record<string, unknown>): HealthRecord {
+  const vet = r.vet as { name?: string; council?: string | null; regNo?: string | null } | null;
+  const signed = r.status === "vet_signed";
+  const join = (a: unknown[], s: string): string | undefined => a.filter(Boolean).join(s) || undefined;
+  return {
+    id: String(r.id),
+    title: String(r.title ?? ""),
+    signed,
+    date: optString(r.date),
+    dueOn: optString(r.dueOn),
+    note: join([r.earNotched === true && "ear notched", r.note], " · "),
+    vet: signed && vet ? join([vet.name, join([vet.council, vet.regNo], " ")], " · ") : undefined,
+    batch: join([r.brand, r.batch], " "),
+    addedBy: optString(r.addedBy),
+    flagged: r.flagged === true,
+    asked: r.signRequestOpen === true,
+    supersedes: optString(r.supersedes),
+    withdraws: optString(r.withdraws),
+    withdrawn: r.type === "withdrawal" || !!r.withdrawnAt,
+  };
+}
+
+/**
+ * What the page shows: the current version of each record. A correction
+ * hides the record it supersedes (V5 keeps the old one struck through only
+ * in the vet's own view); a withdrawal hides itself and its target.
+ */
+export function currentHealth(list: HealthRecord[]): HealthRecord[] {
+  const gone = new Set<string>();
+  for (const r of list) {
+    if (r.supersedes) gone.add(r.supersedes);
+    if (r.withdraws) gone.add(r.withdraws);
+  }
+  return list.filter((r) => !r.withdrawn && !gone.has(r.id));
 }
 
 function extractData(body: unknown): Record<string, unknown> {

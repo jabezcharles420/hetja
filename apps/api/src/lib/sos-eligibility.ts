@@ -52,6 +52,12 @@ export interface ResponderStanding {
    * had.
    */
   pausedUntil?: Date | string | null;
+  /**
+   * Design v7 (D13): feeders.suspended_at is set. A suspended account has no
+   * standing and no other ground either: it is not paged, cannot take a case
+   * and is not handed case ids.
+   */
+  suspended?: boolean;
 }
 
 export function isPaused(pausedUntil: Date | string | null | undefined, now: number = Date.now()): boolean {
@@ -89,6 +95,7 @@ export function canRespond(
 ): boolean {
   return (
     !!viewer &&
+    !viewer.suspended &&
     viewer.sosOptIn &&
     viewer.trustScore >= TRUST_FLOOR[severity] &&
     !isPaused(viewer.pausedUntil) &&
@@ -101,6 +108,13 @@ export interface AckGrounds extends ResponderStanding {
   notified: boolean;
   /** The caller holds the `moderate` capability. */
   moderator: boolean;
+  /**
+   * Design v7 (V2 "SOS near you · I'll take it"): the caller is a VERIFIED vet
+   * (never a suspended one) who takes SOS and covers the case's ward. A vet's
+   * standing does not come from feed trust; it comes from an admin checking
+   * their registration.
+   */
+  vetCoversWard?: boolean;
 }
 
 /**
@@ -108,5 +122,71 @@ export interface AckGrounds extends ResponderStanding {
  * standing that would have got them paged.
  */
 export function mayAck(grounds: AckGrounds, severity: SosSeverity, dogWard?: string | null): boolean {
-  return grounds.notified || grounds.moderator || canRespond(grounds, severity, dogWard);
+  if (grounds.suspended) return false;
+  return grounds.notified || grounds.moderator || grounds.vetCoversWard === true || canRespond(grounds, severity, dogWard);
 }
+
+/** SQL: account `$feeder` is a verified vet taking SOS in ward `$ward` (AckGrounds.vetCoversWard). */
+export function vetCoversWardSql(feederExpr: string, wardExpr: string): string {
+  return `EXISTS (SELECT 1 FROM vet_profiles vp WHERE vp.feeder_id = ${feederExpr} AND vp.status = 'verified'
+                  AND vp.sos_available AND ${wardExpr} IS NOT NULL AND vp.wards @> ARRAY[${wardExpr}]::text[])`;
+}
+
+// ---------------------------------------------------------------------------
+// Design v7: professional routing (docs/design/v7-portals/CONTRACT.md "Data").
+//
+//   1. feeders nearby, exactly as above (the fan-out and the dog's own
+//      feeders), at filing;
+//   2. the NGO covering the ward (status active, not paused): its
+//      coordinators are paged (route ngo_coordinator) and can "Send someone"
+//      (route ngo_dispatch); the member who accepts takes the case as
+//      themselves;
+//   3. after NGO_WINDOW_MINUTES with nobody taking it (or at once when the NGO
+//      passes, or when no one at all could be paged), every verified vet
+//      covering the ward who takes SOS (route vet_escalation);
+//   4. an admin can "Assign a vet" at any time (route admin_assign).
+//
+// A professional page is a GROUND to take the case, like a feeder page, so
+// it flows through mayAck's `notified` unchanged: with one exception, which
+// is written down here so it stays one rule. A SUSPENDED VET's vet pages
+// (vet_escalation, admin_assign) are no ground: "Suspending hides their
+// Accept SOS button" (A2). pageIsGround is what the ack route and the case
+// page ask.
+//
+// "Told" (the v6 rule) still means told: a feeder page counts once it is in
+// the account's alerts; a vet or NGO page counts only once DELIVERED.
+// ---------------------------------------------------------------------------
+
+export type PageRoute = "ngo_coordinator" | "ngo_dispatch" | "vet_escalation" | "admin_assign";
+
+/** N3: "If nobody accepts in 15 min, the case opens to all vets nearby." */
+export const NGO_WINDOW_MINUTES = 15;
+
+/** At most this many vets are paged when a case opens to vets. */
+export const MAX_VETS_PAGED = 15;
+
+export const VET_ROUTES: readonly PageRoute[] = ["vet_escalation", "admin_assign"];
+export const NGO_ROUTES: readonly PageRoute[] = ["ngo_coordinator", "ngo_dispatch"];
+
+/** Is this notification row a ground to take the case? */
+export function pageIsGround(row: { notifyOnly: boolean; route: string | null }, vetSuspended: boolean): boolean {
+  if (row.notifyOnly) return false;
+  if (vetSuspended && row.route !== null && (VET_ROUTES as readonly string[]).includes(row.route)) return false;
+  return true;
+}
+
+/** SQL twin of pageIsGround for a notification row `n` (a boolean `$vetSuspended` is spliced in by the caller). */
+export function pageIsGroundSql(vetSuspendedParam: string): string {
+  return `(NOT n.notify_only AND NOT (${vetSuspendedParam} AND COALESCE(n.route, '') IN ('vet_escalation', 'admin_assign')))`;
+}
+
+/** Does this row count toward the case page's feedersTold? (Professionals are counted separately, once delivered.) */
+export function isFeederPage(route: string | null): boolean {
+  return route === null;
+}
+
+/** SQL: the account on notification row `n` is a SUSPENDED vet. */
+export const N_VET_SUSPENDED_SQL = `COALESCE((SELECT vp.status = 'suspended' FROM vet_profiles vp WHERE vp.feeder_id = n.feeder_id), FALSE)`;
+
+/** SQL: notification row `n` is a ground to take the case (pageIsGround). */
+export const N_IS_GROUND_SQL = pageIsGroundSql(N_VET_SUSPENDED_SQL);

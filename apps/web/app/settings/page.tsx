@@ -14,6 +14,7 @@ import { api, ApiError, clearSession, getAccessToken, type FeederMe, type Feeder
 import { alertsModeLabel, cleanName, formatQuietHours, MAX_NAME, wardCode, wardsSummary } from "@/lib/feeder-prefs";
 import { isPaused, resumeLabel } from "@/lib/sos-pause";
 import { firstName } from "@/lib/streak";
+import { saveTabRole } from "@/lib/tab-role";
 import styles from "./settings.module.css";
 
 /**
@@ -120,6 +121,7 @@ export default function SettingsPage(): React.JSX.Element {
 
   const signOut = () => {
     clearSession();
+    saveTabRole(null);
     router.push("/");
   };
 
@@ -129,6 +131,7 @@ export default function SettingsPage(): React.JSX.Element {
     try {
       await api.deleteMyAccount();
       clearSession();
+      saveTabRole(null);
       router.push("/");
     } catch (err) {
       setSheetError(err instanceof ApiError ? err.message : "Could not delete your account. Try again.");

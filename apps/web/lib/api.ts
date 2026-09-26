@@ -902,6 +902,18 @@ export interface SosCaseForbiddenData {
   wardId: string | null;
   wardCode: string | null;
   checklist: SosResponderChecklist;
+  /**
+   * Only for a feeder of the dog who was TOLD (notify_only) and opens the
+   * case: what the reporter already shares with the dog's feeders. Never the
+   * note, the photo or the spot.
+   */
+  summary?: {
+    dog: { slug: string; name: string | null } | null;
+    severity: SosSeverity;
+    wardId: string | null;
+    openedAt: string;
+    state?: SosCaseState;
+  };
 }
 
 /** GET /reports/:caseId/status (reporter's device token), v6. */
@@ -1070,6 +1082,1301 @@ export interface MapWardDetailV6 {
 export interface MapSosV6Fields {
   dogName?: string | null;
   taken?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Design v7 types (docs/design/v7-portals/CONTRACT.md, "API"): the Admin, Vet
+// and NGO portals. Every route below is under /api/v1 with the usual
+// { ok, data } envelope. Additions to existing shapes use interface merging
+// and are optional, as in v6.
+//
+// Conventions: dates are YYYY-MM-DD, times are ISO strings, ward ids are the
+// canonical "K-West" form (wardCode is the "K/W" form). Phone numbers of vets
+// and NGOs are PUBLIC professional contacts (owner decision); feeders' contact
+// details never appear anywhere (INVARIANT 3).
+// ---------------------------------------------------------------------------
+
+/** N5: a dog registered during an NGO collar drive is added to that drive. */
+export interface CreateRegistrationInput {
+  driveId?: string;
+}
+
+export type AdminRole = "owner" | "moderator" | "avatar_editor" | "ward_lead";
+
+/**
+ * What an admin's roles let them open (A6). The web portal shows a sidebar
+ * section only when its permission is present; the API enforces the same map.
+ *   owner          every permission
+ *   moderator      vets, ngos, dogs, merge, feeders, collars, sos, reports, team_read, audit, settings
+ *   avatar_editor  avatars, dogs (read, for matching), settings
+ *   ward_lead      collars, sos, dogs (read), settings: in their wards only
+ * "vets_remove", "ngos_remove" and "team" are the owner's alone.
+ */
+export type AdminPermission =
+  | "vets"
+  | "vets_remove"
+  | "ngos"
+  | "ngos_remove"
+  | "dogs"
+  | "merge"
+  | "feeders"
+  | "collars"
+  | "sos"
+  | "reports"
+  | "avatars"
+  | "team"
+  /** Read Team and roles (moderators); writing it is "team" (owner). */
+  | "team_read"
+  | "audit"
+  | "settings";
+
+export interface AdminRoleGrant {
+  role: AdminRole;
+  /** Ward lead only: the wards it covers. Empty for the other roles. */
+  wards: string[];
+  grantedAt: string | null;
+  grantedByName: string | null;
+  /** "config": HETJA_OWNER_EMAILS; "legacy_admin": feeders.role = admin (treated as owner). */
+  source: "granted" | "config" | "legacy_admin";
+}
+
+/** GET /admin/me. 403 ADMIN_REQUIRED for anyone without a role. */
+export interface AdminMe {
+  feederId: string;
+  name: string;
+  roles: AdminRoleGrant[];
+  permissions: AdminPermission[];
+  /** null = every ward (no ward lead restriction). */
+  wards: string[] | null;
+}
+
+export type VetStatus = "invited" | "waiting" | "more_info" | "verified" | "suspended" | "declined" | "removed";
+export type NgoStatus = "waiting" | "active" | "paused" | "removed";
+export type NgoMemberRole = "coordinator" | "rescue" | "collars" | "volunteer";
+
+/**
+ * v7 fields on GET /feeders/me: what picks the tab bar (lib/tab-role.ts) and
+ * the Me rows. vet: the caller's vet application, if any; ngo: their NGO
+ * membership, if any (the NGO's status, and their role in it).
+ */
+export interface FeederMe {
+  vet?: { status: VetStatus; regLabel: string | null } | null;
+  ngo?: { id: string; name: string; status: NgoStatus; role: NgoMemberRole } | null;
+  /** Roles in the admin portal; empty for almost everyone. */
+  adminRoles?: AdminRole[];
+}
+
+// --- Documents (V1, N1) -----------------------------------------------------
+
+export type DocumentKind = "certificate" | "photo_id" | "ngo_registration";
+/** PDF up to 5 MB; images up to 2 MB (the photo gate's ceiling), EXIF stripped. */
+export type DocumentMime = "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+
+/** POST /documents: upload one file, then pass its id to /vet/apply or /ngo/register. */
+export interface UploadDocumentInput {
+  kind: DocumentKind;
+  fileName: string;
+  mime: DocumentMime;
+  /** The file, base64 (a data: prefix is accepted). */
+  base64: string;
+}
+
+export interface UploadedDocument {
+  id: string;
+  kind: DocumentKind;
+  mime: DocumentMime;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+/** Admin view of a document. The bytes stream from GET /admin/documents/:id (admins only, audited). */
+export interface AdminDocument extends UploadedDocument {
+  /** 30 days after the application was decided; null while it is undecided. */
+  deleteAfter: string | null;
+  deleted: boolean;
+}
+
+// --- Public: professionals, care directory, dogs ----------------------------
+
+/** A verified vet as the public sees them. The phone is a public professional number. */
+export interface PublicVet {
+  feederId: string;
+  name: string;
+  council: string;
+  regNo: string;
+  /** "MSVC 5190". */
+  regLabel: string;
+  clinic: string | null;
+  publicPhone: string | null;
+  sosAvailable: boolean;
+  sosHours: SosHours | null;
+  /** Linked to a government directory entry: label "Government vet · free". */
+  isGovernment: boolean;
+  costTier: "free" | "subsidised" | "paid" | null;
+}
+
+export interface PublicNgo {
+  id: string;
+  name: string;
+  publicPhone: string | null;
+  hasAmbulance: boolean;
+  ambulanceStatus: "in" | "out" | null;
+  bedsFree: number | null;
+  isGovernment: false;
+}
+
+/** Vets and NGOs covering one ward (GET /wards/:wardId/professionals, POST /reports, map ward detail). */
+export interface WardProfessionals {
+  vets: PublicVet[];
+  ngos: PublicNgo[];
+}
+
+/** v7 fields on every care directory row (GET /care, nearbyCare on POST /reports). */
+export interface NearbyCareProvider {
+  /** Government vet or hospital: always free ("Government vet · free"). */
+  isGovernment?: boolean;
+  /** The row is a person (a vet), not a place. */
+  isPerson?: boolean;
+  regNo?: string | null;
+  /** Same number as phoneE164: named for the v7 copy. */
+  publicPhone?: string | null;
+  wards?: string[];
+}
+
+export interface SosReportResultV6 {
+  /** v7: verified vets and active NGOs covering the case's ward, with public phones. */
+  professionals?: WardProfessionals;
+}
+
+export interface MapWardDetailV6 {
+  professionals?: WardProfessionals;
+}
+
+/** v7 fields on GET /dogs/:slug. */
+export interface DogProfileV5 {
+  /** Published avatar (A3/A4) for pins, lists and share cards; the real photo stays the page's record. */
+  avatarUrl?: string | null;
+  /** Set when the slug asked for was merged into this dog (A5): the page is the kept dog's. */
+  mergedFrom?: { slug: string; name: string | null } | null;
+  /** The collar's printed batch number ("HJ-0412"): a label, not location. null when none was printed. */
+  collarBatchNo?: string | null;
+}
+
+export interface DogCard {
+  avatarUrl?: string | null;
+}
+
+export interface MyDogV5 {
+  avatarUrl?: string | null;
+}
+
+export interface SosCaseV5 {
+  /** v7: the dog's published avatar, beside dog.photoUrl. */
+  dogAvatarUrl?: string | null;
+}
+
+/** GET /dogs/:slug/health (V4). Public; a Bearer is optional and only sets viewerIsVet. */
+export type HealthRecordType =
+  | "vaccination"
+  | "sterilisation"
+  | "treatment"
+  | "deworming"
+  | "checkup"
+  | "other"
+  | "withdrawal";
+
+export interface HealthRecord {
+  id: string;
+  type: HealthRecordType;
+  /** "Anti-rabies", "Sterilised", "Deworming", a treatment's title. Empty for a withdrawal. */
+  title: string;
+  status: "vet_signed" | "feeder_noted";
+  /** YYYY-MM-DD, or YYYY-MM when only the month is known. */
+  date: string | null;
+  dueOn: string | null;
+  note: string | null;
+  /** isGovernment: the signer is a government vet ("Government vet · free"). */
+  vet: { name: string; council: string | null; regNo: string | null; isGovernment?: boolean } | null;
+  brand: string | null;
+  batch: string | null;
+  /** Feeder noted: who added it, public first name (opt-out respected). */
+  addedBy: string | null;
+  /** A correction: the id of the record it replaces (the old one stays in the list). */
+  supersedes: string | null;
+  /** A withdrawal (type "withdrawal"): the record it takes off the page. */
+  withdraws: string | null;
+  /** Set on a record a later withdrawal took off the page. */
+  withdrawnAt: string | null;
+  /** Correction or withdrawal reason. */
+  reason: string | null;
+  /** Sterilisation: ear notched. */
+  earNotched: boolean | null;
+  /** An admin flagged this vet's signatures for re-check (vet removed, "flag"). */
+  flagged: boolean;
+  /** Feeder noted with an open "Ask a vet to sign" request. */
+  signRequestOpen: boolean;
+  recordedAt: string;
+  /** A vet-signed record that confirmed a feeder note: that note's id (it is also in supersedes). */
+  confirms?: string | null;
+  /** On a feeder note a vet confirmed: when. */
+  confirmedAt?: string | null;
+  /**
+   * A private photo (the vaccine sticker) is attached. NOT public: fetch it
+   * with downloadHealthPhoto (a verified vet, a feeder of the dog, or an admin
+   * with a moderation permission; every open is audited). It is deleted 30
+   * days after the record was signed, when hasPhoto turns false.
+   */
+  hasPhoto?: boolean;
+  photoPath?: string | null;
+}
+
+export interface DogHealth {
+  /** Every record, oldest first, corrections and withdrawals included: clients show the current versions. */
+  records: HealthRecord[];
+  certificateUrl?: string;
+  /** Only when the Bearer presented belongs to a verified, unsuspended vet. */
+  viewerIsVet: boolean;
+  /** The collar's printed batch number ("HJ-0412"), for the certificate; null when none was printed. */
+  collarBatchNo?: string | null;
+}
+
+/** POST /dogs/:slug/health-notes: a feeder of the dog notes care ("Feeder noted"). */
+export interface HealthNoteInput {
+  type: "vaccination" | "sterilisation" | "treatment" | "deworming" | "other";
+  /** Required for treatment/other; defaults from the type otherwise. */
+  title?: string;
+  date: string;
+  vaccine?: string;
+  brand?: string;
+  batch?: string;
+  dueOn?: string;
+  note?: string;
+}
+
+/** The record a feeder asks a vet to sign, or a vet signs (V3). */
+export interface VetRecordProposal {
+  type: "vaccination" | "sterilisation" | "treatment";
+  /** Vaccination: "Anti-rabies", "DHPPi", ... */
+  vaccine?: string;
+  brand?: string;
+  batch?: string;
+  givenOn: string;
+  dueOn?: string | null;
+  earNotched?: boolean;
+  /** Treatment: what it was for / what was given. */
+  diagnosis?: string;
+  treatment?: string;
+  note?: string;
+}
+
+/** POST /dogs/:slug/sign-requests (V4 "Ask a vet to sign"). Feeder of the dog. */
+export interface SignRequestInput {
+  /** The feeder-noted record to turn into a signed one, or a fresh proposal. */
+  recordId?: string;
+  proposed?: VetRecordProposal;
+  /** A particular vet (from GET /dogs/:slug/vets); omitted = any verified vet covering the dog's ward. */
+  vetFeederId?: string | null;
+  /** The clinic slip, same limits as a scan photo. */
+  evidencePhotoBase64?: string;
+  note?: string;
+}
+
+export interface SignRequest {
+  id: string;
+  dog: { slug: string; name: string | null; photoUrl: string | null; avatarUrl: string | null };
+  proposed: VetRecordProposal;
+  recordId: string | null;
+  /** First name of the feeder who asked (opt-out respected). */
+  requestedBy: string | null;
+  requestedAt: string;
+  /**
+   * The clinic slip is PRIVATE (encrypted with the documents): this is an API
+   * path to fetch with downloadSignRequestEvidence, never a public image URL.
+   * Kept under this name for existing callers; prefer evidencePhotoPath.
+   */
+  evidencePhotoUrl: string | null;
+  hasEvidencePhoto?: boolean;
+  evidencePhotoPath?: string | null;
+  note: string | null;
+  status: "open" | "signed" | "declined" | "withdrawn";
+}
+
+// --- Vet portal (V1 to V5) --------------------------------------------------
+
+export interface SosHours {
+  /** "09:00" and "21:00", Mumbai time. A window may wrap midnight. */
+  from: string;
+  to: string;
+}
+
+/** POST /vet/apply (V1). Upload documents first (POST /documents). Mumbai wards only. */
+export interface VetApplyInput {
+  council: "MSVC";
+  regNo: string;
+  qualification?: string;
+  clinic?: string | null;
+  wards: string[];
+  sosAvailable: boolean;
+  sosHours?: SosHours | null;
+  /** Public professional number (Indian, any format; stored E.164). */
+  publicPhone: string;
+  /** Applying through an NGO: arrives in A2 linked (vouched once a coordinator vouches). */
+  ngoId?: string | null;
+  documentIds: string[];
+}
+
+export interface VetProfile {
+  id: string;
+  feederId: string;
+  name: string;
+  council: string;
+  regNo: string;
+  regLabel: string;
+  qualification: string | null;
+  clinic: string | null;
+  wards: string[];
+  sosAvailable: boolean;
+  sosHours: SosHours | null;
+  publicPhone: string | null;
+  status: VetStatus;
+  appliedAt: string | null;
+  decidedAt: string | null;
+  /** The reason an admin typed for Ask for more / Decline / Suspend / Remove. */
+  decisionReason: string | null;
+  validTo: string | null;
+  vouchedBy: { ngoId: string; name: string } | null;
+  ngo: { id: string; name: string } | null;
+  /** Linked to a government directory entry: "Government vet · free". */
+  isGovernment?: boolean;
+  careProviderId?: string | null;
+}
+
+export interface Passkey {
+  id: string;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+/** GET /vet/me. profile null = never applied. */
+export interface VetMe {
+  profile: VetProfile | null;
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
+  canSign: boolean;
+  canAcceptSos: boolean;
+  passkeys: Passkey[];
+  documents: UploadedDocument[];
+}
+
+/** PATCH /vet/me: profile edits (the registration number changes only by applying again). */
+export interface VetPatch {
+  clinic?: string | null;
+  qualification?: string | null;
+  wards?: string[];
+  sosAvailable?: boolean;
+  sosHours?: SosHours | null;
+  publicPhone?: string;
+}
+
+/** Opaque WebAuthn JSON: pass options to @simplewebauthn/browser, send its result back as is. */
+export type WebAuthnOptionsJSON = Record<string, unknown> & { challenge: string };
+export type WebAuthnResponseJSON = Record<string, unknown> & { id: string; type: "public-key" };
+
+export interface VetSosItem {
+  caseId: string;
+  dog: { slug: string; name: string | null; sex?: DogSex | null; photoUrl: string | null; avatarUrl: string | null } | null;
+  wardId: string | null;
+  wardCode: string | null;
+  wardName: string | null;
+  severity: SosSeverity;
+  openedAt: string;
+  note: string | null;
+  /** Signed-in reporter's first name ("Sneha is with him"); null for a passer-by. */
+  reporterName: string | null;
+  taken: boolean;
+  /** From the vet's own last geotagged scan, rounded to 100 m; null when unknown. */
+  distanceM: number | null;
+}
+
+/** GET /vet/home (V2). 403 VET_NOT_VERIFIED unless verified or suspended. */
+export interface VetHome {
+  profile: VetProfile;
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
+  canSign: boolean;
+  canAcceptSos: boolean;
+  sos: VetSosItem[];
+  signRequests: SignRequest[];
+  signRequestCount: number;
+  dueSoon: { count: number; by: string };
+}
+
+export interface DueSoonDog {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardCode: string;
+  /** YYYY-MM (the vaccine due month) or YYYY-MM-DD. */
+  due: string;
+  lastLabel: string | null;
+  photoUrl: string | null;
+  avatarUrl: string | null;
+}
+
+/** GET /vet/dogs/:slug (V2b, V3 header). */
+export interface VetDogView {
+  dog: {
+    slug: string;
+    name: string | null;
+    sex: DogSex | null;
+    approxAge: number | null;
+    status: string;
+    wardId: string;
+    wardCode: string;
+    photoUrl: string | null;
+    avatarUrl: string | null;
+    collar: { code: string; batchNo: string | null } | null;
+  };
+  youFeed: boolean;
+  lastFedAt: string | null;
+  lastFedBy: string | null;
+  health: DogHealth;
+  /** Feeder-noted records a vet could confirm ("1 feeder note to confirm"). */
+  notesToConfirm: HealthRecord[];
+  openSignRequests: SignRequest[];
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
+  canSign: boolean;
+  /** The caller's vet status: "suspended" sees the dog but may not sign (hide the buttons). */
+  vetStatus?: VetStatus;
+  /** Why canSign is false: "suspended" or "no_passkey"; null when it is true. */
+  signingBlockedReason?: "suspended" | "no_passkey" | null;
+}
+
+/** What a vet signs (V3), corrects (V5) or withdraws. The server hashes exactly this. */
+export interface VetRecordDraft extends Partial<Omit<VetRecordProposal, "type">> {
+  dogSlug: string;
+  /** "withdrawal" takes a signed record off the page (supersedes + reason required). */
+  type: VetRecordProposal["type"] | "withdrawal";
+  /** Correction or withdrawal: the id of the vet's own signed record. */
+  supersedes?: string;
+  reason?: string;
+  signRequestId?: string;
+  /** N5: a vaccination logged during a drive checks the dog's "vaccinate" task. */
+  driveDogId?: string;
+  /** Confirm this feeder-noted record (signing a request made on a record does this by itself). */
+  confirmsRecordId?: string;
+  /** From uploadRecordPhoto: the vaccine sticker, private to the record. */
+  photoId?: string;
+  /** N5: signing from a drive (drive=<id>): ticks that dog's task on the drive, adding the dog if needed. */
+  driveId?: string;
+}
+
+/** POST /vet/records/options: sign this. The passkey challenge IS recordHash. */
+export interface SignOptions {
+  challengeId: string;
+  recordHash: string;
+  options: WebAuthnOptionsJSON;
+}
+
+export interface SignedRecord {
+  recordId: string;
+  hash: string;
+  recordHash: string;
+  dogSlug: string;
+  type: VetRecordDraft["type"];
+  signedAt: string;
+}
+
+export interface MySignature {
+  id: string;
+  dog: { slug: string; name: string | null };
+  type: HealthRecordType;
+  title: string;
+  date: string | null;
+  batch: string | null;
+  signedAt: string;
+  status: "valid" | "corrected" | "withdrawn" | "flagged";
+  supersedes: string | null;
+  /** First name of the feeder whose request this signed, if any. */
+  requestedBy?: string | null;
+}
+
+/** GET /vet/dogs?q= (verified or suspended vets): dogs in the vet's wards, ward level only. */
+export interface VetDogCard {
+  slug: string;
+  name: string | null;
+  sex: DogSex | null;
+  wardId: string;
+  wardCode: string;
+  photoUrl: string | null;
+  avatarUrl: string | null;
+}
+
+// --- NGO portal (N1 to N5) --------------------------------------------------
+
+export type NgoRegType = "trust" | "society" | "section8" | "other";
+
+export interface NgoOffers {
+  ambulance: boolean;
+  shelterBeds: boolean;
+  sterilisation: boolean;
+  collars: boolean;
+}
+
+/** POST /ngo/register (N1). Mumbai wards only. The caller becomes its coordinator. */
+export interface NgoRegisterInput {
+  name: string;
+  regType: NgoRegType;
+  regNo: string;
+  since?: number | null;
+  has80g?: boolean;
+  wards: string[];
+  offers: NgoOffers;
+  contactName: string;
+  publicPhone: string;
+  documentIds: string[];
+}
+
+export interface NgoProfile {
+  id: string;
+  name: string;
+  regType: NgoRegType;
+  regNo: string;
+  since: number | null;
+  has80g: boolean;
+  wards: string[];
+  /** Covers every ward (A7 "Citywide"). */
+  citywide: boolean;
+  offers: NgoOffers;
+  contactName: string | null;
+  publicPhone: string | null;
+  /** Opening hours ("9 am to 7 pm"), beside the ambulance's own hours. */
+  hours?: string | null;
+  status: NgoStatus;
+  appliedAt: string;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  ambulance: {
+    count: number;
+    hours: string | null;
+    status: "in" | "out";
+    outOnCase: { caseId: string; dogName: string | null } | null;
+  };
+  beds: { total: number; free: number };
+}
+
+/** GET /ngo/me. ngo null = not a member of any NGO. */
+export interface NgoMe {
+  ngo: NgoProfile | null;
+  role: NgoMemberRole | null;
+  hasTransport: boolean;
+}
+
+export interface NgoSosItem {
+  caseId: string;
+  dog: { slug: string; name: string | null; photoUrl: string | null; avatarUrl: string | null } | null;
+  wardId: string | null;
+  wardCode: string | null;
+  wardName: string | null;
+  severity: SosSeverity;
+  openedAt: string;
+  state: SosCaseState;
+  /** Who is going (N2 "Dr. Pillai + ambulance · ETA 12 min"), or null ("nobody assigned"). */
+  assigned: {
+    dispatchId: string;
+    name: string;
+    kind: "vet" | "member";
+    withAmbulance: boolean;
+    etaMin: number | null;
+    accepted: boolean;
+  } | null;
+  /** First name of whoever took the case, if anyone. */
+  takenBy: string | null;
+  /** N3 "If nobody accepts in 15 min, the case opens to all vets nearby." */
+  opensToVetsAt: string | null;
+}
+
+/** GET /ngo/home (N2). 403 NGO_REQUIRED unless a member of an active or paused NGO. */
+export interface NgoHome {
+  ngo: NgoProfile;
+  role: NgoMemberRole;
+  sos: NgoSosItem[];
+  team: { vets: number; volunteers: number };
+  nextDrive: { id: string; title: string; startsAt: string; wardId: string } | null;
+  dogs: { total: number; unsterilised: number };
+}
+
+/** PATCH /ngo/me (coordinator). */
+export interface NgoPatch {
+  contactName?: string;
+  publicPhone?: string;
+  offers?: Partial<NgoOffers>;
+  ambulanceCount?: number;
+  ambulanceHours?: string | null;
+  has80g?: boolean;
+  /** Mumbai BMC wards only. Audited; an admin sees the change in A7. */
+  wards?: string[];
+  hours?: string | null;
+}
+
+/** GET /ngo/sos/:caseId/candidates (N3 "Who's going to Moti?"). */
+export interface DispatchCandidate {
+  kind: "vet" | "member";
+  feederId: string;
+  name: string;
+  /** Member role, or "vet". */
+  role: NgoMemberRole | "vet";
+  hasTransport: boolean;
+  distanceM: number | null;
+  /** N3 "Vet · 1.2 km · free": NGO vets are free to the caller. */
+  free: boolean;
+  busy: boolean;
+  /** "Out on Laali's case". */
+  busyWith: string | null;
+}
+
+export interface DispatchCandidates {
+  candidates: DispatchCandidate[];
+  ambulance: { available: boolean; busyWith: string | null };
+  opensToVetsAt: string | null;
+}
+
+export interface NgoDispatchInput {
+  feederId: string;
+  withAmbulance?: boolean;
+  etaMin?: number | null;
+}
+
+export interface Dispatch {
+  id: string;
+  caseId: string;
+  ngoId: string | null;
+  kind: "ngo_member" | "admin_vet";
+  memberName: string;
+  withAmbulance: boolean;
+  etaMin: number | null;
+  sentAt: string;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+}
+
+/** GET /ngo/dispatches/mine: cases the caller was sent to. */
+export interface MyDispatch extends Dispatch {
+  dog: { slug: string; name: string | null } | null;
+  wardId: string | null;
+  severity: SosSeverity;
+  openedAt: string;
+  caseState: SosCaseState;
+}
+
+export interface NgoTeam {
+  vets: { feederId: string; name: string; status: VetStatus; regLabel: string | null; vouchedAt: string | null }[];
+  members: { feederId: string; name: string; role: NgoMemberRole; hasTransport: boolean; joinedAt: string }[];
+  invites: { id: string; role: NgoMemberRole | "vet"; createdAt: string }[];
+  /** Coordinators invite, remove and vouch (N4). */
+  canManage: boolean;
+}
+
+/** POST /ngo/team/invite. The invite is claimed when that address signs in to Hetja. */
+export interface NgoInviteInput {
+  email: string;
+  role: NgoMemberRole | "vet";
+  hasTransport?: boolean;
+}
+
+export type DriveTask = "collar" | "vaccinate" | "sterilise";
+
+export interface DriveDog {
+  id: string;
+  dog: { slug: string; name: string | null; photoUrl: string | null; avatarUrl: string | null };
+  tasks: Record<DriveTask, boolean>;
+  done: Record<DriveTask, boolean>;
+  status: "todo" | "done" | "to_clinic" | "not_found";
+  /** The dog's own status: "pending_activation" for one registered during the drive ("Print collar"), else "active". */
+  registrationStatus?: string;
+}
+
+export interface DriveSummary {
+  id: string;
+  title: string;
+  wardId: string;
+  wardCode: string;
+  startsAt: string;
+  leadVet: { feederId: string; name: string } | null;
+  volunteers: number;
+  dogs: number;
+  needSterilising: number;
+  collarsPacked: number;
+  startedAt: string | null;
+  finishedAt?: string | null;
+  state?: "planned" | "started" | "finished";
+}
+
+export interface DriveDetail extends DriveSummary {
+  volunteerNames: string[];
+  dogList: DriveDog[];
+}
+
+/** POST /ngo/drives (N5 "New drive"). Coordinator. */
+export interface NewDriveInput {
+  title?: string;
+  wardId: string;
+  date: string;
+  /** "07:00", Mumbai time. */
+  time: string;
+  leadVetFeederId?: string | null;
+  volunteerIds?: string[];
+  collarsPacked?: number;
+  dogs?: { slug: string; tasks: Partial<Record<DriveTask, boolean>> }[];
+}
+
+/** PATCH /ngo/drives/:id (coordinator). Moving the date re-sends the feeders' heads-up. */
+export interface DrivePatch {
+  title?: string;
+  date?: string;
+  time?: string;
+  leadVetFeederId?: string | null;
+  volunteerIds?: string[];
+  collarsPacked?: number;
+}
+
+/** v7: POST /registrations during a drive (N5): the new dog joins the drive with the collar task. */
+export interface CreateRegistrationInput {
+  driveId?: string;
+}
+
+export interface CreateRegistrationResult {
+  driveDogId?: string;
+}
+
+export interface NgoWardDog {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardCode: string;
+  photoUrl: string | null;
+  avatarUrl: string | null;
+  sterilised: "yes" | "no" | "unknown";
+  vaccinated: "yes" | "unknown";
+  lastFedAt: string | null;
+}
+
+// --- Report a problem (public) ----------------------------------------------
+
+/** POST /dogs/:slug/problems. Device token or Bearer. Deduplicated per reporter, dog and kind for 24 h. */
+export interface ProblemReportInput {
+  kind: "duplicate" | "photo" | "other";
+  /** duplicate: the other dog's code. */
+  otherSlug?: string;
+  note?: string;
+}
+
+/** GET /dogs/:slug/avatar-signoff (feeder of the dog): an avatar an admin asked them to check (A4). */
+export interface AvatarSignoff {
+  pending: { avatarId: string; imageUrl: string; photoUrl: string | null; requestedAt: string } | null;
+}
+
+// --- Admin portal (A1 to A7 and the designed sections) ----------------------
+
+export interface AdminToday {
+  /** Sidebar badges; they match the rows below so nothing hides. */
+  sidebar: { vets: number; ngos: number; avatars: number; reports: number; sos: number };
+  cards: {
+    vetsToVerify: { count: number; oldestWaitingDays: number | null };
+    avatarsToReview: { count: number; batchId: string | null; batchNumber: number | null; batchCreatedAt?: string | null };
+    openSos: { count: number; unassigned: number; oldestUnassignedMin: number | null };
+    reports: { count: number; duplicates: number; photos: number; other: number };
+  };
+  needsYou: NeedsYouItem[];
+  week: {
+    newDogs: number;
+    vetSignedRecords: number;
+    sosResolved: number;
+    sosTotal: number;
+    collarsIssued: number;
+    vaccinationsDue14d: number;
+  };
+}
+
+export type NeedsYouItem =
+  | {
+      kind: "sos";
+      caseId: string;
+      dogName: string | null;
+      wardId: string | null;
+      wardName: string | null;
+      severity: SosSeverity;
+      note: string | null;
+      raisedBy: string | null;
+      openedAt: string;
+    }
+  | { kind: "vet"; vetId: string; name: string; regLabel: string; appliedAt: string; documents: number; vouched: boolean }
+  | {
+      kind: "duplicate";
+      reportId: string | null;
+      a: { slug: string; name: string | null };
+      b: { slug: string; name: string | null };
+      reason: "report" | "similar_name";
+      sameWard: boolean;
+      differentFeeders: boolean;
+    }
+  | { kind: "avatars"; batchId: string; batchNumber: number; createdAt?: string; files: number; matched: number; needMatch: number }
+  | { kind: "ngo"; ngoId: string; name: string; appliedAt: string }
+  | { kind: "report"; reportId: string; reportKind: "photo" | "other"; dog: { slug: string; name: string | null }; createdAt: string };
+
+export interface AdminDogRow {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  wardCode: string;
+  status: string;
+  photoUrl: string | null;
+  avatarUrl: string | null;
+  collar: { code: string; batchNo: string | null } | null;
+  createdAt: string;
+  feeders: number;
+  lastFedAt: string | null;
+}
+
+export interface AdminFeederRow {
+  id: string;
+  name: string;
+  trust: number;
+  wards: string[];
+  createdAt: string;
+  suspended: boolean;
+  dogs: number;
+  feeds30d: number;
+}
+
+export interface AdminVetRow {
+  id: string;
+  feederId: string;
+  name: string;
+  council: string;
+  regNo: string;
+  regLabel: string;
+  clinic: string | null;
+  status: VetStatus;
+  appliedAt: string | null;
+  vouched: boolean;
+  registerChecked: boolean;
+  /** An admin could not find them on the MSVC register (shown red); separate from Decline. */
+  registerNotFound?: boolean;
+  isGovernment?: boolean;
+}
+
+export interface AdminCollarRow {
+  slug: string;
+  /** "r4n-7kw-2ab". */
+  code: string;
+  dogName: string | null;
+  wardId: string;
+  batchNo: string | null;
+  material: string;
+  issuedAt: string;
+  status: string;
+  prints: number;
+  reissues: number;
+}
+
+export interface AdminNgoRow {
+  id: string;
+  name: string;
+  wards: string[];
+  citywide: boolean;
+  vets: number;
+  dogs: number;
+  sos30d: number;
+  status: NgoStatus;
+  appliedAt: string;
+}
+
+/** GET /admin/search?q= (the ⌘K box): dogs, feeders, vets, collar ids and NGOs. At most 8 of each. */
+export interface AdminSearchResult {
+  dogs: AdminDogRow[];
+  feeders: AdminFeederRow[];
+  vets: AdminVetRow[];
+  collars: AdminCollarRow[];
+  ngos: AdminNgoRow[];
+}
+
+export interface AdminVetDetail extends AdminVetRow {
+  qualification: string | null;
+  wards: string[];
+  sosAvailable: boolean;
+  sosHours: SosHours | null;
+  publicPhone: string | null;
+  /** "+91 98•••• 4410". */
+  publicPhoneMasked: string | null;
+  registerCheckedAt: string | null;
+  registerCheckedBy: string | null;
+  validTo: string | null;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionReason: string | null;
+  vouchedBy: { ngoId: string; name: string } | null;
+  ngo: { id: string; name: string } | null;
+  documents: AdminDocument[];
+  signatures: number;
+  signaturesFlagged: boolean;
+  careProviderId: string | null;
+  /** The council's public register, for the "Checked on the MSVC register" checklist item. */
+  registerUrl: string;
+}
+
+export interface AdminVetList {
+  counts: Record<VetStatus, number>;
+  vets: AdminVetRow[];
+}
+
+/** POST /admin/vets/:id/verify. The admin ticks "Checked on the MSVC register" (adapted A2). */
+export interface VetVerifyInput {
+  registerChecked: true;
+  /** "YYYY-MM", as read off the register. */
+  validTo?: string | null;
+  note?: string;
+}
+
+/** POST /admin/vets/:id/remove (owner). */
+export interface VetRemoveInput {
+  reason: string;
+  signatures: "keep" | "flag";
+}
+
+/** POST /admin/vets/invite and POST /admin/team: an email is HMAC'd at once and never stored. */
+export interface AdminInviteInput {
+  email: string;
+  name?: string;
+  ngoId?: string | null;
+}
+
+export type AvatarMatch = "id" | "collar" | "manual" | "none";
+export type AvatarStatus = "draft" | "published" | "retired" | "rejected";
+
+export interface AvatarTile {
+  id: string;
+  batchId: string | null;
+  fileName: string;
+  imageUrl: string;
+  match: AvatarMatch;
+  dog: {
+    slug: string;
+    name: string | null;
+    /** The real photo on record, shown next to the avatar. */
+    photoUrl: string | null;
+    photoBy: string | null;
+    photoAt: string | null;
+    collarBatchNo: string | null;
+  } | null;
+  /** The dog already has a published avatar this one would replace. */
+  replacesExisting: boolean;
+  status: AvatarStatus;
+  uploadedAt: string;
+  publishedAt: string | null;
+  signoff: { requestedAt: string; feederName: string | null; answer: "looks_right" | "redo" | null } | null;
+}
+
+export interface AvatarBatch {
+  id: string;
+  number: number;
+  createdAt: string;
+  createdBy: string | null;
+  files: number;
+  matched: number;
+  published: number;
+  status: "open" | "published";
+}
+
+export interface AvatarBatchDetail {
+  batch: AvatarBatch;
+  tiles: AvatarTile[];
+  counts: { all: number; byId: number; byCollar: number; manual: number; noMatch: number; replaces: number };
+}
+
+/** POST /admin/avatars/batches/:id/files: one file per call. File names match by dog ID or collar batch number. */
+export interface AvatarUploadInput {
+  fileName: string;
+  imageBase64: string;
+}
+
+export interface AvatarVersion {
+  id: string;
+  imageUrl: string;
+  status: AvatarStatus;
+  publishedAt: string | null;
+  retiredAt: string | null;
+  /** A retired avatar can be restored until this time (30 days). */
+  restorableUntil: string | null;
+}
+
+export interface AdminDogDetail extends AdminDogRow {
+  registeredBy: { feederId: string; name: string } | null;
+  registeredAt: string | null;
+  verified: boolean;
+  tagUnderReview: boolean;
+  sex: DogSex | null;
+  markings: string[];
+  photos: { scanId: string; url: string; at: string; byName: string | null; hidden: boolean }[];
+  avatar: { current: AvatarVersion | null; history: AvatarVersion[] };
+  health: DogHealth;
+  feedsTotal: number;
+  feederList: { feederId: string; name: string }[];
+  mergedFrom: { slug: string; name: string | null; mergedAt: string }[];
+  mergedInto: { slug: string; name: string | null } | null;
+  openReports: AdminReportRow[];
+  sos: { caseId: string; severity: SosSeverity; state: SosCaseState; openedAt: string }[];
+}
+
+export interface DuplicateDog {
+  slug: string;
+  name: string | null;
+  wardId: string;
+  addedAt: string;
+  addedBy: string | null;
+  collar: string | null;
+  feeds: number;
+  signedRecords: number;
+  photoUrl: string | null;
+  feederNames: string[];
+}
+
+export interface DuplicateCandidate {
+  a: DuplicateDog;
+  b: DuplicateDog;
+  reason: "report" | "similar_name";
+  reportId: string | null;
+  /** Name similarity 0..1 for similar_name; null for a report. */
+  score: number | null;
+}
+
+/** POST /admin/dogs/merge (A5). */
+export interface MergeInput {
+  keepSlug: string;
+  mergeSlug: string;
+  /** The name to keep; default the kept dog's own. */
+  name?: string | null;
+  reportId?: string | null;
+}
+
+export interface MergeResult {
+  keptSlug: string;
+  mergedSlug: string;
+  feeds: number;
+  signedRecords: number;
+  feedersAdded: number;
+}
+
+export interface AdminFeederDetail extends AdminFeederRow {
+  role: string;
+  trustEvents: { at: string; type: string; delta: number; reason: string }[];
+  dogList: { slug: string; name: string | null }[];
+  recentFeeds: { scanId: string; dog: { slug: string; name: string | null }; at: string; photoUrl: string | null; hidden: boolean }[];
+  reportsAgainst: number;
+  suspension: { at: string; reason: string | null; byName: string | null } | null;
+  /** Opaque references to devices this account used, for Block device. Never the device id itself. */
+  devices: { deviceRef: string; lastSeenAt: string; blocked: boolean }[];
+  vet: { status: VetStatus } | null;
+  ngo: { name: string; role: NgoMemberRole } | null;
+}
+
+/** POST /admin/devices/block: one of the four references, and a reason. */
+export interface BlockDeviceInput {
+  deviceRef?: string;
+  scanId?: string;
+  caseId?: string;
+  reason: string;
+}
+
+export interface AdminCollarDetail extends AdminCollarRow {
+  printList: { at: string; layout: string; paper: string; tagCount: number; byName: string | null }[];
+  reissueList: { at: string; previousBatchNo: string; newBatchNo: string; reason: string | null; byName: string | null }[];
+}
+
+export interface AdminSosRow {
+  id: string;
+  dog: { slug: string; name: string | null } | null;
+  wardId: string | null;
+  wardCode: string | null;
+  severity: SosSeverity;
+  state: SosCaseState;
+  openedAt: string;
+  ackedAt: string | null;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  raisedBy: string | null;
+  responder: string | null;
+  /** Minutes open with nobody taking it; null once taken or closed. */
+  unassignedMin: number | null;
+  ngo: { id: string; name: string } | null;
+  assignedVet: { feederId: string; name: string } | null;
+}
+
+export interface AdminSosDetail extends AdminSosRow {
+  note: string | null;
+  outcome: SosOutcome | null;
+  timeline: SosTimelineEntry[];
+  told: { feeders: number; vets: number; ngos: number };
+  dispatches: Dispatch[];
+}
+
+/** GET /admin/sos/:id/vets: who "Assign a vet" can page. */
+export interface AssignableVet {
+  feederId: string;
+  name: string;
+  regLabel: string;
+  clinic: string | null;
+  wards: string[];
+  coversWard: boolean;
+  sosAvailable: boolean;
+  inHours: boolean;
+  publicPhone: string | null;
+}
+
+export interface AdminReportRow {
+  id: string;
+  /** "tag" rows are tag reports (fake tags, wrong dog); resolve those from the dog. */
+  source: "report" | "tag";
+  kind: "duplicate_dog" | "photo" | "other" | TagProblemKind;
+  dog: { slug: string; name: string | null; photoUrl: string | null };
+  otherDog: { slug: string; name: string | null } | null;
+  note: string | null;
+  reporter: string | null;
+  createdAt: string;
+  status: "open" | "resolved";
+  outcome: string | null;
+  /** Photo reports: the photo that was on the page when reported (take it down with hidePhoto(scanId)). */
+  scanId?: string | null;
+  photoUrl?: string | null;
+  photoHidden?: boolean;
+}
+
+/** POST /admin/tag-reports/:id/resolve (Reports, "fake tags"). */
+export type TagReportAdminOutcome = "reprinted" | "spare" | "checked_ok" | "fake_tag" | "no_action";
+
+export interface ReportResolveInput {
+  outcome: "merged" | "different" | "photo_removed" | "no_action" | "fixed";
+  note?: string;
+}
+
+export interface AdminTeam {
+  members: { feederId: string; name: string; roles: AdminRoleGrant[] }[];
+  invites: { id: string; role: AdminRole; wards: string[]; createdAt: string; invitedBy: string | null }[];
+}
+
+/** POST /admin/team (owner): grant to an existing account, or invite an address. */
+export interface TeamAddInput {
+  email: string;
+  role: AdminRole;
+  wards?: string[];
+}
+
+export interface AuditEntry {
+  id: string;
+  at: string;
+  actor: { id: string | null; name: string | null; kind: "admin" | "vet" | "ngo" | "feeder" | "system" };
+  action: string;
+  subjectType: string | null;
+  subjectId: string | null;
+  /** One line, e.g. "verified Dr. Arjun Deshmukh". Never contact details or document contents. */
+  summary: string;
+  detail: Record<string, unknown>;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** Pass as ?before= for the next page; null at the end. */
+  nextBefore: string | null;
+}
+
+export interface AdminNgoDetail extends NgoProfile {
+  vetCount: number;
+  dogCount: number;
+  sos30d: number;
+  members: number;
+  vetList: { feederId: string; name: string; status: VetStatus; vouched: boolean }[];
+  documents: AdminDocument[];
+  careProviderId: string | null;
+}
+
+export interface AdminNgoList {
+  counts: Record<NgoStatus, number>;
+  ngos: AdminNgoRow[];
+}
+
+/** POST /admin/ngos ("Add an NGO"): created active; the coordinator is invited by email. */
+export interface AdminNgoCreateInput extends Omit<NgoRegisterInput, "documentIds"> {
+  coordinatorEmail?: string;
+  citywide?: boolean;
+}
+
+export type AdminNgoPatch = Partial<Omit<AdminNgoCreateInput, "coordinatorEmail">>;
+
+/** GET /admin/care?q=: directory entries to link a vet or NGO to. */
+export interface CareDirectoryEntry {
+  id: string;
+  name: string;
+  kind: string;
+  isPerson: boolean;
+  isGovernment: boolean;
+  regNo: string | null;
+  wards: string[];
+  phoneE164: string | null;
+  listed: boolean;
+}
+
+/** GET /admin/settings: the rules, read-only. */
+export interface AdminSettings {
+  sos: {
+    escalateAfterMin: number;
+    ngoWindowMin: number;
+    trustFloors: Record<SosSeverity, number>;
+    maxOpenAcks: number;
+    dailyCap: number;
+    weeklyCap: number;
+    maxPaged: number;
+  };
+  retention: { photoDays: number; documentDaysAfterDecision: number; avatarPreviousDays: number };
+  budgets: { scanPageKb: number; feedTrustDailyCap: number };
+  limits: { name: string; rule: string }[];
+}
+
+/**
+ * Admin downloads that are not JSON: a document (A2, A7) or the audit CSV
+ * (A6). Same session and one refresh as request(); errors arrive as ApiError.
+ */
+export async function downloadBlob(path: string, afterRefresh = false): Promise<{ blob: Blob; fileName: string | null }> {
+  const token = getAccessToken();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (cause) {
+    throw new ApiError("Could not reach Hetja. Check your connection.", { status: 0, code: "NETWORK_ERROR", cause });
+  }
+  if (res.status === 401 && token && !afterRefresh && (await refreshSession())) return downloadBlob(path, true);
+  if (!res.ok) {
+    const payload: unknown = await res.json().catch(() => null);
+    const message = isErrorEnvelope(payload) ? payload.error.message : `Request failed (HTTP ${res.status})`;
+    const code = isErrorEnvelope(payload) ? payload.error.code : undefined;
+    throw new ApiError(message, { status: res.status, code });
+  }
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const m = /filename="([^"]+)"/.exec(disposition);
+  return { blob: await res.blob(), fileName: m ? m[1] : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -1443,4 +2750,315 @@ export const api = {
       method: "POST",
       body: { code },
     }),
+  // -------------------------------------------------------------------------
+  // Design v7 endpoints (docs/design/v7-portals/CONTRACT.md). Shapes are the
+  // "Design v7 types" block above. Admin downloads (documents, the audit CSV)
+  // use downloadBlob below, not request(), because they are not JSON.
+  // -------------------------------------------------------------------------
+
+  // Public
+  /** V4 health list. Bearer optional (only sets viewerIsVet); a bad token is ignored. */
+  getDogHealth: (slug: string) => request<DogHealth>(`/dogs/${encodeURIComponent(slug)}/health`),
+  /** Vets and NGOs covering a ward, public numbers. */
+  getWardProfessionals: (wardId: string) =>
+    request<WardProfessionals>(`/wards/${encodeURIComponent(wardId)}/professionals`, { auth: false }),
+  /** Verified vets covering the dog's ward, for "Ask a vet to sign". */
+  getDogVets: (slug: string) => request<{ vets: PublicVet[] }>(`/dogs/${encodeURIComponent(slug)}/vets`),
+  /** "Report a problem" (duplicate, photo, other). */
+  reportProblem: async (slug: string, input: ProblemReportInput) => {
+    const deviceToken = await bestEffortDeviceToken();
+    return request<{ id: string; created: boolean }>(`/dogs/${encodeURIComponent(slug)}/problems`, {
+      method: "POST",
+      body: input,
+      deviceToken,
+    });
+  },
+
+  // Feeder side of signing (V4)
+  addHealthNote: (slug: string, input: HealthNoteInput) =>
+    request<{ recordId: string }>(`/dogs/${encodeURIComponent(slug)}/health-notes`, { method: "POST", body: input }),
+  askVetToSign: (slug: string, input: SignRequestInput) =>
+    request<{ id: string }>(`/dogs/${encodeURIComponent(slug)}/sign-requests`, { method: "POST", body: input }),
+  getAvatarSignoff: (slug: string) => request<AvatarSignoff>(`/dogs/${encodeURIComponent(slug)}/avatar-signoff`),
+  answerAvatarSignoff: (slug: string, avatarId: string, answer: "looks_right" | "redo") =>
+    request<{ answered: true }>(`/dogs/${encodeURIComponent(slug)}/avatar-signoff`, {
+      method: "POST",
+      body: { avatarId, answer },
+    }),
+
+  // Documents (V1, N1)
+  uploadDocument: (input: UploadDocumentInput) =>
+    request<UploadedDocument>(`/documents`, { method: "POST", body: input, timeoutMs: 60_000 }),
+
+  // Vet (V1 to V5)
+  getVetMe: () => request<VetMe>(`/vet/me`),
+  applyAsVet: (input: VetApplyInput) => request<VetProfile>(`/vet/apply`, { method: "POST", body: input }),
+  patchVetMe: (input: VetPatch) => request<VetProfile>(`/vet/me`, { method: "PATCH", body: input }),
+  getVetHome: () => request<VetHome>(`/vet/home`),
+  getVetDueSoon: () => request<{ dogs: DueSoonDog[]; by: string }>(`/vet/due-soon`),
+  getVetDog: (slug: string) => request<VetDogView>(`/vet/dogs/${encodeURIComponent(slug)}`),
+  getVetSignRequests: () => request<{ requests: SignRequest[] }>(`/vet/sign-requests`),
+  /** V3 "I didn't give this". */
+  declineSignRequest: (id: string, reason?: string) =>
+    request<{ declined: true }>(`/vet/sign-requests/${encodeURIComponent(id)}/decline`, {
+      method: "POST",
+      body: reason ? { reason } : {},
+    }),
+  /** Passkey setup: options for navigator.credentials.create (via @simplewebauthn/browser startRegistration). */
+  passkeyRegistrationOptions: () => request<WebAuthnOptionsJSON>(`/vet/passkeys/options`, { method: "POST", body: {} }),
+  registerPasskey: (response: WebAuthnResponseJSON, label?: string) =>
+    request<Passkey>(`/vet/passkeys`, { method: "POST", body: { response, label } }),
+  removePasskey: (id: string) =>
+    request<{ removed: true }>(`/vet/passkeys/${encodeURIComponent(id)}/remove`, { method: "POST", body: {} }),
+  /** V3/V5 step 1: the server hashes the draft; the passkey signs that hash (startAuthentication). */
+  signOptions: (record: VetRecordDraft) =>
+    request<SignOptions>(`/vet/records/options`, { method: "POST", body: { record } }),
+  /** V3/V5 step 2: the same draft, byte for byte, and the assertion. */
+  signRecord: (challengeId: string, record: VetRecordDraft, assertion: WebAuthnResponseJSON) =>
+    request<SignedRecord>(`/vet/records`, { method: "POST", body: { challengeId, record, assertion } }),
+  getMySignatures: () => request<{ signatures: MySignature[] }>(`/vet/signatures`),
+  getMySignature: (id: string) => request<MySignature>(`/vet/signatures/${encodeURIComponent(id)}`),
+  getVetSignRequest: (id: string) => request<SignRequest>(`/vet/sign-requests/${encodeURIComponent(id)}`),
+  /** V2 "Or search by name or ID": dogs in the vet's wards. */
+  searchVetDogs: (q: string) => request<{ dogs: VetDogCard[] }>(`/vet/dogs?q=${encodeURIComponent(q)}`),
+  /** V3 vaccine sticker: upload first, then pass photoId in the draft. Private to the record. */
+  uploadRecordPhoto: (base64: string) =>
+    request<{ photoId: string }>(`/vet/record-photos`, { method: "POST", body: { base64 }, timeoutMs: 60_000 }),
+  /** A record's private photo (HealthRecord.photoPath), for vets, the dog's feeders and admins. */
+  downloadHealthPhoto: (photoPath: string) => downloadBlob(photoPath),
+  /** A sign request's private clinic slip (SignRequest.evidencePhotoPath); audited. */
+  downloadSignRequestEvidence: (path: string) => downloadBlob(path),
+
+  // NGO (N1 to N5)
+  registerNgo: (input: NgoRegisterInput) => request<NgoProfile>(`/ngo/register`, { method: "POST", body: input }),
+  getNgoMe: () => request<NgoMe>(`/ngo/me`),
+  patchNgoMe: (input: NgoPatch) => request<NgoProfile>(`/ngo/me`, { method: "PATCH", body: input }),
+  getNgoHome: () => request<NgoHome>(`/ngo/home`),
+  /** N2 "Mark back" / out on a case. */
+  setAmbulance: (status: "in" | "out", caseId?: string | null) =>
+    request<NgoProfile["ambulance"]>(`/ngo/ambulance`, { method: "POST", body: { status, caseId: caseId ?? null } }),
+  /** N2 "Update" shelter beds. */
+  setBeds: (free: number, total?: number) =>
+    request<NgoProfile["beds"]>(`/ngo/beds`, { method: "POST", body: total === undefined ? { free } : { free, total } }),
+  getDispatchCandidates: (caseId: string) =>
+    request<DispatchCandidates>(`/ngo/sos/${encodeURIComponent(caseId)}/candidates`),
+  /** N3 "Send Dr. Qureshi": pages that member; their accept takes the case as them. */
+  dispatch: (caseId: string, input: NgoDispatchInput) =>
+    request<Dispatch>(`/ngo/sos/${encodeURIComponent(caseId)}/dispatch`, { method: "POST", body: input }),
+  /** N3 "We can't take this one": opens the case to every vet nearby now. */
+  passSos: (caseId: string) =>
+    request<{ passed: true }>(`/ngo/sos/${encodeURIComponent(caseId)}/pass`, { method: "POST", body: {} }),
+  getMyDispatches: () => request<{ dispatches: MyDispatch[] }>(`/ngo/dispatches/mine`),
+  acceptDispatch: (id: string) =>
+    request<{ caseId: string; ackedAt: string }>(`/ngo/dispatches/${encodeURIComponent(id)}/accept`, {
+      method: "POST",
+      body: {},
+    }),
+  declineDispatch: (id: string) =>
+    request<{ declined: true }>(`/ngo/dispatches/${encodeURIComponent(id)}/decline`, { method: "POST", body: {} }),
+  getNgoTeam: () => request<NgoTeam>(`/ngo/team`),
+  inviteToNgo: (input: NgoInviteInput) =>
+    request<{ id: string; joined: boolean }>(`/ngo/team/invite`, { method: "POST", body: input }),
+  updateNgoMember: (feederId: string, input: { role?: NgoMemberRole; hasTransport?: boolean }) =>
+    request<{ updated: true }>(`/ngo/team/${encodeURIComponent(feederId)}`, { method: "PATCH", body: input }),
+  removeNgoMember: (feederId: string) =>
+    request<{ removed: true }>(`/ngo/team/${encodeURIComponent(feederId)}/remove`, { method: "POST", body: {} }),
+  /** N4 "Vouch for her". */
+  vouchForVet: (vetFeederId: string) =>
+    request<{ vouchedAt: string }>(`/ngo/vets/${encodeURIComponent(vetFeederId)}/vouch`, { method: "POST", body: {} }),
+  getNgoDogs: (filter?: "unsterilised" | "unvaccinated") =>
+    request<{ dogs: NgoWardDog[]; total: number }>(`/ngo/dogs${filter ? `?filter=${filter}` : ""}`),
+  getDrives: () => request<{ drives: DriveSummary[] }>(`/ngo/drives`),
+  createDrive: (input: NewDriveInput) => request<DriveDetail>(`/ngo/drives`, { method: "POST", body: input }),
+  getDrive: (id: string) => request<DriveDetail>(`/ngo/drives/${encodeURIComponent(id)}`),
+  addDriveDog: (id: string, slug: string, tasks: Partial<Record<DriveTask, boolean>>) =>
+    request<DriveDog>(`/ngo/drives/${encodeURIComponent(id)}/dogs`, { method: "POST", body: { slug, tasks } }),
+  /** N5 "tap to check off". */
+  updateDriveDog: (
+    id: string,
+    driveDogId: string,
+    input: { done?: Partial<Record<DriveTask, boolean>>; status?: DriveDog["status"] },
+  ) =>
+    request<DriveDog>(`/ngo/drives/${encodeURIComponent(id)}/dogs/${encodeURIComponent(driveDogId)}`, {
+      method: "PATCH",
+      body: input,
+    }),
+  patchDrive: (id: string, input: DrivePatch) =>
+    request<DriveDetail>(`/ngo/drives/${encodeURIComponent(id)}`, { method: "PATCH", body: input }),
+  /** N5 finish: state "finished", audited. */
+  finishDrive: (id: string) =>
+    request<{ state: "finished"; finishedAt: string }>(`/ngo/drives/${encodeURIComponent(id)}/finish`, {
+      method: "POST",
+      body: {},
+    }),
+  startDrive: (id: string) =>
+    request<{ startedAt: string }>(`/ngo/drives/${encodeURIComponent(id)}/start`, { method: "POST", body: {} }),
+
+  // Admin (A1 to A7 and the designed sections). Every write is audited.
+  getAdminMe: () => request<AdminMe>(`/admin/me`),
+  getAdminToday: () => request<AdminToday>(`/admin/today`),
+  adminSearch: (q: string) => request<AdminSearchResult>(`/admin/search?q=${encodeURIComponent(q)}`),
+
+  getAdminVets: (status?: VetStatus) =>
+    request<AdminVetList>(`/admin/vets${status ? `?status=${status}` : ""}`),
+  getAdminVet: (id: string) => request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}`),
+  verifyVet: (id: string, input: VetVerifyInput) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/verify`, { method: "POST", body: input }),
+  /** "ask-more" | "decline" | "suspend" take { reason }; "reinstate" takes {}. */
+  decideVet: (id: string, action: "ask-more" | "decline" | "suspend" | "reinstate", reason?: string) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/${action}`, {
+      method: "POST",
+      body: reason ? { reason } : {},
+    }),
+  /** A2 "Not found" on the MSVC register (found: true clears it; Verify clears it too). */
+  /** Flag (or clear) a vet's past signatures for re-check, whatever their status. Audited. */
+  flagVetSignatures: (id: string, flag: boolean, reason: string) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/flag-signatures`, { method: "POST", body: { flag, reason } }),
+  markNotOnRegister: (id: string, input: { note?: string; found?: boolean } = {}) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/not-on-register`, { method: "POST", body: input }),
+  removeVet: (id: string, input: VetRemoveInput) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/remove`, { method: "POST", body: input }),
+  inviteVet: (input: AdminInviteInput) =>
+    request<{ id: string; existingAccount: boolean }>(`/admin/vets/invite`, { method: "POST", body: input }),
+  linkVetCare: (id: string, careProviderId: string | null) =>
+    request<{ careProviderId: string | null }>(`/admin/vets/${encodeURIComponent(id)}/link-care`, {
+      method: "POST",
+      body: { careProviderId },
+    }),
+
+  getAdminNgos: (status?: NgoStatus) => request<AdminNgoList>(`/admin/ngos${status ? `?status=${status}` : ""}`),
+  getAdminNgo: (id: string) => request<AdminNgoDetail>(`/admin/ngos/${encodeURIComponent(id)}`),
+  createAdminNgo: (input: AdminNgoCreateInput) => request<AdminNgoDetail>(`/admin/ngos`, { method: "POST", body: input }),
+  patchAdminNgo: (id: string, input: AdminNgoPatch) =>
+    request<AdminNgoDetail>(`/admin/ngos/${encodeURIComponent(id)}`, { method: "PATCH", body: input }),
+  /** "approve" | "resume" take {}; "pause" | "remove" take { reason }. */
+  decideNgo: (id: string, action: "approve" | "pause" | "resume" | "remove", reason?: string) =>
+    request<AdminNgoDetail>(`/admin/ngos/${encodeURIComponent(id)}/${action}`, {
+      method: "POST",
+      body: reason ? { reason } : {},
+    }),
+  linkNgoCare: (id: string, careProviderId: string | null) =>
+    request<{ careProviderId: string | null }>(`/admin/ngos/${encodeURIComponent(id)}/link-care`, {
+      method: "POST",
+      body: { careProviderId },
+    }),
+  searchCare: (q: string) => request<{ entries: CareDirectoryEntry[] }>(`/admin/care?q=${encodeURIComponent(q)}`),
+
+  getAvatarBatches: () => request<{ batches: AvatarBatch[] }>(`/admin/avatars/batches`),
+  createAvatarBatch: () => request<AvatarBatch>(`/admin/avatars/batches`, { method: "POST", body: {} }),
+  getAvatarBatch: (id: string) => request<AvatarBatchDetail>(`/admin/avatars/batches/${encodeURIComponent(id)}`),
+  uploadAvatar: (batchId: string, input: AvatarUploadInput) =>
+    request<AvatarTile>(`/admin/avatars/batches/${encodeURIComponent(batchId)}/files`, {
+      method: "POST",
+      body: input,
+      timeoutMs: 60_000,
+    }),
+  /** Publish every matched draft in the batch. */
+  publishAvatarBatch: (batchId: string) =>
+    request<{ published: number }>(`/admin/avatars/batches/${encodeURIComponent(batchId)}/publish`, {
+      method: "POST",
+      body: {},
+    }),
+  getAvatar: (id: string) => request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}`),
+  /** Pick the dog (no-match tile) or clear it ("Wrong dog": dogSlug null). */
+  matchAvatar: (id: string, dogSlug: string | null) =>
+    request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}/match`, { method: "POST", body: { dogSlug } }),
+  /** A4 "Approve": publish this one now. */
+  publishAvatar: (id: string) =>
+    request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}/publish`, { method: "POST", body: {} }),
+  /** A4 "Upload a different file". */
+  replaceAvatarFile: (id: string, input: AvatarUploadInput) =>
+    request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}/file`, { method: "POST", body: input, timeoutMs: 60_000 }),
+  /** A4 "Ask Priya". */
+  askAvatarSignoff: (id: string) =>
+    request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}/ask-feeder`, { method: "POST", body: {} }),
+  /** Put a retired avatar back (within 30 days). */
+  restoreAvatar: (id: string) =>
+    request<AvatarTile>(`/admin/avatars/${encodeURIComponent(id)}/restore`, { method: "POST", body: {} }),
+
+  getAdminDogs: (params: { q?: string; ward?: string; status?: string } = {}) =>
+    request<{ dogs: AdminDogRow[] }>(`/admin/dogs?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  getAdminDog: (slug: string) => request<AdminDogDetail>(`/admin/dogs/${encodeURIComponent(slug)}`),
+  setAdminDogStatus: (slug: string, status: "active" | "lost" | "adopted" | "deceased" | "relocated", reason: string) =>
+    request<{ status: string }>(`/admin/dogs/${encodeURIComponent(slug)}/status`, { method: "POST", body: { status, reason } }),
+  getDuplicates: () => request<{ candidates: DuplicateCandidate[] }>(`/admin/duplicates`),
+  mergeDogs: (input: MergeInput) => request<MergeResult>(`/admin/dogs/merge`, { method: "POST", body: input }),
+  /** A5 "They're different dogs". */
+  dismissDuplicate: (aSlug: string, bSlug: string, reportId?: string | null) =>
+    request<{ dismissed: true }>(`/admin/duplicates/dismiss`, { method: "POST", body: { aSlug, bSlug, reportId: reportId ?? null } }),
+  /** D13: take a photo off the dog's page (the scan and the feed stay). */
+  hidePhoto: (scanId: string, reason: string) =>
+    request<{ hidden: true }>(`/admin/photos/${encodeURIComponent(scanId)}/hide`, { method: "POST", body: { reason } }),
+
+  getAdminFeeders: (q?: string) =>
+    request<{ feeders: AdminFeederRow[] }>(`/admin/feeders${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  getAdminFeeder: (id: string) => request<AdminFeederDetail>(`/admin/feeders/${encodeURIComponent(id)}`),
+  suspendFeeder: (id: string, reason: string) =>
+    request<{ suspended: true }>(`/admin/feeders/${encodeURIComponent(id)}/suspend`, { method: "POST", body: { reason } }),
+  unsuspendFeeder: (id: string, reason?: string) =>
+    request<{ suspended: false }>(`/admin/feeders/${encodeURIComponent(id)}/unsuspend`, {
+      method: "POST",
+      body: reason ? { reason } : {},
+    }),
+  blockDevice: (input: BlockDeviceInput) =>
+    request<{ blocked: true; deviceRef: string }>(`/admin/devices/block`, { method: "POST", body: input }),
+  unblockDevice: (deviceRef: string) =>
+    request<{ blocked: false }>(`/admin/devices/unblock`, { method: "POST", body: { deviceRef } }),
+
+  getAdminCollars: (params: { q?: string; ward?: string } = {}) =>
+    request<{ collars: AdminCollarRow[] }>(`/admin/collars?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  getAdminCollar: (slug: string) => request<AdminCollarDetail>(`/admin/collars/${encodeURIComponent(slug)}`),
+  /** Set the printed batch number ("HJ-0412"). */
+  setCollarBatchNo: (slug: string, batchNo: string) =>
+    request<AdminCollarRow>(`/admin/collars/${encodeURIComponent(slug)}`, { method: "PATCH", body: { batchNo } }),
+
+  getAdminSos: (state: "open" | "unassigned" | "escalated" | "closed" | "all" = "open") =>
+    request<{ cases: AdminSosRow[] }>(`/admin/sos?state=${state}`),
+  getAdminSosCase: (id: string) => request<AdminSosDetail>(`/admin/sos/${encodeURIComponent(id)}`),
+  getAssignableVets: (id: string) => request<{ vets: AssignableVet[] }>(`/admin/sos/${encodeURIComponent(id)}/vets`),
+  /** A1 "Assign a vet": pages that vet; their I'm going takes the case. */
+  assignVet: (id: string, vetFeederId: string) =>
+    request<Dispatch>(`/admin/sos/${encodeURIComponent(id)}/assign-vet`, { method: "POST", body: { vetFeederId } }),
+  resolveAdminSos: (id: string, input: ResolveSosInput) =>
+    request<{ id: string; state: SosCaseState; outcome: SosOutcome }>(`/admin/sos/${encodeURIComponent(id)}/resolve`, {
+      method: "POST",
+      body: input,
+    }),
+
+  getAdminReports: (status: "open" | "resolved" | "all" = "open") =>
+    request<{ reports: AdminReportRow[] }>(`/admin/reports?status=${status}`),
+  /** Reports: close a tag report (source "tag"), including "fake_tag". */
+  adminResolveTagReport: (id: string, outcome: TagReportAdminOutcome, note?: string) =>
+    request<{ id: string; status: "resolved"; outcome: TagReportAdminOutcome }>(
+      `/admin/tag-reports/${encodeURIComponent(id)}/resolve`,
+      { method: "POST", body: note ? { outcome, note } : { outcome } },
+    ),
+  resolveReport: (id: string, input: ReportResolveInput) =>
+    request<AdminReportRow>(`/admin/reports/${encodeURIComponent(id)}/resolve`, { method: "POST", body: input }),
+
+  getAdminTeam: () => request<AdminTeam>(`/admin/team`),
+  addTeamMember: (input: TeamAddInput) =>
+    request<{ granted: boolean; invited: boolean }>(`/admin/team`, { method: "POST", body: input }),
+  /** A6: change someone's role (revokes their other roles). */
+  setTeamRole: (feederId: string, role: AdminRole, wards?: string[]) =>
+    request<{ roles: AdminRoleGrant[] }>(`/admin/team/${encodeURIComponent(feederId)}/role`, {
+      method: "POST",
+      body: { role, wards: wards ?? [] },
+    }),
+  removeTeamMember: (feederId: string, reason?: string) =>
+    request<{ removed: true }>(`/admin/team/${encodeURIComponent(feederId)}/remove`, {
+      method: "POST",
+      body: reason ? { reason } : {},
+    }),
+  getAudit: (params: { before?: string; limit?: number; action?: string; subjectId?: string } = {}) =>
+    request<AuditPage>(
+      `/admin/audit?${new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])),
+      ).toString()}`,
+    ),
+  /** A6 "Export CSV". */
+  downloadAuditCsv: () => downloadBlob(`/admin/audit.csv`),
+  /** A2 / A7 documents: admins only, every open is audited. */
+  downloadDocument: (id: string) => downloadBlob(`/admin/documents/${encodeURIComponent(id)}`),
+  getAdminSettings: () => request<AdminSettings>(`/admin/settings`),
 };

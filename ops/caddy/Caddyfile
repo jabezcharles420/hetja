@@ -292,6 +292,38 @@ http://www.hetja.in {
 	redir https://hetja.in{uri} permanent
 }
 
+# Admin portal (design v7): desktop only, the web app's /admin routes on their
+# own hostname. Needs a public hostname for admin.hetja.in on the Cloudflare
+# tunnel (owner action). A separate origin on purpose: an admin signs in there
+# separately, so an admin session never sits in the street app's localStorage.
+# The bare host opens the portal; everything else (the app's assets, fonts,
+# /admin/*) is the same Next app as hetja.in.
+http://admin.hetja.in {
+	import common
+	header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://fastly.jsdelivr.net https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://api.hetja.in https://static-map-tiles-api.arcgis.com https://*.basemaps.cartocdn.com; connect-src 'self' https://api.hetja.in https://*.supabase.co https://fastly.jsdelivr.net https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; frame-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'self' blob:"
+
+	@root path /
+	redir @root /admin 302
+
+	# Only the portal, sign-in and the app's own assets live on this host.
+	# Everything else is the street app, which belongs on hetja.in.
+	@street not path /admin /admin/* /login /login/* /_next/* /fonts/* /icons/* /favicon.ico /manifest.webmanifest /robots.txt
+	redir @street https://hetja.in{uri} 302
+
+	handle /_next/static/* {
+		header >Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy 127.0.0.1:3100 {
+			import real_ip
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3100 {
+			import real_ip
+		}
+	}
+}
+
 # Dedicated API hostname for non-browser and third-party clients. Browser
 # traffic should prefer the same-origin path above.
 http://api.hetja.in {

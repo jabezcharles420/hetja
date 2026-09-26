@@ -1,0 +1,75 @@
+/* N3 map panel: 230px, a soft green under the tiles, as on the board (the nearest token). */
+.map {
+  position: relative;
+  height: 230px;
+  overflow: hidden;
+  background: var(--h-ok-bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.tiles {
+  position: absolute;
+  inset: 0;
+}
+
+.tile {
+  position: absolute;
+  width: 512px;
+  height: 512px;
+  max-width: none;
+}
+
+.caption {
+  position: relative;
+  margin-top: 44px;
+  padding: 4px 10px;
+  border-radius: var(--h-r-pill);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.dog {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: var(--h-sos);
+  box-shadow: 0 0 0 4px rgba(215, 0, 21, 0.2), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.member {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: var(--h-blue);
+  color: var(--h-white);
+  box-shadow: 0 0 0 2px var(--h-white), 0 2px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.memberBusy {
+  background: var(--h-secondary);
+}
+
+.attr {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 10px;
+  color: var(--h-text-mid);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1px 4px;
+  border-radius: 4px;
+}

@@ -21,7 +21,7 @@ import {
   formatPhone,
   hoursPill,
   hungriest,
-  kindWord,
+  placeKindLabel,
   lastLoggedLabel,
   needsHelpLabel,
   notLoggedLead,
@@ -670,12 +670,12 @@ export function WardView({
                   {onPlace ? (
                     <button type="button" className={`${styles.t} ${styles.tBtn}`} onClick={() => onPlace(p)}>
                       <b>{p.name}</b>
-                      <span>{[kindWord(p.kind), openNow(p)?.short ?? placeWhere(p)].filter(Boolean).join(" · ")}</span>
+                      <span>{[placeKindLabel(p), openNow(p)?.short ?? placeWhere(p)].filter(Boolean).join(" · ")}</span>
                     </button>
                   ) : (
                     <div className={styles.t}>
                       <b>{p.name}</b>
-                      <span>{[kindWord(p.kind), openNow(p)?.short ?? placeWhere(p)].filter(Boolean).join(" · ")}</span>
+                      <span>{[placeKindLabel(p), openNow(p)?.short ?? placeWhere(p)].filter(Boolean).join(" · ")}</span>
                     </div>
                   )}
                   {p.phoneE164 && (
@@ -750,7 +750,7 @@ export function PlaceView({
   const hours = openNow(p);
   const fallback = hoursPill(p);
   const wardLabel = p.wardId ? where?.replace(/ ward$/, "") ?? null : null;
-  const label = [kindWord(p.kind), typeof distanceM === "number" ? distanceLabel(distanceM) : where]
+  const label = [placeKindLabel(p), typeof distanceM === "number" ? distanceLabel(distanceM) : where]
     .filter(Boolean)
     .join(" · ");
   return (

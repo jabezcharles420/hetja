@@ -98,3 +98,31 @@ describe("V23 add to home screen", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+describe("D1 with a real dog (v6 contract, adapted list)", () => {
+  it("shows a real public dog at ward level when one exists", async () => {
+    sessionStorage.clear();
+    window.matchMedia = ((q: string) => ({ matches: q.includes("745"), media: q, addEventListener() {}, removeEventListener() {} })) as never;
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3600e3).toISOString();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const body = (data: unknown) => ({ ok: true, status: 200, headers: new Headers(), json: async () => ({ ok: true, data }) });
+        if (url.includes("/map/wards")) return body({ wards: [{ id: "K-East", dogs: 2 }, { id: "K-West", dogs: 9 }] });
+        if (url.includes("/wards/K-West/dogs")) return body({ dogs: [{ slug: "klu123abc", name: "Kalu", photoUrl: null }] });
+        if (url.includes("/dogs/klu123abc"))
+          return body({ slug: "klu123abc", name: "Kalu", wardId: "K-West", wardName: "Andheri West", vaccinated: "yes", sterilised: "unknown", lastFedAt: hoursAgo(3), lastFedBy: "Anil", sex: "male" });
+        return { ok: false, status: 404, headers: new Headers(), json: async () => ({ ok: false }) };
+      }),
+    );
+    render(<DesktopInvite />);
+    const phone = await screen.findByTestId("d1-real-dog");
+    expect(phone.textContent).toContain("You found Kalu");
+    expect(phone.textContent).toContain("K/W ward · Andheri West");
+    expect(phone.textContent).toContain("Vaccinated");
+    expect(phone.textContent).not.toContain("Sterilised");
+    expect(phone.textContent).toContain("Anil fed him 3 hours ago.");
+    expect(screen.getByText("Kalu is one of Mumbai's dogs on Hetja.")).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+});

@@ -357,3 +357,74 @@ design system document (v5 and v6 sections), INVARIANTS (corrections to the
 v5 and v6 entries), BUGS, OWNER-TODO and CREDITS were brought up to date.
 Things that need the maintainer before launch are in
 [OWNER-TODO.md](OWNER-TODO.md).
+
+## 2026-09-26: design v7, the Admin, Vet and NGO portals (commit `c604a2b`)
+
+Branch `portals`, after v5 and v6 went live (merge `4f37e08`, with the
+pre-deploy SOS review in `9494ec9` and migration `0028`). Board and build
+contract: `docs/design/v7-portals/CONTRACT.md`. Factual summary; the commit
+message and the contract carry the detail.
+
+**Owner decisions** (2026-09-25, third round): vets' and NGOs' phone numbers
+are public professional contacts (INVARIANT 3 now covers feeders and
+reporters); government vets and hospitals are labelled "Government vet ·
+free" / "Government hospital · free" everywhere; vets' and NGOs' documents
+stay private, encrypted, admin-only, deleted 30 days after the decision; role
+tab bars (Home, Map, Vet, Me for vets; Home, Map, NGO, Me for NGO members,
+who get the vet tools inside it if they are both); the first Owner comes
+from the `HETJA_OWNER_EMAILS` secret; the admin portal lives at
+`admin.hetja.in`.
+
+**API and data** (migration `0029_v7_portals.sql`, additive, twenty new
+tables). Admin roles (Owner, Moderator, Avatar editor, Ward lead) as live
+permissions, and an audit log that is append-only for every role, by REVOKE
+and by triggers in the migration. Vet applications with encrypted documents
+(AES-256-GCM under `HETJA_DOCS_KEY`, a private `DOCS_LOCAL_DIR`), MSVC
+checklist verification, and **signing with passkeys**: the WebAuthn
+challenge is the record's hash, the signed record goes through the one ledger
+writer, corrections and withdrawals are new records. Feeder-noted care and
+"Ask a vet to sign". NGOs with members, vouching, dispatch, ambulance and
+beds, and drives. SOS routing to professionals after the dog's own feeders:
+the NGO covering the ward at filing, then, 15 minutes later with nobody on
+it, the ward's verified vets; an admin can assign a vet. Avatars matched by
+file name, merges that never rewrite the ledger, problem reports, and the D13
+moderation tools (suspend an account, block a device, take a photo down).
+Public health list on every dog, "Government vet · free" in the care
+lookups, public professional lists. New worker jobs `sos_open_to_vets`,
+`sweep_v7` (the 30-day document deletion, avatar clean-up, challenges,
+vaccine-due reminders) and `drive_headsup`. New secrets `HETJA_OWNER_EMAILS`
+and `HETJA_DOCS_KEY`; new fixed values `DOCS_LOCAL_DIR`, `WEBAUTHN_RP_ID`,
+`WEBAUTHN_ORIGINS`, `PUBLIC_WEB_ORIGIN`; `CORS_ORIGINS` gains
+`admin.hetja.in`. New dependency `@simplewebauthn/server` (and
+`@simplewebauthn/browser` on the web).
+
+**Web.** The desktop admin portal at `/admin` (A1 to A7 plus the designed
+Dogs, Feeders, Collars, SOS cases, Reports, Settings, invite and add screens),
+with a sidebar, list-with-detail and the "Admin works on a laptop" page; the
+vet portal (apply, the Vet tab, V2b, passkey signing, corrections and
+withdrawals, my signatures, due soon, search, profile, the certificate PDF);
+the NGO portal (register, the NGO tab, dispatch, team and vouching, drives,
+dogs in the wards, profile); role tab bars and the Me rows; government
+labels on the map. Portals use black primary buttons, as the board draws
+them; no new tokens.
+
+**Collar page.** The V4 health list ("Vet signed" / "Feeder noted") and
+government labels, which brought the bundle to 40,346 B of 40,960 B (614 B
+left).
+
+**Hosting.** A new `http://admin.hetja.in` block in `ops/caddy/Caddyfile`
+(the bare host redirects to `/admin`); it needs a public hostname on the
+Cloudflare tunnel, an owner action. Nothing else in the room changed.
+
+**Known gaps** are recorded in [BUGS.md](BUGS.md) (2026-09-26) and
+[HOW-IT-WORKS.md](HOW-IT-WORKS.md) §9: a few writes not yet audited, no drive
+cancel or invite revoke, photo matching not built, a taken-down photo's file
+not deleted until retention.
+
+**Docs.** README, AGENTS.md (role tab bars, the admin host and its Caddy
+block, the secrets table and new fixed values, gotchas), HOW-IT-WORKS (the
+people, new sections 3.11 to 3.15, data, hosting, auth, §9), FEATURE-GUIDE
+(every portal screen, route and API), the design system document (v7
+section), INVARIANTS (corrections to the v7 entries), BUGS, OWNER-TODO and
+CREDITS were brought up to date, along with the v6 statements the pre-deploy
+review had made stale.

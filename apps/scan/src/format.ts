@@ -410,13 +410,16 @@ export function feederLine(
   return [fed, has].filter(Boolean).join(" ") || undefined;
 }
 
-/** "4:02 pm" (or "4:02" short), Asia/Kolkata wall time as the phone shows it. */
-export function clock(iso: string | undefined, short = false): string {
+/**
+ * "4:02 pm", the phone's wall time. One format everywhere, the same the
+ * responder's page uses ("12:28 am"): a bare "1:35" in N10's timeline was
+ * ambiguous after midnight.
+ */
+export function clock(iso: string | undefined): string {
   const t = iso ? new Date(iso) : undefined;
   if (!t || !Number.isFinite(t.getTime())) return "";
   const h = t.getHours();
-  const hm = `${h % 12 || 12}:${String(t.getMinutes()).padStart(2, "0")}`;
-  return short ? hm : `${hm} ${h < 12 ? "am" : "pm"}`;
+  return `${h % 12 || 12}:${String(t.getMinutes()).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 }
 
 /** "today", "yesterday", "3 Sep": for "Saved yesterday, 8:14 pm". */

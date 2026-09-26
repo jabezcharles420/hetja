@@ -182,6 +182,21 @@
   background: var(--h-av-apricot-bg);
 }
 
+img.photo {
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72px;
+  font-weight: 700;
+  color: var(--h-av-apricot-ink);
+}
+
 .name {
   font-size: 32px;
   font-weight: 700;

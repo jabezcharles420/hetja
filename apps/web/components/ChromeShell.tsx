@@ -113,9 +113,16 @@ function under(path: string, base: string): boolean {
   return path === base || path.startsWith(base + "/");
 }
 
-/** Print sheets are laid out for paper and printed from a laptop. */
+/**
+ * Print sheets are laid out for paper and printed from a laptop: the collar
+ * sheets and the vet-signed vaccination certificate (v7 V4, public).
+ */
 function isPrintRoute(path: string): boolean {
-  return /^\/register\/[^/]+\/print(\/|$)/.test(path) || under(path, "/register/batch");
+  return (
+    /^\/register\/[^/]+\/print(\/|$)/.test(path) ||
+    under(path, "/register/batch") ||
+    /^\/vet\/[^/]+\/certificate(\/|$)/.test(path)
+  );
 }
 
 export function chromeFor(pathname: string | null | undefined): Chrome {

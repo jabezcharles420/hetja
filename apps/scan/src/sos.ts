@@ -714,7 +714,7 @@ function renderComing(): void {
   const name = dogName();
   const knows = name && ctx.profile?.feederNames?.includes(first) ? `${first} feeds ${name} and knows ${pr.obj}. ` : "";
   const step = (done: boolean, text: string, at?: string): string =>
-    `<li${done ? ' class="done"' : ""}><span>${escapeHtml(text)}</span><time>${clock(at, true)}</time></li>`;
+    `<li${done ? ' class="done"' : ""}><span>${escapeHtml(text)}</span><time>${clock(at)}</time></li>`;
   q("#v-sent")!.innerHTML = `
     <div class="body sent-body">
       <h1 class="title xl" tabindex="-1" data-focus>${escapeHtml(s.arrivedAt ? `${first} is there.` : `${first} is on the way.`)}</h1>
@@ -819,7 +819,7 @@ function renderOpenCase(): void {
         first
           ? `<div class="mcard rcard"><span class="av48">${escapeHtml(first.charAt(0))}</span><span class="gtx"><span class="row-t">${escapeHtml(
               first,
-            )}</span><span class="g-s">${escapeHtml(`${feeds ? `Feeds ${name} · took` : "Took"} it at ${clock(s.takenAt, true)}`)}</span></span>${pill(
+            )}</span><span class="g-s">${escapeHtml(`${feeds ? `Feeds ${name} · took` : "Took"} it at ${clock(s.takenAt)}`)}</span></span>${pill(
               "ok",
               "check",
               "Going",

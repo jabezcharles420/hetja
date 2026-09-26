@@ -366,7 +366,7 @@ export function deskMarkup(p: DogProfile, url: string): string {
   const ward = [wardLine(p.wardId, p.wardName), n ? `fed by ${n === 1 ? "1 person" : `${n} people`}` : ""]
     .filter(Boolean)
     .join(" · ");
-  return `<header class="dk-h"><span class="dk-dot"></span>Hetja</header>
+  return `<header class="dk-h"><svg class="dk-dot" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="15"/><g fill="#fff"><ellipse cx="15" cy="19" rx="6" ry="5"/><ellipse cx="7.5" cy="11" rx="2.5" ry="3"/><ellipse cx="12.5" cy="7" rx="2.5" ry="3"/><ellipse cx="18.5" cy="7" rx="2.5" ry="3"/><ellipse cx="23.5" cy="11" rx="2.5" ry="3"/></g></svg>Hetja</header>
   <div class="dk">
     <div class="dk-l">
       <div class="photo dk-ph">${photoMarkup(p)}</div>

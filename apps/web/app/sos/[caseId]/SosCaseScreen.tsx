@@ -57,9 +57,25 @@ import styles from "./sos-case.module.css";
  * and never affects escalation.
  */
 
+/**
+ * The 403 SOS_CASE_FORBIDDEN body: the case's ward, the caller's standing,
+ * and for a feeder of the dog who was told (notify-only, below the trust
+ * floor) a summary: the dog, severity, ward and time. Never the note, the
+ * photo or the spot.
+ */
+export type ForbiddenData = Partial<SosCaseForbiddenData> & {
+  summary?: {
+    dog: { slug: string; name: string | null } | null;
+    severity: SosCaseV6["severity"];
+    wardId: string | null;
+    openedAt: string;
+    state?: SosCaseV6["state"];
+  };
+};
+
 type Load =
   | { kind: "loading" }
-  | { kind: "forbidden"; data: SosCaseForbiddenData | null; glance: CaseGlance | null }
+  | { kind: "forbidden"; data: ForbiddenData | null; glance: CaseGlance | null }
   | { kind: "gone" }
   | { kind: "error"; glance: CaseGlance | null; care: CareNumber[] }
   | { kind: "ready"; c: SosCaseV6; mine: boolean };
@@ -179,8 +195,9 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return toLogin();
       if (err instanceof ApiError && err.status === 403) {
-        const data = (err.data as SosCaseForbiddenData | undefined) ?? null;
-        setLoad({ kind: "forbidden", data: data && data.checklist ? data : null, glance: await caseGlance(caseId) });
+        const data = (err.data as ForbiddenData | undefined) ?? null;
+        // The ward from the 403 itself comes first; the phone's cache only fills a gap.
+        setLoad({ kind: "forbidden", data, glance: data?.wardId || data?.wardCode ? null : await caseGlance(caseId) });
         return;
       }
       if (err instanceof ApiError && (err.status === 404 || err.status === 400)) {
@@ -360,8 +377,14 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
 
   // --- V22 not your case ------------------------------------------------
   if (load.kind === "forbidden") {
-    const code = wardCode(load.glance?.wardId);
-    const k = load.data?.checklist ?? null;
+    const d = load.data;
+    const sum = d?.summary ?? null;
+    const code = d?.wardCode ?? wardCode(d?.wardId ?? sum?.wardId ?? load.glance?.wardId);
+    const k = d?.checklist ?? null;
+    const sumName = sum?.dog?.name ? dogName(sum.dog.name) : null;
+    const sumFacts = sum
+      ? [sumName, wardLabel(sum.wardId ?? d?.wardId ?? null), `raised ${clock(sum.openedAt)}`].filter(Boolean).join(" · ")
+      : "";
     const rows = k ? checklistRows(k, code) : [];
     const alertsOff = k ? !(k.sosOptIn && !k.paused && k.inMyWards !== false) : false;
     return (
@@ -372,6 +395,17 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
             {code ? `This case went to feeders in ${code}.` : "This case went to the feeders nearby."}
           </h1>
           <p className={styles.lead}>{HIDDEN_LEAD}</p>
+          {sum && (
+            <div className={styles.glance} data-testid="case-summary">
+              {sum.dog && <DogAvatar id={sum.dog.slug} name={sumName ?? "Dog"} size={52} />}
+              <div className={styles.glanceText}>
+                <span className={styles.glanceTitle}>
+                  {severityLine(sum.severity)}
+                </span>
+                <span className={styles.sub14}>{sumFacts}</span>
+              </div>
+            </div>
+          )}
           {k && (
             <div className={styles.checkCard}>
               <span className={styles.checkTitle}>Want cases like this?</span>

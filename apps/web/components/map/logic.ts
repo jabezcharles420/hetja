@@ -839,5 +839,14 @@ export function pinOffset(
     }
     frontier = next.slice(0, 32);
   }
-  return best ?? { dx: 0, dy: 0 };
+  if (best) return best;
+  // Crowded spot: no clear place within three hops. Never leave the pin on a
+  // label: step it straight up past whatever it touches until it is clear.
+  let dy = 0;
+  for (let i = 0; i < 12; i++) {
+    const hits = obstacles.filter((o) => overlaps(at(0, dy), o, gap));
+    if (hits.length === 0) return { dx: 0, dy };
+    dy = Math.min(...hits.map((o) => o.top)) - pin.bottom - gap;
+  }
+  return { dx: 0, dy };
 }

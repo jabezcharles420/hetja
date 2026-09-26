@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MUMBAI_BOUNDS as CONTRACT_BOUNDS } from "@hetja/contracts";
 import {
   placeKindLabel,
+  pinOffset,
   ALL_ON,
   MUMBAI_BOUNDS,
   mumbaiMinZoom,
@@ -373,5 +374,26 @@ describe("placeKindLabel (v7 government care)", () => {
     expect(placeKindLabel({ ...base, careKind: "govt" })).toBe("Government hospital · free");
     expect(placeKindLabel({ kind: "ngo", careKind: "ngo", costTier: "free" })).toBe("NGO · free");
     expect(placeKindLabel(base)).toBe("Vet");
+  });
+});
+
+describe("pinOffset never leaves a pin on a ward label", () => {
+  const box = (l: number, t: number, w: number, h: number) => ({ left: l, top: t, right: l + w, bottom: t + h });
+  const hit = (a: ReturnType<typeof box>, b: ReturnType<typeof box>) =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+  it("clears the label it sits on", () => {
+    const label = box(100, 100, 120, 38);
+    const pin = box(140, 90, 60, 40);
+    const { dx, dy } = pinOffset(pin, [label]);
+    expect(hit(box(pin.left + dx, pin.top + dy, 60, 40), label)).toBe(false);
+  });
+
+  it("clears a tight cluster of labels too", () => {
+    const labels = [box(100, 100, 120, 38), box(90, 50, 140, 38), box(80, 145, 160, 38), box(20, 90, 70, 60), box(230, 90, 70, 60)];
+    const pin = box(140, 105, 60, 40);
+    const { dx, dy } = pinOffset(pin, labels);
+    const moved = box(pin.left + dx, pin.top + dy, 60, 40);
+    expect(labels.some((l) => hit(moved, l))).toBe(false);
   });
 });

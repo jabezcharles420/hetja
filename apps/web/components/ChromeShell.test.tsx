@@ -146,7 +146,7 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/sos/3f1c2a9e-8d7b-4c6a-9e5f-1a2b3c4d5e6f")).toMatchObject({ kind: "focused", tabBar: false, desktop: "frame" });
   });
 
-  it.each([["/register/ab3de4fgh/print"], ["/register/batch"], ["/design"]])(
+  it.each([["/register/ab3de4fgh/print"], ["/register/batch"], ["/vet/ab3de4fgh/certificate"], ["/design"]])(
     "%s: printed or dev-only, left as it is on a desktop",
     (route) => {
       expect(chromeFor(route)).toMatchObject({ tabBar: false, desktop: "none" });

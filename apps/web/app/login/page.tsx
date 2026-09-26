@@ -16,6 +16,7 @@ import {
   cancelHref,
   formatCountdown,
   formatRetryAt,
+  isAdminNext,
   OTP_LENGTH,
   OTP_MINUTES,
   RESEND_COOLDOWN_S,
@@ -201,12 +202,13 @@ export default function LoginPage(): React.JSX.Element {
         setStatus(null);
         const next = safeNext(new URLSearchParams(window.location.search).get("next"));
         // N1 comes first for a feeder who has not chosen wards yet. An older
-        // API without `onboarded`, or a failed read, goes straight on.
+        // API without `onboarded`, or a failed read, goes straight on. A
+        // sign-in for the admin portal always goes back to /admin.
         const onboarded = await api
           .getFeederMe()
           .then((me) => me.onboarded)
           .catch(() => undefined);
-        router.push(onboarded === false ? welcomeHref(next) : next);
+        router.push(onboarded === false && !isAdminNext(next) ? welcomeHref(next) : next);
       } catch (err) {
         setStatus(null);
         setCodeRejected(true);

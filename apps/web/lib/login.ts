@@ -25,6 +25,15 @@ export function cancelHref(next: string | null | undefined): string {
   return next === "/welcome" || next.startsWith("/welcome?") ? "/" : next;
 }
 
+/**
+ * The admin portal (v7): admin.hetja.in serves only /admin/**, /login and
+ * assets, so a sign-in that started there must land back in /admin, never on
+ * /welcome (which that host redirects away from, without the session).
+ */
+export function isAdminNext(next: string): boolean {
+  return next === "/admin" || next.startsWith("/admin/") || next.startsWith("/admin?") || next.startsWith("/admin#");
+}
+
 /** N1 (/welcome) first, then wherever the feeder was going. */
 export function welcomeHref(next: string): string {
   return next === "/me" ? "/welcome" : `/welcome?next=${encodeURIComponent(next)}`;

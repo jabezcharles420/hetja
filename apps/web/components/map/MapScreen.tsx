@@ -492,9 +492,18 @@ export function MapScreen(): React.JSX.Element {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    map.on("zoomend", declutter);
+    // Label boxes change size after the first measure: the web font swapping
+    // in widens every ward label, and a resize or a pan re-lays the pins. So
+    // the collision pass runs again on each of those, not only on zoom.
+    const events = "zoomend moveend resize viewreset";
+    map.on(events, declutter);
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive) declutter();
+    });
     return () => {
-      map.off("zoomend", declutter);
+      alive = false;
+      map.off(events, declutter);
     };
   }, [ready, declutter]);
 

@@ -142,3 +142,21 @@ describe("V4 health list", () => {
     expect(await fetchHealth("r4n7kw2ab")).toBeUndefined();
   });
 });
+
+import { clock } from "./format.js";
+import { deskMarkup } from "./ui.js";
+
+describe("screen export fixes", () => {
+  it("every SOS time reads h:mm am/pm, as the responder's page does", () => {
+    const at = (h: number, m: number): string => new Date(2026, 8, 26, h, m).toISOString();
+    expect(clock(at(0, 28))).toBe("12:28 am");
+    expect(clock(at(13, 35))).toBe("1:35 pm");
+    expect(clock(at(12, 5))).toBe("12:05 pm");
+    expect(clock(undefined)).toBe("");
+  });
+
+  it("D2's header carries the Hetja paw mark", () => {
+    const html = deskMarkup({ slug: "r4n7kw2ab", name: "Rani", status: "active", wardId: "K-West" }, "https://hetja.in/d/r4n7kw2ab");
+    expect(html).toMatch(/<header class="dk-h"><svg class="dk-dot"[^>]*>.*<ellipse/);
+  });
+});

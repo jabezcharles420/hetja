@@ -11,6 +11,7 @@ import { governmentLabel, hoursLabel } from "./vet-copy";
 import { vetApi, type VetProfile, type VetProfilePatch } from "./vet-api";
 import { useOnMount, useSignedIn, VetMessage, VetTop } from "./VetParts";
 import styles from "./vet.module.css";
+import { formatPhone } from "@/components/map/logic";
 
 /**
  * Two designed screens (design v7, "Screens to design"):
@@ -125,7 +126,7 @@ export function VetProfileScreen(): React.JSX.Element {
               }
             />
             {vet.sosAvailable && <SettingsRow label="SOS hours" value={hoursLabel(vet.sosHours) || "Any time"} onClick={() => open("hours")} />}
-            <SettingsRow label="Public phone" value={vet.publicPhone ?? "None"} onClick={() => open("phone")} />
+            <SettingsRow label="Public phone" value={vet.publicPhone ? formatPhone(vet.publicPhone) : "None"} onClick={() => open("phone")} />
           </SettingsGroup>
         </div>
         <p className={styles.hint}>Your phone and clinic are public, like the care directory&rsquo;s: people who need a vet call you from SOS pages and the map. Nothing else about you is shown.</p>
@@ -134,7 +135,7 @@ export function VetProfileScreen(): React.JSX.Element {
           <SettingsGroup label="Signing">
             <SettingsRow
               label="Signing passkey"
-              value={vet.hasPasskey ? "Set up" : "Not yet"}
+              value={vet.hasPasskey ? "Ready" : "Not yet"}
               href="/vet/passkey"
             />
             <SettingsRow label="My signatures" href="/vet/signatures" />

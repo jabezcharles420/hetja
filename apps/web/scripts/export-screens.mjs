@@ -917,7 +917,7 @@ function ngoTeam(s = {}) {
   const manage = (s.ngoRole ?? "coordinator") === "coordinator";
   return {
     vets: [
-      { feederId: NGO_STAFF.qureshi, name: "Dr. Farah Qureshi", status: "verified", regLabel: "MSVC 11482", vouchedAt: ago(60 * 24 * 30) },
+      { feederId: NGO_STAFF.qureshi, name: "Dr. Farhan Qureshi", status: "verified", regLabel: "MSVC 11482", vouchedAt: ago(60 * 24 * 30) },
       { feederId: NGO_STAFF.pillai, name: "Dr. Anand Pillai", status: "verified", regLabel: "MSVC 09317", vouchedAt: ago(60 * 24 * 60) },
       { feederId: NGO_STAFF.mehta, name: "Dr. Neha Mehta", status: "waiting", regLabel: "MSVC 13025", vouchedAt: null },
     ],
@@ -1043,7 +1043,7 @@ function vetProfile(s = {}) {
   return {
     id: "vp-1",
     feederId: ME.feederId,
-    name: "Dr. Farah Qureshi",
+    name: "Dr. Farhan Qureshi",
     council: "MSVC",
     regNo: "5190",
     regLabel: "MSVC 5190",
@@ -1115,7 +1115,7 @@ const SIGN_REQUESTS = [
   },
 ];
 
-const VET_DOCTOR = { name: "Dr. Farah Qureshi", council: "MSVC", regNo: "5190", isGovernment: false };
+const VET_DOCTOR = { name: "Dr. Farhan Qureshi", council: "MSVC", regNo: "5190", isGovernment: false };
 
 function healthRecords() {
   const r = (over) => ({
@@ -1236,7 +1236,7 @@ function vetHandlers(s) {
     ["POST", /^\/vet\/apply$/, () => ok({ ...vetProfile({ vetStatus: "waiting" }), appliedAt: new Date().toISOString() })],
     ["PATCH", /^\/vet\/me$/, (_m, _c, body) => ok({ ...vetProfile(s), ...(body ?? {}) })],
     ["POST", /^\/vet\/passkeys\/options$/, () =>
-      ok({ challenge: B64, user: { id: B64, name: "priya.s@example.com", displayName: "Dr. Farah Qureshi" }, rp: { name: "Hetja", id: "hetja.in" }, pubKeyCredParams: [{ type: "public-key", alg: -7 }], timeout: 60000, attestation: "none", authenticatorSelection: { residentKey: "preferred", userVerification: "required" } })],
+      ok({ challenge: B64, user: { id: B64, name: "priya.s@example.com", displayName: "Dr. Farhan Qureshi" }, rp: { name: "Hetja", id: "hetja.in" }, pubKeyCredParams: [{ type: "public-key", alg: -7 }], timeout: 60000, attestation: "none", authenticatorSelection: { residentKey: "preferred", userVerification: "required" } })],
     ["POST", /^\/vet\/passkeys$/, () => ok({ id: "pk-2", label: null, createdAt: new Date().toISOString(), lastUsedAt: null })],
     ["POST", /^\/vet\/records\/options$/, () => ok({ challengeId: "ch-1", recordHash: "9f2c4b1e7a0d", options: { challenge: B64, allowCredentials: [], userVerification: "required", timeout: 60000, rpId: "hetja.in" } })],
     ["POST", /^\/vet\/records$/, (_m, _c, body) => ok({ recordId: "hr-new", hash: "9f2c4b1e7a0d", recordHash: "9f2c4b1e7a0d", dogSlug: body?.record?.dogSlug ?? SLUG.rani, type: body?.record?.type ?? "vaccination", signedAt: new Date().toISOString() })],
@@ -3333,7 +3333,7 @@ async function defineFlows() {
     await page.getByRole("button", { name: "Send for checking" }).click();
     await page.getByText("Which wards do you work in?").waitFor();
     await snap("vet-v1-wards", "/vet/apply", "V1 wards step", "Which wards do you work in? SOS hours, phone for SOS calls");
-    await page.getByRole("button", { name: /Choose wards/ }).click();
+    await page.getByText("Choose wards").first().click();
     await page.getByRole("dialog").waitFor();
     for (const code of ["K/W", "H/W"]) await page.getByRole("dialog").getByRole("button", { name: new RegExp(`^${code.replace("/", "\\/")}`) }).first().click().catch(() => undefined);
     await page.waitForTimeout(400);
@@ -3490,7 +3490,7 @@ async function defineFlows() {
     await page.getByText(/need a booster by/).first().waitFor();
     await snap("vet-due-soon", "/vet/due", "Due soon", "Dogs needing a booster in your wards, soonest first");
     await go("/vet/profile");
-    await page.getByText("Where and when").first().waitFor();
+    await page.getByText("Takes SOS calls").first().waitFor();
     await snap("vet-profile", "/vet/profile", "Vet profile", "Clinic, wards, takes SOS calls, SOS hours, public phone, signing passkey");
     await page.getByRole("button", { name: /^SOS hours/ }).click().catch(() => page.getByText("SOS hours").first().click());
     await page.getByRole("dialog").waitFor();
@@ -3500,7 +3500,7 @@ async function defineFlows() {
     await go("/vet/search");
     await page.getByText("Find a dog").first().waitFor();
     await snap("vet-search", "/vet/search", "search, empty", "Find a dog by name or collar code");
-    await page.getByRole("textbox").first().fill("Ra");
+    await page.getByPlaceholder("Rani, or RNI 482 PQ7").fill("Ra");
     await page.getByText("RANI").or(page.getByText("Rani")).first().waitFor({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await snap("vet-search-results", "/vet/search", "search results", "Results for Ra");

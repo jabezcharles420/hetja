@@ -240,7 +240,7 @@ export function DocumentViewer({ doc, onClose }: { doc: AdminDocument; onClose: 
       ) : !url ? (
         <Loading what="Opening the document" />
       ) : doc.mime === "application/pdf" ? (
-        <iframe src={url} title={label} style={{ width: "100%", height: "65vh", border: 0, borderRadius: 12, background: "var(--h-mist)" }} />
+        <iframe src={`${url}#view=FitH`} title={label} style={{ width: "100%", height: "65vh", border: 0, borderRadius: 12, background: "var(--h-mist)" }} />
       ) : doc.mime.startsWith("image/") ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={url} alt={label} style={{ maxWidth: "100%", maxHeight: "65vh", margin: "0 auto", borderRadius: 12 }} />

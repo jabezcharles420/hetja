@@ -57,6 +57,7 @@ function ExportCsv(): React.JSX.Element | null {
 }
 
 export function AuditRows({ entries, now }: { entries: AuditEntry[]; now: Date }): React.JSX.Element {
+  if (!entries.length) return <p className={s.note}>Nothing in the log yet. Every admin action lands here.</p>;
   return (
     <ol className={s.plainList} aria-label="Audit log" style={{ fontSize: 14 }}>
       {entries.map((e) => (
@@ -219,6 +220,11 @@ function TeamList({
                 <button type="button" className={cx(s.linkBtn, s.linkBtnSm)} onClick={() => setEditing(editing === m.feederId ? null : m.feederId)} aria-expanded={editing === m.feederId}>
                   Change<span className="h-sr-only"> {m.name}&apos;s role</span>
                 </button>
+              )}
+              {canManage && (m.feederId === meId || fromConfig) && (
+                <span className={s.note} style={{ fontSize: 12 }} title={fromConfig ? "Set by the deployment (HETJA_OWNER_EMAILS), not from here." : "You cannot change your own role."}>
+                  {fromConfig ? "Set by the deployment" : "You"}
+                </span>
               )}
             </span>
             {editing === m.feederId && main && (
@@ -408,6 +414,7 @@ export function AuditScreen(): React.JSX.Element {
   const [pages, setPages] = useState<AuditEntry[][]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [moreErr, setMoreErr] = useState<string | null>(null);
   const first = useAsync(async () => {
     const p = await api.getAudit({ limit: 50 });
     setPages([p.entries]);
@@ -417,10 +424,13 @@ export function AuditScreen(): React.JSX.Element {
   const more = async () => {
     if (!next) return;
     setBusy(true);
+    setMoreErr(null);
     try {
       const p = await api.getAudit({ limit: 50, before: next });
       setPages((x) => [...x, p.entries]);
       setNext(p.nextBefore);
+    } catch (e) {
+      setMoreErr(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -435,6 +445,7 @@ export function AuditScreen(): React.JSX.Element {
       <div style={{ maxWidth: 880 }}>
         {first.error ? <ErrorLine message={first.error} retry={first.reload} /> : !first.data ? <Loading what="Loading the audit log" /> : <AuditRows entries={pages.flat()} now={now()} />}
       </div>
+      {moreErr && <ErrorLine message={moreErr} retry={more} />}
       {next && (
         <div>
           <button type="button" className={cx(s.btn, s.btnOutline, s.btnMd)} onClick={more} disabled={busy}>
@@ -506,7 +517,9 @@ export function InviteVetScreen(): React.JSX.Element {
               </option>
             ))}
           </select>
-          <span className={s.note}>They arrive linked to it; the NGO&apos;s coordinator can vouch for them.</span>
+          <span className={s.note}>
+            {ngos.error ? `The NGO list did not load (${ngos.error}). You can still invite without one.` : "They arrive linked to it; the NGO's coordinator can vouch for them."}
+          </span>
         </label>
         {err && (
           <p className={s.error} role="alert">

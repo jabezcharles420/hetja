@@ -436,3 +436,10 @@ export function phoneLabel(p: string | null | undefined): string {
   const m = /^\+91(\d{5})(\d{5})$/.exec(p.replace(/\s+/g, ""));
   return m ? `+91 ${m[1]} ${m[2]}` : p;
 }
+
+/**
+ * The street app's origin. On admin.hetja.in, "/" redirects back to /admin
+ * (Caddy), so every way out of the portal is an absolute link.
+ * NEXT_PUBLIC_SITE_URL overrides it (inlined at build time), for local runs.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://hetja.in").replace(/\/+$/, "");

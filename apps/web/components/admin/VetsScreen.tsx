@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, type AdminDocument, type AdminVetDetail, type AdminVetRow, type VetStatus } from "@/lib/api";
+import { DirectoryLink } from "./DirectoryLink";
 import { daysLabel, fullDate, isOverdue, monthLabel, shortDate, sosHoursLabel, VET_STATUS_LABEL, wardCode } from "./format";
 import {
   Chips,
@@ -22,6 +23,7 @@ import {
   errorText,
   Initials,
   Loading,
+  Refused,
   Rows,
   SelectTable,
   styles as s,
@@ -90,7 +92,12 @@ export function VetsScreen(): React.JSX.Element {
 
   const columns: Column<AdminVetRow>[] = [
     { key: "name", label: "Name", width: "31%", cell: (v) => v.name },
-    { key: "reg", label: "Registration", width: "21%", cell: (v) => v.regLabel || "Not given yet" },
+    {
+      key: "reg",
+      label: "Registration",
+      width: "21%",
+      cell: (v) => (v.registerNotFound && !v.registerChecked ? <span className={s.dangerText}>Not found</span> : v.regLabel || "Not given yet"),
+    },
     { key: "clinic", label: "Clinic", width: "30%", cell: (v) => v.clinic ?? "" },
     {
       key: "applied",
@@ -189,16 +196,28 @@ export function DocumentTile({ doc }: { doc: AdminDocument }): React.JSX.Element
   );
 }
 
+/**
+ * The bytes as a blob: URL typed with the document's own MIME, whatever
+ * content-type the response carried, so a PDF renders in the frame instead of
+ * downloading. admin.hetja.in's CSP allows exactly this: frame-src, object-src
+ * and img-src 'self' blob:. Nothing is ever given a public URL.
+ */
+export function documentBlob(blob: Blob, mime: string): Blob {
+  return blob.type === mime ? blob : new Blob([blob], { type: mime });
+}
+
 export function DocumentViewer({ doc, onClose }: { doc: AdminDocument; onClose: () => void }): React.JSX.Element {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let u: string | null = null;
     let live = true;
+    setErr(null);
     api.downloadDocument(doc.id).then(
       ({ blob }) => {
         if (!live) return;
-        u = URL.createObjectURL(blob);
+        u = URL.createObjectURL(documentBlob(blob, doc.mime));
         setUrl(u);
       },
       (e) => live && setErr(errorText(e)),
@@ -207,25 +226,33 @@ export function DocumentViewer({ doc, onClose }: { doc: AdminDocument; onClose: 
       live = false;
       if (u) URL.revokeObjectURL(u);
     };
-  }, [doc.id]);
+  }, [doc.id, doc.mime, attempt]);
   const label = DOC_LABEL[doc.kind];
+  const ext = doc.mime === "application/pdf" ? "pdf" : doc.mime.split("/")[1] ?? "bin";
   return (
-    <Dialog title={label} onClose={onClose}>
+    <Dialog title={label} onClose={onClose} wide>
       <p className={s.note}>
         Uploaded {fullDate(doc.uploadedAt)}. Private: only admins can open it, and opening it is written to the audit log.{" "}
         {doc.deleteAfter ? `It is deleted on ${fullDate(doc.deleteAfter)}.` : "It is deleted 30 days after the decision."}
       </p>
       {err ? (
-        <ErrorLine message={err} />
+        <ErrorLine message={`The document did not open. ${err}`} retry={() => setAttempt((a) => a + 1)} />
       ) : !url ? (
         <Loading what="Opening the document" />
       ) : doc.mime === "application/pdf" ? (
-        <iframe src={url} title={label} style={{ width: "100%", height: "60vh", border: 0, borderRadius: 12 }} />
-      ) : (
+        <iframe src={url} title={label} style={{ width: "100%", height: "65vh", border: 0, borderRadius: 12, background: "var(--h-mist)" }} />
+      ) : doc.mime.startsWith("image/") ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={label} style={{ width: "100%", borderRadius: 12 }} />
+        <img src={url} alt={label} style={{ maxWidth: "100%", maxHeight: "65vh", margin: "0 auto", borderRadius: 12 }} />
+      ) : (
+        <p className={s.note}>This file type cannot be shown here. Download it to look at it.</p>
       )}
       <div className={s.dialogActions}>
+        {url && (
+          <a className={cx(s.btn, s.btnQuiet)} href={url} download={`${label.toLowerCase().replace(/\s+/g, "-")}.${ext}`}>
+            Download
+          </a>
+        )}
         <button type="button" className={cx(s.btn, s.btnOutline)} onClick={onClose}>
           Close
         </button>
@@ -242,6 +269,8 @@ function RegisterCheck({
   onTick,
   validTo,
   onValidTo,
+  onNotFound,
+  onFoundAfterAll,
 }: {
   vet: AdminVetDetail;
   editable: boolean;
@@ -249,6 +278,8 @@ function RegisterCheck({
   onTick: (v: boolean) => void;
   validTo: string;
   onValidTo: (v: string) => void;
+  onNotFound: () => void;
+  onFoundAfterAll: () => void;
 }): React.JSX.Element {
   const url = vet.registerUrl || MSVC_REGISTER_URL;
   const council = vet.council || "MSVC";
@@ -266,6 +297,24 @@ function RegisterCheck({
             Open the register<span className="h-sr-only"> (opens in a new tab)</span>
           </a>
         </span>
+      </div>
+    );
+  }
+  if (vet.registerNotFound && !ticked) {
+    return (
+      <div className={cx(s.check, s.checkBad)} data-testid="register-check">
+        <span className={s.checkTitle}>Not found on the {council} register</span>
+        <span className={s.checkSub}>
+          Reg. {vet.regNo || "(not given)"} was looked up and not found. Decline with a reason, or Ask for more if it may be a typo.{" "}
+          <a href={url} target="_blank" rel="noreferrer" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            Open the {council} register<span className="h-sr-only"> (opens in a new tab)</span> ↗
+          </a>
+        </span>
+        {editable && (
+          <button type="button" className={cx(s.linkBtn, s.linkBtnSm)} style={{ alignSelf: "flex-start", color: "inherit", textDecoration: "underline" }} onClick={onFoundAfterAll}>
+            Found after all
+          </button>
+        )}
       </div>
     );
   }
@@ -300,6 +349,11 @@ function RegisterCheck({
             value={validTo}
             onChange={(e) => onValidTo(e.target.value)}
           />
+          {!ticked && (
+            <button type="button" className={cx(s.linkBtn, s.linkBtnSm)} style={{ marginLeft: "auto", color: "var(--h-sos)" }} onClick={onNotFound}>
+              Not on the register
+            </button>
+          )}
         </label>
       )}
     </div>
@@ -417,6 +471,35 @@ function VetPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
       },
       after,
     );
+  const notFound = () =>
+    confirm(
+      {
+        title: `Not on the ${v.council} register?`,
+        body: (
+          <>
+            {short}&apos;s registration shows as “Not found” in red on this list. Nothing is sent to them yet: Decline or Ask for more when you are
+            ready.
+          </>
+        ),
+        confirm: "Mark as not found",
+        reason: { label: "Note, for the team", placeholder: "Searched 6021 and the name, no match", required: false, hint: "Written to the audit log." },
+        run: (note) => api.markNotOnRegister(v.id, note ? { note } : {}),
+        done: `Marked: ${short} is not on the register.`,
+      },
+      after,
+    );
+  const foundAfterAll = () =>
+    confirm(
+      {
+        title: `Found ${short} after all?`,
+        body: <>The red “Not found” comes off. You still tick “Checked on the {v.council} register” before you verify.</>,
+        confirm: "Clear it",
+        tone: "dark",
+        run: () => api.markNotOnRegister(v.id, { found: true }),
+        done: "Cleared.",
+      },
+      after,
+    );
   const reinstate = () =>
     confirm(
       {
@@ -467,7 +550,16 @@ function VetPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
       {v.vouchedBy && <p className={s.note}>Vouched for by {v.vouchedBy.name}.</p>}
 
       {v.status !== "invited" && (
-        <RegisterCheck vet={v} editable={canDecide && decidable} ticked={ticked} onTick={setTicked} validTo={validTo} onValidTo={setValidTo} />
+        <RegisterCheck
+          vet={v}
+          editable={canDecide && decidable}
+          ticked={ticked}
+          onTick={setTicked}
+          validTo={validTo}
+          onValidTo={setValidTo}
+          onNotFound={notFound}
+          onFoundAfterAll={foundAfterAll}
+        />
       )}
 
       <div className={s.section}>
@@ -493,6 +585,10 @@ function VetPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
             : []),
         ]}
       />
+
+      {(v.status === "verified" || suspended) && (
+        <DirectoryLink kind="vet" id={v.id} name={v.name} careProviderId={v.careProviderId} canEdit={canDecide} onChanged={res.reload} />
+      )}
 
       <div className={cx(s.section, s.section8)}>
         <span className={s.label}>{v.status === "verified" ? "What they can do" : suspended ? "While suspended" : "What they can do once verified"}</span>
@@ -538,10 +634,12 @@ function VetPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
           <button type="button" className={cx(s.btn, s.btnQuiet, s.btnGrow)} onClick={suspend}>
             Suspend
           </button>
-          {canRemove && (
+          {canRemove ? (
             <button type="button" className={cx(s.btn, s.btnDanger)} onClick={remove}>
               Remove
             </button>
+          ) : (
+            <Refused label="Remove" why="Only the Owner can remove a vet." />
           )}
         </div>
       )}
@@ -550,10 +648,12 @@ function VetPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
           <button type="button" className={cx(s.btn, s.btnDark, s.btnGrow)} onClick={reinstate}>
             Reinstate {short}
           </button>
-          {canRemove && (
+          {canRemove ? (
             <button type="button" className={cx(s.btn, s.btnDanger)} onClick={remove}>
               Remove
             </button>
+          ) : (
+            <Refused label="Remove" why="Only the Owner can remove a vet." />
           )}
         </div>
       )}

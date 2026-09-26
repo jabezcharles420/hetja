@@ -400,8 +400,12 @@ function PickDog({ tile, onClose, onPicked }: { tile: AvatarTile; onClose: () =>
           <input className={s.input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chiku, r4n7kw2ab, HJ-0412" autoComplete="off" />
         </label>
       </div>
-      {res.loading && q.trim().length >= 2 ? (
+      {res.error ? (
+        <ErrorLine message={res.error} retry={res.reload} />
+      ) : res.loading && q.trim().length >= 2 ? (
         <Loading what="Searching" />
+      ) : q.trim().length < 2 ? (
+        <p className={s.note}>Type at least two letters.</p>
       ) : (
         <ul className={s.inset} aria-label="Dogs">
           {(res.data?.dogs ?? []).slice(0, 8).map((d) => (
@@ -574,6 +578,9 @@ export function AvatarScreen({ batchId, tileId }: { batchId: string; tileId: str
             e.target.value = "";
           }}
         />
+        {batch.error && (
+          <ErrorLine message={`The rest of the batch did not load, so ← → cannot move. ${batch.error}`} retry={batch.reload} />
+        )}
         {t.replacesExisting && <p className={s.note}>This replaces {name}&apos;s current avatar. The old one stays one click away on the dog&apos;s page for 30 days.</p>}
       </div>
 

@@ -158,6 +158,8 @@ interface DogPagePayload {
   // slug asked for was merged into this dog, whose page this is.
   avatarKey: string | null;
   mergedFrom: { slug: string; name: string | null } | null;
+  /** The collar's printed batch number ("HJ-0412"), a label, not a place; null when none was printed. */
+  collarBatchNo: string | null;
 }
 
 // In-process TTL cache (enhancement stack §M.1/M.16): a dog page's payload
@@ -303,6 +305,12 @@ async function verifyCollarSignature(slug: string, sig: string, secret: string):
  *   (INVARIANT 2), no contact information anywhere (INVARIANT 3), moderated
  *   stories only.
  */
+/** A collar batch number worth printing: not the self-serve placeholder. */
+export function printedBatchNo(v: string | null | undefined): string | null {
+  const s = (v ?? "").trim();
+  return s && s !== "self-serve" ? s : null;
+}
+
 export default async function dogRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/dogs/:slug", async (req: FastifyRequest, reply: FastifyReply) => {
     const { slug } = req.params as { slug: string };
@@ -464,6 +472,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       ),
       query<{ n: number }>(`SELECT count(*)::int AS n FROM scans WHERE dog_id = $1 AND scan_type <> 'sos'`, [dog.id]),
     ]);
+    const collarRes = await query<{ batch_no: string | null }>(`SELECT batch_no FROM collars WHERE dog_id = $1 LIMIT 1`, [dog.id]);
     const avatarRes = await query<{ image_key: string }>(
       `SELECT image_key FROM dog_avatars WHERE dog_id = $1 AND status = 'published' LIMIT 1`,
       [dog.id],
@@ -538,6 +547,7 @@ export default async function dogRoutes(app: FastifyInstance): Promise<void> {
       scanCount: scanCountRes.rows[0]?.n ?? 0,
       avatarKey: avatarRes.rows[0]?.image_key ?? null,
       mergedFrom,
+      collarBatchNo: printedBatchNo(collarRes.rows[0]?.batch_no),
     };
     if (isPublic) dogCache.set(slug, payload);
 

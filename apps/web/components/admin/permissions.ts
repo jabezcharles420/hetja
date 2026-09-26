@@ -53,6 +53,27 @@ export function can(me: Who, permission: AdminPermission): boolean {
   return me.permissions.includes(permission);
 }
 
+/** Ward leads work in their wards only (AdminMe.wards; null means every ward). */
+export function inWards(me: Pick<AdminMe, "wards">, wardId: string | null | undefined): boolean {
+  if (!me.wards) return true;
+  return !!wardId && me.wards.includes(wardId);
+}
+
+/**
+ * Why this viewer may not suspend or block this account, or null if they may.
+ * Only the Owner acts on a team member's account (the API refuses anyone
+ * else), and nobody acts on their own.
+ */
+export function feederActionRefusal(
+  me: Pick<AdminMe, "feederId" | "permissions">,
+  target: { id: string; role?: string; adminRoles?: string[] | null },
+): string | null {
+  if (target.id === me.feederId) return "This is your own account.";
+  const targetIsAdmin = (target.adminRoles?.length ?? 0) > 0 || target.role === "admin";
+  if (targetIsAdmin && !me.permissions.includes("team")) return "Only the Owner can suspend or block a team member's account.";
+  return null;
+}
+
 export function isAdmin(me: Partial<Who> | null | undefined): boolean {
   return !!me?.roles?.length;
 }

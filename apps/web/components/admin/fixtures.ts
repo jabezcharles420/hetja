@@ -33,7 +33,9 @@ import type {
   AvatarBatch,
   AvatarBatchDetail,
   AvatarTile,
+  CareDirectoryEntry,
   DogHealth,
+  DuplicateCandidate,
   NgoStatus,
   VetStatus,
   Ward,
@@ -71,6 +73,24 @@ export const ME: AdminMe = {
   roles: [{ role: "owner", wards: [], grantedAt: days(200), grantedByName: null, source: "config" }],
   permissions: ALL_PERMISSIONS,
   wards: null,
+};
+
+/** A Moderator, for the actions only the Owner may take. */
+export const MODERATOR: AdminMe = {
+  feederId: "f-rohan",
+  name: "Rohan Iyer",
+  roles: [{ role: "moderator", wards: [], grantedAt: days(120), grantedByName: "Aarti", source: "granted" }],
+  permissions: ["vets", "ngos", "dogs", "merge", "feeders", "collars", "sos", "reports", "audit", "settings"],
+  wards: null,
+};
+
+/** A Ward lead for K/E only: Moti's K/W case is outside their wards. */
+export const WARD_LEAD: AdminMe = {
+  feederId: "f-imran",
+  name: "Imran S.",
+  roles: [{ role: "ward_lead", wards: ["K-East"], grantedAt: days(60), grantedByName: "Aarti", source: "granted" }],
+  permissions: ["collars", "sos", "dogs", "settings"],
+  wards: ["K-East"],
 };
 
 export const AVATAR_EDITOR: AdminMe = {
@@ -151,7 +171,7 @@ export const VETS: AdminVetRow[] = [
   vetRow("vet-qureshi", "Dr. Farhan Qureshi", "5190", "Paws Clinic, Versova", "waiting", days(3)),
   vetRow("vet-pillai", "Dr. Leena Pillai", "4477", "Independent", "waiting", days(2), { vouched: true }),
   vetRow("vet-deshmukh", "Dr. Arjun Deshmukh", "3902", "BSPCA Parel", "waiting", days(1)),
-  vetRow("vet-rao", "Dr. Nisha Rao", "6021", "Goregaon", "more_info", mins(90)),
+  vetRow("vet-rao", "Dr. Nisha Rao", "6021", "Goregaon", "more_info", mins(90), { registerNotFound: true }),
   vetRow("vet-kulkarni", "Dr. Meghna Kulkarni", "3318", "Government Veterinary Hospital, Parel", "verified", days(90), { registerChecked: true }),
   vetRow("vet-menon", "Dr. S. Menon", "2210", "Menon Pet Care, Bandra", "suspended", days(160), { registerChecked: true }),
   vetRow("vet-shaikh", "Dr. Imtiaz Shaikh", "", null, "invited", days(4), { regLabel: "" }),
@@ -400,7 +420,9 @@ export function feederDetail(id: string): AdminFeederDetail | null {
     ],
     vet: null,
     ngo: f.id === "f-imran" ? { name: "Andheri Paws Trust", role: "collars" } : null,
-  };
+    // Imran is a Ward lead (A6): only the Owner may suspend or block him.
+    ...(f.id === "f-imran" ? { adminRoles: ["ward_lead"] } : {}),
+  } as AdminFeederDetail;
 }
 
 // ---- Collars ----------------------------------------------------------------------
@@ -500,7 +522,7 @@ export const ASSIGNABLE: AssignableVet[] = [
 export const REPORTS: AdminReportRow[] = [
   { id: "rep-kalu", source: "report", kind: "duplicate_dog", dog: { slug: "k4lu2ab7c", name: "Kalu", photoUrl: null }, otherDog: { slug: "k3au8mn2p", name: "Kaalu" }, note: "Same black dog outside the bakery", reporter: "Priya", createdAt: days(1), status: "open", outcome: null },
   { id: "rep-sheru", source: "report", kind: "duplicate_dog", dog: { slug: "s8eru4kq2", name: "Sheru", photoUrl: null }, otherDog: { slug: "t2ger8mn4", name: "Tiger" }, note: null, reporter: "Imran", createdAt: days(2), status: "open", outcome: null },
-  { id: "rep-photo", source: "report", kind: "photo", dog: { slug: "b8x2mq7zt", name: "Bholu", photoUrl: null }, otherDog: null, note: "This photo shows a person's face", reporter: "Imran", createdAt: days(1), status: "open", outcome: null },
+  { id: "rep-photo", source: "report", kind: "photo", dog: { slug: "b8x2mq7zt", name: "Bholu", photoUrl: null }, otherDog: null, note: "This photo shows a person's face", reporter: "Imran", createdAt: days(1), status: "open", outcome: null, scanId: "b8x2mq7zt-s1", photoUrl: null, photoHidden: false },
   { id: "tag-1", source: "tag", kind: "wrong_dog", dog: { slug: "r4n7kw2ab", name: "Rani", photoUrl: null }, otherDog: null, note: "This collar is on a brown male dog", reporter: "Sneha", createdAt: days(3), status: "open", outcome: null },
 ];
 
@@ -600,6 +622,21 @@ export function ngoDetail(id: string): AdminNgoDetail | null {
   };
 }
 
+export const DUPLICATES: DuplicateCandidate[] = [
+  {
+    a: { slug: "s8eru4kq2", name: "Sheru", wardId: "P-South", addedAt: "2025-12-01T05:30:00.000Z", addedBy: "Priya", collar: "HJ-0302", feeds: 140, signedRecords: 1, photoUrl: null, feederNames: ["Priya"] },
+    b: { slug: "s3eroo2kp", name: "Sheroo", wardId: "P-South", addedAt: "2026-09-20T05:30:00.000Z", addedBy: "Rahul", collar: null, feeds: 2, signedRecords: 0, photoUrl: null, feederNames: ["Rahul"] },
+    reason: "similar_name",
+    reportId: null,
+    score: 0.86,
+  },
+];
+
+export const CARE: CareDirectoryEntry[] = [
+  { id: "care-1", name: "Paws Clinic, Versova", kind: "clinic", isPerson: false, isGovernment: false, regNo: null, wards: ["K-West"], phoneE164: "+912226300000", listed: true },
+  { id: "care-2", name: "Dr. Farhan Qureshi", kind: "vet", isPerson: true, isGovernment: false, regNo: "5190", wards: ["K-West"], phoneE164: "+919812344410", listed: true },
+];
+
 export const SETTINGS: AdminSettings = {
   sos: {
     escalateAfterMin: 30,
@@ -634,6 +671,8 @@ const notFound = (): FixtureResponse => ({ status: 404, body: { ok: false, error
 
 export interface FixtureOptions {
   me?: AdminMe | "signed_out" | "not_admin";
+  /** Answer these paths (after /api/v1, no query) with a 500, to test error states. */
+  fail?: (path: string) => boolean;
 }
 
 /** Answer one API call as the board would. `fullPath` starts after /api/v1. */
@@ -646,6 +685,7 @@ export function handleAdmin(method: string, fullPath: string, body: unknown, opt
   if (seg[0] === "wards" && seg.length === 1) return ok({ wards: WARDS });
   if (seg[0] !== "admin") return notFound();
   const r = seg.slice(1);
+  if (opts.fail?.(path)) return { status: 500, body: { ok: false, error: { message: "Hetja had a problem.", code: "INTERNAL" } } };
 
   if (r[0] === "me") {
     if (opts.me === "signed_out") return { status: 401, body: { ok: false, error: { message: "Sign in", code: "UNAUTHENTICATED" } } };
@@ -672,6 +712,7 @@ export function handleAdmin(method: string, fullPath: string, body: unknown, opt
       return ok({ counts: VET_COUNTS, vets: st ? VETS.filter((v) => v.status === st) : VETS });
     }
     if (r[1] === "invite") return ok({ id: "vet-new", existingAccount: false });
+    if (r[2] === "link-care") return ok({ careProviderId: b.careProviderId ?? null });
     const d = vetDetail(r[1]);
     if (!d) return notFound();
     if (m === "POST") {
@@ -685,6 +726,7 @@ export function handleAdmin(method: string, fullPath: string, body: unknown, opt
         next.validTo = (b.validTo as string | null) ?? null;
       }
       if (typeof b.reason === "string") next.decisionReason = b.reason;
+      if (r[2] === "not-on-register") next.registerNotFound = b.found !== true;
       return ok(next);
     }
     return ok(d);
@@ -723,8 +765,10 @@ export function handleAdmin(method: string, fullPath: string, body: unknown, opt
 
   if (r[0] === "duplicates") {
     if (r[1] === "dismiss") return ok({ dismissed: true });
-    return ok({ candidates: [] });
+    return ok({ candidates: DUPLICATES });
   }
+  if (r[0] === "care") return ok({ entries: CARE });
+  if (r[0] === "tag-reports" && r[2] === "resolve") return ok({ id: r[1], status: "resolved", outcome: b.outcome });
 
   if (r[0] === "dogs") {
     if (r[1] === "merge") return ok({ keptSlug: b.keepSlug, mergedSlug: b.mergeSlug, feeds: 221, signedRecords: 2, feedersAdded: 1 });
@@ -803,6 +847,7 @@ export function handleAdmin(method: string, fullPath: string, body: unknown, opt
     }
     const n = ngoDetail(r[1]);
     if (!n) return notFound();
+    if (r[2] === "link-care") return ok({ careProviderId: b.careProviderId ?? null });
     if (m === "PATCH") return ok({ ...n, ...b });
     const set: Record<string, NgoStatus> = { pause: "paused", resume: "active", approve: "active", remove: "removed" };
     if (set[r[2]]) return ok({ ...n, status: set[r[2]] });

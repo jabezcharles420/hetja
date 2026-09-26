@@ -29,8 +29,10 @@ import { AdminShell } from "./AdminShell";
 import { fileKey } from "./avatarMatch";
 import { AvatarScreen } from "./AvatarScreens";
 import { afterMerging, mergeMeta, MergeScreen } from "./DogScreens";
-import { adminFixtureFetch, AVATAR_EDITOR, BOARD_NOW, dogDetail, TODAY, type FixtureOptions } from "./fixtures";
-import { auditWhen, greeting, longDate, matchLine, needsYouRows, sosHoursLabel, todayCards, wardCode } from "./format";
+import { adminFixtureFetch, AVATAR_EDITOR, BOARD_NOW, dogDetail, MODERATOR, TODAY, WARD_LEAD, type FixtureOptions } from "./fixtures";
+import { FeederScreen, ReportsScreen, SosScreen } from "./OpsScreens";
+import { documentBlob } from "./VetsScreen";
+import { SITE_URL, auditWhen, greeting, longDate, matchLine, needsYouRows, sosHoursLabel, todayCards, wardCode } from "./format";
 import { canSee } from "./permissions";
 import { TeamScreen } from "./TeamScreens";
 import { TodayScreen } from "./TodayScreen";
@@ -284,5 +286,112 @@ describe("no em dashes in the admin portal", () => {
     const walk = (d: string): string[] =>
       fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
     for (const f of dirs.flatMap(walk)) expect(fs.readFileSync(f, "utf8").includes(dash), f).toBe(false);
+  });
+});
+
+describe("pre-deploy fixes", () => {
+  it("ways out of the portal are absolute: / on admin.hetja.in redirects back to /admin", async () => {
+    expect(SITE_URL).toBe("https://hetja.in");
+    mount(<TodayScreen />, { me: "not_admin" });
+    expect((await screen.findByRole("link", { name: "Go to Hetja" })).getAttribute("href")).toBe("https://hetja.in/");
+  });
+
+  it("Today shows an error with Try again instead of loading forever", async () => {
+    let failing = true;
+    mount(<TodayScreen />, { fail: (p) => failing && p === "/admin/today" });
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText("Loading today…")).toBeNull();
+    failing = false;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("SOS · Moti, limping, Lokhandwala")).toBeTruthy();
+  });
+
+  it("list screens show an error with Try again", async () => {
+    nav.path = "/admin/sos";
+    mount(<SosScreen />, { fail: (p) => p === "/admin/sos" });
+    expect((await screen.findByRole("alert")).textContent).toMatch(/Hetja had a problem/);
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("the document viewer types the blob with the document's own MIME (a PDF renders in a blob: frame)", () => {
+    const pdf = documentBlob(new Blob(["%PDF"], { type: "application/octet-stream" }), "application/pdf");
+    expect(pdf.type).toBe("application/pdf");
+    const same = new Blob(["x"], { type: "image/jpeg" });
+    expect(documentBlob(same, "image/jpeg")).toBe(same);
+  });
+
+  it("A2: Not found shows red in the list, and an admin can mark it", async () => {
+    nav.path = "/admin/vets";
+    mount(<VetsScreen />);
+    const table = await screen.findByRole("table", { name: "Waiting vets" });
+    const rao = within(table).getByRole("button", { name: "Dr. Nisha Rao" }).closest("tr")!;
+    expect(within(rao).getByText("Not found")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Not on the register" }));
+    const dialog = await screen.findByRole("dialog", { name: "Not on the MSVC register?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Mark as not found" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path === "/admin/vets/vet-qureshi/not-on-register")).toBe(true));
+  });
+
+  it("A2: a verified vet can be linked to the care directory", async () => {
+    nav.path = "/admin/vets";
+    nav.search = "tab=verified";
+    mount(<VetsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Link to the directory" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Link Paws Clinic/ }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/link-care"))?.body).toEqual({ careProviderId: "care-1" }));
+  });
+
+  it("Reports: a fake tag closes through the tag-report endpoint", async () => {
+    nav.path = "/admin/reports";
+    nav.search = "tab=fake";
+    mount(<ReportsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "It's a fake tag" }));
+    const dialog = await screen.findByRole("dialog", { name: "Close the tag report on Rani?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close the report" }));
+    await waitFor(() => expect(calls.find((c) => c.path === "/admin/tag-reports/tag-1/resolve")?.body).toEqual({ outcome: "fake_tag" }));
+  });
+
+  it("Reports: a reported photo comes down from the report, then the report closes", async () => {
+    nav.path = "/admin/reports";
+    nav.search = "tab=photos";
+    mount(<ReportsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Take the photo down" }));
+    const dialog = await screen.findByRole("dialog", { name: "Take this photo down?" });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "Shows a face" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Take it down" }));
+    await waitFor(() => expect(calls.some((c) => c.path === "/admin/photos/b8x2mq7zt-s1/hide")).toBe(true));
+    await waitFor(() => expect(calls.find((c) => c.path === "/admin/reports/rep-photo/resolve")?.body).toMatchObject({ outcome: "photo_removed" }));
+  });
+
+  it("Reports > Duplicates lists Hetja's own suggestions with Compare", async () => {
+    nav.path = "/admin/reports";
+    mount(<ReportsScreen />);
+    expect(await screen.findByText("Suggested by Hetja · 1")).toBeTruthy();
+    const compare = screen.getAllByRole("link").find((l) => l.textContent === "Compare: Sheru and Sheroo");
+    expect(compare?.getAttribute("href")).toBe("/admin/merge?a=s8eru4kq2&b=s3eroo2kp");
+  });
+
+  it("a Moderator sees Remove disabled with the reason, and cannot suspend a team member", async () => {
+    nav.path = "/admin/vets";
+    nav.search = "tab=verified";
+    mount(<VetsScreen />, { me: MODERATOR });
+    const remove = (await screen.findByRole("button", { name: "Remove" })) as HTMLButtonElement;
+    expect(remove.disabled).toBe(true);
+    expect(screen.getByText("Only the Owner can remove a vet.")).toBeTruthy();
+    cleanup();
+    nav.path = "/admin/feeders/f-imran";
+    mount(<FeederScreen id="f-imran" />, { me: MODERATOR });
+    const suspend = (await screen.findByRole("button", { name: "Suspend account" })) as HTMLButtonElement;
+    expect(suspend.disabled).toBe(true);
+    expect(screen.getByText("Only the Owner can suspend or block a team member's account.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Block device" })).toBeNull();
+  });
+
+  it("a Ward lead cannot assign a vet outside their wards", async () => {
+    nav.path = "/admin/sos";
+    mount(<SosScreen />, { me: WARD_LEAD });
+    expect((await screen.findByRole("button", { name: "Assign a vet" })) as HTMLButtonElement).toHaveProperty("disabled", true);
+    expect(screen.getByText(/outside your wards \(K\/E\)/)).toBeTruthy();
   });
 });

@@ -15,16 +15,20 @@ import {
   type AdminFeederRow,
   type AdminReportRow,
   type AdminSosRow,
+  type DuplicateCandidate,
   type SosOutcome,
   type SosSeverity,
+  type TagReportAdminOutcome,
 } from "@/lib/api";
 import { ago, collarNumber, dogName, fullDate, minutesLabel, phoneLabel, plural, REPORT_KIND_LABEL, reportTab, shortDate, VET_STATUS_LABEL, wardCode, type ReportTab } from "./format";
+import { feederActionRefusal, inWards } from "./permissions";
 import {
   Crumbs,
   cx,
   ErrorLine,
   errorText,
   Loading,
+  Refused,
   Rows,
   SelectTable,
   styles as s,
@@ -100,13 +104,15 @@ export function FeedersScreen(): React.JSX.Element {
 
 export function FeederScreen({ id }: { id: string }): React.JSX.Element {
   const res = useAsync(() => api.getAdminFeeder(id), [id]);
-  const can = useCan("feeders");
-  const { now } = useAdmin();
+  const canFeeders = useCan("feeders");
+  const { now, me } = useAdmin();
   const { codes } = useWards();
   const [confirmNode, confirm] = useConfirm();
   if (res.error) return <div className={s.page}><ErrorLine message={res.error} retry={res.reload} /></div>;
   if (!res.data) return <div className={s.page}><Loading what="Opening the feeder" /></div>;
   const f = res.data;
+  const refusal = feederActionRefusal(me, f as typeof f & { adminRoles?: string[] | null });
+  const can = canFeeders && !refusal;
 
   const suspend = () =>
     confirm(
@@ -261,6 +267,7 @@ export function FeederScreen({ id }: { id: string }): React.JSX.Element {
                   : []),
               ]}
             />
+            {canFeeders && refusal && <Refused label={f.suspended ? "Lift the suspension" : "Suspend account"} why={refusal} />}
             {can && (
               <div className={s.actionsInline}>
                 {f.suspended ? (
@@ -279,7 +286,10 @@ export function FeederScreen({ id }: { id: string }): React.JSX.Element {
             <h2 id="dev-h" className={s.cardTitle}>
               Devices · {f.devices.length}
             </h2>
-            <p className={s.note}>Shown by when they were last seen. Hetja never shows a device&apos;s own id.</p>
+            <p className={s.note}>
+              Shown by when they were last seen. Hetja never shows a device&apos;s own id.
+              {canFeeders && refusal ? ` Blocking is off here: ${refusal.charAt(0).toLowerCase()}${refusal.slice(1)}` : ""}
+            </p>
             <ul className={s.inset}>
               {f.devices.map((d, i) => (
                 <li key={d.deviceRef} className={s.insetRow}>
@@ -375,7 +385,8 @@ export function CollarsScreen(): React.JSX.Element {
 
 function CollarPanel({ slug, onChanged }: { slug: string; onChanged: () => void }): React.JSX.Element {
   const res = useAsync(() => api.getAdminCollar(slug), [slug]);
-  const can = useCan("collars");
+  const canCollars = useCan("collars");
+  const { me } = useAdmin();
   const { toast } = useAdmin();
   const { codes } = useWards();
   const [batch, setBatch] = useState<string | null>(null);
@@ -383,6 +394,7 @@ function CollarPanel({ slug, onChanged }: { slug: string; onChanged: () => void 
   if (res.error) return <ErrorLine message={res.error} retry={res.reload} />;
   if (!res.data) return <Loading what="Opening the collar" />;
   const c = res.data;
+  const can = canCollars && inWards(me, c.wardId);
   const value = batch ?? c.batchNo ?? "";
   const save = async () => {
     setBusy(true);
@@ -434,6 +446,7 @@ function CollarPanel({ slug, onChanged }: { slug: string; onChanged: () => void 
           <span className={s.note}>Avatar files named with it match this dog (A3).</span>
         </form>
       )}
+      {canCollars && !can && <p className={s.note}>This collar is outside your wards ({(me.wards ?? []).map((w) => wardCode(w, codes)).join(", ")}), so you can look but not change it.</p>}
       <div className={cx(s.section, s.section8)}>
         <span className={s.label}>Prints · {c.printList.length}</span>
         <ul className={s.inset}>
@@ -544,13 +557,14 @@ const TIMELINE_TEXT: Record<string, (d: string | null) => string> = {
 function SosPanel({ id, onChanged }: { id: string; onChanged: () => void }): React.JSX.Element {
   const res = useAsync(() => api.getAdminSosCase(id), [id]);
   const vets = useAsync(() => api.getAssignableVets(id), [id]);
-  const can = useCan("sos");
-  const { now, refreshToday } = useAdmin();
+  const canSos = useCan("sos");
+  const { now, refreshToday, me } = useAdmin();
   const { codes } = useWards();
   const [confirmNode, confirm] = useConfirm();
   if (res.error) return <ErrorLine message={res.error} retry={res.reload} />;
   if (!res.data) return <Loading what="Opening the case" />;
   const c = res.data;
+  const can = canSos && inWards(me, c.wardId);
   const name = dogName(c.dog?.name);
   const closed = c.state === "resolved" || c.state === "false_alarm";
   const after = () => {
@@ -630,6 +644,9 @@ function SosPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
             ))}
           </ul>
         </div>
+      )}
+      {canSos && !can && !closed && (
+        <Refused label="Assign a vet" why={`This case is outside your wards (${(me.wards ?? []).map((w) => wardCode(w, codes)).join(", ")}).`} />
       )}
       {can && !closed && (
         <div className={cx(s.section, s.section8)}>
@@ -736,6 +753,7 @@ export function ReportsScreen(): React.JSX.Element {
         ) : (
           <SelectTable caption="Reports" columns={columns} rows={rows} rowKey={(r) => r.id} selected={selected} onSelect={select} empty={status === "open" ? "Nothing reported here." : "Nothing resolved here yet."} />
         )}
+        {tab === "duplicates" && status === "open" && <SuggestedDuplicates reported={new Set(all.filter((r) => r.kind === "duplicate_dog").map((r) => r.id))} />}
       </div>
       <aside className={s.aside} aria-label="Report">
         {selected && all.find((r) => r.id === selected) ? (
@@ -748,6 +766,14 @@ export function ReportsScreen(): React.JSX.Element {
   );
 }
 
+const TAG_OUTCOMES: { value: TagReportAdminOutcome; title: string; detail: string }[] = [
+  { value: "reprinted", title: "Collar reprinted", detail: "A new tag was printed for the dog." },
+  { value: "spare", title: "Spare tag put on", detail: "A spare from the batch is on the dog now." },
+  { value: "checked_ok", title: "Checked: the tag is fine", detail: "Someone looked at the dog and the tag belongs to it." },
+  { value: "fake_tag", title: "It's a fake tag", detail: "Not a Hetja tag, or not this dog's. Scans of it stop counting for the dog." },
+  { value: "no_action", title: "No change needed", detail: "Nothing to do." },
+];
+
 function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChanged: () => void }): React.JSX.Element {
   const can = useCan("reports");
   const canMerge = useCan("merge");
@@ -758,6 +784,7 @@ function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChang
     onChanged();
     refreshToday();
   };
+  const told = `Written to the audit log${r.reporter ? `; ${r.reporter} is told it was looked at` : ""}.`;
   const close = (outcome: "different" | "photo_removed" | "no_action" | "fixed", title: string, body: string) =>
     confirm(
       {
@@ -765,13 +792,43 @@ function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChang
         body: <>{body}</>,
         confirm: "Close the report",
         tone: "dark",
-        reason: { label: "Note", placeholder: "Checked the photo: no face in it", required: false, hint: `Written to the audit log${r.reporter ? `; ${r.reporter} is told it was looked at` : ""}.` },
+        reason: { label: "Note", placeholder: "Checked the photo: no face in it", required: false, hint: told },
         run: (note) => api.resolveReport(r.id, { outcome, ...(note ? { note } : {}) }),
         done: "Report closed.",
       },
       after,
     );
+  const takeDown = () =>
+    confirm(
+      {
+        title: "Take this photo down?",
+        body: <>It comes off {name}&apos;s page and the map at once, and the report closes. The feed it came with stays.</>,
+        confirm: "Take it down",
+        reason: { label: "Reason", placeholder: "Shows a person's face", hint: told },
+        run: async (reason) => {
+          await api.hidePhoto(r.scanId as string, reason);
+          await api.resolveReport(r.id, { outcome: "photo_removed", note: reason });
+        },
+        done: "The photo is down and the report is closed.",
+      },
+      after,
+    );
+  const closeTag = (initial: TagReportAdminOutcome) =>
+    confirm(
+      {
+        title: `Close the tag report on ${name}?`,
+        body: <>The report comes off {name}&apos;s page and the tag is no longer marked under review.</>,
+        confirm: "Close the report",
+        tone: initial === "fake_tag" ? "danger" : "dark",
+        choices: { label: "What happened", initial, options: TAG_OUTCOMES },
+        reason: { label: "Note", placeholder: "Kavita checked: the collar is on the right dog", required: false, hint: told },
+        run: (note, outcome) => api.adminResolveTagReport(r.id, outcome as TagReportAdminOutcome, note || undefined),
+        done: "Tag report closed.",
+      },
+      after,
+    );
   const open = r.status === "open";
+  const photo = r.photoUrl ?? r.dog.photoUrl;
   return (
     <>
       <div className={s.whoText}>
@@ -782,10 +839,11 @@ function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChang
         </span>
       </div>
       {r.note && <p style={{ fontSize: 15, lineHeight: 1.45 }}>“{r.note}”</p>}
-      {r.dog.photoUrl && (
+      {photo && !r.photoHidden && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={r.dog.photoUrl} alt={`${name}'s photo`} style={{ width: "100%", borderRadius: 14 }} />
+        <img src={photo} alt={r.kind === "photo" ? `The reported photo of ${name}` : `${name}'s photo`} style={{ width: "100%", borderRadius: 14 }} />
       )}
+      {r.photoHidden && <p className={s.note}>The reported photo is already taken down.</p>}
       {!open && (
         <p className={s.note}>
           <span className={cx(s.pill, s.pillOk)}>Resolved</span> {r.outcome ?? ""}
@@ -801,37 +859,62 @@ function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChang
           </Link>
         )}
       </p>
-      {open && r.kind === "duplicate_dog" && r.otherDog && canMerge && (
+      {open && r.kind === "duplicate_dog" && r.otherDog && (
         <div className={s.actions}>
-          <Link
-            href={`/admin/merge?a=${encodeURIComponent(r.dog.slug)}&b=${encodeURIComponent(r.otherDog.slug)}&report=${encodeURIComponent(r.id)}`}
-            className={cx(s.btn, s.btnDark, s.btnGrow)}
-          >
-            Compare
-          </Link>
+          {canMerge ? (
+            <Link
+              href={`/admin/merge?a=${encodeURIComponent(r.dog.slug)}&b=${encodeURIComponent(r.otherDog.slug)}&report=${encodeURIComponent(r.id)}`}
+              className={cx(s.btn, s.btnDark, s.btnGrow)}
+            >
+              Compare
+            </Link>
+          ) : (
+            <Refused label="Compare" why="Only a Moderator or the Owner can merge dogs." />
+          )}
         </div>
       )}
       {open && r.kind === "photo" && can && (
-        <>
-          <p className={s.note}>Take the photo down from {name}&apos;s page (under Photos), then close the report here.</p>
-          <div className={s.actions}>
-            <Link href={`/admin/dogs/${encodeURIComponent(r.dog.slug)}`} className={cx(s.btn, s.btnDark, s.btnGrow)}>
-              Open {name}&apos;s photos
-            </Link>
-            <button type="button" className={cx(s.btn, s.btnQuiet)} onClick={() => close("photo_removed", "Close as taken down?", `You took the reported photo off ${name}'s page.`)}>
-              Taken down
+        <div className={s.actions}>
+          {r.scanId && !r.photoHidden ? (
+            <button type="button" className={cx(s.btn, s.btnDanger, s.btnGrow)} onClick={takeDown}>
+              Take the photo down
             </button>
-            <button type="button" className={cx(s.btn, s.btnOutline)} onClick={() => close("no_action", "Keep the photo?", `The photo stays on ${name}'s page.`)}>
-              It&apos;s fine
+          ) : (
+            <button
+              type="button"
+              className={cx(s.btn, s.btnDark, s.btnGrow)}
+              onClick={() => close("photo_removed", "Close as taken down?", `The reported photo is off ${name}'s page.`)}
+            >
+              Close as taken down
+            </button>
+          )}
+          <button type="button" className={cx(s.btn, s.btnOutline)} onClick={() => close("no_action", "Keep the photo?", `The photo stays on ${name}'s page.`)}>
+            It&apos;s fine
+          </button>
+        </div>
+      )}
+      {open && r.source === "tag" && can && (
+        <>
+          {r.kind === "wrong_dog" && (
+            <p className={s.note}>
+              A tag on the wrong dog may be a fake: check the collar number against {name}&apos;s photo, or ask the ward&apos;s NGO to look.
+            </p>
+          )}
+          <div className={s.actions}>
+            {r.kind === "wrong_dog" ? (
+              <button type="button" className={cx(s.btn, s.btnDanger, s.btnGrow)} onClick={() => closeTag("fake_tag")}>
+                It&apos;s a fake tag
+              </button>
+            ) : (
+              <button type="button" className={cx(s.btn, s.btnDark, s.btnGrow)} onClick={() => closeTag("reprinted")}>
+                Collar reprinted
+              </button>
+            )}
+            <button type="button" className={cx(s.btn, s.btnOutline)} onClick={() => closeTag(r.kind === "wrong_dog" ? "checked_ok" : "no_action")}>
+              Close another way
             </button>
           </div>
         </>
-      )}
-      {open && r.source === "tag" && (
-        <p className={s.note}>
-          Tag reports close from the dog: reissue the collar, or clear the tag, from {name}&apos;s page. A tag on the wrong dog may be a fake: check the
-          collar number against the photo.
-        </p>
       )}
       {open && r.source === "report" && r.kind === "other" && can && (
         <div className={s.actions}>
@@ -843,8 +926,61 @@ function ReportPanel({ report: r, onChanged }: { report: AdminReportRow; onChang
           </button>
         </div>
       )}
+      {open && !can && r.kind !== "duplicate_dog" && <Refused label="Close the report" why="Your role cannot close reports." />}
       {confirmNode}
     </>
   );
 }
 
+/** Hetja's own duplicate suggestions (same ward, similar names), beside the reported ones. */
+function SuggestedDuplicates({ reported }: { reported: Set<string> }): React.JSX.Element {
+  const res = useAsync(() => api.getDuplicates(), []);
+  const canMerge = useCan("merge");
+  if (res.error) return <ErrorLine message={`Suggestions did not load. ${res.error}`} retry={res.reload} />;
+  if (!res.data) return <Loading what="Looking for likely duplicates" />;
+  const list = res.data.candidates.filter((c) => !c.reportId || !reported.has(c.reportId));
+  return (
+    <section className={s.col} style={{ gap: 10 }} aria-labelledby="suggested-h">
+      <h2 id="suggested-h" className={s.label}>
+        Suggested by Hetja · {list.length}
+      </h2>
+      {list.length ? <DuplicateList candidates={list} canMerge={canMerge} /> : <p className={s.note}>No likely duplicates right now.</p>}
+    </section>
+  );
+}
+
+/** Pairs of dogs that may be one dog, each with Compare (A5). Also on the Dogs page. */
+export function DuplicateList({ candidates, canMerge }: { candidates: DuplicateCandidate[]; canMerge: boolean }): React.JSX.Element {
+  return (
+    <ul className={s.plainList}>
+      {candidates.map((c) => {
+        const q = new URLSearchParams({ a: c.a.slug, b: c.b.slug });
+        if (c.reportId) q.set("report", c.reportId);
+        const why = [
+          c.reason === "report" ? "Reported by a feeder" : "Similar names",
+          c.a.wardId === c.b.wardId ? "same ward" : "different wards",
+          c.a.addedBy && c.b.addedBy && c.a.addedBy !== c.b.addedBy ? "different feeders" : null,
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return (
+          <li key={`${c.a.slug}:${c.b.slug}`} className={s.plainRow} style={{ fontSize: 14 }}>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <b>
+                {dogName(c.a.name)} and {dogName(c.b.name)}
+              </b>
+              <span className={s.muted} style={{ fontSize: 13 }}>
+                {why}
+              </span>
+            </span>
+            {canMerge && (
+              <Link href={`/admin/merge?${q.toString()}`} className={cx(s.btn, s.btnXs, s.btnQuiet)}>
+                Compare<span className="h-sr-only">: {dogName(c.a.name)} and {dogName(c.b.name)}</span>
+              </Link>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

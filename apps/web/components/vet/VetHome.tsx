@@ -7,7 +7,7 @@ import { DogAvatar } from "@/components/ds";
 import { api, ApiError } from "@/lib/api";
 import { saveTabRole } from "@/lib/tab-role";
 import { dogName } from "@/lib/streak";
-import { dueLine, regLine, requestSub, requestTitle, sosLabel, sosSub } from "./vet-copy";
+import { dueLine, maySign, noSignLine, regLine, requestSub, requestTitle, sosLabel, sosSub } from "./vet-copy";
 import { vetApi, type VetHome as Home, type VetSos } from "./vet-api";
 import { ScanGlyph, useOnMount, useSignedIn } from "./VetParts";
 import styles from "./vet.module.css";
@@ -123,6 +123,7 @@ export default function VetHome(): React.JSX.Element {
 
   const { vet, sos, signRequests, dueSoon } = load.home;
   const suspended = vet.status === "suspended";
+  const signable = maySign(vet.status, vet.canSign);
 
   return (
     <div className={`${styles.page} ${styles.mist}`}>
@@ -182,25 +183,43 @@ export default function VetHome(): React.JSX.Element {
         {signRequests.length === 0 ? (
           <p className={styles.empty}>Nobody is waiting on you. When a feeder asks you to sign something, it shows here.</p>
         ) : (
-          <ul className={styles.list}>
-            {signRequests.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/vet/dogs/${encodeURIComponent(r.dog.slug)}/sign?request=${encodeURIComponent(r.id)}&kind=${r.kind}`}
-                  className={styles.row}
-                >
-                  <DogAvatar id={r.dog.slug} name={dogName(r.dog.name)} photoUrl={r.dog.photoUrl} size={44} />
-                  <span className={styles.rowText}>
-                    <span className={styles.rowTitle}>{requestTitle(r)}</span>
-                    <span className={styles.rowSub}>{requestSub(r)}</span>
-                  </span>
-                  <span className={styles.chev} aria-hidden="true">
-                    ›
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            {!signable && !suspended && (
+              <p className={styles.empty} role="status">
+                {noSignLine(vet.status)}
+              </p>
+            )}
+            <ul className={styles.list}>
+              {signRequests.map((r) => {
+                const inner = (
+                  <>
+                    <DogAvatar id={r.dog.slug} name={dogName(r.dog.name)} photoUrl={r.dog.photoUrl} size={44} />
+                    <span className={styles.rowText}>
+                      <span className={styles.rowTitle}>{requestTitle(r)}</span>
+                      <span className={styles.rowSub}>{requestSub(r)}</span>
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={r.id}>
+                    {signable ? (
+                      <Link
+                        href={`/vet/dogs/${encodeURIComponent(r.dog.slug)}/sign?request=${encodeURIComponent(r.id)}&kind=${r.kind}`}
+                        className={styles.row}
+                      >
+                        {inner}
+                        <span className={styles.chev} aria-hidden="true">
+                          ›
+                        </span>
+                      </Link>
+                    ) : (
+                      <div className={styles.row}>{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
 
         <h2 className={styles.sectionLabel}>Due soon in your wards</h2>

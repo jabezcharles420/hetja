@@ -246,12 +246,13 @@ each is tested in `apps/api/src/routes/v7.test.ts` or `apps/worker/src/v7.test.t
   ON DELETE SET NULL would itself be an UPDATE). Admin decisions, vet
   signatures, corrections and withdrawals, NGO decisions and dispatches, and
   every document opened by an admin write a row, in the same transaction as
-  the change for nearly all of them (`lib/audit.ts`). Not every write is
-  covered yet: avatar file uploads, NGO ambulance and bed updates, dispatch
-  accept and decline, drive edits and drive-dog updates, a vet declining a
-  sign request and a vet editing their own profile write no row, and two
-  (an NGO member change, removing a passkey) are audited just after their
-  transaction rather than inside it. `scrubDetail` drops any
+  the change for nearly all of them (`lib/audit.ts`). Since the pre-deploy
+  review this includes avatar file uploads, NGO ambulance and bed updates,
+  dispatch accept and decline, drive edits, drive dogs added and updated, a
+  vet declining a sign request, a vet editing their own profile, and every
+  private photo opened (tested). Four are audited just after their change
+  rather than in the same transaction (an NGO member change, removing a
+  passkey, a vet profile edit, a drive edit). `scrubDetail` drops any
   key that could carry contact data, a position or file bytes. The CSV export
   neutralises spreadsheet formulas and is itself audited. AGENTS.md section f's
   recipe must re-apply `REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM
@@ -265,9 +266,17 @@ each is tested in `apps/api/src/routes/v7.test.ts` or `apps/worker/src/v7.test.t
   and no file name is stored. Certificates, photo IDs and NGO registrations
   are streamed only to admins with the matching permission, audited on every
   open, and deleted by the worker 30 days after the decision (an unattached
-  upload after a day). A record photo (the vaccine sticker) is different: it
-  is shown to verified vets, the dog's feeders and any admin role, its opens
-  are not audited, and once attached to a record it has no deletion date.
+  upload after a day). Two photos live in the same encrypted store, never in
+  the public photos directory: a signed record's vaccine sticker and a sign
+  request's clinic slip. Each is shown only to verified vets, the dog's
+  feeders and admins holding a moderation permission (`vets` or `reports`;
+  an avatar editor or a ward lead cannot open one), every open is audited,
+  and each has a stated retention: a vaccine sticker is deleted 30 days after
+  its record is signed (a signed record is final; a correction is a new
+  record), a clinic slip 30 days after its request is decided (kept while
+  the request is open). The worker's `sweep_v7` does the deleting. The
+  photos are working evidence for the signing vet, not part of the ledger:
+  the ledger row keeps the hash and the signature, and the photo goes.
   `POST /documents` authenticates before the body is read; `/vet/record-photos`
   reads its photo-sized body first and authenticates in the handler.
 - **INVARIANTs 8 and 9: vet signatures append, never update.** A signature is
@@ -293,9 +302,12 @@ each is tested in `apps/api/src/routes/v7.test.ts` or `apps/worker/src/v7.test.t
   (`lib/sos-eligibility.ts` `pageIsGround`, one rule for the ack route and
   the case page). They lose only the vet grounds: with ordinary feeder
   standing (paging on, the trust floor, a feed nearby or the ward) they can
-  still take a case like any feeder. Their past signatures stay valid. The
-  only way to flag them is removing the vet with `signatures: flag`, which
-  marks ALL of that vet's signed records `flagged` on the health list.
+  still take a case like any feeder. Their past signatures stay valid unless
+  an admin flags them: `POST /admin/vets/:id/flag-signatures` (any status,
+  audited, reversible) or removing the vet with `signatures: flag`, either of
+  which marks ALL of that vet's signed records `flagged` on the health list.
+  The vet's dog view answers `canSign: false` with `vetStatus` and
+  `signingBlockedReason` so the app hides the signing buttons.
 - **SOS routing to professionals, one rule** (`lib/sos-eligibility.ts` and
   `packages/db/src/sos-routing.ts`, shared by the API and the worker):
   feeders as before; at filing, the active NGO covering the ward (a paused one
@@ -321,10 +333,24 @@ each is tested in `apps/api/src/routes/v7.test.ts` or `apps/worker/src/v7.test.t
   reference) is refused scans, tag reports, problem reports and registrations
   with 403 `DEVICE_BLOCKED`; its SOS report is still accepted and still
   answered with the numbers to call, but pages nobody and escalates at once
-  (INVARIANT 7's purpose). A photo taken down (`scans.photo_hidden_at`) is no
-  longer returned by any API response; the scan and the feed stay. The file
-  itself is not deleted, so anyone who already has its `/photos/<key>` URL can
-  still open it until photo retention removes it (`HETJA_PHOTO_TTL_DAYS`, 7).
+  (INVARIANT 7's purpose). A photo taken down (`scans.photo_hidden_at`) has
+  its FILE deleted from the public photos directory at once and its pointer
+  cleared, so its old `/photos/<key>` URL stops working immediately; the scan
+  and the feed stay (pre-deploy review; before, the file stayed reachable
+  until the 7-day retention).
+- **Privilege on accounts that hold admin roles** (pre-deploy review: a
+  Moderator could suspend the Owner, and a suspended account holds no admin
+  role, locking the Owner out). `lib/admin.ts` `guardAccountAction`, applied
+  to suspending an account, blocking a device (for every account that used
+  it), removing a team member and changing their role: nobody acts on their
+  own account (409 `CANNOT_TARGET_SELF`); an account holding ANY admin role
+  can be acted on only by an Owner (403 `OWNER_REQUIRED`); an Owner set in
+  `HETJA_OWNER_EMAILS` can never be suspended, removed or demoted through the
+  API (403 `CONFIG_OWNER`: change it in the secret); and an Owner is never
+  the last active one (409 `LAST_OWNER`). The last rule is defensive: since
+  only an active Owner may act on an Owner, and never on themselves, one
+  always remains. A paused NGO gets no new routing and cannot dispatch
+  (403 `NGO_PAUSED`).
 - **INVARIANT 6: three more anonymous-path limits, each paired.**
   `healthReadPerSubject` (burst 30, then one every 2 s) with
   `healthReadGlobal` (20000 a day) on `GET /dogs/:slug/health`;

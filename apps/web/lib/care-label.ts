@@ -5,6 +5,7 @@
  *   government vet (a person)      "Government vet · free"
  *   government hospital / clinic   "Government hospital · free"
  *   anything with cost tier free   "<kind word> · free"   e.g. "NGO · free"
+ *   charity hospital               "Charity hospital" (plus " · free" when free)
  *   everything else                "<kind word>"          e.g. "Vet"
  *
  * One helper so the map, the SOS-anyway list and the vet and NGO portals all
@@ -29,10 +30,11 @@ export function isGovernmentCare(p: CareLabelInput): boolean {
   return p.isGovernment === true || p.careKind === "govt";
 }
 
-/** The kind word alone: "Vet", "NGO", "Government vet", "Government hospital". */
+/** The kind word alone: "Vet", "NGO", "Charity hospital", "Government vet", "Government hospital". */
 export function careKindWord(p: CareLabelInput): string {
   if (isGovernmentCare(p)) return p.isPerson ? "Government vet" : "Government hospital";
   if (p.careKind === "ngo" || p.kind === "ngo") return "NGO";
+  if (p.careKind === "charity_hospital") return "Charity hospital";
   return "Vet";
 }
 

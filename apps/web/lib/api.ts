@@ -902,6 +902,18 @@ export interface SosCaseForbiddenData {
   wardId: string | null;
   wardCode: string | null;
   checklist: SosResponderChecklist;
+  /**
+   * Only for a feeder of the dog who was TOLD (notify_only) and opens the
+   * case: what the reporter already shares with the dog's feeders. Never the
+   * note, the photo or the spot.
+   */
+  summary?: {
+    dog: { slug: string; name: string | null } | null;
+    severity: SosSeverity;
+    wardId: string | null;
+    openedAt: string;
+    state?: SosCaseState;
+  };
 }
 
 /** GET /reports/:caseId/status (reporter's device token), v6. */
@@ -1246,6 +1258,8 @@ export interface DogProfileV5 {
   avatarUrl?: string | null;
   /** Set when the slug asked for was merged into this dog (A5): the page is the kept dog's. */
   mergedFrom?: { slug: string; name: string | null } | null;
+  /** The collar's printed batch number ("HJ-0412"): a label, not location. null when none was printed. */
+  collarBatchNo?: string | null;
 }
 
 export interface DogCard {
@@ -1308,7 +1322,9 @@ export interface HealthRecord {
   confirmedAt?: string | null;
   /**
    * A private photo (the vaccine sticker) is attached. NOT public: fetch it
-   * with downloadHealthPhoto (a verified vet, a feeder of the dog, or an admin).
+   * with downloadHealthPhoto (a verified vet, a feeder of the dog, or an admin
+   * with a moderation permission; every open is audited). It is deleted 30
+   * days after the record was signed, when hasPhoto turns false.
    */
   hasPhoto?: boolean;
   photoPath?: string | null;
@@ -1320,6 +1336,8 @@ export interface DogHealth {
   certificateUrl?: string;
   /** Only when the Bearer presented belongs to a verified, unsuspended vet. */
   viewerIsVet: boolean;
+  /** The collar's printed batch number ("HJ-0412"), for the certificate; null when none was printed. */
+  collarBatchNo?: string | null;
 }
 
 /** POST /dogs/:slug/health-notes: a feeder of the dog notes care ("Feeder noted"). */
@@ -1371,7 +1389,14 @@ export interface SignRequest {
   /** First name of the feeder who asked (opt-out respected). */
   requestedBy: string | null;
   requestedAt: string;
+  /**
+   * The clinic slip is PRIVATE (encrypted with the documents): this is an API
+   * path to fetch with downloadSignRequestEvidence, never a public image URL.
+   * Kept under this name for existing callers; prefer evidencePhotoPath.
+   */
   evidencePhotoUrl: string | null;
+  hasEvidencePhoto?: boolean;
+  evidencePhotoPath?: string | null;
   note: string | null;
   status: "open" | "signed" | "declined" | "withdrawn";
 }
@@ -1436,7 +1461,11 @@ export interface Passkey {
 /** GET /vet/me. profile null = never applied. */
 export interface VetMe {
   profile: VetProfile | null;
-  /** Verified and not suspended, and holds a passkey. */
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
   canSign: boolean;
   canAcceptSos: boolean;
   passkeys: Passkey[];
@@ -1476,6 +1505,11 @@ export interface VetSosItem {
 /** GET /vet/home (V2). 403 VET_NOT_VERIFIED unless verified or suspended. */
 export interface VetHome {
   profile: VetProfile;
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
   canSign: boolean;
   canAcceptSos: boolean;
   sos: VetSosItem[];
@@ -1517,7 +1551,16 @@ export interface VetDogView {
   /** Feeder-noted records a vet could confirm ("1 feeder note to confirm"). */
   notesToConfirm: HealthRecord[];
   openSignRequests: SignRequest[];
+  /**
+   * canSign means: the vet is VERIFIED (not suspended) AND holds a passkey.
+   * A verified vet with no passkey yet is canSign false too, so key "may this
+   * vet sign at all" on the vet status; canSign answers "can the sign button work now".
+   */
   canSign: boolean;
+  /** The caller's vet status: "suspended" sees the dog but may not sign (hide the buttons). */
+  vetStatus?: VetStatus;
+  /** Why canSign is false: "suspended" or "no_passkey"; null when it is true. */
+  signingBlockedReason?: "suspended" | "no_passkey" | null;
 }
 
 /** What a vet signs (V3), corrects (V5) or withdraws. The server hashes exactly this. */
@@ -2783,6 +2826,8 @@ export const api = {
     request<{ photoId: string }>(`/vet/record-photos`, { method: "POST", body: { base64 }, timeoutMs: 60_000 }),
   /** A record's private photo (HealthRecord.photoPath), for vets, the dog's feeders and admins. */
   downloadHealthPhoto: (photoPath: string) => downloadBlob(photoPath),
+  /** A sign request's private clinic slip (SignRequest.evidencePhotoPath); audited. */
+  downloadSignRequestEvidence: (path: string) => downloadBlob(path),
 
   // NGO (N1 to N5)
   registerNgo: (input: NgoRegisterInput) => request<NgoProfile>(`/ngo/register`, { method: "POST", body: input }),
@@ -2866,6 +2911,9 @@ export const api = {
       body: reason ? { reason } : {},
     }),
   /** A2 "Not found" on the MSVC register (found: true clears it; Verify clears it too). */
+  /** Flag (or clear) a vet's past signatures for re-check, whatever their status. Audited. */
+  flagVetSignatures: (id: string, flag: boolean, reason: string) =>
+    request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/flag-signatures`, { method: "POST", body: { flag, reason } }),
   markNotOnRegister: (id: string, input: { note?: string; found?: boolean } = {}) =>
     request<AdminVetDetail>(`/admin/vets/${encodeURIComponent(id)}/not-on-register`, { method: "POST", body: input }),
   removeVet: (id: string, input: VetRemoveInput) =>

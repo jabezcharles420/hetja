@@ -19,6 +19,7 @@
 
 import { BMC_WARD_CENTROIDS, isInMumbai, type BmcWardCode } from "@hetja/contracts";
 import { collarGroups } from "@/components/ds/collar";
+import { careLabel } from "@/lib/care-label";
 
 export const CODE_LENGTH = 9;
 export const BOX_LENGTH = 3;
@@ -146,16 +147,16 @@ export function telHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
-const CARE_KIND: Record<string, string> = {
-  private_clinic: "Vet",
-  charity_hospital: "Charity hospital",
-  govt: "Govt vet",
-  ngo: "NGO",
-};
-
-/** "Vet · Andheri West · open 24 hours", the care row's sub line (same as apps/scan's careMeta). */
+/**
+ * "Vet · Andheri West · open 24 hours", the care row's sub line. The kind
+ * comes from lib/care-label (v7: "Government vet · free", "NGO · free"), so
+ * the SOS-anyway list names care the way the map and portals do.
+ */
 export function careLine(p: {
   kind?: string | null;
+  costTier?: string | null;
+  isGovernment?: boolean | null;
+  isPerson?: boolean | null;
   locality?: string | null;
   hoursNote?: string | null;
   is24x7?: boolean;
@@ -164,7 +165,11 @@ export function careLine(p: {
   phoneVerifiedAt?: string | null;
 }): string {
   const note = p.hoursNote ?? (p.is24x7 ? "open 24 hours" : p.hasAmbulance ? "ambulance" : undefined);
-  const bits = [p.kind ? (CARE_KIND[p.kind] ?? p.kind) : undefined, p.locality ?? undefined, note];
+  const known = p.kind || p.isGovernment || p.costTier;
+  const label = known
+    ? careLabel({ careKind: p.kind, costTier: p.costTier, isGovernment: p.isGovernment, isPerson: p.isPerson })
+    : undefined;
+  const bits = [label, p.locality ?? undefined, note];
   if (!p.phoneE164) bits.push("no phone listed");
   else if (!p.phoneVerifiedAt) bits.push("number not confirmed");
   return bits.filter(Boolean).join(" · ");

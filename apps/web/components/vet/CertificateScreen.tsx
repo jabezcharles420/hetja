@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { api, ApiError, type DogProfile } from "@/lib/api";
+import { api, ApiError, getAccessToken, type DogProfile } from "@/lib/api";
 import { dogName } from "@/lib/streak";
-import { certificateRows, downloadCertificate } from "./certificate-pdf";
+import { certificateRows, collarLine, downloadCertificate } from "./certificate-pdf";
 import { HealthList } from "./HealthList";
 import { vetApi, type HealthRecord } from "./vet-api";
 import { useOnMount, VetMessage, VetTop } from "./VetParts";
@@ -16,7 +16,7 @@ import styles from "./vet.module.css";
  * print, and "Download PDF" builds the file in the browser.
  */
 export default function CertificateScreen({ slug }: { slug: string }): React.JSX.Element {
-  const [load, setLoad] = useState<{ kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; dog: DogProfile | null; rows: HealthRecord[] }>({
+  const [load, setLoad] = useState<{ kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; dog: DogProfile | null; rows: HealthRecord[]; collarNo: string | null }>({
     kind: "loading",
   });
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,8 @@ export default function CertificateScreen({ slug }: { slug: string }): React.JSX
   const fetchAll = useCallback(async () => {
     try {
       const [health, dog] = await Promise.all([vetApi.getHealth(slug), api.getDog(slug).catch(() => null)]);
-      setLoad({ kind: "ready", dog, rows: certificateRows(health.records) });
+      const collarNo = getAccessToken() ? await vetApi.collarNo(slug, dog) : null;
+      setLoad({ kind: "ready", dog, rows: certificateRows(health.records), collarNo });
     } catch (err) {
       setLoad({ kind: "error", notFound: err instanceof ApiError && err.status === 404 });
     }
@@ -45,13 +46,13 @@ export default function CertificateScreen({ slug }: { slug: string }): React.JSX
     );
   }
 
-  const { dog, rows } = load;
+  const { dog, rows, collarNo } = load;
   const name = dogName(dog?.name ?? null);
   const go = async () => {
     setBusy(true);
     setError(null);
     try {
-      await downloadCertificate({ slug, name: dog?.name ?? null, wardId: dog?.wardId ?? null, records: rows });
+      await downloadCertificate({ slug, name: dog?.name ?? null, wardId: dog?.wardId ?? null, records: rows, collarNo });
     } catch {
       setError("The certificate couldn't be made on this phone. Try again.");
     } finally {
@@ -60,10 +61,11 @@ export default function CertificateScreen({ slug }: { slug: string }): React.JSX
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.certPage}`}>
       <VetTop back={name} href={`/d/${slug}`} />
       <div className={styles.body}>
         <h1 className={styles.title}>Vaccination certificate</h1>
+        <p className={styles.hint}>{collarLine(slug, collarNo)}</p>
         <p className={styles.lead}>
           {rows.length
             ? `For rescues and adoptions: ${name}'s vet-signed records, with each vet's name and council number. Care that feeders noted themselves is left off.`

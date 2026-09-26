@@ -36,10 +36,12 @@
  * feeder of it gets a note; its slug and collar answer the kept dog's page.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { unlink } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import { isBmcWardCode, wardDisplay } from "@hetja/contracts";
 import { isValidSlug, query, withTx } from "@hetja/db";
-import { adminCoversWard, requireAdmin, type AdminAuth } from "../lib/admin.js";
+import { adminCoversWard, guardAccountAction, requireAdmin, type AdminAuth } from "../lib/admin.js";
 import { audit } from "../lib/audit.js";
 import { avatarUploadPerAccount, enforceLimits } from "../lib/rate-limit.js";
 import { enqueueFeederPush, feederIdsOfDog } from "../lib/dog-feeders.js";
@@ -295,6 +297,16 @@ export async function duplicateCandidates(): Promise<
 export default async function adminContentRoutes(app: FastifyInstance): Promise<void> {
   const storageCfg = () => app.config as unknown as StorageConfig;
 
+  /** Delete a photo file from the public photos directory (the key is re-validated: a filesystem delete driven by a database value). */
+  async function removePublicPhoto(key: string): Promise<void> {
+    if (app.config.STORAGE_BACKEND !== "local" || !/^photos\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(key)) return;
+    try {
+      await unlink(join(app.config.STORAGE_LOCAL_DIR, key));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException)?.code !== "ENOENT") app.log.warn({ event: "photo_takedown_unlink_failed" }, "take-down file not deleted");
+    }
+  }
+
   async function withPhoto(reply: FastifyReply, base64: string, fn: (key: string) => Promise<unknown>) {
     let release;
     try {
@@ -391,12 +403,23 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
     if ((batch.rowCount ?? 0) === 0) return err(reply, 404, "NOT_FOUND", "no such open batch");
     const match = await matchFileName(b.data.fileName);
     const tileId = await withPhoto(reply, b.data.imageBase64, async (key) => {
-      const ins = await query<{ id: string }>(
-        `INSERT INTO dog_avatars (batch_id, dog_id, file_name, image_key, match_kind, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [id, match?.dogId ?? null, b.data.fileName, key, match?.kind ?? "none", a.feederId],
-      );
-      return ins.rows[0].id;
+      return withTx(async (client) => {
+        const ins = await client.query<{ id: string }>(
+          `INSERT INTO dog_avatars (batch_id, dog_id, file_name, image_key, match_kind, uploaded_by)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [id, match?.dogId ?? null, b.data.fileName, key, match?.kind ?? "none", a.feederId],
+        );
+        await audit(client, {
+          actorId: a.feederId,
+          actorKind: "admin",
+          action: "avatar.upload",
+          subjectType: "dog_avatar",
+          subjectId: ins.rows[0].id,
+          summary: `uploaded an avatar file (${match?.kind ?? "no match"})`,
+          detail: { batchId: id, match: match?.kind ?? "none" },
+        });
+        return ins.rows[0].id;
+      });
     });
     if (!tileId) return reply;
     return reply.status(201).send({ ok: true, data: await tile(req, tileId as string) });
@@ -628,7 +651,8 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
       ),
       query<any>(
         `SELECT s.id, s.photo_s3_key, s.received_at, f.display_name, s.photo_hidden_at FROM scans s LEFT JOIN feeders f ON f.id = s.feeder_id
-          WHERE s.dog_id = $1 AND s.photo_s3_key IS NOT NULL AND s.scan_type <> 'sos' ORDER BY s.received_at DESC LIMIT 30`,
+          WHERE s.dog_id = $1 AND (s.photo_s3_key IS NOT NULL OR s.photo_hidden_at IS NOT NULL) AND s.scan_type <> 'sos'
+          ORDER BY s.received_at DESC LIMIT 30`,
         [id],
       ),
       query<any>(`SELECT id, image_key, status, published_at, retired_at FROM dog_avatars WHERE dog_id = $1 AND status IN ('published', 'retired') ORDER BY COALESCE(published_at, uploaded_at) DESC LIMIT 20`, [id]),
@@ -883,13 +907,23 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
     const id = uuidParam(req, "scanId");
     const b = z.strictObject({ reason: z.string().trim().min(3).max(300) }).safeParse(req.body ?? {});
     if (!id || !b.success) return err(reply, 400, "INVALID_HIDE", "body must be { reason }");
+    // The FILE goes too, at once (pre-deploy review): photos are served
+    // publicly by Caddy from /photos/, so hiding the pointer alone left the
+    // image reachable at its URL until the 7-day retention. The scan and the
+    // feed stay; photo_hidden_at records that there was a photo and why not now.
+    let removedKey: string | null = null;
     const dogId = await withTx(async (client) => {
+      const cur = await client.query<{ photo_s3_key: string | null }>(
+        `SELECT photo_s3_key FROM scans WHERE id = $1 FOR UPDATE`,
+        [id],
+      );
       const u = await client.query<{ dog_id: string }>(
-        `UPDATE scans SET photo_hidden_at = COALESCE(photo_hidden_at, now()), photo_hidden_by = $2
+        `UPDATE scans SET photo_hidden_at = COALESCE(photo_hidden_at, now()), photo_hidden_by = $2, photo_s3_key = NULL
           WHERE id = $1 AND photo_s3_key IS NOT NULL RETURNING dog_id`,
         [id, a.feederId],
       );
       if (!u.rows[0]) return null;
+      removedKey = cur.rows[0]?.photo_s3_key ?? null;
       await audit(client, {
         actorId: a.feederId,
         actorKind: "admin",
@@ -901,6 +935,7 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
       return u.rows[0].dog_id;
     });
     if (!dogId) return err(reply, 404, "NOT_FOUND", "no such photo");
+    if (removedKey) await removePublicPhoto(removedKey);
     await forgetDogById(dogId);
     return { ok: true, data: { hidden: true } };
   });
@@ -995,7 +1030,13 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
       if (!writeLimited(req, reply, a)) return reply;
       const id = uuidParam(req);
       if (!id) return err(reply, 400, "INVALID_ID", "bad id");
-      if (id === a.feederId) return err(reply, 409, "CANNOT_SUSPEND_SELF", "you cannot suspend yourself");
+      if (id === a.feederId) return err(reply, 409, "CANNOT_TARGET_SELF", "you cannot do this to your own account");
+      if (on) {
+        // Pre-deploy review: only an Owner may suspend an admin, never a
+        // configured Owner and never the last one (lib/admin.ts guardAccountAction).
+        const refused = await guardAccountAction(a, id, app.config);
+        if (refused) return err(reply, refused.status, refused.code, refused.message);
+      }
       let reason: string | null = null;
       if (on) {
         const b = z.strictObject({ reason: z.string().trim().min(3).max(300) }).safeParse(req.body ?? {});
@@ -1076,6 +1117,17 @@ export default async function adminContentRoutes(app: FastifyInstance): Promise<
     if (!b.success) return err(reply, 400, "INVALID_BLOCK", "body must be { deviceRef | scanId | caseId, reason }");
     const subject = await resolveDevice(b.data);
     if (!subject) return err(reply, 404, "NOT_FOUND", "no device behind that reference");
+    // The accounts that used this device fall under the same rule as a
+    // suspension: not your own, and an admin's only by an Owner.
+    const users = await query<{ id: string }>(
+      `SELECT DISTINCT feeder_id AS id FROM scans WHERE device_token = $1 AND feeder_id IS NOT NULL
+       UNION SELECT registered_by FROM dogs WHERE registered_device_id = $1 AND registered_by IS NOT NULL`,
+      [subject],
+    );
+    for (const u of users.rows) {
+      const refused = await guardAccountAction(a, u.id, app.config);
+      if (refused) return err(reply, refused.status, refused.code, refused.message);
+    }
     const ref = deviceRefOf(subject);
     await withTx(async (client) => {
       await client.query(

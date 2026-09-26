@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState, type FormEvent } from "react";
 import { api, type AdminNgoCreateInput, type AdminNgoDetail, type AdminNgoRow, type NgoRegType } from "@/lib/api";
 import { phoneLabel, REG_TYPE_LABEL, VET_STATUS_LABEL, wardCode } from "./format";
+import { DirectoryLink } from "./DirectoryLink";
 import { DocumentTile } from "./VetsScreen";
 import {
   Chips,
@@ -22,6 +23,7 @@ import {
   ErrorLine,
   errorText,
   Loading,
+  Refused,
   Rows,
   SelectTable,
   styles as s,
@@ -253,6 +255,10 @@ function NgoPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
         />
       </div>
 
+      {n.status !== "waiting" && (
+        <DirectoryLink kind="ngo" id={n.id} name={n.name} careProviderId={n.careProviderId} canEdit={canDecide} onChanged={res.reload} />
+      )}
+
       {n.documents.length > 0 && (
         <div className={s.section}>
           <span className={s.label}>Documents</span>
@@ -285,11 +291,14 @@ function NgoPanel({ id, onChanged }: { id: string; onChanged: () => void }): Rea
               Resume
             </button>
           )}
-          {canRemove && n.status !== "removed" && (
-            <button type="button" className={cx(s.btn, s.btnDanger)} onClick={remove}>
-              {n.status === "waiting" ? "Decline" : "Remove"}
-            </button>
-          )}
+          {n.status !== "removed" &&
+            (canRemove ? (
+              <button type="button" className={cx(s.btn, s.btnDanger)} onClick={remove}>
+                {n.status === "waiting" ? "Decline" : "Remove"}
+              </button>
+            ) : (
+              <Refused label={n.status === "waiting" ? "Decline" : "Remove"} why="Only the Owner can remove an NGO." />
+            ))}
         </div>
       )}
       {confirmNode}

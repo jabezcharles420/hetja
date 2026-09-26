@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { api, ApiError, type DogProfile } from "@/lib/api";
+import { api, ApiError, getAccessToken, type DogProfile } from "@/lib/api";
 import { dogName } from "@/lib/streak";
 import { CertificateBar, HealthList } from "./HealthList";
 import { currentRecords, vetApi, type DogHealth } from "./vet-api";
@@ -16,13 +16,14 @@ import styles from "./vet.module.css";
  */
 export default function HealthScreen({ slug, backHref }: { slug: string; backHref?: string }): React.JSX.Element {
   const [load, setLoad] = useState<
-    { kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; dog: DogProfile | null; health: DogHealth }
+    { kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; dog: DogProfile | null; health: DogHealth; collarNo: string | null }
   >({ kind: "loading" });
 
   const fetchAll = useCallback(async () => {
     try {
       const [health, dog] = await Promise.all([vetApi.getHealth(slug), api.getDog(slug).catch(() => null)]);
-      setLoad({ kind: "ready", dog, health });
+      const collarNo = getAccessToken() ? await vetApi.collarNo(slug, dog) : null;
+      setLoad({ kind: "ready", dog, health, collarNo });
     } catch (err) {
       setLoad({ kind: "error", notFound: err instanceof ApiError && err.status === 404 });
     }
@@ -44,7 +45,7 @@ export default function HealthScreen({ slug, backHref }: { slug: string; backHre
     );
   }
 
-  const { dog, health } = load;
+  const { dog, health, collarNo } = load;
   const name = dogName(dog?.name ?? null);
   const records = currentRecords(health.records);
   const vet = health.viewerIsVet;
@@ -65,7 +66,7 @@ export default function HealthScreen({ slug, backHref }: { slug: string; backHre
       </div>
       {records.some((r) => r.status === "vet_signed") && (
         <div className={styles.footer}>
-          <CertificateBar slug={slug} name={dog?.name ?? null} wardId={dog?.wardId ?? null} records={records} />
+          <CertificateBar slug={slug} name={dog?.name ?? null} wardId={dog?.wardId ?? null} records={records} collarNo={collarNo} />
         </div>
       )}
     </div>

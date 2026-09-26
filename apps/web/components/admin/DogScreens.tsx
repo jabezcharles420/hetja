@@ -12,7 +12,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, type AdminDogDetail, type AdminDogRow } from "@/lib/api";
-import { ago, collarNumber, dateLabel, dogName, fullDate, monthLabel, plural, shortDate, wardCode } from "./format";
+import { ago, collarNumber, dateLabel, SITE_URL, dogName, fullDate, monthLabel, plural, shortDate, wardCode } from "./format";
+import { DuplicateList } from "./OpsScreens";
 import { Crumbs, cx, ErrorLine, Loading, SelectTable, styles as s, useAdmin, useAsync, useCan, useConfirm, useWards, type Column } from "./ui";
 
 const STATUSES = ["active", "lost", "adopted", "deceased", "relocated"] as const;
@@ -41,6 +42,8 @@ export function DogsScreen(): React.JSX.Element {
   const [status, setStatus] = useState("");
   const { now } = useAdmin();
   const res = useAsync(() => api.getAdminDogs({ ...(q.trim() ? { q: q.trim() } : {}), ...(status ? { status } : {}) }), [q, status]);
+  const canMerge = useCan("merge");
+  const dups = useAsync(() => (canMerge ? api.getDuplicates() : Promise.resolve({ candidates: [] })), [canMerge]);
   const columns: Column<AdminDogRow>[] = [
     {
       key: "name",
@@ -83,6 +86,17 @@ export function DogsScreen(): React.JSX.Element {
           ))}
         </select>
       </div>
+      {canMerge &&
+        (dups.error ? (
+          <ErrorLine message={`Possible duplicates did not load. ${dups.error}`} retry={dups.reload} />
+        ) : dups.data && dups.data.candidates.length > 0 ? (
+          <details className={s.weekCard} style={{ gap: 10 }}>
+            <summary className={s.cardTitle} style={{ cursor: "pointer" }}>
+              Possible duplicates · {dups.data.candidates.length}
+            </summary>
+            <DuplicateList candidates={dups.data.candidates} canMerge={canMerge} />
+          </details>
+        ) : null)}
       {res.error ? (
         <ErrorLine message={res.error} retry={res.reload} />
       ) : !res.data ? (
@@ -131,6 +145,7 @@ export function DogScreen({ slug }: { slug: string }): React.JSX.Element {
   const router = useRouter();
   const res = useAsync(() => api.getAdminDog(slug), [slug]);
   const canMerge = useCan("merge");
+  const dups = useAsync(() => (canMerge ? api.getDuplicates() : Promise.resolve({ candidates: [] })), [canMerge]);
   const canPhotos = useCan("feeders");
   const { codes } = useWards();
   const { now } = useAdmin();
@@ -233,9 +248,9 @@ export function DogScreen({ slug }: { slug: string }): React.JSX.Element {
             </span>
           </div>
         </div>
-        <Link href={`/dog/${encodeURIComponent(d.slug)}`} className={cx(s.btn, s.btnMd, s.btnOutline)} target="_blank" rel="noreferrer">
-          Open the public page ↗
-        </Link>
+        <a href={`${SITE_URL}/dog/${encodeURIComponent(d.slug)}`} className={cx(s.btn, s.btnMd, s.btnOutline)} target="_blank" rel="noreferrer">
+          Open the public page ↗<span className="h-sr-only"> (opens in a new tab)</span>
+        </a>
       </header>
 
       <div className={s.twoCol} style={{ gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)" }}>
@@ -418,6 +433,11 @@ export function DogScreen({ slug }: { slug: string }): React.JSX.Element {
               <h2 id="merge-h" className={s.cardTitle}>
                 Merge
               </h2>
+              {(() => {
+                const mine = (dups.data?.candidates ?? []).filter((c) => c.a.slug === d.slug || c.b.slug === d.slug);
+                return mine.length ? <DuplicateList candidates={mine} canMerge={canMerge} /> : null;
+              })()}
+              {dups.error && <ErrorLine message={`Possible duplicates did not load. ${dups.error}`} retry={dups.reload} />}
               <p className={s.note}>Same dog added twice? Put the other dog&apos;s ID and compare them side by side first.</p>
               <form
                 className={s.actionsInline}

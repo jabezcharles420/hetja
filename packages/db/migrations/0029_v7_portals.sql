@@ -160,10 +160,10 @@ COMMENT ON COLUMN vet_profiles.phone_e164 IS
 
 CREATE TABLE IF NOT EXISTS documents (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_kind   TEXT NOT NULL CHECK (owner_kind IN ('pending', 'vet_profile', 'ngo', 'medical_record')),
+  owner_kind   TEXT NOT NULL CHECK (owner_kind IN ('pending', 'vet_profile', 'ngo', 'medical_record', 'sign_request')),
   owner_id     UUID,
   uploaded_by  UUID REFERENCES feeders(id) ON DELETE SET NULL,
-  kind         TEXT NOT NULL CHECK (kind IN ('certificate', 'photo_id', 'ngo_registration', 'record_photo')),
+  kind         TEXT NOT NULL CHECK (kind IN ('certificate', 'photo_id', 'ngo_registration', 'record_photo', 'evidence_photo')),
   mime         TEXT NOT NULL CHECK (mime IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp')),
   size_bytes   INT NOT NULL CHECK (size_bytes > 0),
   sha256       TEXT NOT NULL,
@@ -338,7 +338,9 @@ CREATE TABLE IF NOT EXISTS sign_requests (
   record_id          UUID REFERENCES medical_records(id),
   proposed           JSONB NOT NULL,
   note               TEXT CHECK (note IS NULL OR char_length(note) <= 280),
-  evidence_photo_key TEXT,
+  -- The clinic slip, a private encrypted document (documents.owner_kind
+  -- 'sign_request'), never a file in the public photos directory.
+  evidence_document_id UUID,
   status             TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'signed', 'declined', 'withdrawn')),
   decided_by         UUID REFERENCES feeders(id) ON DELETE SET NULL,
   decided_at         TIMESTAMPTZ,

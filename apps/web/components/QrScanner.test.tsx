@@ -152,23 +152,41 @@ describe("QrScanner screen", () => {
     (window.location as { hash: string }).hash = "";
   });
 
-  it("goes straight to the fallback choices when the camera is denied", async () => {
+  it("with the camera denied, shows the code field itself, then the other F1 choices", async () => {
     installBarcodeDetector([]);
     stubMediaDevices(vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")));
     render(<QrScanner />);
     expect(await screen.findByText("Camera is off for Hetja.")).not.toBeNull();
+    expect(screen.getByText("Allow it in your browser settings, or type the code printed under the QR.")).not.toBeNull();
     expect(screen.queryByTestId("scan-frame")).toBeNull();
-    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1");
+    const input = screen.getByLabelText("Collar code");
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    expect(screen.getByRole("button", { name: "View profile" })).not.toBeNull();
+    // The field replaces the "Type the code" row; nothing hides it.
+    expect(screen.queryByRole("link", { name: /Type the code/ })).toBeNull();
     expect(screen.getByRole("link", { name: /Find by ward and photo/ }).getAttribute("href")).toBe("/scan/find");
     expect(screen.getByRole("link", { name: "Dog is hurt · Send SOS anyway" }).getAttribute("href")).toBe(
       "/scan/find?sos=1",
     );
   });
 
-  it("goes straight to the fallback choices when there is no camera at all", async () => {
+  it("with no camera at all, the field is on the sheet and a typed code opens the dog", async () => {
+    getDog.mockResolvedValue({ slug: "abc234567" });
     render(<QrScanner />);
     expect(await screen.findByText("No camera here.")).not.toBeNull();
+    expect(screen.getByText("Type the code printed under the QR.")).not.toBeNull();
     expect(screen.getByTestId("scan-fallback")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "abc234567" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/d/abc234567"));
+  });
+
+  it("with no camera, part of a code still goes to F2", async () => {
+    render(<QrScanner />);
+    await screen.findByText("No camera here.");
+    fireEvent.change(screen.getByLabelText("Collar code"), { target: { value: "rni4" } });
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/scan/code?code=rni4"));
   });
 
   it("slides up F1 after 6 seconds of a live camera with no read, and outlines the frame", async () => {
@@ -189,6 +207,7 @@ describe("QrScanner screen", () => {
       expect(screen.getByText("Can't read this QR.")).not.toBeNull();
       expect(screen.getByText("Mud and rain do this. Try one of these.")).not.toBeNull();
       expect(screen.getByText("Printed under the QR. Part of it is fine.")).not.toBeNull();
+      expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1");
       expect(screen.getByText("When the code is gone too")).not.toBeNull();
       expect(screen.getByRole("link", { name: "Dog is hurt · Send SOS anyway" })).not.toBeNull();
       expect(screen.getByTestId("scan-frame").getAttribute("data-failed")).toBe("true");
@@ -219,7 +238,7 @@ describe("QrScanner screen", () => {
     window.location.search = "?intent=feed";
     render(<QrScanner />);
     await screen.findByText("No camera here.");
-    expect(screen.getByRole("link", { name: /Type the code/ }).getAttribute("href")).toBe("/scan/code?part=1&intent=feed");
+    expect(screen.getByRole("link", { name: /Find by ward and photo/ }).getAttribute("href")).toBe("/scan/find?intent=feed");
   });
 
   it("verifies a decoded collar, then does a full navigation to /d/ with the signature", async () => {

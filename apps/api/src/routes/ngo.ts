@@ -580,11 +580,22 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
     if (!limited(req, reply, m.auth)) return reply;
     const parsed = z.strictObject({ status: z.enum(["in", "out"]), caseId: z.string().uuid().nullable().optional() }).safeParse(req.body ?? {});
     if (!parsed.success) return err(reply, 400, "INVALID_AMBULANCE", "body must be { status: in | out, caseId? }");
-    await query(
-      `UPDATE ngos SET ambulance_status = $2, ambulance_case_id = CASE WHEN $2 = 'out' THEN $3::uuid ELSE NULL END, updated_at = now()
-        WHERE id = $1`,
-      [m.ngoId, parsed.data.status, parsed.data.caseId ?? null],
-    );
+    await withTx(async (client) => {
+      await client.query(
+        `UPDATE ngos SET ambulance_status = $2, ambulance_case_id = CASE WHEN $2 = 'out' THEN $3::uuid ELSE NULL END, updated_at = now()
+          WHERE id = $1`,
+        [m.ngoId, parsed.data.status, parsed.data.caseId ?? null],
+      );
+      await audit(client, {
+        actorId: m.auth.feederId,
+        actorKind: "ngo",
+        action: "ngo.ambulance",
+        subjectType: "ngo",
+        subjectId: m.ngoId,
+        summary: `marked ${m.ngoName}'s ambulance ${parsed.data.status === "out" ? "out" : "back"}`,
+        detail: { status: parsed.data.status, caseId: parsed.data.caseId ?? null },
+      });
+    });
     return { ok: true, data: ngoProfileOf((await loadNgoRow(m.ngoId))!).ambulance };
   });
 
@@ -596,12 +607,26 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
       .strictObject({ free: z.number().int().min(0).max(5000), total: z.number().int().min(0).max(5000).optional() })
       .safeParse(req.body ?? {});
     if (!parsed.success) return err(reply, 400, "INVALID_BEDS", "body must be { free, total? }");
-    const upd = await query(
-      `UPDATE ngos SET beds_total = COALESCE($3, beds_total), beds_free = $2, updated_at = now()
-        WHERE id = $1 AND $2 <= COALESCE($3, beds_total)`,
-      [m.ngoId, parsed.data.free, parsed.data.total ?? null],
-    );
-    if ((upd.rowCount ?? 0) === 0) return err(reply, 400, "INVALID_BEDS", "free beds cannot exceed the total");
+    const n = await withTx(async (client) => {
+      const upd = await client.query(
+        `UPDATE ngos SET beds_total = COALESCE($3, beds_total), beds_free = $2, updated_at = now()
+          WHERE id = $1 AND $2 <= COALESCE($3, beds_total)`,
+        [m.ngoId, parsed.data.free, parsed.data.total ?? null],
+      );
+      if ((upd.rowCount ?? 0) > 0) {
+        await audit(client, {
+          actorId: m.auth.feederId,
+          actorKind: "ngo",
+          action: "ngo.beds",
+          subjectType: "ngo",
+          subjectId: m.ngoId,
+          summary: `updated ${m.ngoName}'s shelter beds (${parsed.data.free} free)`,
+          detail: { free: parsed.data.free, total: parsed.data.total ?? null },
+        });
+      }
+      return upd.rowCount ?? 0;
+    });
+    if (n === 0) return err(reply, 400, "INVALID_BEDS", "free beds cannot exceed the total");
     return { ok: true, data: ngoProfileOf((await loadNgoRow(m.ngoId))!).beds };
   });
 
@@ -682,6 +707,8 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
       })
       .safeParse(req.body ?? {});
     if (!parsed.success) return err(reply, 400, "INVALID_DISPATCH", "body must be { feederId, withAmbulance?, etaMin? }");
+    // A paused NGO gets no new routing and sends nobody (pre-deploy review).
+    if (m.status !== "active") return err(reply, 403, "NGO_PAUSED", "your NGO is paused: it cannot send anyone to an SOS");
     const c = await caseForNgo(m, (req.params as { caseId: string }).caseId);
     if (!c) return err(reply, 404, "NOT_FOUND", "no such case for this NGO");
     if (c.resolved_at) return err(reply, 409, "SOS_CASE_CLOSED", "the case is closed");
@@ -861,6 +888,15 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
       );
       if (!claim.rows[0]) return { status: 409 as const, code: "SOS_ALREADY_ACKED" };
       await client.query(`UPDATE sos_dispatches SET accepted_at = now(), declined_at = NULL WHERE id = $1`, [id.data]);
+      await audit(client, {
+        actorId: auth.feederId,
+        actorKind: "ngo",
+        action: "sos.dispatch_accept",
+        subjectType: "sos_case",
+        subjectId: row.case_id,
+        summary: "accepted an NGO dispatch to an SOS",
+        detail: { dispatchId: id.data },
+      });
       await client.query(`UPDATE sos_notifications SET acked_at = now() WHERE case_id = $1 AND feeder_id = $2`, [
         row.case_id,
         auth.feederId,
@@ -878,11 +914,25 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
     if (!limited(req, reply, auth)) return reply;
     const id = z.string().uuid().safeParse((req.params as { id: string }).id);
     if (!id.success) return err(reply, 400, "INVALID_ID", "bad id");
-    const upd = await query(
-      `UPDATE sos_dispatches SET declined_at = now() WHERE id = $1 AND member_feeder_id = $2 AND accepted_at IS NULL`,
-      [id.data, auth.feederId],
-    );
-    if ((upd.rowCount ?? 0) === 0) return err(reply, 404, "NOT_FOUND", "no open dispatch for you");
+    const n = await withTx(async (client) => {
+      const upd = await client.query<{ case_id: string }>(
+        `UPDATE sos_dispatches SET declined_at = now() WHERE id = $1 AND member_feeder_id = $2 AND accepted_at IS NULL RETURNING case_id`,
+        [id.data, auth.feederId],
+      );
+      if (upd.rows[0]) {
+        await audit(client, {
+          actorId: auth.feederId,
+          actorKind: "ngo",
+          action: "sos.dispatch_decline",
+          subjectType: "sos_case",
+          subjectId: upd.rows[0].case_id,
+          summary: "declined an NGO dispatch to an SOS",
+          detail: { dispatchId: id.data },
+        });
+      }
+      return upd.rowCount ?? 0;
+    });
+    if (n === 0) return err(reply, 404, "NOT_FOUND", "no open dispatch for you");
     return { ok: true, data: { declined: true } };
   });
 
@@ -1204,6 +1254,15 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
         WHERE id = $1 AND ngo_id = $2`,
       [id.data, m.ngoId, p.title ?? null, startsAt, p.leadVetFeederId !== undefined, p.leadVetFeederId ?? null, p.volunteerIds ?? null, p.collarsPacked ?? null],
     );
+    await audit(null, {
+      actorId: m.auth.feederId,
+      actorKind: "ngo",
+      action: "drive.edit",
+      subjectType: "drive",
+      subjectId: id.data,
+      summary: `${m.ngoName} edited a drive`,
+      detail: { fields: Object.keys(p) },
+    });
     return { ok: true, data: await driveDetail(req, id.data, m.ngoId) };
   });
 
@@ -1222,6 +1281,15 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
     );
     if (!dog.rows[0]) return err(reply, 404, "DOG_NOT_FOUND", "no such dog in your wards");
     const ddId = await withTx((client) => addDogToDrive(client, id.data, dog.rows[0].id, parsed.data.tasks));
+    await audit(null, {
+      actorId: m.auth.feederId,
+      actorKind: "ngo",
+      action: "drive.add_dog",
+      subjectType: "drive",
+      subjectId: id.data,
+      summary: `${m.ngoName} added a dog to a drive`,
+      detail: { dogSlug: parsed.data.slug, driveDogId: ddId },
+    });
     const row = await query<DriveDogRow>(`${DRIVE_DOG_SQL} WHERE dd.id = $1`, [ddId]);
     return reply.status(201).send({ ok: true, data: driveDogOf(req, row.rows[0]) });
   });
@@ -1253,6 +1321,15 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
       [dd.data, id.data, done.collar ?? null, done.sterilise ?? null, done.vaccinate ?? null, parsed.data.status ?? null, m.ngoId],
     );
     if ((upd.rowCount ?? 0) === 0) return err(reply, 404, "NOT_FOUND", "no such dog on this drive");
+    await audit(null, {
+      actorId: m.auth.feederId,
+      actorKind: "ngo",
+      action: "drive.dog_update",
+      subjectType: "drive",
+      subjectId: id.data,
+      summary: `${m.ngoName} updated a dog on a drive`,
+      detail: { driveDogId: dd.data, done: parsed.data.done ?? null, status: parsed.data.status ?? null },
+    });
     const row = await query<DriveDogRow>(`${DRIVE_DOG_SQL} WHERE dd.id = $1`, [dd.data]);
     return { ok: true, data: driveDogOf(req, row.rows[0]) };
   });

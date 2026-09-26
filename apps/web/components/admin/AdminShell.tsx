@@ -14,7 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LogoMark } from "@/components/ds";
 import { api, ApiError, clearSession, getAccessToken, type AdminMe, type AdminSearchResult, type AdminToday } from "@/lib/api";
-import { collarNumber, plural, ROLE_LABEL, VET_STATUS_LABEL, wardCode } from "./format";
+import { collarNumber, plural, ROLE_LABEL, SITE_URL, VET_STATUS_LABEL, wardCode } from "./format";
 import { canSee, isAdmin, type Section } from "./permissions";
 import { AdminProvider, cx, errorText, styles as s, useWards } from "./ui";
 
@@ -151,9 +151,9 @@ export function NotAdmin(): React.JSX.Element {
           else you do on Hetja is in the app.
         </p>
         <div className={s.actionsInline}>
-          <Link className={cx(s.btn, s.btnDark)} href="/">
+          <a className={cx(s.btn, s.btnDark)} href={`${SITE_URL}/`}>
             Go to Hetja
-          </Link>
+          </a>
           <button
             type="button"
             className={cx(s.btn, s.btnOutline)}
@@ -183,9 +183,9 @@ export function LaptopOnly(): React.JSX.Element {
         </p>
         <p className={s.gateBody}>An SOS still reaches you on your phone, in the Hetja app.</p>
         <div className={s.actionsInline}>
-          <Link className={cx(s.btn, s.btnDark)} href="/">
+          <a className={cx(s.btn, s.btnDark)} href={`${SITE_URL}/`}>
             Open the Hetja app
-          </Link>
+          </a>
         </div>
       </div>
     </div>
@@ -195,12 +195,20 @@ export function LaptopOnly(): React.JSX.Element {
 function Portal({ me, children }: { me: AdminMe; children: ReactNode }): React.JSX.Element {
   const path = usePathname() ?? "/admin";
   const [today, setToday] = useState<AdminToday | null>(null);
+  const [todayError, setTodayError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
   const refreshToday = useCallback(() => {
-    api.getAdminToday().then(setToday, () => undefined);
+    setTodayError(null);
+    api.getAdminToday().then(
+      (t) => {
+        setToday(t);
+        setTodayError(null);
+      },
+      (e) => setTodayError(errorText(e)),
+    );
   }, []);
   useEffect(refreshToday, [refreshToday]);
 
@@ -222,8 +230,8 @@ function Portal({ me, children }: { me: AdminMe; children: ReactNode }): React.J
   }, []);
 
   const ctx = useMemo(
-    () => ({ me, today, refreshToday, toast, openSearch: () => setSearching(true), now: () => new Date() }),
-    [me, today, refreshToday, toast],
+    () => ({ me, today, todayError, refreshToday, toast, openSearch: () => setSearching(true), now: () => new Date() }),
+    [me, today, todayError, refreshToday, toast],
   );
 
   const nav = (items: NavDef[]) =>

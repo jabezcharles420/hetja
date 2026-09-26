@@ -1232,3 +1232,214 @@ describe("reports and the D13 moderation tools", () => {
     expect(detail.json().data).toMatchObject({ state: "acked", assignedVet: { feederId: vet.id } });
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Pre-deploy review (2026-09-27): privilege, privacy, audit and pause fixes.
+// ---------------------------------------------------------------------------
+
+async function auditCount(action: string, actorId: string): Promise<number> {
+  const r = await query<{ n: number }>(`SELECT count(*)::int AS n FROM audit_log WHERE action = $1 AND actor_id = $2`, [action, actorId]);
+  return r.rows[0].n;
+}
+
+async function withRole(role: string, wards: string[] = []): Promise<TestFeeder> {
+  const f = await insertFeeder();
+  await query(`INSERT INTO admin_roles (feeder_id, role, wards) VALUES ($1, $2, $3)`, [f.id, role, wards]);
+  return f;
+}
+
+describe("review 1: privilege on accounts that hold admin roles", () => {
+  it("a moderator cannot suspend the Owner, another moderator, or block an admin's device; can suspend a feeder", async () => {
+    const owner = await insertOwner();
+    const mod = await withRole("moderator");
+    const mod2 = await withRole("moderator");
+    const s1 = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${owner.id}/suspend`, headers: mod.headers, payload: { reason: "takeover" } });
+    expect(s1.statusCode).toBe(403);
+    expect(s1.json().error.code).toBe("OWNER_REQUIRED");
+    const s2 = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${mod2.id}/suspend`, headers: mod.headers, payload: { reason: "rivalry" } });
+    expect(s2.json().error.code).toBe("OWNER_REQUIRED");
+    const self = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${mod.id}/suspend`, headers: mod.headers, payload: { reason: "oops" } });
+    expect(self.json().error.code).toBe("CANNOT_TARGET_SELF");
+    // The Owner still works after all of that.
+    expect((await app.inject({ method: "GET", url: "/api/v1/admin/me", headers: owner.headers })).statusCode).toBe(200);
+    // A moderator's own device, reached through a scan, cannot be blocked by another moderator.
+    const dog = await insertDog();
+    const d = device();
+    const scan = await query<{ id: string }>(
+      `INSERT INTO scans (dog_id, client_uuid, scan_type, feeder_id, device_token, captured_at) VALUES ($1, $2, 'view', $3, $4, now()) RETURNING id`,
+      [dog.id, randomUUID(), mod2.id, d.subject],
+    );
+    const blk = await app.inject({ method: "POST", url: "/api/v1/admin/devices/block", headers: mod.headers, payload: { scanId: scan.rows[0].id, reason: "abuse" } });
+    expect(blk.json().error.code).toBe("OWNER_REQUIRED");
+    const feeder = await insertFeeder();
+    const ok = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${feeder.id}/suspend`, headers: mod.headers, payload: { reason: "spam" } });
+    expect(ok.statusCode).toBe(200);
+  });
+
+  it("an Owner can suspend a moderator; a configured Owner can never be suspended or removed through the API", async () => {
+    const config = await insertOwner();
+    const granted = await withRole("owner");
+    const mod = await withRole("moderator");
+    const s = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${mod.id}/suspend`, headers: granted.headers, payload: { reason: "left" } });
+    expect(s.statusCode).toBe(200);
+    const c1 = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${config.id}/suspend`, headers: granted.headers, payload: { reason: "x" } });
+    expect(c1.json().error.code).toBe("CONFIG_OWNER");
+    const c2 = await app.inject({ method: "POST", url: `/api/v1/admin/team/${config.id}/remove`, headers: granted.headers, payload: {} });
+    expect(c2.json().error.code).toBe("CONFIG_OWNER");
+    // An Owner demoting another Owner is allowed while an active Owner remains.
+    const other = await withRole("owner");
+    const demote = await app.inject({ method: "POST", url: `/api/v1/admin/team/${other.id}/role`, headers: granted.headers, payload: { role: "moderator" } });
+    expect(demote.statusCode).toBe(200);
+    // An admin cannot suspend their own vet profile's account either.
+    const selfSuspend = await app.inject({ method: "POST", url: `/api/v1/admin/feeders/${granted.id}/suspend`, headers: granted.headers, payload: { reason: "x" } });
+    expect(selfSuspend.json().error.code).toBe("CANNOT_TARGET_SELF");
+  });
+});
+
+describe("review 2 and 3: private photos", () => {
+  it("a clinic slip is encrypted, never in the photos dir, private, audited, and on a 30-day clock once decided", async () => {
+    const owner = await insertOwner();
+    const vet = await verifiedVet(owner);
+    const priya = await insertFeeder({ name: "Priya" });
+    const dog = await insertDog({ registeredBy: priya.id });
+    const ask = await app.inject({
+      method: "POST",
+      url: `/api/v1/dogs/${dog.slug}/sign-requests`,
+      headers: priya.headers,
+      payload: { proposed: { type: "sterilisation", givenOn: "2026-04-01" }, vetFeederId: vet.id, evidencePhotoBase64: jpeg().toString("base64") },
+    });
+    expect(ask.statusCode).toBe(201);
+    const photos = await readdir(join(storageDir, "photos")).catch(() => []);
+    expect(photos).toEqual([]);
+    const req = (await app.inject({ method: "GET", url: `/api/v1/vet/sign-requests/${ask.json().data.id}`, headers: vet.headers })).json().data;
+    expect(req).toMatchObject({ hasEvidencePhoto: true });
+    expect(req.evidencePhotoPath).toBe(`/sign-requests/${ask.json().data.id}/evidence`);
+    const stranger = await insertFeeder();
+    expect((await app.inject({ method: "GET", url: `/api/v1${req.evidencePhotoPath}`, headers: stranger.headers })).statusCode).toBe(403);
+    const editor = await withRole("avatar_editor");
+    expect((await app.inject({ method: "GET", url: `/api/v1${req.evidencePhotoPath}`, headers: editor.headers })).statusCode).toBe(403);
+    const byVet = await app.inject({ method: "GET", url: `/api/v1${req.evidencePhotoPath}`, headers: vet.headers });
+    expect(byVet.statusCode).toBe(200);
+    expect(byVet.headers["content-type"]).toBe("image/jpeg");
+    expect((await app.inject({ method: "GET", url: `/api/v1${req.evidencePhotoPath}`, headers: priya.headers })).statusCode).toBe(200);
+    expect(await auditCount("document.view", vet.id)).toBeGreaterThan(0);
+    const dec = await app.inject({ method: "POST", url: `/api/v1/vet/sign-requests/${ask.json().data.id}/decline`, headers: vet.headers, payload: { reason: "not me" } });
+    expect(dec.statusCode).toBe(200);
+    expect(await auditCount("sign_request.decline", vet.id)).toBe(1);
+    const doc = await query<{ days: number }>(
+      `SELECT round(extract(epoch FROM delete_after - now()) / 86400)::int AS days FROM documents
+        WHERE owner_kind = 'sign_request' AND owner_id = $1`,
+      [ask.json().data.id],
+    );
+    expect(doc.rows[0].days).toBe(30);
+  });
+
+  it("a record photo opens for moderating admins only (not an avatar editor), is audited, and has a 30-day retention", async () => {
+    const owner = await insertOwner();
+    const vet = await verifiedVet(owner);
+    const dog = await insertDog();
+    const up = await app.inject({ method: "POST", url: "/api/v1/vet/record-photos", headers: vet.headers, payload: { base64: jpeg().toString("base64") } });
+    const s = await signRecord(vet, { dogSlug: dog.slug, type: "vaccination", vaccine: "DHPPi", givenOn: "2026-09-20", photoId: up.json().data.photoId });
+    const path = (await app.inject({ method: "GET", url: `/api/v1/dogs/${dog.slug}/health` })).json().data.records[0].photoPath;
+    const editor = await withRole("avatar_editor");
+    expect((await app.inject({ method: "GET", url: `/api/v1${path}`, headers: editor.headers })).statusCode).toBe(403);
+    const mod = await withRole("moderator");
+    expect((await app.inject({ method: "GET", url: `/api/v1${path}`, headers: mod.headers })).statusCode).toBe(200);
+    expect(await auditCount("document.view", mod.id)).toBe(1);
+    const doc = await query<{ days: number }>(
+      `SELECT round(extract(epoch FROM delete_after - now()) / 86400)::int AS days FROM documents WHERE owner_kind = 'medical_record' AND owner_id = $1`,
+      [s.json().data.recordId],
+    );
+    expect(doc.rows[0].days).toBe(30);
+  });
+});
+
+describe("review 4: a taken-down photo's file is deleted at once", () => {
+  it("removes the file from the public photos directory", async () => {
+    const owner = await insertOwner();
+    const f = await insertFeeder();
+    const dog = await insertDog({ registeredBy: f.id });
+    const { mkdir, writeFile, stat } = await import("node:fs/promises");
+    await mkdir(join(storageDir, "photos"), { recursive: true });
+    const key = `photos/${randomUUID()}.jpg`;
+    await writeFile(join(storageDir, key), jpeg());
+    const scanId = await feed(dog.id, f.id, key);
+    const hide = await app.inject({ method: "POST", url: `/api/v1/admin/photos/${scanId}/hide`, headers: owner.headers, payload: { reason: "not the dog" } });
+    expect(hide.statusCode).toBe(200);
+    await expect(stat(join(storageDir, key))).rejects.toThrow();
+    const row = await query<{ photo_s3_key: string | null; photo_hidden_at: Date | null }>(`SELECT photo_s3_key, photo_hidden_at FROM scans WHERE id = $1`, [scanId]);
+    expect(row.rows[0].photo_s3_key).toBeNull();
+    expect(row.rows[0].photo_hidden_at).not.toBeNull();
+    const detail = await app.inject({ method: "GET", url: `/api/v1/admin/dogs/${dog.slug}`, headers: owner.headers });
+    expect(detail.json().data.photos[0]).toMatchObject({ scanId, hidden: true, url: null });
+  });
+});
+
+describe("review 5 and 6: audit gaps; a paused NGO sends nobody", () => {
+  it("audits avatar uploads, ambulance, beds, dispatch accept and decline, drive edits and vet profile edits", async () => {
+    const owner = await insertOwner();
+    const batch = (await app.inject({ method: "POST", url: "/api/v1/admin/avatars/batches", headers: owner.headers, payload: {} })).json().data;
+    await app.inject({ method: "POST", url: `/api/v1/admin/avatars/batches/${batch.id}/files`, headers: owner.headers, payload: { fileName: "x.png", imageBase64: jpeg().toString("base64") } });
+    expect(await auditCount("avatar.upload", owner.id)).toBe(1);
+    const kavita = await insertFeeder();
+    const ngoId = await activeNgo(owner, kavita);
+    await app.inject({ method: "POST", url: "/api/v1/ngo/ambulance", headers: kavita.headers, payload: { status: "out" } });
+    await app.inject({ method: "POST", url: "/api/v1/ngo/beds", headers: kavita.headers, payload: { free: 3, total: 12 } });
+    expect(await auditCount("ngo.ambulance", kavita.id)).toBe(1);
+    expect(await auditCount("ngo.beds", kavita.id)).toBe(1);
+    const rahul = await insertFeeder();
+    await query(`INSERT INTO ngo_members (ngo_id, feeder_id, role) VALUES ($1, $2, 'rescue')`, [ngoId, rahul.id]);
+    const dog = await insertDog({ ward: "K-West" });
+    const caseId = (await app.inject({ method: "POST", url: "/api/v1/reports", payload: { dogSlug: dog.slug, severity: "serious", deviceToken: device().token } })).json().data.caseId;
+    const d1 = (await app.inject({ method: "POST", url: `/api/v1/ngo/sos/${caseId}/dispatch`, headers: kavita.headers, payload: { feederId: rahul.id } })).json().data;
+    await app.inject({ method: "POST", url: `/api/v1/ngo/dispatches/${d1.id}/decline`, headers: rahul.headers, payload: {} });
+    expect(await auditCount("sos.dispatch_decline", rahul.id)).toBe(1);
+    const d2 = (await app.inject({ method: "POST", url: `/api/v1/ngo/sos/${caseId}/dispatch`, headers: kavita.headers, payload: { feederId: rahul.id } })).json().data;
+    await app.inject({ method: "POST", url: `/api/v1/ngo/dispatches/${d2.id}/accept`, headers: rahul.headers, payload: {} });
+    expect(await auditCount("sos.dispatch_accept", rahul.id)).toBe(1);
+    const drive = (await app.inject({ method: "POST", url: "/api/v1/ngo/drives", headers: kavita.headers, payload: { wardId: "K-West", date: "2026-10-04", time: "07:00" } })).json().data;
+    await app.inject({ method: "PATCH", url: `/api/v1/ngo/drives/${drive.id}`, headers: kavita.headers, payload: { collarsPacked: 9 } });
+    const added = (await app.inject({ method: "POST", url: `/api/v1/ngo/drives/${drive.id}/dogs`, headers: kavita.headers, payload: { slug: dog.slug, tasks: { collar: true } } })).json().data;
+    await app.inject({ method: "PATCH", url: `/api/v1/ngo/drives/${drive.id}/dogs/${added.id}`, headers: kavita.headers, payload: { done: { collar: true } } });
+    expect(await auditCount("drive.edit", kavita.id)).toBe(1);
+    expect(await auditCount("drive.add_dog", kavita.id)).toBe(1);
+    expect(await auditCount("drive.dog_update", kavita.id)).toBe(1);
+    const vet = await verifiedVet(owner);
+    await app.inject({ method: "PATCH", url: "/api/v1/vet/me", headers: vet.headers, payload: { clinic: "New Clinic" } });
+    expect(await auditCount("vet.profile_edit", vet.id)).toBe(1);
+  });
+
+  it("a paused NGO cannot dispatch", async () => {
+    const owner = await insertOwner();
+    const kavita = await insertFeeder();
+    const ngoId = await activeNgo(owner, kavita);
+    const rahul = await insertFeeder();
+    await query(`INSERT INTO ngo_members (ngo_id, feeder_id, role) VALUES ($1, $2, 'rescue')`, [ngoId, rahul.id]);
+    const dog = await insertDog({ ward: "K-West" });
+    const caseId = (await app.inject({ method: "POST", url: "/api/v1/reports", payload: { dogSlug: dog.slug, severity: "serious", deviceToken: device().token } })).json().data.caseId;
+    await app.inject({ method: "POST", url: `/api/v1/admin/ngos/${ngoId}/pause`, headers: owner.headers, payload: { reason: "paperwork" } });
+    const d = await app.inject({ method: "POST", url: `/api/v1/ngo/sos/${caseId}/dispatch`, headers: kavita.headers, payload: { feederId: rahul.id } });
+    expect(d.statusCode).toBe(403);
+    expect(d.json().error.code).toBe("NGO_PAUSED");
+  });
+});
+
+describe("review 7: suspended vets; collar batch number", () => {
+  it("an admin can flag a suspended vet's signatures; the vet's dog view says signing is not allowed", async () => {
+    const owner = await insertOwner();
+    const vet = await verifiedVet(owner);
+    const dog = await insertDog({ batchNo: "HJ-0412" });
+    await signRecord(vet, { dogSlug: dog.slug, type: "vaccination", vaccine: "Anti-rabies", givenOn: "2026-09-12" });
+    await app.inject({ method: "POST", url: `/api/v1/admin/vets/${vet.profileId}/suspend`, headers: owner.headers, payload: { reason: "lapsed" } });
+    const flag = await app.inject({ method: "POST", url: `/api/v1/admin/vets/${vet.profileId}/flag-signatures`, headers: owner.headers, payload: { flag: true, reason: "check them" } });
+    expect(flag.json().data).toMatchObject({ status: "suspended", signaturesFlagged: true });
+    expect(await auditCount("vet.flag_signatures", owner.id)).toBe(1);
+    const health = (await app.inject({ method: "GET", url: `/api/v1/dogs/${dog.slug}/health` })).json().data;
+    expect(health.records[0].flagged).toBe(true);
+    expect(health.collarBatchNo).toBe("HJ-0412");
+    expect((await app.inject({ method: "GET", url: `/api/v1/dogs/${dog.slug}` })).json().data.collarBatchNo).toBe("HJ-0412");
+    const view = await app.inject({ method: "GET", url: `/api/v1/vet/dogs/${dog.slug}`, headers: vet.headers });
+    expect(view.json().data).toMatchObject({ canSign: false, vetStatus: "suspended", signingBlockedReason: "suspended" });
+  });
+});

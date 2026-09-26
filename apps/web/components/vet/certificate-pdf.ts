@@ -21,10 +21,19 @@ export interface CertificateInput {
   slug: string;
   name: string | null;
   wardId: string | null;
+  /** The collar's printed batch number ("HJ-0412"), when it has one. */
+  collarNo?: string | null;
   records: HealthRecord[];
   /** Test hook: the Devanagari font bytes. */
   loadDevanagariFont?: () => Promise<ArrayBuffer | Uint8Array>;
   now?: Date;
+}
+
+/** "Collar HJ-0412 · R4N 7KW 2AB", or "Collar R4N 7KW 2AB" with no batch number. */
+export function collarLine(slug: string, collarNo?: string | null): string {
+  const code = prettyCode(slug);
+  const batch = collarNo?.trim();
+  return batch && batch.toUpperCase() !== code.replace(/ /g, "") ? `Collar ${batch} · ${code}` : `Collar ${code}`;
 }
 
 /** The rows the certificate prints: vet-signed only, vaccinations first, newest first. */
@@ -122,7 +131,7 @@ export async function buildCertificatePdf(input: CertificateInput): Promise<Uint
   y -= 44;
   draw(name, M, 30, fonts.bold);
   y -= 22;
-  const facts = [`Collar ${prettyCode(input.slug)}`, ward ? `${ward.code} ward${ward.name ? ` · ${ward.name}` : ""}` : ""]
+  const facts = [collarLine(input.slug, input.collarNo), ward ? `${ward.code} ward${ward.name ? ` · ${ward.name}` : ""}` : ""]
     .filter(Boolean)
     .join(" · ");
   draw(facts, M, 11, fonts.reg, mid);

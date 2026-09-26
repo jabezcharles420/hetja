@@ -557,6 +557,23 @@ export const vetApi = {
   /** "Or search by name or ID": dogs in the vet's wards (GET /vet/dogs?q=). */
   searchDogs: async (q: string) => (await api.searchVetDogs(q)).dogs ?? [],
 
+  /**
+   * The collar's batch number for the certificate. The public dog profile
+   * does not carry it yet, so it is read from there if it ever does, and
+   * otherwise from the vet's view of the dog (a vet is who prints most
+   * certificates). Null when neither says.
+   */
+  async collarNo(slug: string, publicDog: unknown): Promise<string | null> {
+    const o = obj(publicDog);
+    const direct = str(o.collarBatchNo) ?? str(o.batchNo) ?? str(obj(o.collar).batchNo);
+    if (direct) return direct;
+    try {
+      return (await api.getVetDog(slug)).dog.collar?.batchNo ?? null;
+    } catch {
+      return null;
+    }
+  },
+
   /** N5: the dog's row on a drive, to link the signature to it. Null when it can't be read. */
   async driveDogId(driveId: string, slug: string): Promise<string | null> {
     try {

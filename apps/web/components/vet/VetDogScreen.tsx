@@ -8,7 +8,7 @@ import { chromeFor } from "@/components/ChromeShell";
 import { ApiError } from "@/lib/api";
 import { pronouns } from "@/lib/care-copy";
 import { dogName } from "@/lib/streak";
-import { ago, shortDate } from "./vet-copy";
+import { ago, maySign, noSignLine, shortDate } from "./vet-copy";
 import { vetApi, type HealthRecord, type VetDogView } from "./vet-api";
 import { useOnMount, useSignedIn, VetMessage } from "./VetParts";
 import styles from "./vet.module.css";
@@ -43,14 +43,17 @@ export function notesLine(notes: HealthRecord[]): string {
 export default function VetDogScreen({ slug }: { slug: string }): React.JSX.Element {
   const pathname = usePathname();
   const { toLogin, signedIn } = useSignedIn(`/vet/dogs/${slug}`);
-  const [load, setLoad] = useState<{ kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; view: VetDogView }>({
+  const [load, setLoad] = useState<
+    { kind: "loading" } | { kind: "error"; notFound: boolean } | { kind: "ready"; view: VetDogView; status: string | null }
+  >({
     kind: "loading",
   });
   const [shared, setShared] = useState<string | null>(null);
 
   const fetchDog = useCallback(async () => {
     try {
-      setLoad({ kind: "ready", view: await vetApi.getVetDog(slug) });
+      const [view, vet] = await Promise.all([vetApi.getVetDog(slug), vetApi.getMyVet().catch(() => null)]);
+      setLoad({ kind: "ready", view, status: vet?.status ?? null });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return toLogin();
       if (err instanceof ApiError && err.status === 403) {
@@ -86,7 +89,8 @@ export default function VetDogScreen({ slug }: { slug: string }): React.JSX.Elem
     );
   }
 
-  const { view } = load;
+  const { view, status } = load;
+  const signable = maySign(status, view.canSign);
   const name = dogName(view.dog.name);
   const p = pronouns(view.dog.sex);
   const notes = view.notesToConfirm.length ? view.notesToConfirm : view.health.filter((r) => r.status === "feeder_noted" && !r.requestOpen);
@@ -147,20 +151,29 @@ export default function VetDogScreen({ slug }: { slug: string }): React.JSX.Elem
             Vet · only you see this
           </h2>
           <div className={styles.vetGrid}>
-            <Link href={sign("vaccination")} className={styles.vetBtn}>
-              Sign vaccination
-            </Link>
-            <Link href={sign("sterilisation")} className={styles.vetBtn}>
-              Mark sterilised
-            </Link>
-            <Link href={sign("treatment")} className={styles.vetBtn}>
-              Add treatment
-            </Link>
+            {signable && (
+              <>
+                <Link href={sign("vaccination")} className={styles.vetBtn}>
+                  Sign vaccination
+                </Link>
+                <Link href={sign("sterilisation")} className={styles.vetBtn}>
+                  Mark sterilised
+                </Link>
+                <Link href={sign("treatment")} className={styles.vetBtn}>
+                  Add treatment
+                </Link>
+              </>
+            )}
             <Link href={`/vet/dogs/${encodeURIComponent(slug)}/health`} className={styles.vetBtn}>
               Health notes
             </Link>
           </div>
-          {note && noteHref && (
+          {!signable && (
+            <p className={styles.vetNote} role="status">
+              {noSignLine(status)}
+            </p>
+          )}
+          {signable && note && noteHref && (
             <Link href={noteHref} className={styles.vetNote}>
               {notesLine(notes)}
             </Link>

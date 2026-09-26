@@ -17,7 +17,9 @@
  *   1. an admin_roles row (granted by an Owner in A6);
  *   2. HETJA_OWNER_EMAILS: at boot each address becomes its identity HMAC
  *      (both the typed and the canonical form, the same two lib/email.ts
- *      resolves sign-ins under) and the addresses are dropped. Never logged;
+ *      resolves sign-ins under), and only the HMACs are compared. The
+ *      addresses stay in the process environment (api.env), like every
+ *      secret; they are never written to the database, a log or a response;
  *   3. feeders.role = 'admin', the pre-v7 operator role granted by
  *      `pnpm admin:grant`: treated as Owner ("legacy_admin"), because it
  *      already held every moderation and enrolment power.
@@ -89,8 +91,9 @@ let ownerCache: { key: string; hmacs: Set<string> } | null = null;
 
 /**
  * The identity HMACs of the configured owner addresses. Computed once per
- * (addresses, pepper) and memoised; buildServer calls it at boot. The
- * addresses are never kept: only this set is.
+ * (addresses, pepper) and memoised; buildServer calls it at boot. Only this
+ * set is used for comparison; the addresses themselves are read from the
+ * environment and never written anywhere (database, log, response).
  */
 export function ownerHmacs(emails: string, pepper: string): Set<string> {
   const key = identityHmac(`${emails}\u0000owners`, pepper);
@@ -116,13 +119,32 @@ interface Cfg {
 }
 
 export async function loadAdmin(feederId: string, cfg: Cfg): Promise<AdminAuth | null> {
+  const held = await rolesHeldBy(feederId, cfg);
+  if (!held || held.suspended || held.roles.length === 0) return null;
+  const roles = held.roles;
+  const permissions = new Set<AdminPermission>();
+  for (const r of roles) for (const p of ROLE_PERMISSIONS[r.role]) permissions.add(p);
+  const onlyWardLead = roles.every((r) => r.role === "ward_lead");
+  const wards = onlyWardLead ? [...new Set(roles.flatMap((r) => r.wards))] : null;
+  return { feederId, name: held.name, roles, permissions, wards };
+}
+
+/**
+ * Every admin role an account holds, WHETHER OR NOT it is suspended
+ * (loadAdmin hides a suspended account's roles; the privilege guard below
+ * must still see them). null for an unknown or deleted account.
+ */
+export async function rolesHeldBy(
+  feederId: string,
+  cfg: Cfg,
+): Promise<{ name: string; roles: AdminGrant[]; suspended: boolean } | null> {
   const me = await query<{ display_name: string; identity_hmac: string; role: string; suspended_at: Date | null }>(
     `SELECT display_name, identity_hmac, role::text AS role, suspended_at
        FROM feeders WHERE id = $1 AND deleted_at IS NULL`,
     [feederId],
   );
   const f = me.rows[0];
-  if (!f || f.suspended_at) return null;
+  if (!f) return null;
   const rows = await query<{ role: AdminRole; wards: string[]; granted_at: Date; granted_by_name: string | null }>(
     `SELECT r.role, r.wards, r.granted_at, g.display_name AS granted_by_name
        FROM admin_roles r LEFT JOIN feeders g ON g.id = r.granted_by
@@ -143,12 +165,69 @@ export async function loadAdmin(feederId: string, cfg: Cfg): Promise<AdminAuth |
   if (f.role === "admin" && !roles.some((r) => r.role === "owner")) {
     roles.unshift({ role: "owner", wards: [], grantedAt: null, grantedByName: null, source: "legacy_admin" });
   }
-  if (roles.length === 0) return null;
-  const permissions = new Set<AdminPermission>();
-  for (const r of roles) for (const p of ROLE_PERMISSIONS[r.role]) permissions.add(p);
-  const onlyWardLead = roles.every((r) => r.role === "ward_lead");
-  const wards = onlyWardLead ? [...new Set(roles.flatMap((r) => r.wards))] : null;
-  return { feederId, name: f.display_name, roles, permissions, wards };
+  return { name: f.display_name, roles, suspended: f.suspended_at !== null };
+}
+
+/**
+ * How many accounts hold the Owner role and could act on it right now (live,
+ * not suspended): granted owners, legacy admins and configured owners.
+ */
+export async function activeOwnerIds(cfg: Cfg): Promise<Set<string>> {
+  const r = await query<{ id: string }>(
+    `SELECT f.id FROM feeders f
+      WHERE f.deleted_at IS NULL AND f.suspended_at IS NULL
+        AND (f.role = 'admin' OR f.identity_hmac = ANY($1::text[])
+             OR EXISTS (SELECT 1 FROM admin_roles r WHERE r.feeder_id = f.id AND r.role = 'owner' AND r.revoked_at IS NULL))`,
+    [[...ownerHmacs(cfg.HETJA_OWNER_EMAILS, cfg.HETJA_HMAC_PEPPER)]],
+  );
+  return new Set(r.rows.map((x) => x.id));
+}
+
+export interface GuardRefusal {
+  status: 403 | 409;
+  code: string;
+  message: string;
+}
+
+/**
+ * THE PRIVILEGE RULE for acting on an account (suspend it, block its device,
+ * remove or demote its admin role). Found in the pre-deploy review: a
+ * Moderator could suspend the Owner, and a suspended account holds no admin
+ * role, so the Owner was locked out of their own portal.
+ *
+ *   - nobody acts on themselves                              409 CANNOT_TARGET_SELF
+ *   - an account holding ANY admin role: only an Owner      403 OWNER_REQUIRED
+ *   - an Owner from HETJA_OWNER_EMAILS: never, through the API
+ *                                                            403 CONFIG_OWNER
+ *   - an Owner: never the last active one                    409 LAST_OWNER
+ *
+ * `losesOwner`: whether the action takes the target's Owner standing away
+ * (suspension, removal, a demotion do; a ward change does not).
+ */
+export async function guardAccountAction(
+  actor: AdminAuth,
+  targetId: string,
+  cfg: Cfg,
+  opts: { losesOwner?: boolean } = {},
+): Promise<GuardRefusal | null> {
+  if (targetId === actor.feederId) {
+    return { status: 409, code: "CANNOT_TARGET_SELF", message: "you cannot do this to your own account" };
+  }
+  const held = await rolesHeldBy(targetId, cfg);
+  if (!held || held.roles.length === 0) return null;
+  if (!actor.roles.some((r) => r.role === "owner")) {
+    return { status: 403, code: "OWNER_REQUIRED", message: "only an Owner can act on an account that holds an admin role" };
+  }
+  const isOwner = held.roles.some((r) => r.role === "owner");
+  if (held.roles.some((r) => r.source === "config")) {
+    return { status: 403, code: "CONFIG_OWNER", message: "an Owner set in HETJA_OWNER_EMAILS is changed there, not here" };
+  }
+  if (isOwner && opts.losesOwner !== false) {
+    const owners = await activeOwnerIds(cfg);
+    owners.delete(targetId);
+    if (owners.size === 0) return { status: 409, code: "LAST_OWNER", message: "Hetja needs at least one active Owner" };
+  }
+  return null;
 }
 
 /** Is this ward inside the admin's reach? A ward lead's wards, or everything. */

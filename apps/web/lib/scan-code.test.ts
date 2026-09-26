@@ -76,12 +76,17 @@ describe("display helpers", () => {
     expect(matchCountLabel(1)).toBe("1 dog matches");
   });
 
-  it("describes a care provider like the SOS sent screen", () => {
+  it("describes a care provider with the shared v7 care label", () => {
     expect(
-      careLine({ kind: "ngo", locality: "Andheri West", hasAmbulance: true, phoneE164: "+912200000000", phoneVerifiedAt: "x" }),
-    ).toBe("NGO · Andheri West · ambulance");
-    expect(careLine({ kind: "private_clinic", phoneE164: null })).toBe("Vet · no phone listed");
-    expect(careLine({ kind: "govt", phoneE164: "+91", phoneVerifiedAt: null })).toBe("Govt vet · number not confirmed");
+      careLine({ kind: "ngo", costTier: "free", locality: "Andheri West", hasAmbulance: true, phoneE164: "+912200000000", phoneVerifiedAt: "x" }),
+    ).toBe("NGO · free · Andheri West · ambulance");
+    expect(careLine({ kind: "private_clinic", costTier: "paid", phoneE164: null })).toBe("Vet · no phone listed");
+    expect(careLine({ kind: "govt", isPerson: true, phoneE164: "+91", phoneVerifiedAt: null })).toBe(
+      "Government vet · free · number not confirmed",
+    );
+    expect(careLine({ kind: "private_clinic", isGovernment: true, phoneE164: "+91", phoneVerifiedAt: "x" })).toBe(
+      "Government hospital · free",
+    );
   });
 
   it("builds tel: links", () => {

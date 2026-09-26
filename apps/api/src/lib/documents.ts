@@ -14,8 +14,11 @@
  *   - Written under DOCS_LOCAL_DIR (0700 directory, 0600 files), which is
  *     never the photos directory Caddy serves.
  *   - Streamed only to admins (routes/admin.ts, every open audited) and
- *     deleted 30 days after the application is decided (worker
- *     `sweep_v7_retention`). No file name is stored: a name can carry a person's name.
+ *     deleted 30 days after the application is decided (worker job
+ *     `sweep_v7`, apps/worker/src/index.ts). The same store holds a signed
+ *     record's vaccine-sticker photo and a sign request's clinic slip
+ *     (routes/v7-public.ts; also 30 days, see docs/INVARIANTS.md v7).
+ *     No file name is stored: a name can carry a person's name.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";

@@ -34,6 +34,8 @@ export const cx = (...c: (string | false | null | undefined)[]): string => c.fil
 export interface AdminCtx {
   me: AdminMe;
   today: AdminToday | null;
+  /** Why GET /admin/today failed, until a retry works. */
+  todayError: string | null;
   refreshToday: () => void;
   toast: (message: string) => void;
   openSearch: () => void;
@@ -413,11 +415,14 @@ export function Dialog({
   onClose,
   children,
   labelledBy,
+  wide,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   labelledBy?: string;
+  /** The document viewer: room for a PDF page. */
+  wide?: boolean;
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   const autoId = useId();
@@ -457,7 +462,7 @@ export function Dialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={s.dialog} tabIndex={-1} onKeyDown={onKey}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={s.dialog} style={wide ? { width: "min(960px, calc(100vw - 32px))" } : undefined} tabIndex={-1} onKeyDown={onKey}>
         <h2 id={titleId} className={s.dialogTitle}>
           {title}
         </h2>
@@ -597,4 +602,22 @@ export function useEscape(onEscape: (() => void) | null): void {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onEscape]);
+}
+
+/**
+ * An action the API would refuse for this viewer: shown, disabled, with the
+ * reason beside it, so nobody wonders where a button went.
+ */
+export function Refused({ label, why, small }: { label: string; why: string; small?: boolean }): React.JSX.Element {
+  const id = useId();
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+      <button type="button" className={cx(s.btn, small ? s.btnXs : undefined, s.btnOutline)} disabled aria-describedby={id}>
+        {label}
+      </button>
+      <span id={id} className={s.note} style={{ fontSize: 12 }}>
+        {why}
+      </span>
+    </span>
+  );
 }

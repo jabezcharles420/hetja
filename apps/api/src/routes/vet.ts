@@ -179,7 +179,7 @@ interface SignRequestRow {
   requester_show: boolean | null;
   requester_deleted: Date | null;
   created_at: Date;
-  evidence_photo_key: string | null;
+  evidence_document_id: string | null;
   note: string | null;
   status: string;
 }
@@ -187,7 +187,7 @@ interface SignRequestRow {
 const SIGN_REQUEST_SQL = `
   SELECT r.id, d.slug, d.name, ${PORTRAIT_SQL} AS photo_key, ${AVATAR_SQL} AS avatar_key,
          r.proposed, r.record_id, f.display_name AS requester_name, f.show_first_name AS requester_show,
-         f.deleted_at AS requester_deleted, r.created_at, r.evidence_photo_key, r.note, r.status
+         f.deleted_at AS requester_deleted, r.created_at, r.evidence_document_id, r.note, r.status
     FROM sign_requests r
     JOIN dogs d ON d.id = r.dog_id
     LEFT JOIN feeders f ON f.id = r.requested_by`;
@@ -200,7 +200,11 @@ function signRequestOf(req: FastifyRequest, r: SignRequestRow) {
     recordId: r.record_id,
     requestedBy: firstName(r.requester_name, r.requester_show, r.requester_deleted),
     requestedAt: new Date(r.created_at).toISOString(),
-    evidencePhotoUrl: photoUrlFor(req, r.evidence_photo_key),
+    // The clinic slip is PRIVATE: a path to fetch with a session
+    // (GET /sign-requests/:id/evidence), never a public photo URL.
+    hasEvidencePhoto: r.evidence_document_id !== null,
+    evidencePhotoPath: r.evidence_document_id ? `/sign-requests/${r.id}/evidence` : null,
+    evidencePhotoUrl: r.evidence_document_id ? `/sign-requests/${r.id}/evidence` : null,
     note: r.note,
     status: r.status,
   };
@@ -497,6 +501,15 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(404).send({ ok: false, error: { message: "apply as a vet first", code: "NO_VET_PROFILE" } });
     }
     const row = await loadVetProfileRow("feeder_id", auth.feederId);
+    await audit(null, {
+      actorId: auth.feederId,
+      actorKind: "vet",
+      action: "vet.profile_edit",
+      subjectType: "vet_profile",
+      subjectId: row!.id,
+      summary: `edited their vet profile (${Object.keys(p).filter((k) => p[k as keyof typeof p] !== undefined).join(", ")})`,
+      detail: { fields: Object.keys(p).filter((k) => p[k as keyof typeof p] !== undefined), wards: p.wards ?? null },
+    });
     return { ok: true, data: vetProfileOf(row!) };
   });
 
@@ -692,7 +705,10 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
         health: { records, viewerIsVet: vet.status === "verified" },
         notesToConfirm: currentRecords(records).filter((r) => r.status === "feeder_noted"),
         openSignRequests: requests,
+        // A suspended vet sees the dog but may not sign: the UI hides the buttons.
         canSign: vet.status === "verified" && keys.length > 0,
+        vetStatus: vet.status,
+        signingBlockedReason: vet.status !== "verified" ? "suspended" : keys.length === 0 ? "no_passkey" : null,
       },
     };
   });
@@ -723,6 +739,23 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
         [id.data, me, vet.wards, reason.data.reason ?? null],
       );
       const row = r.rows[0];
+      if (row) {
+        // Decided: the clinic slip's 30-day deletion clock starts.
+        await client.query(
+          `UPDATE documents SET delete_after = now() + interval '30 days'
+            WHERE owner_kind = 'sign_request' AND owner_id = $1 AND deleted_at IS NULL AND delete_after IS NULL`,
+          [id.data],
+        );
+        await audit(client, {
+          actorId: me,
+          actorKind: "vet",
+          action: "sign_request.decline",
+          subjectType: "sign_request",
+          subjectId: id.data,
+          summary: `declined a request to sign ${row.dog_name ?? row.slug}'s record`,
+          detail: { reason: reason.data.reason ?? null },
+        });
+      }
       if (row?.requested_by) {
         await enqueueFeederPush(client, [row.requested_by], {
           kind: "v7",
@@ -986,7 +1019,10 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
       }
       if (d.photoId) {
         await client.query(
-          `UPDATE documents SET owner_kind = 'medical_record', owner_id = $2, delete_after = NULL
+          // Retention (docs/INVARIANTS.md, v7): the record is final once
+          // signed (a correction is a new record), so the photo's 30 days
+          // start now, the same clock as a decided application's documents.
+          `UPDATE documents SET owner_kind = 'medical_record', owner_id = $2, delete_after = now() + interval '30 days'
             WHERE id = $1 AND owner_kind = 'pending'`,
           [d.photoId, out.id],
         );
@@ -1020,6 +1056,12 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
         );
         requester = requester ?? r.rows[0]?.requested_by ?? null;
       }
+      await client.query(
+        `UPDATE documents SET delete_after = now() + interval '30 days'
+          WHERE owner_kind = 'sign_request' AND deleted_at IS NULL AND delete_after IS NULL
+            AND owner_id IN (SELECT id FROM sign_requests WHERE status <> 'open' AND signed_record_id = $1)`,
+        [out.id],
+      );
       if (driveDogId) {
         await client.query(
           `UPDATE drive_dogs SET

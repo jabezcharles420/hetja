@@ -16,11 +16,11 @@ const NEEDS: Record<NeedsYouItem["kind"], AdminPermission> = {
   ngo: "ngos",
   report: "reports",
 };
-import { cx, styles as s, useAdmin } from "./ui";
+import { cx, ErrorLine, styles as s, useAdmin } from "./ui";
 
 
 export function TodayScreen(): React.JSX.Element {
-  const { me, today, now, openSearch } = useAdmin();
+  const { me, today, todayError, refreshToday, now, openSearch } = useAdmin();
   const key = useShortcutLabel();
   const at = now();
   const rows = today ? needsYouRows(today.needsYou.filter((i) => can(me, NEEDS[i.kind])), at) : [];
@@ -40,7 +40,9 @@ export function TodayScreen(): React.JSX.Element {
         </button>
       </header>
 
-      {!today ? (
+      {!today && todayError ? (
+        <ErrorLine message={`Today did not load. ${todayError}`} retry={refreshToday} />
+      ) : !today ? (
         <p className={s.muted} role="status">
           Loading today…
         </p>

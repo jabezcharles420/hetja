@@ -169,3 +169,22 @@ export const STATUS_TITLE: Record<"waiting" | "more_info" | "declined" | "suspen
   suspended: "Signing is paused.",
   removed: "Your vet account was closed.",
 };
+
+/**
+ * Whether this vet may sign now. Only a verified vet signs: a suspended vet
+ * (or one whose application is not decided) sees no sign actions. The API's
+ * `canSign` also needs a passkey, which V3 sets up inline, so a verified vet
+ * without one still sees the buttons; `canSign` decides only when the vet's
+ * status could not be read.
+ */
+export function maySign(status: string | null | undefined, canSign: boolean | null | undefined): boolean {
+  if (status) return status === "verified";
+  return canSign === true;
+}
+
+/** The calm line where the sign actions would be. */
+export function noSignLine(status: string | null | undefined): string {
+  return status === "suspended"
+    ? "Your vet account is paused, so signing is off for now. Records you already signed keep their badge."
+    : "Signing opens once Hetja has verified your vet account.";
+}

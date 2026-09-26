@@ -26,6 +26,8 @@ import { query, withTx } from "@hetja/db";
 import {
   ADMIN_ROLES,
   accountForEmail,
+  guardAccountAction,
+  rolesHeldBy,
   adminCoversWard,
   adminMePayload,
   claimInvites,
@@ -427,6 +429,10 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
       if (!writeLimited(req, reply, a)) return reply;
       const id = uuidParam(req);
       if (!id) return err(reply, 400, "INVALID_ID", "bad id");
+      if (opts.to === "suspended" || opts.to === "removed") {
+        const own = await query(`SELECT 1 FROM vet_profiles WHERE id = $1 AND feeder_id = $2`, [id, a.feederId]);
+        if ((own.rowCount ?? 0) > 0) return err(reply, 409, "CANNOT_TARGET_SELF", "you cannot do this to your own account");
+      }
       let reason: string | null = null;
       let extra: Record<string, unknown> = {};
       if (opts.action === "vet.verify") {
@@ -586,6 +592,42 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
       words: (n) => `removed ${n}`,
     }),
   );
+
+  /**
+   * Flag a vet's past signatures for re-check, or clear the flag, whatever
+   * the vet's status (a suspended vet's too, not only on removal). Flagged
+   * records show `flagged: true` on the health list; nothing in
+   * medical_records changes. Audited.
+   */
+  app.post("/api/v1/admin/vets/:id/flag-signatures", async (req, reply) => {
+    const a = await requireAdmin(req, reply, "vets");
+    if (!a) return reply;
+    if (!writeLimited(req, reply, a)) return reply;
+    const id = uuidParam(req);
+    const b = z.strictObject({ flag: z.boolean(), reason: z.string().trim().min(3).max(300) }).safeParse(req.body ?? {});
+    if (!id || !b.success) return err(reply, 400, "INVALID_FLAG", "body must be { flag: boolean, reason }");
+    const done = await withTx(async (client) => {
+      const u = await client.query<{ name: string; feeder_id: string }>(
+        `UPDATE vet_profiles v SET signatures_flagged_at = CASE WHEN $2 THEN COALESCE(signatures_flagged_at, now()) ELSE NULL END,
+                updated_at = now()
+           FROM feeders f WHERE v.id = $1 AND f.id = v.feeder_id RETURNING f.display_name AS name, v.feeder_id`,
+        [id, b.data.flag],
+      );
+      if (!u.rows[0]) return null;
+      await audit(client, {
+        actorId: a.feederId,
+        actorKind: "admin",
+        action: b.data.flag ? "vet.flag_signatures" : "vet.unflag_signatures",
+        subjectType: "vet_profile",
+        subjectId: id,
+        summary: `${b.data.flag ? "flagged" : "cleared the flag on"} ${u.rows[0].name}'s signatures for re-check · reason: ${b.data.reason}`,
+      });
+      return u.rows[0];
+    });
+    if (!done) return err(reply, 404, "NOT_FOUND", "no such vet");
+    const row = await loadVetProfileRow("id", id);
+    return { ok: true, data: adminVetDetailOf(row!, await documentsOf("vet_profile", id)) };
+  });
 
   /** A2: "Not found" on the MSVC register (shown red). Separate from Decline; Verify clears it. */
   app.post("/api/v1/admin/vets/:id/not-on-register", async (req, reply) => {
@@ -1062,6 +1104,12 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     const wards = b.data.role === "ward_lead" ? (b.data.wards ?? []) : [];
     if (b.data.role === "ward_lead" && (wards.length === 0 || !validWards(wards))) return err(reply, 400, "INVALID_WARDS", "a ward lead needs Mumbai wards");
     if (who === a.feederId && b.data.role !== "owner") return err(reply, 409, "CANNOT_DEMOTE_SELF", "ask another owner to change your role");
+    if (who !== a.feederId) {
+      const held = await rolesHeldBy(who, app.config);
+      const losesOwner = !!held?.roles.some((x) => x.role === "owner") && b.data.role !== "owner";
+      const refused = await guardAccountAction(a, who, app.config, { losesOwner });
+      if (refused) return err(reply, refused.status, refused.code, refused.message);
+    }
     const name = await withTx(async (client) => {
       const f = await client.query<{ display_name: string }>(`SELECT display_name FROM feeders WHERE id = $1 AND deleted_at IS NULL`, [who]);
       if (!f.rows[0]) return null;
@@ -1097,6 +1145,8 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     const who = uuidParam(req, "feederId");
     if (!who) return err(reply, 400, "INVALID_ID", "bad id");
     if (who === a.feederId) return err(reply, 409, "CANNOT_REMOVE_SELF", "ask another owner to remove you");
+    const refused = await guardAccountAction(a, who, app.config);
+    if (refused) return err(reply, refused.status, refused.code, refused.message);
     const rb = z.strictObject({ reason: z.string().trim().max(300).optional() }).safeParse(req.body ?? {});
     if (!rb.success) return err(reply, 400, "INVALID_REASON", "body may carry { reason }");
     const reason = rb.data.reason ?? null;

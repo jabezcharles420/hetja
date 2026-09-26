@@ -67,7 +67,7 @@ vi.mock("@/lib/api", async () => {
 
 import { api, setAccessToken, type HealthRecord as ApiHealthRecord, type SignRequest as ApiSignRequest, type VetProfile as ApiVetProfile } from "@/lib/api";
 import ApplyScreen from "./ApplyScreen";
-import { buildCertificatePdf, certificateFileName, certificateRows } from "./certificate-pdf";
+import { buildCertificatePdf, certificateFileName, certificateRows, collarLine } from "./certificate-pdf";
 import CorrectScreen from "./CorrectScreen";
 import FeederHealth from "./FeederHealth";
 import { healthOrder } from "./HealthList";
@@ -82,6 +82,8 @@ import {
   dueLine,
   hoursLabel,
   longDate,
+  maySign,
+  noSignLine,
   recordLine,
   requestSub,
   signerLine,
@@ -295,6 +297,10 @@ describe("records", () => {
     const bytes = await buildCertificatePdf({ slug: SLUG, name: "Rani", wardId: "K-West", records, now: new Date(2026, 8, 26) });
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe("%PDF-");
     expect(certificateFileName(SLUG, "Rani")).toBe("hetja-certificate-rani.pdf");
+    expect(collarLine(SLUG, "HJ-0412")).toBe("Collar HJ-0412 · R4N 7KW 2AB");
+    expect(collarLine(SLUG, null)).toBe("Collar R4N 7KW 2AB");
+    const withBatch = await buildCertificatePdf({ slug: SLUG, name: "Rani", wardId: "K-West", collarNo: "HJ-0412", records });
+    expect(withBatch.length).toBeGreaterThan(1000);
   });
 });
 
@@ -346,6 +352,45 @@ describe("V2 Vet tab", () => {
     m.getVetHome!.mockRejectedValue(new ApiError("no", { status: 403, code: "VET_NOT_VERIFIED" }));
     render(<VetHome />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/vet/apply"));
+  });
+});
+
+describe("who may sign", () => {
+  it("only a verified vet; canSign decides only without a status", () => {
+    expect(maySign("verified", false)).toBe(true);
+    expect(maySign("suspended", true)).toBe(false);
+    expect(maySign("waiting", true)).toBe(false);
+    expect(maySign(null, true)).toBe(true);
+    expect(maySign(null, false)).toBe(false);
+    expect(noSignLine("suspended")).toMatch(/^Your vet account is paused/);
+  });
+
+  it("V2b: a suspended vet sees no sign actions, and a calm line", async () => {
+    m.getVetDog!.mockResolvedValue({ ...vetDog(), canSign: false });
+    m.getVetMe!.mockResolvedValue({ profile: profile({ status: "suspended" }), canSign: false, canAcceptSos: false, passkeys: [], documents: [] });
+    render(<VetDogScreen slug={SLUG} />);
+    expect(await screen.findByText(noSignLine("suspended"))).not.toBeNull();
+    expect(screen.queryByText("Sign vaccination")).toBeNull();
+    expect(screen.queryByText("Mark sterilised")).toBeNull();
+    expect(screen.queryByText("Add treatment")).toBeNull();
+    expect(screen.queryByText(/feeder note to confirm/)).toBeNull();
+    expect(screen.getByText("Health notes")).not.toBeNull();
+  });
+
+  it("V2: a suspended vet's sign requests are listed but do not open", async () => {
+    m.getVetHome!.mockResolvedValue({
+      profile: profile({ status: "suspended" }),
+      canSign: false,
+      canAcceptSos: false,
+      sos: [],
+      signRequests: [REQ],
+      signRequestCount: 1,
+      dueSoon: { count: 0, by: "2026-10-09" },
+    });
+    render(<VetHome />);
+    expect(await screen.findByText("Rani · anti-rabies")).not.toBeNull();
+    expect(screen.getByText("Rani · anti-rabies").closest("a")).toBeNull();
+    expect(screen.getByText("Paused")).not.toBeNull();
   });
 });
 

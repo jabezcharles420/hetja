@@ -64,7 +64,8 @@ import {
 import { appendMedicalRecord } from "./medical.js";
 import { readDocument } from "../lib/documents.js";
 import { loadAdmin } from "../lib/admin.js";
-import { forgetDog } from "./dogs.js";
+import { audit } from "../lib/audit.js";
+import { forgetDog, printedBatchNo } from "./dogs.js";
 
 const notFound = (reply: FastifyReply) =>
   reply.status(404).send({ ok: false, error: { message: "dog not found", code: "DOG_NOT_FOUND" } });
@@ -222,37 +223,31 @@ export default async function v7PublicRoutes(app: FastifyInstance): Promise<void
     ]);
     // The V4 certificate is a web page that builds the PDF in the browser.
     const certificateUrl = `${app.config.PUBLIC_WEB_ORIGIN.replace(/\/+$/, "")}/vet/${dog.slug}/certificate`;
-    return { ok: true, data: { records, certificateUrl, viewerIsVet } };
+    const collar = await query<{ batch_no: string | null }>(`SELECT batch_no FROM collars WHERE dog_id = $1 LIMIT 1`, [dog.id]);
+    return { ok: true, data: { records, certificateUrl, viewerIsVet, collarBatchNo: printedBatchNo(collar.rows[0]?.batch_no) } };
   });
 
   /**
-   * A record's private photo (the vaccine sticker a vet attached while
-   * signing). NOT public: a verified vet, a feeder of the dog, or an admin.
-   * Encrypted at rest like the registration documents; streamed, never cached.
+   * Who may see a PRIVATE photo about a dog (a record's vaccine sticker, a
+   * sign request's clinic slip): a verified vet, a feeder of the dog, or an
+   * admin holding a MODERATION permission (vets or reports), not every admin
+   * role (pre-deploy review). Every open is audited. Encrypted at rest with
+   * the documents; streamed, never cached.
    */
-  app.get("/api/v1/dogs/:slug/health/:recordId/photo", async (req: FastifyRequest, reply: FastifyReply) => {
-    const auth = await requireFeeder(req, reply);
-    if (!auth) return reply;
-    const { recordId } = req.params as { recordId: string };
-    if (!z.string().uuid().safeParse(recordId).success) return notFound(reply);
-    const dog = await publicDogBySlug((req.params as { slug: string }).slug, auth.feederId);
-    if (!dog) return notFound(reply);
-    const allowed =
-      (await isActiveVet(auth.feederId)) ||
-      (await isFeederOfDog(auth.feederId, dog)) ||
-      (await loadAdmin(auth.feederId, app.config)) !== null;
-    if (!allowed) {
-      return reply
-        .status(403)
-        .send({ ok: false, error: { message: "only vets and this dog's feeders can see this photo", code: "NOT_ALLOWED" } });
-    }
-    const d = await query<{ id: string; mime: string; blob_key: string | null }>(
-      `SELECT x.id, x.mime, x.blob_key FROM documents x JOIN medical_records m ON m.id = x.owner_id
-        WHERE x.owner_kind = 'medical_record' AND x.owner_id = $1 AND x.deleted_at IS NULL
-          AND m.dog_id IN (SELECT id FROM dogs WHERE id = $2 OR merged_into = $2) LIMIT 1`,
-      [recordId, dog.id],
-    );
-    const doc = d.rows[0];
+  async function mayViewPrivatePhoto(feederId: string, dog: DogRef): Promise<"vet" | "feeder" | "admin" | null> {
+    if (await isActiveVet(feederId)) return "vet";
+    if (await isFeederOfDog(feederId, dog)) return "feeder";
+    const admin = await loadAdmin(feederId, app.config);
+    if (admin && (admin.permissions.has("vets") || admin.permissions.has("reports"))) return "admin";
+    return null;
+  }
+
+  async function streamPrivatePhoto(
+    reply: FastifyReply,
+    viewer: { feederId: string; kind: "vet" | "feeder" | "admin" },
+    doc: { id: string; mime: string; blob_key: string | null; kind: string } | undefined,
+    subject: { type: string; id: string },
+  ) {
     if (!doc?.blob_key) return notFound(reply);
     let bytes: Buffer;
     try {
@@ -260,7 +255,62 @@ export default async function v7PublicRoutes(app: FastifyInstance): Promise<void
     } catch {
       return reply.status(503).send({ ok: false, error: { message: "the photo could not be read", code: "DOCUMENTS_UNAVAILABLE" } });
     }
+    await audit(null, {
+      actorId: viewer.feederId,
+      actorKind: viewer.kind === "admin" ? "admin" : viewer.kind === "vet" ? "vet" : "feeder",
+      action: "document.view",
+      subjectType: "document",
+      subjectId: doc.id,
+      summary: `opened a ${doc.kind.replace("_", " ")}`,
+      detail: { on: subject.type, onId: subject.id },
+    });
     return reply.header("Content-Type", doc.mime).header("Cache-Control", "private, no-store").send(bytes);
+  }
+
+  const notAllowedPhoto = (reply: FastifyReply) =>
+    reply
+      .status(403)
+      .send({ ok: false, error: { message: "only vets, this dog's feeders and moderators can see this photo", code: "NOT_ALLOWED" } });
+
+  app.get("/api/v1/dogs/:slug/health/:recordId/photo", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const { recordId } = req.params as { recordId: string };
+    if (!z.string().uuid().safeParse(recordId).success) return notFound(reply);
+    const dog = await publicDogBySlug((req.params as { slug: string }).slug, auth.feederId);
+    if (!dog) return notFound(reply);
+    const kind = await mayViewPrivatePhoto(auth.feederId, dog);
+    if (!kind) return notAllowedPhoto(reply);
+    const d = await query<{ id: string; mime: string; blob_key: string | null; kind: string }>(
+      `SELECT x.id, x.mime, x.blob_key, x.kind FROM documents x JOIN medical_records m ON m.id = x.owner_id
+        WHERE x.owner_kind = 'medical_record' AND x.owner_id = $1 AND x.deleted_at IS NULL
+          AND m.dog_id IN (SELECT id FROM dogs WHERE id = $2 OR merged_into = $2) LIMIT 1`,
+      [recordId, dog.id],
+    );
+    return streamPrivatePhoto(reply, { feederId: auth.feederId, kind }, d.rows[0], { type: "medical_record", id: recordId });
+  });
+
+  /** A sign request's clinic slip (V2): the same private rule as a record photo. */
+  app.get("/api/v1/sign-requests/:id/evidence", async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = await requireFeeder(req, reply);
+    if (!auth) return reply;
+    const { id } = req.params as { id: string };
+    if (!z.string().uuid().safeParse(id).success) return notFound(reply);
+    const r = await query<{ slug: string; doc_id: string | null }>(
+      `SELECT d.slug, r.evidence_document_id AS doc_id FROM sign_requests r JOIN dogs d ON d.id = r.dog_id WHERE r.id = $1`,
+      [id],
+    );
+    const row = r.rows[0];
+    if (!row?.doc_id) return notFound(reply);
+    const dog = await publicDogBySlug(row.slug, auth.feederId);
+    if (!dog) return notFound(reply);
+    const kind = await mayViewPrivatePhoto(auth.feederId, dog);
+    if (!kind) return notAllowedPhoto(reply);
+    const d = await query<{ id: string; mime: string; blob_key: string | null; kind: string }>(
+      `SELECT id, mime, blob_key, kind FROM documents WHERE id = $1 AND owner_kind = 'sign_request' AND owner_id = $2 AND deleted_at IS NULL`,
+      [row.doc_id, id],
+    );
+    return streamPrivatePhoto(reply, { feederId: auth.feederId, kind }, d.rows[0], { type: "sign_request", id });
   });
 
   // -------------------------------------------------------------------------
@@ -519,9 +569,17 @@ export default async function v7PublicRoutes(app: FastifyInstance): Promise<void
         return reply.status(400).send({ ok: false, error: { message: "that vet cannot sign records", code: "VET_NOT_VERIFIED" } });
       }
       // The clinic slip: decoded and stripped on the request path, bounded by
-      // the photo gate, stored before the row is written.
-      let photoKey: string | null = null;
+      // the photo gate, and stored ENCRYPTED with the documents (private dir),
+      // never in the public photos directory (pre-deploy review). It is shown
+      // only to the vets who may answer the request, the dog's feeders and
+      // moderating admins, and deleted 30 days after the request is decided.
+      let evidence: { id: string; bytes: Buffer; mime: string } | null = null;
       if (b.evidencePhotoBase64) {
+        try {
+          docsKey(app.config);
+        } catch {
+          return reply.status(503).send({ ok: false, error: { message: "photo upload is not available yet", code: "DOCUMENTS_UNAVAILABLE" } });
+        }
         let release;
         try {
           release = await photoGate.acquire();
@@ -533,7 +591,17 @@ export default async function v7PublicRoutes(app: FastifyInstance): Promise<void
             .send({ ok: false, error: { message: "photo processing is busy; try again shortly", code: "PHOTO_BUSY" } });
         }
         try {
-          photoKey = await storePhoto(decodePhotoUpload(b.evidencePhotoBase64), app.config as unknown as StorageConfig);
+          const img = decodePhotoUpload(b.evidencePhotoBase64);
+          const id = randomUUID();
+          const mime = img.ext === "png" ? "image/png" : img.ext === "webp" ? "image/webp" : "image/jpeg";
+          await query(
+            `INSERT INTO documents (id, owner_kind, uploaded_by, kind, mime, size_bytes, sha256, delete_after)
+             VALUES ($1, 'pending', $2, 'evidence_photo', $3, $4, $5, now() + interval '1 day')`,
+            [id, auth.feederId, mime, img.bytes.length, sha256Hex(img.bytes)],
+          );
+          const key = await writeDocument(app.config, id, img.bytes);
+          await query(`UPDATE documents SET blob_key = $2 WHERE id = $1`, [id, key]);
+          evidence = { id, bytes: img.bytes, mime };
         } catch (err) {
           if (!(err instanceof UnsupportedImageError)) throw err;
           return reply.status(400).send({ ok: false, error: { message: `photo rejected: ${err.message}`, code: "INVALID_PHOTO" } });
@@ -543,10 +611,17 @@ export default async function v7PublicRoutes(app: FastifyInstance): Promise<void
       }
       const id = await withTx(async (client) => {
         const ins = await client.query<{ id: string }>(
-          `INSERT INTO sign_requests (dog_id, requested_by, vet_feeder_id, record_id, proposed, note, evidence_photo_key)
+          `INSERT INTO sign_requests (dog_id, requested_by, vet_feeder_id, record_id, proposed, note, evidence_document_id)
            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7) RETURNING id`,
-          [dog.id, auth.feederId, b.vetFeederId ?? null, b.recordId ?? null, JSON.stringify(proposed), b.note ?? null, photoKey],
+          [dog.id, auth.feederId, b.vetFeederId ?? null, b.recordId ?? null, JSON.stringify(proposed), b.note ?? null, evidence?.id ?? null],
         );
+        if (evidence) {
+          // Kept while the request is open; the decision starts the 30-day clock.
+          await client.query(
+            `UPDATE documents SET owner_kind = 'sign_request', owner_id = $2, delete_after = NULL WHERE id = $1`,
+            [evidence.id, ins.rows[0].id],
+          );
+        }
         const vets = b.vetFeederId
           ? [b.vetFeederId]
           : (await vetsForWard(dog.ward_id, 10)).map((v) => v.feederId).filter((v) => v !== auth.feederId);

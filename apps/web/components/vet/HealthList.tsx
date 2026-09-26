@@ -101,7 +101,8 @@ export function CertificateBar({
   name,
   wardId,
   records,
-}: Pick<HealthListProps, "slug" | "name" | "wardId" | "records">): React.JSX.Element | null {
+  collarNo,
+}: Pick<HealthListProps, "slug" | "name" | "wardId" | "records"> & { collarNo?: string | null }): React.JSX.Element | null {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!records.some((r) => r.status === "vet_signed")) return null;
@@ -110,7 +111,7 @@ export function CertificateBar({
     setBusy(true);
     setError(null);
     try {
-      await downloadCertificate({ slug, name, wardId, records });
+      await downloadCertificate({ slug, name, wardId, records, collarNo: collarNo ?? null });
     } catch {
       setError("The certificate couldn't be made on this phone. Try again.");
     } finally {

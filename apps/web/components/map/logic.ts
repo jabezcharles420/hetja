@@ -210,7 +210,7 @@ export function kindWord(k: "vet" | "ngo"): string {
 }
 
 /** A place's kind as every list says it (lib/care-label): "Government hospital · free", "NGO · free", "Vet". */
-export function placeKindLabel(p: Pick<MapPlace, "kind" | "careKind" | "costTier" | "isGovernment" | "isPerson">): string {
+export function placeKindLabel(p: Pick<MapPlace, "kind" | "careKind" | "costTier" | "isGovernment" | "isPerson"> & { name?: string | null }): string {
   return careLabel(p);
 }
 

@@ -7,9 +7,12 @@ const me = (o: Record<string, unknown>) => o as unknown as FeederMe;
 
 describe("care labels (v7: government care is free, and Hetja says so)", () => {
   it("names government vets and hospitals as free", () => {
-    expect(careLabel({ careKind: "govt" })).toBe("Government hospital · free");
+    expect(careLabel({ careKind: "govt" })).toBe("Government · free");
+    expect(careLabel({ careKind: "govt", name: "BMC Dog Control Office, Mulund" })).toBe("Government · free");
+    expect(careLabel({ careKind: "govt", name: "Municipal Vet Dispensary" })).toBe("Government vet · free");
+    expect(careLabel({ careKind: "govt", name: "BSPCA Hospital for Animals" })).toBe("Government hospital · free");
     expect(careLabel({ careKind: "govt", isPerson: true })).toBe("Government vet · free");
-    expect(careLabel({ isGovernment: true, kind: "vet", costTier: "paid" })).toBe("Government hospital · free");
+    expect(careLabel({ isGovernment: true, kind: "vet", costTier: "paid" })).toBe("Government · free");
     expect(careLabel({ isGovernment: true, isPerson: true, kind: "vet" })).toBe("Government vet · free");
     expect(careLabel({ isGovernment: false, isPerson: true, kind: "vet", costTier: "free" })).toBe("Vet · free");
   });

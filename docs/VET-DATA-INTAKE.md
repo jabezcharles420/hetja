@@ -193,7 +193,8 @@ and commit the month's file next to it (e.g. `2026-10-clinics.csv`):
 | Column | Rule |
 |---|---|
 | `source_id` | **Required and stable.** Your own id for the provider (`clinic-0042`). Keep it the same every month: it is how next month's row updates this one instead of duplicating it. |
-| `name`, `kind`, `cost_tier` | Required. `kind` is `ngo`, `govt`, `charity_hospital` or `private_clinic`; `cost_tier` is `free`, `subsidised` or `paid`, as the provider told you (never guessed). |
+| `name`, `kind`, `cost_tier` | Required. `kind` is `ngo`, `govt`, `charity_hospital` or `private_clinic`; `cost_tier` is `free`, `subsidised` or `paid`, as the provider told you (never guessed), or **empty when unknown** (migration 0030): the row imports with a warning, the API answers `costTier: null`, it sorts after the known tiers, and no price or "free" is shown for it. A government row with no tier is imported as `free` (the owner's decision: government care is free). A value that is not one of the three is still an error. |
+| JSONL from the care-agent pipeline | `pnpm --filter @hetja/db care:jsonl-to-csv -- --in <file.jsonl> --out <file.csv>` (`src/care-jsonl-to-csv.ts`) turns the pipeline's verified rows into this CSV: `source_id` is the candidate id, `confirmed_on` is left empty (web-verified, not confirmed by phone, so numbers show as not confirmed), notes say which page each row was checked against. |
 | `lat`, `lng` | Optional. When present (inside Mumbai) the provider gets a map pin. Take them from the provider's own address, not from a Google listing. |
 | `address`, `locality` | Without lat/lng the address is looked up in the geocode cache (or geocoded with `--geocode`); failing that the locality centre is used and the row gets no pin. |
 | `ward` | Optional BMC ward, as `K/W` or `K-West`. |

@@ -62,7 +62,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { MUMBAI_BOUNDS } from "@hetja/contracts";
+import { BMC_WARD_CENTROIDS, MUMBAI_BOUNDS } from "@hetja/contracts";
 import { pool } from "./pool.js";
 import {
   GEOCODE_CACHE,
@@ -177,7 +177,8 @@ export interface CareRecord {
   sourceRef: string;
   name: string;
   kind: CareKind;
-  costTier: CostTier;
+  /** null = unknown (migration 0030): imported with a warning, never guessed. */
+  costTier: CostTier | null;
   phone: string | null;
   altPhone: string | null;
   hasAmbulance: boolean;
@@ -253,9 +254,16 @@ export function readRecords(rows: string[][], today: string = todayInMumbai()): 
 
     const kind = col(r, "kind").toLowerCase() as CareKind;
     if (!CARE_KINDS.includes(kind)) return err(`kind "${col(r, "kind")}" is not one of ${CARE_KINDS.join(", ")}`);
-    const costTier = col(r, "cost_tier").toLowerCase() as CostTier;
-    if (!COST_TIERS.includes(costTier)) {
-      return err(`cost_tier "${col(r, "cost_tier")}" is not one of ${COST_TIERS.join(", ")} (it must be confirmed, not guessed)`);
+    // An EMPTY cost tier is unknown (migration 0030): imported as NULL with a
+    // warning, never guessed. A value that is not one of the three is still
+    // an error: a typo must not become "unknown" silently.
+    const tierRaw = col(r, "cost_tier").toLowerCase();
+    let costTier: CostTier | null = null;
+    if (tierRaw) {
+      if (!COST_TIERS.includes(tierRaw as CostTier)) {
+        return err(`cost_tier "${col(r, "cost_tier")}" is not one of ${COST_TIERS.join(", ")} (it must be confirmed, not guessed)`);
+      }
+      costTier = tierRaw as CostTier;
     }
 
     const flags: Record<string, boolean> = {};
@@ -296,7 +304,14 @@ export function readRecords(rows: string[][], today: string = todayInMumbai()): 
     const govRaw = col(r, "is_government");
     const isGovernment = govRaw === "" ? kind === "govt" : bool(govRaw);
     if (isGovernment === null) return err(`is_government "${govRaw}" is not yes/no`);
+    if (isGovernment && costTier === null) {
+      // The owner's decision: government care is free. Not a guess about this
+      // provider's prices but the rule Hetja labels government care by.
+      costTier = "free";
+      warn("cost_tier is empty on a government row: imported as free (government care is free)");
+    }
     if (isGovernment && costTier !== "free") return err("a government vet or hospital must be cost_tier free (government care is free)");
+    if (costTier === null) warn("cost_tier is empty: imported as unknown, and no price or \"free\" is shown for it");
     const regNo = col(r, "reg_no") || null;
     if (regNo && !/^[A-Za-z0-9/-]{1,32}$/.test(regNo)) return err(`reg_no "${regNo}" is not a registration number`);
     if (regNo && !flags.is_person) warn("reg_no is set on a row that is not a person: it is kept, but only people show it");
@@ -358,7 +373,7 @@ export interface StoredRow {
   source_ref: string | null;
   name: string;
   kind: string;
-  cost_tier: string;
+  cost_tier: string | null;
   phone_e164: string | null;
   alt_phone_e164: string | null;
   has_ambulance: boolean;
@@ -534,6 +549,35 @@ export function nearbySameKindWarnings(
   return out;
 }
 
+/**
+ * Where a row with no coordinates and no geocoded address is placed, at
+ * LOCALITY precision (never a map pin, distance shown as unknown): the
+ * locality's own centroid when it is one we know by name, else its ward's
+ * fixed centre (@hetja/contracts BMC_WARD_CENTROIDS), else a known locality
+ * named inside the text ("Madh Island, Malad West" -> Malad; the earliest
+ * mentioned wins), else the Mumbai centre. The ward step was added for the
+ * care-agent file of 2026-09-26: most of its localities ("Bandra West",
+ * "Apollo Bunder") are not in the centroid table, and without it they all
+ * landed on the Mumbai centre, so a nearby-care search near the dog found
+ * none of them.
+ */
+export function fallbackPoint(locality: string | null, wardId: string | null): { lat: number; lng: number } {
+  if (locality && LOCALITY_CENTROIDS[locality]) return LOCALITY_CENTROIDS[locality];
+  const ward = wardId ? (BMC_WARD_CENTROIDS as Record<string, { lat: number; lng: number }>)[wardId] : undefined;
+  if (ward) return { lat: ward.lat, lng: ward.lng };
+  if (locality) {
+    const text = locality.toLowerCase();
+    let best: { at: number; key: string } | null = null;
+    for (const key of Object.keys(LOCALITY_CENTROIDS)) {
+      if (key === "Mumbai") continue;
+      const at = text.indexOf(key.toLowerCase());
+      if (at >= 0 && (!best || at < best.at)) best = { at, key };
+    }
+    if (best) return LOCALITY_CENTROIDS[best.key];
+  }
+  return LOCALITY_CENTROIDS["Mumbai"];
+}
+
 export function tooManyRetires(listedCount: number, retires: number): boolean {
   return retires > MASS_RETIRE_MIN && retires > listedCount * MASS_RETIRE_SHARE;
 }
@@ -575,7 +619,7 @@ async function resolve(records: CareRecord[], geocode: boolean): Promise<{ resol
   const notes: RowIssue[] = [];
   const resolved: ResolvedRecord[] = [];
   for (const r of records) {
-    const centroid = (r.locality && LOCALITY_CENTROIDS[r.locality]) || LOCALITY_CENTROIDS["Mumbai"];
+    const centroid = fallbackPoint(r.locality, r.wardId);
     if (r.lat !== null && r.lng !== null) {
       resolved.push({ ...r, geoLat: r.lat, geoLng: r.lng, geoPrecision: "exact" });
       continue;

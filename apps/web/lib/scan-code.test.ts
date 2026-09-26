@@ -85,6 +85,9 @@ describe("display helpers", () => {
       "Government vet · free · number not confirmed",
     );
     expect(careLine({ kind: "private_clinic", isGovernment: true, phoneE164: "+91", phoneVerifiedAt: "x" })).toBe(
+      "Government · free",
+    );
+    expect(careLine({ kind: "govt", name: "KEM Veterinary Hospital", phoneE164: "+91", phoneVerifiedAt: "x" })).toBe(
       "Government hospital · free",
     );
   });

@@ -515,7 +515,8 @@ export interface NearbyCareProvider {
   id: string;
   name: string;
   kind: string;
-  costTier: string;
+  /** "free" | "subsidised" | "paid", or null when unknown (migration 0030): show no price and no "free" for null. Government rows always answer "free". */
+  costTier: string | null;
   phoneE164: string | null;
   altPhoneE164: string | null;
   hasAmbulance: boolean;

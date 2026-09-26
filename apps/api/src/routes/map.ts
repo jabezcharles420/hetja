@@ -306,7 +306,7 @@ interface ProviderRow {
   id: string;
   name: string;
   kind: string;
-  cost_tier: string;
+  cost_tier: string | null;
   phone_e164: string | null;
   alt_phone_e164: string | null;
   has_ambulance: boolean;

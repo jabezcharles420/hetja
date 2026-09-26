@@ -371,7 +371,9 @@ describe("design v6 words", () => {
 describe("placeKindLabel (v7 government care)", () => {
   const base = { kind: "vet" as const, careKind: "private_clinic" };
   it("says free where it is free", () => {
-    expect(placeKindLabel({ ...base, careKind: "govt" })).toBe("Government hospital · free");
+    expect(placeKindLabel({ ...base, careKind: "govt" })).toBe(
+      /hospital/i.test(String((base as { name?: string }).name ?? "")) ? "Government hospital · free" : "Government · free",
+    );
     expect(placeKindLabel({ kind: "ngo", careKind: "ngo", costTier: "free" })).toBe("NGO · free");
     expect(placeKindLabel(base)).toBe("Vet");
   });

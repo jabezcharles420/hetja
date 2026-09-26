@@ -307,7 +307,7 @@ http://admin.hetja.in {
 
 	# Only the portal, sign-in and the app's own assets live on this host.
 	# Everything else is the street app, which belongs on hetja.in.
-	@street not path /admin /admin/* /login /login/* /_next/* /fonts/* /icons/* /favicon.ico /manifest.webmanifest /robots.txt
+	@street not path /admin /admin/* /login /login/* /_next/* /fonts/* /icons/* /favicon.ico /icon.svg /apple-icon.png /manifest.webmanifest /robots.txt
 	redir @street https://hetja.in{uri} 302
 
 	handle /_next/static/* {

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api, getAccessToken } from "@/lib/api";
 import { readTabRole, rememberTabRole, saveTabRole } from "@/lib/tab-role";
 import { Footer, TabBar, TopNav } from "@/components/ds";
@@ -10,6 +10,7 @@ import { useScrolled } from "@/components/ds/useScrolled";
 import { DesktopInvite } from "./DesktopInvite";
 import { InstallBanner } from "./InstallBanner";
 import styles from "./ChromeShell.module.css";
+import { isAdminNext } from "@/lib/login";
 
 /**
  * Global chrome, per route. Decided here and nowhere else (design v5
@@ -200,9 +201,28 @@ function useRoleRefresh(): void {
   }, []);
 }
 
+/**
+ * True on admin.hetja.in, and on a sign-in that is heading back to /admin.
+ * The admin portal is the one laptop surface, so its sign-in must never be
+ * replaced by the D1 "Hetja lives on your phone" invitation. Read after
+ * mount (it needs window), so the first paint matches the server's.
+ */
+function useAdminContext(): boolean {
+  const [admin, setAdmin] = useState(false);
+  const pathname = usePathname();
+  useEffect(() => {
+    const host = window.location.hostname;
+    const next = new URLSearchParams(window.location.search).get("next") ?? "";
+    setAdmin(host.startsWith("admin.") || isAdminNext(next));
+  }, [pathname]);
+  return admin;
+}
+
 export function ChromeShell({ children }: { children: React.ReactNode }): React.JSX.Element {
   useRoleRefresh();
-  const chrome = chromeFor(usePathname());
+  const base = chromeFor(usePathname());
+  const adminContext = useAdminContext();
+  const chrome: Chrome = adminContext && base.desktop === "invite" ? { ...base, desktop: "frame" } : base;
   const scrolled = useScrolled();
   const navCls = [
     styles.nav,

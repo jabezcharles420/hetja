@@ -28,12 +28,12 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..", "..");
 const BASE = (process.env.HETJA_SCREENS_BASE_URL ?? "https://hetja.in").replace(/\/+$/, "");
-const OUT = path.resolve(process.env.HETJA_SCREENS_OUT ?? path.join(path.dirname(REPO), "Hetja-screens-v6"));
+const OUT = path.resolve(process.env.HETJA_SCREENS_OUT ?? path.join(path.dirname(REPO), "Hetja-screens-v7"));
 const ZIP = `${OUT}.zip`;
 const ONLY = (process.env.HETJA_SCREENS_ONLY ?? "")
   .split(",")
@@ -42,6 +42,15 @@ const ONLY = (process.env.HETJA_SCREENS_ONLY ?? "")
 
 const MOBILE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
+const LAPTOP = { width: 1280, height: 800 };
+/**
+ * HETJA_SCREENS_SET picks flow groups: "street" (the v4 to v6 app and collar
+ * page), "portals" (v7 admin, vet, NGO), or both (the default).
+ */
+const SETS = (process.env.HETJA_SCREENS_SET ?? "street,portals").split(",").map((x) => x.trim()).filter(Boolean);
+let currentGroup = "street";
+/** Flows named here run in every set (small re-shoots a later export asked for). */
+const ALWAYS = new Set((process.env.HETJA_SCREENS_ALSO ?? "").split(",").map((x) => x.trim()).filter(Boolean));
 
 // ---------------------------------------------------------------------------
 // Time helpers (fixtures are relative to "now", in Asia/Kolkata)
@@ -218,6 +227,9 @@ const ME = {
   publicName: "Priya S.",
   showFirstName: true,
   sosPausedUntil: null,
+  vet: null,
+  ngo: null,
+  adminRoles: [],
 };
 
 const STREAK = {
@@ -795,6 +807,556 @@ async function wardDetail(id, s, ctx) {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Design v7: NGO portal fixtures (shapes from the "Design v7" block of
+// apps/web/lib/api.ts: NgoProfile, NgoMe, NgoHome, DispatchCandidates,
+// MyDispatch, NgoTeam, DriveSummary, DriveDetail, NgoWardDog)
+// ---------------------------------------------------------------------------
+
+const NGO_ID = "b7d1e2f3-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
+
+function ngoProfile(s = {}) {
+  return {
+    id: NGO_ID,
+    name: "Andheri Animal Rescue",
+    regType: "trust",
+    regNo: "E-21904",
+    since: 2011,
+    has80g: true,
+    wards: ["K-West", "K-East"],
+    citywide: false,
+    offers: { ambulance: true, shelterBeds: true, sterilisation: true, collars: true },
+    contactName: "Farah Qureshi",
+    publicPhone: "+919820012231",
+    hours: "9 am to 8 pm",
+    status: s.ngoStatus ?? "active",
+    appliedAt: ago(60 * 24 * 40),
+    decidedAt: s.ngoStatus === "waiting" ? null : ago(60 * 24 * 35),
+    decisionReason: s.ngoStatus === "paused" ? "Your registration certificate expired on 31 August. Send the renewed one and we switch routing back on." : s.ngoStatus === "removed" ? "The registration number did not match the charity commissioner's records." : null,
+    ambulance: s.ambulanceOut
+      ? { count: 1, hours: "24 hours", status: "out", outOnCase: { caseId: CASE_ID.open, dogName: "Rani" } }
+      : { count: 1, hours: "24 hours", status: "in", outOnCase: null },
+    beds: { total: 12, free: 3 },
+  };
+}
+
+const NGO_STAFF = {
+  qureshi: "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b",
+  pillai: "6f7a8b9c-0d1e-4f2a-9b3c-4d5e6f7a8b9c",
+  mehta: "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+  rahul: "8b9c0d1e-2f3a-4b4c-9d5e-6f7a8b9c0d1e",
+  sana: "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f",
+  imran: "0d1e2f3a-4b5c-4d6e-9f7a-8b9c0d1e2f3a",
+  kavya: "1e2f3a4b-5c6d-4e7f-8a8b-9c0d1e2f3a4b",
+};
+
+function ngoSos() {
+  return [
+    {
+      caseId: CASE_ID.open,
+      dog: { slug: SLUG.rani, name: "Rani", photoUrl: photoUrl("rani"), avatarUrl: null },
+      wardId: "K-West", wardCode: "K/W", wardName: "Andheri West",
+      severity: "critical", openedAt: ago(40), state: "open",
+      assigned: null, takenBy: null, opensToVetsAt: new Date(NOW + 6 * 60_000).toISOString(),
+    },
+    {
+      caseId: CASE_ID.hw,
+      dog: { slug: SLUG.bruno, name: "Bruno", photoUrl: null, avatarUrl: null },
+      wardId: "K-East", wardCode: "K/E", wardName: "Andheri East",
+      severity: "serious", openedAt: ago(22), state: "open",
+      assigned: { dispatchId: "dsp-2", name: "Rahul", kind: "member", withAmbulance: true, etaMin: null, accepted: false },
+      takenBy: null, opensToVetsAt: null,
+    },
+    {
+      caseId: CASE_ID.other,
+      dog: { slug: SLUG.kalu, name: "Kalu", photoUrl: photoUrl("kalu"), avatarUrl: null },
+      wardId: "K-West", wardCode: "K/W", wardName: "Andheri West",
+      severity: "serious", openedAt: ago(55), state: "acked",
+      assigned: { dispatchId: "dsp-3", name: "Dr. Qureshi", kind: "vet", withAmbulance: true, etaMin: 12, accepted: true },
+      takenBy: "Dr. Qureshi", opensToVetsAt: null,
+    },
+  ];
+}
+
+function ngoHome(s = {}) {
+  return {
+    ngo: ngoProfile(s),
+    role: s.ngoRole ?? "coordinator",
+    sos: s.ngoNoSos ? [] : ngoSos(),
+    team: { vets: 3, volunteers: 11 },
+    nextDrive: { id: "drv-1", title: "Aram Nagar", startsAt: inDays(1), wardId: "K-West" },
+    dogs: { total: 412, unsterilised: 38 },
+  };
+}
+
+function myDispatches() {
+  return [
+    {
+      id: "dsp-9", caseId: CASE_ID.escalated, ngoId: NGO_ID, kind: "ngo_member", memberName: "Priya S.", withAmbulance: false,
+      etaMin: null, sentAt: ago(3), acceptedAt: null, declinedAt: null,
+      dog: { slug: SLUG.moti, name: "Moti" }, wardId: "K-West", severity: "serious", openedAt: ago(18), caseState: "open",
+    },
+  ];
+}
+
+function dispatchCandidates(s = {}) {
+  return {
+    candidates: [
+      { kind: "vet", feederId: NGO_STAFF.qureshi, name: "Dr. Qureshi", role: "vet", hasTransport: true, distanceM: 1200, free: true, busy: false, busyWith: null },
+      { kind: "vet", feederId: NGO_STAFF.pillai, name: "Dr. Pillai", role: "vet", hasTransport: true, distanceM: 3400, free: false, busy: true, busyWith: "Sterilisation drive, Aram Nagar" },
+      { kind: "member", feederId: NGO_STAFF.rahul, name: "Rahul", role: "rescue", hasTransport: true, distanceM: 800, free: true, busy: false, busyWith: null },
+      { kind: "member", feederId: NGO_STAFF.sana, name: "Sana", role: "volunteer", hasTransport: false, distanceM: 1500, free: true, busy: false, busyWith: null },
+    ],
+    ambulance: s.ambulanceOut ? { available: false, busyWith: "Out with Kalu" } : { available: true, busyWith: null },
+    opensToVetsAt: new Date(NOW + 6 * 60_000).toISOString(),
+  };
+}
+
+function ngoTeam(s = {}) {
+  const manage = (s.ngoRole ?? "coordinator") === "coordinator";
+  return {
+    vets: [
+      { feederId: NGO_STAFF.qureshi, name: "Dr. Farah Qureshi", status: "verified", regLabel: "MSVC 11482", vouchedAt: ago(60 * 24 * 30) },
+      { feederId: NGO_STAFF.pillai, name: "Dr. Anand Pillai", status: "verified", regLabel: "MSVC 09317", vouchedAt: ago(60 * 24 * 60) },
+      { feederId: NGO_STAFF.mehta, name: "Dr. Neha Mehta", status: "waiting", regLabel: "MSVC 13025", vouchedAt: null },
+    ],
+    members: [
+      { feederId: ME.feederId, name: "Priya S.", role: s.ngoRole ?? "coordinator", hasTransport: false, joinedAt: ago(60 * 24 * 35) },
+      { feederId: NGO_STAFF.rahul, name: "Rahul Kadam", role: "rescue", hasTransport: true, joinedAt: ago(60 * 24 * 30) },
+      { feederId: NGO_STAFF.sana, name: "Sana Shaikh", role: "volunteer", hasTransport: false, joinedAt: ago(60 * 24 * 20) },
+      { feederId: NGO_STAFF.imran, name: "Imran Ansari", role: "collars", hasTransport: true, joinedAt: ago(60 * 24 * 12) },
+      { feederId: NGO_STAFF.kavya, name: "Kavya Nair", role: "volunteer", hasTransport: false, joinedAt: ago(60 * 24 * 4) },
+    ],
+    invites: [{ id: "inv-1", role: "volunteer", createdAt: ago(60 * 24) }],
+    canManage: manage,
+  };
+}
+
+function driveDog(id, slug, tasks, done, status = "todo", registrationStatus) {
+  const d = DOGS[slug] ?? { name: null, photoUrl: null };
+  return { id, dog: { slug, name: d.name, photoUrl: d.photoUrl ?? null, avatarUrl: null }, tasks, done, status, ...(registrationStatus ? { registrationStatus } : {}) };
+}
+
+function driveDetail(state = "planned") {
+  const started = state !== "planned";
+  const finished = state === "finished";
+  const T = (c, v, s2) => ({ collar: c, vaccinate: v, sterilise: s2 });
+  const dogs = [
+    driveDog("dd-1", SLUG.rani, T(false, true, false), T(false, finished || started, false), finished || started ? "done" : "todo"),
+    driveDog("dd-2", SLUG.moti, T(true, true, true), T(finished, finished, false), finished ? "to_clinic" : "todo"),
+    driveDog("dd-3", SLUG.goli, T(true, true, false), T(finished, finished, false), finished ? "done" : "todo", "pending_activation"),
+    driveDog("dd-4", SLUG.bruno, T(false, true, true), T(false, finished, false), finished ? "to_clinic" : "todo"),
+    driveDog("dd-5", SLUG.tiger, T(true, true, false), T(finished, finished, false), finished ? "done" : "todo"),
+    driveDog("dd-6", SLUG.kalu, T(false, true, false), T(false, false, false), finished ? "not_found" : "todo"),
+  ];
+  return {
+    id: "drv-1",
+    title: "Aram Nagar",
+    wardId: "K-West",
+    wardCode: "K/W",
+    startsAt: started ? ago(150) : inDays(1),
+    leadVet: { feederId: NGO_STAFF.pillai, name: "Dr. Pillai", pronoun: "him" },
+    volunteers: 4,
+    dogs: 18,
+    needSterilising: 5,
+    collarsPacked: 20,
+    startedAt: started ? ago(145) : null,
+    finishedAt: finished ? ago(5) : null,
+    state,
+    volunteerNames: ["Rahul", "Sana", "Imran", "Kavya"],
+    dogList: dogs,
+  };
+}
+
+function driveSummaries() {
+  const base = driveDetail("planned");
+  const { dogList, volunteerNames, ...sum } = base;
+  return {
+    drives: [
+      sum,
+      { ...sum, id: "drv-2", title: "Seven Bungalows", startsAt: inDays(9), leadVet: { feederId: NGO_STAFF.qureshi, name: "Dr. Qureshi" }, dogs: 11, needSterilising: 2, collarsPacked: 12, volunteers: 3 },
+      { ...sum, id: "drv-0", title: "Versova Koliwada", startsAt: ago(60 * 24 * 12), startedAt: ago(60 * 24 * 12), finishedAt: ago(60 * 24 * 12 - 240), state: "finished", dogs: 16, needSterilising: 4, collarsPacked: 16 },
+    ],
+  };
+}
+
+function ngoWardDogs(filter) {
+  const all = [SLUG.rani, SLUG.kalu, SLUG.bruno, SLUG.moti, SLUG.goli, SLUG.tiger].map((slug) => {
+    const d = DOGS[slug];
+    return { slug, name: d.name, wardId: "K-West", wardCode: "K/W", photoUrl: d.photoUrl ?? null, avatarUrl: null, sterilised: d.sterilised ?? "unknown", vaccinated: d.vaccinated ?? "unknown", lastFedAt: d.lastFedAt };
+  });
+  all.push({ slug: "c9ho2tu4k", name: "Chotu", wardId: "K-East", wardCode: "K/E", photoUrl: null, avatarUrl: null, sterilised: "no", vaccinated: "unknown", lastFedAt: ago(60 * 30) });
+  const dogs = filter === "unsterilised" ? all.filter((d) => d.sterilised !== "yes") : all;
+  return { dogs, total: dogs.length };
+}
+
+function ngoHandlers(s) {
+  const authed = () => s.signedIn;
+  const noNgo = () => s.ngoStatus === "none";
+  return [
+    ["GET", /^\/ngo\/me$/, () => (!authed() ? UNAUTH : ok(noNgo() ? { ngo: null, role: null, hasTransport: false } : { ngo: ngoProfile(s), role: s.ngoRole ?? "coordinator", hasTransport: false }))],
+    ["GET", /^\/ngo\/home$/, () => (authed() ? ok(ngoHome(s)) : UNAUTH)],
+    ["GET", /^\/ngo\/dispatches\/mine$/, () => (authed() ? ok({ dispatches: s.ngoNoDispatch ? [] : myDispatches() }) : UNAUTH)],
+    ["GET", /^\/ngo\/sos\/([^/]+)\/candidates$/, () => (authed() ? ok(dispatchCandidates(s)) : UNAUTH)],
+    ["GET", /^\/ngo\/team$/, () => (authed() ? ok(ngoTeam(s)) : UNAUTH)],
+    ["GET", /^\/ngo\/drives$/, () => (authed() ? ok(driveSummaries()) : UNAUTH)],
+    ["GET", /^\/ngo\/drives\/([^/]+)$/, () => (authed() ? ok(driveDetail(s.driveState ?? "planned")) : UNAUTH)],
+    ["GET", /^\/ngo\/dogs$/, (_m, ctx) => (authed() ? ok(ngoWardDogs(ctx.url.searchParams.get("filter"))) : UNAUTH)],
+    // writes
+    ["POST", /^\/documents$/, (_m, _c, body) => ok({ id: "doc-1", kind: body?.kind ?? "certificate", mime: body?.mime ?? "image/jpeg", sizeBytes: 182_000, uploadedAt: new Date().toISOString() })],
+    ["POST", /^\/ngo\/register$/, () => ok({ ...ngoProfile({ ngoStatus: "waiting" }), appliedAt: new Date().toISOString() })],
+    ["PATCH", /^\/ngo\/me$/, (_m, _c, body) => ok({ ...ngoProfile(s), ...(body ?? {}) })],
+    ["POST", /^\/ngo\/ambulance$/, (_m, _c, body) => ok({ count: 1, hours: "24 hours", status: body?.status ?? "in", outOnCase: null })],
+    ["POST", /^\/ngo\/beds$/, (_m, _c, body) => ok({ total: body?.total ?? 12, free: body?.free ?? 3 })],
+    ["POST", /^\/ngo\/sos\/([^/]+)\/dispatch$/, (m, _c, body) => ok({ id: "dsp-new", caseId: m[1], ngoId: NGO_ID, kind: "ngo_member", memberName: body?.feederId === NGO_STAFF.rahul ? "Rahul" : "Dr. Qureshi", withAmbulance: !!body?.withAmbulance, etaMin: null, sentAt: new Date().toISOString(), acceptedAt: null, declinedAt: null })],
+    ["POST", /^\/ngo\/sos\/([^/]+)\/pass$/, () => ok({ passed: true })],
+    ["POST", /^\/ngo\/dispatches\/([^/]+)\/(accept|decline)$/, (m) => ok({ id: m[1], [m[2] === "accept" ? "acceptedAt" : "declinedAt"]: new Date().toISOString() })],
+    ["POST", /^\/ngo\/team\/invite$/, () => ok({ id: "inv-2", joined: false })],
+    ["PATCH", /^\/ngo\/team\/([^/]+)$/, (m, _c, body) => ok({ feederId: m[1], ...(body ?? {}) })],
+    ["POST", /^\/ngo\/team\/([^/]+)\/remove$/, () => ok({ removed: true })],
+    ["POST", /^\/ngo\/vets\/([^/]+)\/vouch$/, () => ok({ vouchedAt: new Date().toISOString() })],
+    ["POST", /^\/ngo\/drives$/, () => ok(driveDetail("planned"))],
+    ["POST", /^\/ngo\/drives\/([^/]+)\/start$/, () => ok({ startedAt: new Date().toISOString() })],
+    ["POST", /^\/ngo\/drives\/([^/]+)\/finish$/, () => ok({ state: "finished", finishedAt: new Date().toISOString() })],
+    ["PATCH", /^\/ngo\/drives\/([^/]+)\/dogs\/([^/]+)$/, (m, _c, body) => {
+      const dd = driveDetail("started").dogList.find((x) => x.id === m[2]) ?? driveDetail("started").dogList[0];
+      return ok({ ...dd, done: { ...dd.done, ...(body?.done ?? {}) } });
+    }],
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Design v7: vet portal fixtures (VetProfile, VetMe, VetHome, VetDogView,
+// SignRequest, HealthRecord, DogHealth, MySignature, DueSoonDog, VetDogCard)
+// ---------------------------------------------------------------------------
+
+const VET_REASON = {
+  more_info: "The photo ID is blurred. Please send a clearer photo of your council ID card, both sides.",
+  declined: "Registration number 5190 is on the MSVC register under a different name. If you changed your name, send the council's letter.",
+  suspended: "A feeder reported a signed record for a dog you did not treat. We are checking it with you.",
+  removed: "Your registration lapsed on 31 August and was not renewed.",
+};
+
+function vetProfile(s = {}) {
+  const status = s.vetStatus ?? "verified";
+  return {
+    id: "vp-1",
+    feederId: ME.feederId,
+    name: "Dr. Farah Qureshi",
+    council: "MSVC",
+    regNo: "5190",
+    regLabel: "MSVC 5190",
+    qualification: "BVSc & AH",
+    clinic: "Lokhandwala Pet Hospital",
+    wards: ["K-West", "H-West"],
+    sosAvailable: true,
+    sosHours: { from: "09:00", to: "21:00" },
+    publicPhone: "+912226300101",
+    status,
+    appliedAt: ago(120),
+    decidedAt: status === "waiting" || status === "invited" ? null : ago(60 * 24 * 30),
+    decisionReason: VET_REASON[status] ?? null,
+    validTo: "2029-03-31",
+    vouchedBy: { ngoId: "b7d1e2f3-4a5b-4c6d-8e9f-0a1b2c3d4e5f", name: "Andheri Animal Rescue" },
+    ngo: null,
+    isGovernment: !!s.vetGovernment,
+    careProviderId: null,
+  };
+}
+
+function vetMe(s = {}) {
+  const status = s.vetStatus ?? "verified";
+  return {
+    profile: status === "none" ? null : vetProfile(s),
+    canSign: status === "verified",
+    canAcceptSos: status === "verified",
+    passkeys: s.noPasskey ? [] : [{ id: "pk-1", label: "Pixel 7", createdAt: ago(60 * 24 * 10), lastUsedAt: ago(60 * 24) }],
+    documents: status === "none" ? [] : [
+      { id: "doc-c", kind: "certificate", mime: "application/pdf", sizeBytes: 412_000, uploadedAt: ago(125) },
+      { id: "doc-p", kind: "photo_id", mime: "image/jpeg", sizeBytes: 188_000, uploadedAt: ago(125) },
+    ],
+  };
+}
+
+const SIGN_REQUESTS = [
+  {
+    id: "sreq-1",
+    dog: { slug: SLUG.rani, name: "Rani", photoUrl: photoUrl("rani"), avatarUrl: null },
+    proposed: { type: "vaccination", vaccine: "Anti-rabies", brand: "Raksharab", batch: "RB2409", givenOn: kolkataDay(NOW - 13 * 86_400_000), dueOn: kolkataDay(NOW + 352 * 86_400_000) },
+    recordId: "hr-3",
+    requestedBy: "Priya",
+    requestedAt: ago(120),
+    evidencePhotoUrl: photoUrl("rani"),
+    note: null,
+    status: "open",
+  },
+  {
+    id: "sreq-2",
+    dog: { slug: SLUG.kalu, name: "Kalu", photoUrl: photoUrl("kalu"), avatarUrl: null },
+    proposed: { type: "sterilisation", givenOn: kolkataDay(NOW - 20 * 86_400_000), earNotched: true },
+    recordId: "hr-9",
+    requestedBy: "Meera",
+    requestedAt: ago(60 * 26),
+    evidencePhotoUrl: null,
+    note: "Done at the municipal camp in Versova.",
+    status: "open",
+  },
+  {
+    id: "sreq-3",
+    dog: { slug: SLUG.bruno, name: "Bruno", photoUrl: null, avatarUrl: null },
+    proposed: { type: "treatment", givenOn: kolkataDay(NOW - 2 * 86_400_000), diagnosis: "Tick fever", treatment: "Doxycycline, 10 days" },
+    recordId: "hr-12",
+    requestedBy: "Arjun",
+    requestedAt: ago(60 * 40),
+    evidencePhotoUrl: null,
+    note: null,
+    status: "open",
+  },
+];
+
+const VET_DOCTOR = { name: "Dr. Farah Qureshi", council: "MSVC", regNo: "5190", isGovernment: false };
+
+function healthRecords() {
+  const r = (over) => ({
+    id: "hr-x", type: "vaccination", title: "Anti-rabies", status: "vet_signed", date: "2026-03-14", dueOn: "2027-03-14", note: null,
+    vet: VET_DOCTOR, brand: "Raksharab", batch: "RB2409", addedBy: null, supersedes: null, withdraws: null, withdrawnAt: null,
+    reason: null, earNotched: null, flagged: false, signRequestOpen: false, recordedAt: "2026-03-14T06:30:00.000Z", ...over,
+  });
+  return [
+    r({ id: "hr-1", type: "sterilisation", title: "Sterilised", date: "2025-11-02", dueOn: null, brand: null, batch: null, earNotched: true, vet: { name: "Dr. Anand Pillai", council: "MSVC", regNo: "09317", isGovernment: true }, recordedAt: "2025-11-02T06:30:00.000Z" }),
+    r({ id: "hr-2", type: "vaccination", title: "DHPPi", date: "2026-01-20", dueOn: "2027-01-20", brand: "Nobivac", batch: "NB7731", recordedAt: "2026-01-20T06:30:00.000Z" }),
+    r({ id: "hr-3", type: "vaccination", title: "Anti-rabies", date: "2026-03-14", dueOn: "2027-03-14", recordedAt: "2026-03-14T06:30:00.000Z" }),
+    r({ id: "hr-4", type: "deworming", title: "Deworming", status: "feeder_noted", date: "2026-08-03", dueOn: "2026-11-03", vet: null, brand: "Drontal", batch: null, addedBy: "Priya", recordedAt: "2026-08-03T12:00:00.000Z" }),
+    r({ id: "hr-5", type: "treatment", title: "Wound dressing, left ear", date: "2026-09-10", dueOn: null, brand: null, batch: null, note: "Healing well. Keep her from scratching.", recordedAt: "2026-09-10T09:00:00.000Z" }),
+  ];
+}
+
+function dogHealth(s = {}) {
+  return { records: s.noHealth ? [] : healthRecords(), viewerIsVet: (s.vetStatus ?? (s.signedIn ? "verified" : "none")) === "verified" && !!s.vetView, collarBatchNo: "HJ-0412" };
+}
+
+function vetSosItems() {
+  return [
+    {
+      caseId: CASE_ID.open,
+      dog: { slug: SLUG.rani, name: "Rani", sex: "female", photoUrl: photoUrl("rani"), avatarUrl: null },
+      wardId: "K-West", wardCode: "K/W", wardName: "Andheri West",
+      severity: "critical", openedAt: ago(9), note: "limping badly after a scooter hit her", reporterName: "Anil", taken: false, distanceM: 1200,
+    },
+  ];
+}
+
+function vetHome(s = {}) {
+  const p = vetProfile(s);
+  const verified = p.status === "verified";
+  return {
+    profile: p,
+    canSign: verified,
+    canAcceptSos: verified,
+    sos: verified && !s.vetQuiet ? vetSosItems() : [],
+    signRequests: s.vetQuiet ? [] : SIGN_REQUESTS,
+    signRequestCount: s.vetQuiet ? 0 : SIGN_REQUESTS.length,
+    dueSoon: { count: s.vetQuiet ? 0 : 11, by: kolkataDay(NOW + 13 * 86_400_000) },
+  };
+}
+
+function vetDogView(slug, s = {}) {
+  const d = DOGS[slug] ?? DOGS[SLUG.rani];
+  const status = s.vetStatus ?? "verified";
+  const health = { ...dogHealth({ ...s, vetView: true }), viewerIsVet: status === "verified" };
+  return {
+    dog: { slug, name: d.name, sex: d.sex, approxAge: 3, status: "active", wardId: "K-West", wardCode: "K/W", photoUrl: d.photoUrl ?? null, avatarUrl: null, collar: { code: slug, batchNo: "HJ-0412" } },
+    youFeed: true,
+    lastFedAt: d.lastFedAt,
+    lastFedBy: "Priya",
+    health,
+    notesToConfirm: health.records.filter((r) => r.status === "feeder_noted"),
+    openSignRequests: SIGN_REQUESTS.filter((r) => r.dog.slug === slug),
+    canSign: status === "verified",
+    vetStatus: status,
+    signingBlockedReason: status === "suspended" ? "suspended" : s.noPasskey ? "no_passkey" : null,
+  };
+}
+
+function mySignatures() {
+  const sig = (id, slug, type, title, date, batch, status, extra = {}) => ({
+    id, dog: { slug, name: DOGS[slug].name }, type, title, date, batch, signedAt: `${date}T07:00:00.000Z`, status, supersedes: null, requestedBy: null, ...extra,
+  });
+  return {
+    signatures: [
+      sig("hr-3", SLUG.rani, "vaccination", "Anti-rabies", "2026-03-14", "RB2409", "valid", { requestedBy: "Priya" }),
+      sig("hr-7", SLUG.kalu, "vaccination", "Anti-rabies", "2026-06-02", "RB2311", "valid"),
+      sig("hr-8", SLUG.tiger, "sterilisation", "Sterilised", "2026-05-18", null, "valid"),
+      sig("hr-6", SLUG.bruno, "vaccination", "DHPPi", "2026-04-09", "NB7702", "corrected"),
+      sig("hr-10", SLUG.goli, "treatment", "Tick fever", "2026-07-21", null, "withdrawn"),
+      sig("hr-11", SLUG.moti, "vaccination", "Anti-rabies", "2026-02-11", "RB2210", "flagged"),
+    ],
+  };
+}
+
+function dueSoon() {
+  const due = (slug, days, last) => ({ slug, name: DOGS[slug].name, wardId: "K-West", wardCode: "K/W", due: kolkataDay(NOW + days * 86_400_000), lastLabel: last, photoUrl: DOGS[slug].photoUrl ?? null, avatarUrl: null });
+  return {
+    dogs: [due(SLUG.kalu, 3, "Anti-rabies 2025"), due(SLUG.moti, 6, null), due(SLUG.bruno, 9, "Anti-rabies 2025"), due(SLUG.goli, 12, "DHPPi 2025")],
+    by: kolkataDay(NOW + 13 * 86_400_000),
+  };
+}
+
+/** Base64url of a few bytes, for WebAuthn option fields the client decodes. */
+const B64 = "aGV0amEtc2NyZWVuc2hvdC1jaGFsbGVuZ2U";
+
+function vetHandlers(s) {
+  const authed = () => s.signedIn;
+  return [
+    ["GET", /^\/vet\/me$/, () => (authed() ? ok(vetMe(s)) : UNAUTH)],
+    ["GET", /^\/vet\/home$/, () => {
+      if (!authed()) return UNAUTH;
+      const st = s.vetStatus ?? "verified";
+      return st === "verified" || st === "suspended" ? ok(vetHome(s)) : fail(403, "VET_REQUIRED", "not a verified vet");
+    }],
+    ["GET", /^\/vet\/dogs$/, (_m, ctx) => {
+      const q = (ctx.url.searchParams.get("q") ?? "").toLowerCase();
+      const dogs = Object.values(DOGS).filter((d) => (d.name ?? "").toLowerCase().includes(q)).map((d) => ({ slug: d.slug, name: d.name, sex: d.sex, wardId: "K-West", wardCode: "K/W", photoUrl: d.photoUrl ?? null, avatarUrl: null }));
+      return ok({ dogs });
+    }],
+    ["GET", /^\/vet\/dogs\/([^/]+)$/, (m) => (authed() ? ok(vetDogView(m[1], s)) : UNAUTH)],
+    ["GET", /^\/vet\/sign-requests\/([^/]+)$/, (m) => {
+      const r = SIGN_REQUESTS.find((x) => x.id === m[1]);
+      return r ? ok(r) : fail(404, "NOT_FOUND", "no such request");
+    }],
+    ["GET", /^\/vet\/signatures$/, () => (authed() ? ok(mySignatures()) : UNAUTH)],
+    ["GET", /^\/vet\/signatures\/([^/]+)$/, (m) => {
+      const sig = mySignatures().signatures.find((x) => x.id === m[1]);
+      return sig ? ok(sig) : fail(404, "NOT_FOUND", "not yours");
+    }],
+    ["GET", /^\/vet\/due-soon$/, () => (authed() ? ok(dueSoon()) : UNAUTH)],
+    ["GET", /^\/dogs\/([^/]+)\/health$/, () => ok(dogHealth({ ...s, vetView: true }))],
+    // writes
+    ["POST", /^\/vet\/apply$/, () => ok({ ...vetProfile({ vetStatus: "waiting" }), appliedAt: new Date().toISOString() })],
+    ["PATCH", /^\/vet\/me$/, (_m, _c, body) => ok({ ...vetProfile(s), ...(body ?? {}) })],
+    ["POST", /^\/vet\/passkeys\/options$/, () =>
+      ok({ challenge: B64, user: { id: B64, name: "priya.s@example.com", displayName: "Dr. Farah Qureshi" }, rp: { name: "Hetja", id: "hetja.in" }, pubKeyCredParams: [{ type: "public-key", alg: -7 }], timeout: 60000, attestation: "none", authenticatorSelection: { residentKey: "preferred", userVerification: "required" } })],
+    ["POST", /^\/vet\/passkeys$/, () => ok({ id: "pk-2", label: null, createdAt: new Date().toISOString(), lastUsedAt: null })],
+    ["POST", /^\/vet\/records\/options$/, () => ok({ challengeId: "ch-1", recordHash: "9f2c4b1e7a0d", options: { challenge: B64, allowCredentials: [], userVerification: "required", timeout: 60000, rpId: "hetja.in" } })],
+    ["POST", /^\/vet\/records$/, (_m, _c, body) => ok({ recordId: "hr-new", hash: "9f2c4b1e7a0d", recordHash: "9f2c4b1e7a0d", dogSlug: body?.record?.dogSlug ?? SLUG.rani, type: body?.record?.type ?? "vaccination", signedAt: new Date().toISOString() })],
+    ["POST", /^\/vet\/record-photos$/, () => ok({ photoId: "ph-1" })],
+    ["POST", /^\/vet\/sign-requests\/([^/]+)\/decline$/, () => ok({ declined: true })],
+    ["POST", /^\/dogs\/([^/]+)\/health-notes$/, () => ok({ recordId: "hr-note" })],
+    ["POST", /^\/dogs\/([^/]+)\/sign-requests$/, () => ok({ id: "sreq-new" })],
+  ];
+}
+
+/** Init-script half of WebAuthn: a platform authenticator that always says yes. */
+function webauthnShim() {
+  try {
+    const buf = (s) => new TextEncoder().encode(s).buffer;
+    const cred = (response) => ({
+      id: "c2NyZWVuc2hvdC1jcmVk",
+      rawId: buf("screenshot-cred"),
+      type: "public-key",
+      authenticatorAttachment: "platform",
+      getClientExtensionResults: () => ({}),
+      response,
+      toJSON() { return { id: this.id, rawId: this.id, type: "public-key", response: {}, clientExtensionResults: {} }; },
+    });
+    if (typeof window.PublicKeyCredential !== "function") {
+      window.PublicKeyCredential = function PublicKeyCredential() {};
+    }
+    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = () => Promise.resolve(true);
+    window.PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false);
+    const creds = navigator.credentials ?? {};
+    const api = {
+      create: () => new Promise((r) => setTimeout(() => r(cred({ attestationObject: buf("att"), clientDataJSON: buf("{}"), getTransports: () => ["internal"] })), 400)),
+      get: () => new Promise((r) => setTimeout(() => r(cred({ authenticatorData: buf("auth"), clientDataJSON: buf("{}"), signature: buf("sig"), userHandle: buf("user") })), 400)),
+      store: creds.store?.bind(creds),
+      preventSilentAccess: creds.preventSilentAccess?.bind(creds),
+    };
+    Object.defineProperty(navigator, "credentials", { value: api, configurable: true });
+  } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Design v7: admin portal. The board's own fixture router
+// (apps/web/components/admin/fixtures.ts, typed against lib/api.ts) answers
+// every /admin/* call; only the documents get real bytes here.
+// ---------------------------------------------------------------------------
+
+let ADMIN_FX = null;
+async function loadAdminFixtures() {
+  const file = path.join(HERE, "..", "components", "admin", "fixtures.ts");
+  ADMIN_FX = await import(pathToFileURL(file).href);
+}
+
+/** A one-page PDF, clearly a sample, with correct xref offsets. */
+function samplePdf(title, lines) {
+  const esc = (t) => t.replace(/[\\()]/g, (c) => `\\${c}`);
+  const text = [`BT /F1 20 Tf 60 760 Td (${esc(title)}) Tj ET`, ...lines.map((l, i) => `BT /F1 12 Tf 60 ${720 - i * 22} Td (${esc(l)}) Tj ET`),
+    "BT /F1 64 Tf 0.85 g 150 380 Td (SAMPLE) Tj ET"].join("\n");
+  const objs = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(text)} >>\nstream\n${text}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offs = [];
+  objs.forEach((o, i) => {
+    offs.push(Buffer.byteLength(out));
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(out);
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offs.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
+
+let DOC_IMAGE = null;
+const DOC_PDF = samplePdf("Registration certificate (sample)", [
+  "Andheri Paws Trust",
+  "Registered under the Maharashtra Public Trusts Act",
+  "Registration number: E-21904",
+  "Date of registration: 14 June 2011",
+  "This is a placeholder document for design review.",
+]);
+
+/** A sample certificate photo, rendered once in the browser. */
+async function docImage(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 900, height: 640 } });
+  const p = await ctx.newPage();
+  await p.setContent(`<html><body style="margin:0;background:#e9e4d8;font-family:Georgia,serif">
+    <div style="margin:36px;height:560px;background:#fffdf6;border:10px double #8a7a55;padding:36px 44px;box-sizing:border-box;position:relative">
+      <div style="font-size:14px;letter-spacing:.2em;color:#8a7a55">SAMPLE DOCUMENT FOR DESIGN REVIEW</div>
+      <div style="font-size:34px;margin-top:18px;color:#3b3322">Certificate of Registration</div>
+      <div style="font-size:18px;margin-top:10px;color:#5a5140">Veterinary practitioner</div>
+      <div style="font-size:22px;margin-top:40px;color:#222">Dr. Farhan Qureshi, BVSc &amp; AH</div>
+      <div style="font-size:18px;margin-top:14px;color:#333">Registration No. 5190 &middot; valid to March 2029</div>
+      <div style="font-size:16px;margin-top:40px;color:#555">Issued 12 March 2019</div>
+      <div style="position:absolute;right:60px;bottom:60px;width:120px;height:120px;border-radius:50%;border:3px solid #b06a4b;color:#b06a4b;display:flex;align-items:center;justify-content:center;font-size:16px;transform:rotate(-12deg)">SAMPLE</div>
+    </div></body></html>`);
+  const buf = await p.screenshot({ type: "jpeg", quality: 85 });
+  await ctx.close();
+  return buf;
+}
+
+/** Handler entries that route /admin/* and /wards to the board fixtures. */
+function adminHandlers(s) {
+  if (!s.admin) return [];
+  const run = (method) => (m, ctx, body) => {
+    const pth = ctx.url.pathname.replace(/^\/api\/v1/, "") + ctx.url.search;
+    if (/^\/admin\/documents\//.test(ctx.url.pathname.replace(/^\/api\/v1/, ""))) {
+      const isPdf = /-reg$/.test(ctx.url.pathname);
+      return { status: 200, raw: isPdf ? DOC_PDF : DOC_IMAGE, contentType: isPdf ? "application/pdf" : "image/jpeg" };
+    }
+    const r = ADMIN_FX.handleAdmin(method, pth, body, { me: s.adminMe ?? undefined });
+    if (typeof r.body === "string") return { status: r.status, raw: Buffer.from(r.body), contentType: r.contentType ?? "text/plain" };
+    return { status: r.status, json: r.body };
+  };
+  const re = /^\/(admin\/.*|wards)$/;
+  return ["GET", "POST", "PATCH", "DELETE"].map((method) => [method, re, run(method)]);
+}
+
 // ---------------------------------------------------------------------------
 // Network safety
 // ---------------------------------------------------------------------------
@@ -809,7 +1371,7 @@ function corsHeaders(request) {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers": "authorization, content-type, accept, x-device-token",
     "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-    "access-control-expose-headers": "retry-after, x-hetja-stale",
+    "access-control-expose-headers": "retry-after, x-hetja-stale, content-disposition",
     vary: "origin",
   };
 }
@@ -841,7 +1403,13 @@ async function installRoutes(context, scenario, flowId) {
   );
 
   // 3. The API, on any host (web calls api.hetja.in, the scan app calls /api/v1 same-origin).
-  const handlers = [...(scenario.api ?? []), ...defaultHandlers(scenario)];
+  const handlers = [
+    ...(scenario.api ?? []),
+    ...adminHandlers(scenario),
+    ...ngoHandlers(scenario),
+    ...vetHandlers(scenario),
+    ...defaultHandlers(scenario),
+  ];
   await context.route(
     (url) => url.pathname.startsWith("/api/v1/"),
     (route) => apiRoute(route).catch(() => undefined),
@@ -875,6 +1443,9 @@ async function installRoutes(context, scenario, flowId) {
         if (res.delayMs) await new Promise((r) => setTimeout(r, res.delayMs));
         // Simulated dead network: the request fails in the browser, nothing is sent.
         if (res.abort) return route.abort("internetdisconnected");
+        if (res.raw) {
+          return route.fulfill({ status: res.status, contentType: res.contentType, headers: { ...corsHeaders(req), ...(res.headers ?? {}) }, body: res.raw });
+        }
         return route.fulfill({
           status: res.status,
           contentType: "application/json",
@@ -1176,9 +1747,10 @@ let PHOTO;
  */
 async function flow(id, opts, fn) {
   if (ONLY.length && !ONLY.includes(id)) return;
+  if (!ONLY.length && !SETS.includes(currentGroup) && !ALWAYS.has(id)) return;
   const widths = opts.widths ?? [390];
   for (const w of widths) {
-    const vp = w === 390 ? MOBILE : DESKTOP;
+    const vp = w === 390 ? MOBILE : w === 1280 ? LAPTOP : DESKTOP;
     const scenario = { signedIn: false, ...opts };
     const context = await browser.newContext({
       viewport: vp,
@@ -1214,8 +1786,10 @@ async function flow(id, opts, fn) {
       // The ESRI basemap: fail every tile so the map shows its no-tiles state.
       await context.route((u) => u.hostname === "static-map-tiles-api.arcgis.com", (r) => r.abort("failed"));
     }
+    if (opts.webauthn) await context.addInitScript(webauthnShim);
     const page = await context.newPage();
     page.setDefaultTimeout(20_000);
+    if (opts.clock === "board") await page.clock.setFixedTime(ADMIN_FX.BOARD_NOW);
     console.log(`flow ${id} @${w}`);
     try {
       await fn({ page, context, snap: makeSnap(page, w), w, go: (p) => gotoRetry(page, `${BASE}${p}`) });
@@ -1669,6 +2243,13 @@ async function defineFlows() {
     await page.getByText("Your SOS is out.").waitFor({ timeout: 15_000 });
     await page.waitForTimeout(800);
     await snap("sos-anyway-sent", "/scan/find?sos=1", "sent with counts", "Your SOS is out: 3 feeders and 1 vet in K/W got it");
+    // The finder (ward, colour chips, the dog grid) sits below the fold after sending.
+    const grid = page.getByText("dogs registered in K/W").first();
+    await grid.waitFor({ timeout: 10_000 }).catch(() => undefined);
+    // The page scrolls inside a container, not the window: move the element itself.
+    await grid.evaluate((el) => el.scrollIntoView({ block: "start" })).catch(() => undefined);
+    await page.waitForTimeout(800);
+    await snap("sos-anyway-sent-finder", "/scan/find?sos=1", "sent, scrolled to the finder", "After sending: which dog is it? ward, colour chips and the dog grid", { scroll: false });
   });
 
   await flow("sos-anyway-nobody", {
@@ -2693,6 +3274,652 @@ async function defineFlows() {
     await page.getByText(/What['’]s happened to Rani?/).waitFor();
     await snap("d-d2-desktop-sos", "/d/<slug> (desktop)", "D2 SOS from the desktop", "SOS form centred at 480 px");
   });
+
+  // =========================================================================
+  // Design v7 portals
+  // =========================================================================
+  currentGroup = "portals";
+
+  const VET_ME = (status = "verified") => ({ vet: { status, regLabel: "MSVC 5190" }, ngo: null, adminRoles: [] });
+  const NGO_ME = (status = "active", role = "coordinator") => ({ vet: null, ngo: { id: NGO_ID, name: "Andheri Animal Rescue", status, role }, adminRoles: [] });
+  const vetOpts = (status = "verified", extra = {}) => ({
+    signedIn: true, vetStatus: status, webauthn: true, me: VET_ME(status),
+    local: status === "verified" ? { "hetja:tab-role": "vet" } : { "hetja:tab-role": null }, ...extra,
+  });
+  const ngoOpts = (status = "active", role = "coordinator", extra = {}) => ({
+    signedIn: true, ngoStatus: status, ngoRole: role, me: NGO_ME(status, role),
+    local: status === "active" || status === "paused" ? { "hetja:tab-role": "ngo" } : { "hetja:tab-role": null }, ...extra,
+  });
+
+  // --- Re-shoot requested with the portals export: the finder after an SOS ---
+  // (sos-anyway runs through HETJA_SCREENS_ALSO; see the flow above.)
+
+  // --- Me with the role tab bars, and the portal rows ---
+  await flow("v7-me-vet", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go("/me");
+    await page.getByText("day streak").waitFor();
+    await page.locator('nav[aria-label="Primary"]').getByText("Vet").waitFor();
+    await snap("v7-me-vet-tabs", "/me", "verified vet: Home, Map, Vet, Me", "Me with the vet tab bar (Scan moves inside the Vet tab)");
+  });
+
+  await flow("v7-me-ngo", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/me");
+    await page.getByText("day streak").waitFor();
+    await page.locator('nav[aria-label="Primary"]').getByText("NGO").waitFor();
+    await snap("v7-me-ngo-tabs", "/me", "NGO member: Home, Map, NGO, Me", "Me with the NGO tab bar");
+  });
+
+  await flow("v7-me-rows", { signedIn: true, me: { vet: { status: "waiting", regLabel: "MSVC 5190" }, ngo: null, adminRoles: [] } }, async ({ page, go, snap }) => {
+    await go("/me");
+    await page.getByText("Sign records as a vet").waitFor();
+    await snap("v7-me-portal-rows", "/me", "vet application waiting", "Me rows: Sign records as a vet (Waiting), Bring your NGO to Hetja");
+  });
+
+  // =========================================================================
+  // Vet portal (390)
+  // =========================================================================
+
+  await flow("vet-v1", { ...vetOpts("none"), me: { vet: null, ngo: null, adminRoles: [] } }, async ({ page, go, snap }) => {
+    await go("/vet/apply");
+    await page.getByText("Sign records as a vet").first().waitFor();
+    await snap("vet-v1-apply", "/vet/apply", "V1 apply, empty", "Council, registration number, clinic, certificate and photo ID, SOS availability");
+    await page.getByLabel("Registration number").fill("5190");
+    await page.getByLabel(/Clinic/).first().fill("Lokhandwala Pet Hospital").catch(() => undefined);
+    await page.locator('input[type="file"][aria-label="Certificate"]').setInputFiles({ name: "msvc-certificate.pdf", mimeType: "application/pdf", buffer: DOC_PDF });
+    await page.locator('input[type="file"][aria-label="Photo ID"]').setInputFiles({ name: "council-id.pdf", mimeType: "application/pdf", buffer: DOC_PDF });
+    await page.getByText(/I['’]m available for SOS calls/).click().catch(() => undefined);
+    await page.waitForTimeout(400);
+    await snap("vet-v1-apply-filled", "/vet/apply", "V1 filled", "Registration number, clinic, both documents added, SOS ticked");
+    await page.getByRole("button", { name: "Send for checking" }).click();
+    await page.getByText("Which wards do you work in?").waitFor();
+    await snap("vet-v1-wards", "/vet/apply", "V1 wards step", "Which wards do you work in? SOS hours, phone for SOS calls");
+    await page.getByRole("button", { name: /Choose wards/ }).click();
+    await page.getByRole("dialog").waitFor();
+    for (const code of ["K/W", "H/W"]) await page.getByRole("dialog").getByRole("button", { name: new RegExp(`^${code.replace("/", "\\/")}`) }).first().click().catch(() => undefined);
+    await page.waitForTimeout(400);
+    await snap("vet-v1-wards-sheet", "/vet/apply", "V1 wards sheet", "Your wards: up to 6", { scroll: false });
+    await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
+    await page.getByLabel(/Phone for SOS calls|Clinic phone/).fill("9820012345").catch(() => undefined);
+    await page.waitForTimeout(300);
+    await snap("vet-v1-wards-filled", "/vet/apply", "V1 wards step filled", "K/W and H/W, 9am to 9pm, phone");
+    await page.getByRole("button", { name: "Send for checking" }).click();
+    await page.getByText("We're checking your registration.").waitFor({ timeout: 15_000 });
+    await snap("vet-v1-sent", "/vet/apply", "sent for checking", "We're checking your registration (POSTs mocked)");
+  });
+
+  for (const [status, text, desc] of [
+    ["waiting", "We're checking your registration.", "Waiting: three steps, usually within 2 days"],
+    ["more_info", "We need a little more.", "Asked for more: the team's note, update and send again"],
+    ["declined", "Your application wasn't accepted.", "Declined: the reason, apply again"],
+    ["suspended", "Signing is paused.", "Suspended vet on the status page"],
+    ["removed", "Your vet account was closed.", "Removed"],
+  ]) {
+    await flow(`vet-status-${status}`, vetOpts(status), async ({ page, go, snap }) => {
+      await go("/vet/apply");
+      await page.getByText(new RegExp(text.replace(/[.?]/g, "\\$&").replace(/'/g, "['’]"))).first().waitFor();
+      await snap(`vet-status-${status}`, "/vet/apply", `application ${status}`, desc);
+    });
+  }
+
+  await flow("vet-v2", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go("/vet");
+    await page.getByText("Feeders asking you to sign").first().waitFor();
+    await snap("vet-v2-home", "/vet", "V2 vet home", "SOS near you, scan a collar, feeders asking you to sign, due soon, tab bar Home Map Vet Me");
+  });
+
+  await flow("vet-v2-quiet", vetOpts("verified", { vetQuiet: true }), async ({ page, go, snap }) => {
+    await go("/vet");
+    await page.getByText(/Nobody is waiting on you/).first().waitFor();
+    await snap("vet-v2-home-quiet", "/vet", "V2 quiet day", "No SOS, nobody waiting, no boosters due");
+  });
+
+  await flow("vet-v2-suspended", vetOpts("suspended"), async ({ page, go, snap }) => {
+    await go("/vet");
+    await page.getByText(/An admin paused your vet account/).first().waitFor();
+    await snap("vet-v2-home-suspended", "/vet", "V2 suspended", "Paused pill, no SOS cards, requests not tappable");
+  });
+
+  await flow("vet-v2b", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go(`/vet/dogs/${SLUG.rani}`);
+    await page.getByText(/Vet · only you see this/).first().waitFor();
+    await snap("vet-v2b-dog", "/vet/dogs/[slug]", "V2b verified vet", "Vet box: sign vaccination, mark sterilised, add treatment, health notes, a feeder note to confirm");
+  });
+
+  await flow("vet-v2b-suspended", vetOpts("suspended"), async ({ page, go, snap }) => {
+    await go(`/vet/dogs/${SLUG.rani}`);
+    await page.getByText(/signing is off for now/).first().waitFor();
+    await snap("vet-v2b-dog-suspended", "/vet/dogs/[slug]", "V2b suspended vet", "Only health notes; signing is off for now");
+  });
+
+  for (const [tab, kind] of [["Vaccination", "vaccination"], ["Sterilisation", "sterilisation"], ["Treatment", "treatment"]]) {
+    await flow(`vet-v3-${kind}`, vetOpts("verified"), async ({ page, go, snap }) => {
+      const req = { vaccination: "sreq-1", sterilisation: "sreq-2", treatment: "sreq-3" }[kind];
+      const slug = { vaccination: SLUG.rani, sterilisation: SLUG.kalu, treatment: SLUG.bruno }[kind];
+      await go(`/vet/dogs/${slug}/sign?kind=${kind}&request=${req}`);
+      await page.getByRole("tab", { name: tab }).waitFor();
+      await page.waitForTimeout(500);
+      await snap(`vet-v3-sign-${kind}`, "/vet/dogs/[slug]/sign", `V3 ${tab} tab, from a feeder's request`, `${tab} record filled from the request; sign with your screen lock`);
+    });
+  }
+
+  await flow("vet-v3-blank", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go(`/vet/dogs/${SLUG.tiger}/sign?kind=vaccination`);
+    await page.getByRole("tab", { name: "Vaccination" }).waitFor();
+    await page.waitForTimeout(400);
+    await snap("vet-v3-sign-blank", "/vet/dogs/[slug]/sign", "V3 vaccination, no request", "Blank vaccination record: vaccine, brand, batch, given on, next due");
+    await page.getByRole("tab", { name: "Sterilisation" }).click();
+    await page.waitForTimeout(300);
+    await snap("vet-v3-sign-blank-sterilisation", "/vet/dogs/[slug]/sign", "V3 sterilisation tab", "Done on, ear notched, note");
+    await page.getByRole("tab", { name: "Treatment" }).click();
+    await page.waitForTimeout(300);
+    await snap("vet-v3-sign-blank-treatment", "/vet/dogs/[slug]/sign", "V3 treatment tab", "Treated on, what for, treatment, next check");
+  });
+
+  await flow("vet-v3-passkey", vetOpts("verified", { noPasskey: true }), async ({ page, go, snap }) => {
+    await go(`/vet/dogs/${SLUG.rani}/sign?kind=vaccination&request=sreq-1`);
+    await page.getByText("First, set up signing on this phone").first().waitFor();
+    await snap("vet-v3-first-time", "/vet/dogs/[slug]/sign", "V3 first time: no passkey yet", "First, set up signing on this phone; your phone will ask twice");
+    await page.getByRole("button", { name: /^Sign with/ }).click();
+    await page.getByText("Signed.").first().waitFor({ timeout: 20_000 });
+    await snap("vet-v3-signed", "/vet/dogs/[slug]/sign", "V3 signed", "Signed. Rani's page now shows it as Vet signed (WebAuthn stubbed, POSTs mocked)");
+  });
+
+  await flow("vet-passkey", vetOpts("verified", { noPasskey: true }), async ({ page, go, snap }) => {
+    await go("/vet/passkey");
+    await page.getByText("Sign with your phone").first().waitFor();
+    await page.waitForTimeout(500);
+    await snap("vet-passkey-setup", "/vet/passkey", "passkey setup", "Sign with your phone: two steps, set up your screen lock");
+    await page.getByRole("button", { name: /^Set up/ }).click();
+    await page.getByText("Done.").first().waitFor({ timeout: 15_000 });
+    await snap("vet-passkey-done", "/vet/passkey", "passkey set up", "Done. You can sign records on this phone");
+  });
+
+  await flow("vet-v4-web", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go(`/vet/dogs/${SLUG.rani}/health`);
+    await page.getByText("Vet signed").first().waitFor();
+    await snap("vet-v4-health", "/vet/dogs/[slug]/health", "V4 health list, vet viewing", "Vet signed and feeder noted records, confirm and sign, certificate bar");
+  });
+
+  await flow("vet-v4-collar", {}, async ({ page, go, snap }) => {
+    await go(`/d/${SLUG.rani}`);
+    await page.locator("#health").getByText("Health").first().waitFor({ timeout: 15_000 });
+    await page.locator("#health").scrollIntoViewIfNeeded();
+    await snap("vet-v4-collar-page", "/d/<slug>", "V4 health list on the collar page", "Health: vet signed with council number and batch, feeder noted");
+  });
+
+  for (const w of [390, 1440]) {
+    await flow(`vet-cert-${w}`, { widths: [w] }, async ({ page, go, snap }) => {
+      await go(`/vet/${SLUG.rani}/certificate`);
+      await page.getByText("Vaccination certificate").first().waitFor();
+      await page.waitForTimeout(600);
+      await snap("vet-certificate", "/vet/[slug]/certificate", w === 1440 ? "certificate at 1440 (640 px column)" : "certificate", "Vaccination certificate for rescues and adoptions, Download PDF");
+    });
+  }
+
+  await flow("vet-cert-empty", { api: [["GET", /^\/dogs\/([^/]+)\/health$/, () => ok({ records: [], viewerIsVet: false })]] }, async ({ page, go, snap }) => {
+    await go(`/vet/${SLUG.moti}/certificate`);
+    await page.getByText(/has no vet-signed records yet/).first().waitFor();
+    await snap("vet-certificate-empty", "/vet/[slug]/certificate", "no signed records", "Moti has no vet-signed records yet");
+  });
+
+  await flow("vet-v5", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go("/vet/signatures/hr-3");
+    await page.getByText(/Correct Rani['’]s anti-rabies record/).first().waitFor();
+    await snap("vet-v5-correct", "/vet/signatures/[id]", "V5 correct, untouched", "Correct Rani's anti-rabies record: fields, reason, sign correction");
+    await page.getByLabel("Batch").fill("RB2410").catch(() => undefined);
+    await page.getByLabel("Reason").fill("Batch number was misread from the vial sticker.").catch(() => page.locator("textarea").first().fill("Batch number was misread from the vial sticker."));
+    await page.waitForTimeout(300);
+    await snap("vet-v5-correct-edited", "/vet/signatures/[id]", "V5 a field corrected", "Old batch struck through, reason given, Sign correction enabled");
+    await page.getByRole("button", { name: /Or withdraw it/ }).click().catch(() => page.getByText(/Or withdraw it/).click());
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("vet-v5-withdraw", "/vet/signatures/[id]", "V5 withdraw sheet", "Withdraw Rani's anti-rabies record?", { scroll: false });
+  });
+
+  await flow("vet-v5-locked", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go("/vet/signatures/hr-10");
+    await page.getByText("You withdrew this record.").first().waitFor();
+    await snap("vet-v5-withdrawn", "/vet/signatures/[id]", "V5 already withdrawn", "You withdrew this record");
+  });
+
+  await flow("vet-lists", vetOpts("verified"), async ({ page, go, snap }) => {
+    await go("/vet/signatures");
+    await page.getByText(/Rani · anti-rabies/i).first().waitFor();
+    await snap("vet-my-signatures", "/vet/signatures", "My signatures", "Signed, corrected, withdrawn and flagged records");
+    await go("/vet/due");
+    await page.getByText(/need a booster by/).first().waitFor();
+    await snap("vet-due-soon", "/vet/due", "Due soon", "Dogs needing a booster in your wards, soonest first");
+    await go("/vet/profile");
+    await page.getByText("Where and when").first().waitFor();
+    await snap("vet-profile", "/vet/profile", "Vet profile", "Clinic, wards, takes SOS calls, SOS hours, public phone, signing passkey");
+    await page.getByRole("button", { name: /^SOS hours/ }).click().catch(() => page.getByText("SOS hours").first().click());
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("vet-profile-sos-hours", "/vet/profile", "SOS hours sheet", "SOS hours: from, to, Save", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/vet/search");
+    await page.getByText("Find a dog").first().waitFor();
+    await snap("vet-search", "/vet/search", "search, empty", "Find a dog by name or collar code");
+    await page.getByRole("textbox").first().fill("Ra");
+    await page.getByText("RANI").or(page.getByText("Rani")).first().waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await snap("vet-search-results", "/vet/search", "search results", "Results for Ra");
+  });
+
+  await flow("vet-gov", vetOpts("verified", { vetGovernment: true }), async ({ page, go, snap }) => {
+    await go("/vet/profile");
+    await page.getByText("Government vet · free").first().waitFor();
+    await snap("vet-profile-government", "/vet/profile", "government vet", "Government vet · free pill on the profile");
+  });
+
+  // =========================================================================
+  // NGO portal (390)
+  // =========================================================================
+
+  await flow("ngo-none", { ...ngoOpts("none"), me: { vet: null, ngo: null, adminRoles: [] } }, async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByText("You are not part of an NGO on Hetja yet.").waitFor();
+    await snap("ngo-not-member", "/ngo", "not a member", "You are not part of an NGO on Hetja yet. Bring your NGO to Hetja");
+    await go("/ngo/register");
+    await page.getByText("Bring your NGO to Hetja").first().waitFor();
+    await snap("ngo-n1-register", "/ngo/register", "N1 register, empty", "Registered name, type, number, contact, phone, wards, what you offer, certificate");
+    await page.getByRole("button", { name: "Send for checking" }).click();
+    await page.getByText("Add the NGO's registered name.").waitFor().catch(() => undefined);
+    await snap("ngo-n1-register-error", "/ngo/register", "N1 validation", "Add the NGO's registered name");
+    await page.getByLabel(/Registered name/).fill("Andheri Animal Rescue").catch(() => undefined);
+    await page.getByLabel(/number/i).first().fill("E-21904").catch(() => undefined);
+    await page.getByLabel(/Contact name/).fill("Farah Qureshi").catch(() => undefined);
+    await page.getByLabel(/Phone for SOS calls/).fill("9820012231").catch(() => undefined);
+    await page.getByRole("button", { name: /Add/ }).first().click().catch(() => undefined);
+    await page.getByRole("dialog").waitFor({ timeout: 5000 }).catch(() => undefined);
+    await page.getByRole("dialog").getByRole("button", { name: /^K\/W/ }).first().click().catch(() => undefined);
+    await page.getByRole("dialog").getByRole("button", { name: /^K\/E/ }).first().click().catch(() => undefined);
+    await page.waitForTimeout(400);
+    await snap("ngo-n1-wards-sheet", "/ngo/register", "N1 wards sheet", "Wards you cover", { scroll: false });
+    await page.getByRole("dialog").getByRole("button", { name: "Done" }).click().catch(() => page.keyboard.press("Escape"));
+    for (const o of ["Ambulance", "Shelter beds", "Sterilisation", "Collars"]) await page.getByRole("button", { name: o, exact: true }).click().catch(() => undefined);
+    await page.locator('input[type="file"][aria-label="Registration certificate"]').setInputFiles({ name: "trust-certificate.pdf", mimeType: "application/pdf", buffer: DOC_PDF });
+    await page.waitForTimeout(400);
+    await snap("ngo-n1-register-filled", "/ngo/register", "N1 filled", "All fields, wards, offers and the certificate");
+    await page.getByRole("button", { name: "Send for checking" }).click();
+    await page.getByText("Sent for checking").first().waitFor({ timeout: 15_000 });
+    await snap("ngo-n1-sent", "/ngo/register", "N1 sent", "Sent for checking: four steps (POSTs mocked)");
+  });
+
+  for (const [status, route, text, desc] of [
+    ["waiting", "/ngo", /We['’]re checking/, "Waiting for an admin to check the registration"],
+    ["paused", "/ngo/register", /is paused/, "Paused NGO on the application page, with Hetja's reason"],
+    ["removed", "/ngo", /is no longer on Hetja/, "Removed NGO"],
+    ["active", "/ngo/register", /is on Hetja/, "Active NGO on the application page"],
+  ]) {
+    await flow(`ngo-status-${status}`, ngoOpts(status), async ({ page, go, snap }) => {
+      await go(route);
+      await page.getByText(text).first().waitFor();
+      await snap(`ngo-status-${status}`, route, `application ${status}`, desc);
+    });
+  }
+
+  await flow("ngo-n2", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByText(/SOS in your wards/).first().waitFor();
+    await snap("ngo-n2-home", "/ngo", "N2 NGO home (coordinator)", "Sent to you, SOS in your wards with send someone, ambulance, beds, team, drives, dogs; tab bar Home Map NGO Me");
+    await page.getByRole("button", { name: "Update" }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("ngo-n2-ambulance-sheet", "/ngo", "ambulance sheet", "Ambulance: in or out, how many, hours", { scroll: false });
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click().catch(() => page.keyboard.press("Escape"));
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Update" }).nth(1).click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("ngo-n2-beds-sheet", "/ngo", "shelter beds sheet", "Shelter beds: free now, beds in all", { scroll: false });
+  });
+
+  await flow("ngo-n2-out", ngoOpts("active", "coordinator", { ambulanceOut: true, ngoNoDispatch: true }), async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByRole("button", { name: "Mark back" }).waitFor();
+    await snap("ngo-n2-ambulance-out", "/ngo", "ambulance out on a case", "Ambulance out with Rani, Mark back");
+  });
+
+  await flow("ngo-n2-paused", ngoOpts("paused"), async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByText("Paused by Hetja").first().waitFor();
+    await snap("ngo-n2-paused", "/ngo", "paused banner", "Paused by Hetja: new SOS cases go to vets nearby for now");
+  });
+
+  await flow("ngo-n2-volunteer", ngoOpts("active", "volunteer", { ngoNoSos: false }), async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByText(/SOS in your wards/).first().waitFor();
+    await snap("ngo-n2-home-volunteer", "/ngo", "N2 as a volunteer", "No send someone: see the case instead");
+  });
+
+  await flow("ngo-n2-both", ngoOpts("active", "coordinator", { me: { ...NGO_ME("active"), vet: { status: "verified", regLabel: "MSVC 5190" } } }), async ({ page, go, snap }) => {
+    await go("/ngo");
+    await page.getByText(/Vet tools/).first().waitFor();
+    await snap("ngo-n2-vet-and-ngo", "/ngo", "vet who is also an NGO member", "NGO tab with a Vet tools row inside it");
+  });
+
+  await flow("ngo-n3", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go(`/ngo/sos/${CASE_ID.open}`);
+    await page.getByText(/Who['’]s going to/).first().waitFor();
+    await page.waitForTimeout(600);
+    await snap("ngo-n3-dispatch", "/ngo/sos/[caseId]", "N3 who's going, first free vet picked", "Vets, volunteers and the ambulance; busy rows greyed; Send Dr. Qureshi");
+    await page.getByText("Ambulance", { exact: true }).last().click().catch(() => undefined);
+    await page.waitForTimeout(300);
+    await snap("ngo-n3-with-ambulance", "/ngo/sos/[caseId]", "N3 with the ambulance", "Send Dr. Qureshi + ambulance");
+    await page.getByRole("button", { name: /^Send / }).click();
+    await page.getByText(/has been asked/).first().waitFor();
+    await snap("ngo-n3-sent", "/ngo/sos/[caseId]", "N3 sent", "Dr. Qureshi has been asked (POST mocked)");
+  });
+
+  await flow("ngo-n3-pass", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go(`/ngo/sos/${CASE_ID.open}`);
+    await page.getByText(/Who['’]s going to/).first().waitFor();
+    await page.getByRole("button", { name: /We can['’]t take this one/ }).click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("ngo-n3-pass-sheet", "/ngo/sos/[caseId]", "N3 pass it on", "Pass Rani on?", { scroll: false });
+  });
+
+  await flow("ngo-n3-volunteer", ngoOpts("active", "volunteer"), async ({ page, go, snap }) => {
+    await go(`/ngo/sos/${CASE_ID.open}`);
+    await page.getByText(/Coordinators send someone to a case/).first().waitFor();
+    await snap("ngo-n3-not-coordinator", "/ngo/sos/[caseId]", "N3 as a volunteer", "Coordinators send someone; you can still take it yourself");
+  });
+
+  await flow("ngo-n4", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/ngo/team");
+    await page.getByText(/Vets · 3/).first().waitFor();
+    await snap("ngo-n4-team", "/ngo/team", "N4 team", "Vets with vouch, volunteers with roles, Invite");
+    await page.getByRole("button", { name: /Rahul Kadam/ }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("ngo-n4-member-sheet", "/ngo/team", "member sheet", "Rahul Kadam: role, has transport, remove", { scroll: false });
+    await page.getByRole("dialog").getByRole("button", { name: /Remove from the team/ }).click().catch(() => undefined);
+    await page.waitForTimeout(300);
+    await snap("ngo-n4-member-remove", "/ngo/team", "member sheet, remove confirm", "Remove Rahul Kadam?", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/ngo/team/invite");
+    await page.getByText("Invite to the team").first().waitFor();
+    await snap("ngo-n4-invite", "/ngo/team/invite", "invite", "Their email, role, has transport");
+    await page.getByLabel("Their email").fill("sana.shaikh@example.com").catch(() => page.locator('input[type="email"]').fill("sana.shaikh@example.com"));
+    await page.getByRole("button", { name: "Send invite" }).click();
+    await page.getByText("Invite sent").first().waitFor();
+    await snap("ngo-n4-invite-sent", "/ngo/team/invite", "invite sent", "Invite sent (POST mocked)");
+  });
+
+  await flow("ngo-drives", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/ngo/drives");
+    await page.getByText(/Coming up/).first().waitFor();
+    await snap("ngo-drives", "/ngo/drives", "drives list", "Coming up and past drives, New drive");
+    await go("/ngo/drives/new");
+    await page.getByRole("button", { name: "Plan the drive" }).waitFor();
+    await page.waitForTimeout(600);
+    await snap("ngo-drive-new", "/ngo/drives/new", "new drive", "Where, ward, date, lead vet, volunteers, dogs with tasks, collars packed");
+  });
+
+  for (const [state, desc] of [["planned", "Planned: Start drive"], ["started", "Running: tap a dog to check it off, Finish drive"], ["finished", "Finished: 16 of 18 dogs done"]]) {
+    await flow(`ngo-n5-${state}`, ngoOpts("active", "coordinator", { driveState: state }), async ({ page, go, snap }) => {
+      await go("/ngo/drives/drv-1");
+      await page.getByText(/Aram Nagar drive/).first().waitFor();
+      await page.waitForTimeout(500);
+      await snap(`ngo-n5-drive-${state}`, "/ngo/drives/[driveId]", `N5 drive ${state}`, desc);
+      if (state === "started") {
+        await page.getByText("Goli").first().click();
+        await page.getByRole("dialog").waitFor();
+        await page.waitForTimeout(400);
+        await snap("ngo-n5-dog-sheet", "/ngo/drives/[driveId]", "N5 dog sheet (collar not yet active)", "Goli: print collar, scan it once it's on, rabies signed by the lead vet", { scroll: false });
+      }
+    });
+  }
+
+  await flow("ngo-dogs", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/ngo/dogs");
+    await page.getByText("Rani").first().waitFor();
+    await snap("ngo-dogs-in-wards", "/ngo/dogs", "dogs in your wards", "All dogs with sterilised or not pills");
+    await page.getByText("Not sterilised").first().click().catch(() => undefined);
+    await page.waitForTimeout(800);
+    await snap("ngo-dogs-unsterilised", "/ngo/dogs", "not sterilised filter", "Only the dogs still to sterilise");
+  });
+
+  await flow("ngo-profile", ngoOpts("active"), async ({ page, go, snap }) => {
+    await go("/ngo/profile");
+    await page.getByText("Andheri Animal Rescue").first().waitFor();
+    await page.waitForTimeout(400);
+    await snap("ngo-profile", "/ngo/profile", "NGO profile (coordinator)", "Public phone, contact, hours, ambulance hours, wards, offers");
+  });
+
+  await flow("ngo-profile-ro", ngoOpts("active", "rescue"), async ({ page, go, snap }) => {
+    await go("/ngo/profile");
+    await page.getByText("Coordinators change these details.").first().waitFor();
+    await snap("ngo-profile-read-only", "/ngo/profile", "NGO profile, not a coordinator", "Read-only: coordinators change these details");
+  });
+
+  // =========================================================================
+  // Admin portal (1440 and 1280; the laptop notice at 390)
+  // =========================================================================
+
+  const A = { signedIn: true, admin: true, clock: "board", widths: [1440, 1280] };
+  const adminShot = async (page, text) => {
+    await page.getByText(text).first().waitFor({ timeout: 20_000 });
+    await page.waitForTimeout(700);
+  };
+
+  await flow("admin-a1", A, async ({ page, go, snap }) => {
+    await go("/admin");
+    await adminShot(page, "Needs you");
+    await snap("admin-a1-today", "/admin", "A1 Today", "Good morning: needs you, this week, sidebar with badges");
+    await page.keyboard.press("Control+k");
+    await page.waitForTimeout(400);
+    await page.keyboard.type("Rani");
+    await page.waitForTimeout(1200);
+    await snap("admin-search", "/admin", "search palette (Ctrl+K)", "Global search for Rani", { scroll: false });
+  });
+
+  await flow("admin-a2", A, async ({ page, go, snap }) => {
+    await go("/admin/vets");
+    await adminShot(page, "Checked on the MSVC register");
+    await snap("admin-a2-vet-waiting", "/admin/vets", "A2 vets, waiting (Dr. Qureshi)", "List with detail: documents, MSVC register checklist, verify, ask for more, decline");
+    await page.getByText("Checked on the MSVC register").first().click();
+    await page.getByRole("button", { name: /^Verify / }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("admin-a2-verify-dialog", "/admin/vets", "A2 verify dialog", "Verify Dr. Qureshi?", { scroll: false });
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Ask for more" }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("admin-a2-ask-more", "/admin/vets", "A2 ask for more", "Ask for more: the reason", { scroll: false });
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: /^Open Registration certificate/ }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(1500);
+    await snap("admin-document-viewer-image", "/admin/vets", "document viewer (image)", "Registration certificate opened from an encrypted upload (sample image)", { scroll: false });
+  });
+
+  for (const [tab, text, desc] of [
+    ["verified", "Suspend", "A2 verified vet: suspend, remove, link to the directory"],
+    ["suspended", "Reinstate", "A2 suspended vet: reinstate"],
+    ["invited", "Invited", "A2 invited vets"],
+  ]) {
+    await flow(`admin-a2-${tab}`, A, async ({ page, go, snap }) => {
+      await go(`/admin/vets?tab=${tab}`);
+      await adminShot(page, text);
+      await snap(`admin-a2-vets-${tab}`, `/admin/vets?tab=${tab}`, `A2 ${tab}`, desc);
+    });
+  }
+
+  await flow("admin-invite-vet", A, async ({ page, go, snap }) => {
+    await go("/admin/vets/invite");
+    await adminShot(page, "Send the invitation");
+    await snap("admin-invite-vet", "/admin/vets/invite", "invite a vet", "Invite a vet: name, email, council number, vouching NGO");
+  });
+
+  await flow("admin-a3", A, async ({ page, go, snap }) => {
+    await go("/admin/avatars");
+    await adminShot(page, "Open batch #12");
+    await snap("admin-avatar-batches", "/admin/avatars", "avatar batches", "Batches: open batch 12, published batch 11, New batch");
+    await go("/admin/avatars/batch-12");
+    await adminShot(page, "34 matched");
+    await snap("admin-a3-batch", "/admin/avatars/batch-12", "A3 batch 12", "38 files, 34 matched by ID, no match, replaces existing, publish");
+    await page.getByText("chiku_side.png").first().click().catch(() => undefined);
+    await page.getByRole("dialog").waitFor({ timeout: 5000 }).catch(() => undefined);
+    await page.waitForTimeout(400);
+    await snap("admin-a3-pick-dog", "/admin/avatars/batch-12", "A3 no match: which dog?", "Which dog is chiku_side.png?", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/admin/avatars/batch-12/av-0");
+    await adminShot(page, "Where it's used");
+    await snap("admin-a4-avatar", "/admin/avatars/batch-12/av-0", "A4 one avatar", "Where it's used, map pin preview, feeder sign-off, approve");
+    await go("/admin/avatars/batch-12/av-3");
+    await adminShot(page, "Pick the dog");
+    await snap("admin-a4-avatar-no-dog", "/admin/avatars/batch-12/av-3", "A4 avatar with no dog", "Pick the dog");
+  });
+
+  await flow("admin-a5", A, async ({ page, go, snap }) => {
+    await go("/admin/merge?a=k4lu2ab7c&b=k3au8mn2p&report=rep-kalu");
+    await adminShot(page, "the same dog?");
+    await snap("admin-a5-merge", "/admin/merge", "A5 duplicates and merge", "Are Kalu and Kaalu the same dog? After merging");
+    await page.getByRole("button", { name: /^Merge into/ }).click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("admin-a5-merge-confirm", "/admin/merge", "A5 merge confirm", "Merge confirm dialog", { scroll: false });
+  });
+
+  await flow("admin-dogs", A, async ({ page, go, snap }) => {
+    await go("/admin/dogs");
+    await adminShot(page, "Possible duplicates");
+    await snap("admin-dogs", "/admin/dogs", "Dogs list", "Search, status filter, possible duplicates");
+    await page.getByText(/Possible duplicates/).first().click();
+    await page.waitForTimeout(500);
+    await snap("admin-dogs-duplicates-open", "/admin/dogs", "Dogs, duplicates open", "Possible duplicates expanded");
+    await go("/admin/dogs/r4n7kw2ab");
+    await adminShot(page, "History");
+    await snap("admin-dog", "/admin/dogs/[slug]", "one dog", "Rani: photos, health, anti-rabies, history, status, merge");
+  });
+
+  await flow("admin-feeders", A, async ({ page, go, snap }) => {
+    await go("/admin/feeders");
+    await adminShot(page, "Feeders");
+    await snap("admin-feeders", "/admin/feeders", "Feeders list", "Trust, dogs, feeds, reports");
+    await go("/admin/feeders/f-priya");
+    await adminShot(page, "Recent feeds");
+    await snap("admin-feeder", "/admin/feeders/[id]", "one feeder", "Priya S.: trust, dogs, recent feeds, devices, suspend, block device");
+    await page.getByRole("button", { name: "Suspend account" }).click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("admin-feeder-suspend", "/admin/feeders/[id]", "suspend dialog", "Suspend Priya S.?", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/admin/feeders/f-rahul");
+    await adminShot(page, "Lift the suspension");
+    await snap("admin-feeder-suspended", "/admin/feeders/[id]", "suspended feeder", "Lift the suspension, unblock");
+  });
+
+  await flow("admin-collars", A, async ({ page, go, snap }) => {
+    await go("/admin/collars");
+    await adminShot(page, "HJ-0412");
+    await snap("admin-collars", "/admin/collars", "Collars", "Issued, reprints, reissues, batch numbers");
+    await go("/admin/collars?tab=reprints");
+    await page.waitForTimeout(1200);
+    await snap("admin-collars-reprints", "/admin/collars?tab=reprints", "Collars, reprints", "Reprints tab");
+  });
+
+  await flow("admin-sos", A, async ({ page, go, snap }) => {
+    await go("/admin/sos");
+    await adminShot(page, "Nobody has accepted");
+    await snap("admin-sos", "/admin/sos", "SOS cases, open", "Moti: nobody has accepted for 40 min, assign a vet");
+    await page.getByRole("button", { name: /^Assign / }).first().click();
+    await page.getByRole("dialog").waitFor();
+    await page.waitForTimeout(400);
+    await snap("admin-sos-assign", "/admin/sos", "assign a vet dialog", "Assign Dr. Farhan Qureshi to Moti?", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/admin/sos?tab=unassigned");
+    await page.waitForTimeout(1500);
+    await snap("admin-sos-unassigned", "/admin/sos?tab=unassigned", "SOS, unassigned", "Unassigned tab");
+  });
+
+  for (const [q, key, desc] of [
+    ["", "duplicates", "Duplicates: Kalu and Kaalu, suggested by Hetja"],
+    ["?tab=photos", "photos", "Photo reports: take it down or it's fine"],
+    ["?tab=tags", "tags", "Tag reports"],
+    ["?tab=fake", "fake", "Fake tags: tag on the wrong dog"],
+    ["?tab=other", "other", "Other reports"],
+    ["?status=resolved", "resolved", "Resolved reports"],
+  ]) {
+    await flow(`admin-reports-${key}`, A, async ({ page, go, snap }) => {
+      await go(`/admin/reports${q}`);
+      await page.getByRole("heading").first().waitFor();
+      await page.waitForTimeout(1500);
+      await snap(`admin-reports-${key}`, `/admin/reports${q}`, `Reports: ${key}`, desc);
+    });
+  }
+
+  await flow("admin-a6", A, async ({ page, go, snap }) => {
+    await go("/admin/team");
+    await adminShot(page, "Audit log");
+    await snap("admin-a6-team", "/admin/team", "A6 team, roles and recent audit", "Team, roles, audit log, export CSV");
+    await page.getByRole("button", { name: "Change" }).first().click().catch(() => undefined);
+    await page.waitForTimeout(500);
+    await snap("admin-a6-change-role", "/admin/team", "A6 change a role", "Inline role editor: save role, remove from the team");
+    await go("/admin/audit");
+    await adminShot(page, "Audit log");
+    await snap("admin-audit", "/admin/audit", "audit log", "The whole log, export CSV");
+    await go("/admin/team/add");
+    await adminShot(page, "Add someone to the team");
+    await snap("admin-team-add", "/admin/team/add", "add someone", "Add someone to the team: email, role, wards");
+  });
+
+  await flow("admin-a7", A, async ({ page, go, snap }) => {
+    await go("/admin/ngos");
+    await adminShot(page, "Andheri Paws Trust");
+    await snap("admin-a7-ngo-active", "/admin/ngos", "A7 NGOs, active", "Andheri Paws Trust: members, vets, wards, edit, pause, remove");
+    await page.getByRole("button", { name: /^Open / }).first().click().catch(() => undefined);
+    await page.getByRole("dialog").waitFor({ timeout: 5000 }).catch(() => undefined);
+    await page.waitForTimeout(2000);
+    await snap("admin-document-viewer-pdf", "/admin/ngos", "document viewer (PDF)", "NGO registration certificate in the viewer (sample PDF)", { scroll: false });
+    await page.keyboard.press("Escape");
+    await go("/admin/ngos?tab=waiting");
+    await adminShot(page, "Approve");
+    await snap("admin-a7-ngo-waiting", "/admin/ngos?tab=waiting", "A7 waiting", "Approve Chembur Street Dogs, decline");
+    await go("/admin/ngos?tab=paused");
+    await adminShot(page, "Resume");
+    await snap("admin-a7-ngo-paused", "/admin/ngos?tab=paused", "A7 paused", "Resume");
+    await go("/admin/ngos/new");
+    await adminShot(page, "Add an NGO");
+    await snap("admin-ngo-add", "/admin/ngos/new", "add an NGO", "Name, registration, contact, phone, wards, offers");
+    await go("/admin/ngos/edit?id=ngo-apt");
+    await adminShot(page, "Edit details");
+    await snap("admin-ngo-edit", "/admin/ngos/edit", "edit an NGO", "Edit details");
+  });
+
+  await flow("admin-settings", A, async ({ page, go, snap }) => {
+    await go("/admin/settings");
+    await adminShot(page, "SOS timings");
+    await snap("admin-settings", "/admin/settings", "Settings", "Read-only rules: SOS timings, budgets, limits, keeping and deleting");
+  });
+
+  await flow("admin-gate-out", { admin: true, clock: "board", widths: [1440] }, async ({ page, go, snap }) => {
+    await go("/admin");
+    await adminShot(page, "Sign in to the admin portal");
+    await snap("admin-gate-signed-out", "/admin", "signed out", "Sign in to the admin portal");
+  });
+
+  await flow("admin-gate-not", { ...A, widths: [1440], adminMe: "not_admin" }, async ({ page, go, snap }) => {
+    await go("/admin");
+    await adminShot(page, "This account is not an admin");
+    await snap("admin-gate-not-admin", "/admin", "not an admin", "This account is not an admin: go to Hetja, use another account");
+  });
+
+  await flow("admin-gate-error", { ...A, widths: [1440], api: [["GET", /^\/admin\/me$/, () => fail(500, "INTERNAL", "internal error")]] }, async ({ page, go, snap }) => {
+    await go("/admin");
+    await adminShot(page, "The admin portal did not load");
+    await snap("admin-gate-error", "/admin", "portal failed to load", "The admin portal did not load, Try again");
+  });
+
+  await flow("admin-laptop", { ...A, widths: [390] }, async ({ page, go, snap }) => {
+    await go("/admin");
+    await page.getByTestId("admin-laptop").waitFor();
+    await snap("admin-works-on-a-laptop", "/admin (phone)", "narrow screen", "Admin works on a laptop");
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -2752,6 +3979,8 @@ async function main() {
   browser = await chromium.launch({ channel: "msedge" });
   try {
     PHOTO = await photoPng(browser);
+    await loadAdminFixtures();
+    DOC_IMAGE = await docImage(browser);
     await defineFlows();
   } finally {
     await browser.close();

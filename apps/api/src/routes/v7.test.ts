@@ -1443,3 +1443,26 @@ describe("review 7: suspended vets; collar batch number", () => {
     expect(view.json().data).toMatchObject({ canSign: false, vetStatus: "suspended", signingBlockedReason: "suspended" });
   });
 });
+
+describe("migration 0030: unknown cost tier", () => {
+  it("answers costTier null, never 'free', and sorts unknown after known tiers", async () => {
+    const tag = randomUUID().slice(0, 6);
+    const ins = await query<{ id: string; cost: string | null }>(
+      `INSERT INTO care_providers (name, kind, cost_tier, geo, geo_precision, locality, source)
+       VALUES ($1, 'ngo', NULL, ST_SetSRID(ST_MakePoint(72.9001, 19.2201), 4326)::geography, 'locality', 'Test', 'test-0030'),
+              ($2, 'ngo', 'paid', ST_SetSRID(ST_MakePoint(72.9001, 19.2201), 4326)::geography, 'locality', 'Test', 'test-0030')
+       RETURNING id, cost_tier::text AS cost`,
+      [`Unknown Tier ${tag}`, `Paid Tier ${tag}`],
+    );
+    try {
+      const r = await app.inject({ method: "GET", url: "/api/v1/care?lat=19.2201&lng=72.9001&max_km=1" });
+      const mine = r.json().data.providers.filter((p: { name: string }) => p.name.endsWith(tag));
+      expect(mine.map((p: { name: string; costTier: string | null }) => [p.name.split(" ")[0], p.costTier])).toEqual([
+        ["Paid", "paid"],
+        ["Unknown", null],
+      ]);
+    } finally {
+      await query(`DELETE FROM care_providers WHERE id = ANY($1::uuid[])`, [ins.rows.map((x) => x.id)]);
+    }
+  });
+});

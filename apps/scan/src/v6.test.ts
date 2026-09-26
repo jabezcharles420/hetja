@@ -121,7 +121,7 @@ describe("SOS copy", () => {
     const base = { phone: "+912226300000", phoneVerified: true, hasAmbulance: false };
     expect(careRow({ ...base, kind: "private_clinic", is24x7: true, distanceKm: 0.9 })).toEqual({ meta: "Vet · open now, 24 hours · 900 m", closed: false });
     expect(careRow({ ...base, kind: "ngo", is24x7: false, hoursNote: "open till 7 pm", distanceKm: 2.1 }).meta).toBe("NGO · open till 7 pm · 2.1 km");
-    expect(careRow({ ...base, kind: "govt", is24x7: false, openNow: false, opensNote: "opens 10 am" })).toEqual({
+    expect(careRow({ ...base, kind: "govt", name: "BMC Vet Dispensary", is24x7: false, openNow: false, opensNote: "opens 10 am" })).toEqual({
       meta: "Government vet · free · Closed now · opens 10 am",
       closed: true,
     });

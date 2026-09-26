@@ -80,7 +80,7 @@ interface CareProviderRow {
   id: string;
   name: string;
   kind: string;
-  cost_tier: string;
+  cost_tier: string | null;
   phone_e164: string | null;
   alt_phone_e164: string | null;
   has_ambulance: boolean;
@@ -103,7 +103,8 @@ export interface NearbyCareProvider {
   id: string;
   name: string;
   kind: string;
-  costTier: string;
+  /** null = unknown (migration 0030): never shown as a price, never "free". */
+  costTier: string | null;
   phoneE164: string | null;
   altPhoneE164: string | null;
   hasAmbulance: boolean;

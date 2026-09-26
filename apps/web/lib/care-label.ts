@@ -3,7 +3,8 @@
  * owner decision: "Government vets are free, and Hetja says so").
  *
  *   government vet (a person)      "Government vet · free"
- *   government hospital / clinic   "Government hospital · free"
+ *   government hospital            "Government hospital · free" (name says hospital)
+ *   other government office        "Government · free"   e.g. a BMC dog-control office
  *   anything with cost tier free   "<kind word> · free"   e.g. "NGO · free"
  *   charity hospital               "Charity hospital" (plus " · free" when free)
  *   everything else                "<kind word>"          e.g. "Vet"
@@ -24,6 +25,8 @@ export interface CareLabelInput {
   isGovernment?: boolean | null;
   /** v7 care lookups: a vet listed as a person (a government vet), not a hospital. */
   isPerson?: boolean | null;
+  /** The provider's name; "hospital" in it picks "Government hospital". */
+  name?: string | null;
 }
 
 export function isGovernmentCare(p: CareLabelInput): boolean {
@@ -32,7 +35,12 @@ export function isGovernmentCare(p: CareLabelInput): boolean {
 
 /** The kind word alone: "Vet", "NGO", "Charity hospital", "Government vet", "Government hospital". */
 export function careKindWord(p: CareLabelInput): string {
-  if (isGovernmentCare(p)) return p.isPerson ? "Government vet" : "Government hospital";
+  if (isGovernmentCare(p)) {
+    const name = p.name ?? "";
+    if (p.isPerson || /vet|dispensary|clinic/i.test(name)) return "Government vet";
+    // A BMC dog-control office is neither a vet nor a hospital.
+    return /hospital/i.test(name) ? "Government hospital" : "Government";
+  }
   if (p.careKind === "ngo" || p.kind === "ngo") return "NGO";
   if (p.careKind === "charity_hospital") return "Charity hospital";
   return "Vet";

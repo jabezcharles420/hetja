@@ -163,11 +163,13 @@ export function careLine(p: {
   hasAmbulance?: boolean;
   phoneE164?: string | null;
   phoneVerifiedAt?: string | null;
+  /** The provider's name; "hospital" or "dispensary" in it picks the government label. */
+  name?: string | null;
 }): string {
   const note = p.hoursNote ?? (p.is24x7 ? "open 24 hours" : p.hasAmbulance ? "ambulance" : undefined);
   const known = p.kind || p.isGovernment || p.costTier;
   const label = known
-    ? careLabel({ careKind: p.kind, costTier: p.costTier, isGovernment: p.isGovernment, isPerson: p.isPerson })
+    ? careLabel({ careKind: p.kind, costTier: p.costTier, isGovernment: p.isGovernment, isPerson: p.isPerson, name: p.name })
     : undefined;
   const bits = [label, p.locality ?? undefined, note];
   if (!p.phoneE164) bits.push("no phone listed");

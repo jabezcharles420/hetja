@@ -221,19 +221,21 @@ export function careMeta(p: CareMetaInput): string {
  * ("Closed now · opens 10 am"); 24 x 7 is always callable, and "open now" is
  * only claimed from 24 x 7 or the API's own openNow, never guessed from a
  * note. Government places and free ones say so, because the owner wants
- * people told they cost nothing: "Government vet · free".
+ * people told they cost nothing: "Government vet · free" for a vet listed as
+ * a person or a vet dispensary or clinic, "Government hospital · free", else
+ * "Government · free" (a BMC dog-control office is neither).
  *
  * An unconfirmed number is never hidden (a stranger at an SOS may have
  * nobody else to call): it keeps its Call button with `note`.
  */
 export function careRow(
-  p: CareMetaInput & { name?: string; costTier?: string; openNow?: boolean; opensNote?: string; distanceKm?: number },
+  p: CareMetaInput & { name?: string; costTier?: string | null; isPerson?: boolean; openNow?: boolean; opensNote?: string; distanceKm?: number },
 ): { meta: string; closed: boolean; note?: string } {
   const note = p.phoneVerified ? undefined : "Number not confirmed yet";
   const free = p.kind === "govt" || p.costTier === "free";
   const kind =
     p.kind === "govt"
-      ? `Government ${/hospital/i.test(p.name ?? "") ? "hospital" : "vet"} · free`
+      ? `Government${p.isPerson || /vet|dispensary|clinic/i.test(p.name ?? "") ? " vet" : /hospital/i.test(p.name ?? "") ? " hospital" : ""} · free`
       : [p.kind ? KIND_LABEL[p.kind] ?? p.kind : "", free ? "free" : ""].filter(Boolean).join(" · ");
   if (p.openNow === false && !p.is24x7)
     return { meta: [kind, "Closed now", p.opensNote].filter(Boolean).join(" · "), closed: true, note };

@@ -14,7 +14,8 @@
     "seed:care": "tsx src/seed-care.ts",
     "import:care": "tsx src/import-care.ts",
     "import:care-verified": "tsx src/import-care-verified.ts",
-    "geocode:care": "GEOCODE=1 tsx src/import-care-verified.ts"
+    "geocode:care": "GEOCODE=1 tsx src/import-care-verified.ts",
+    "care:jsonl-to-csv": "tsx src/care-jsonl-to-csv.ts"
   },
   "dependencies": {
     "@hetja/contracts": "workspace:*",

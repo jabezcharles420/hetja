@@ -64,6 +64,11 @@
   min-height: var(--h-target);
 }
 
+/* The page being shown (design v8 desktop nav). */
+.current {
+  font-weight: 600;
+}
+
 .signIn {
   display: inline-flex;
   align-items: center;

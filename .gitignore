@@ -47,3 +47,7 @@ packages/db/data/care/.work/
 
 # The agent kit zip is a handoff artifact, regenerate with Compress-Archive.
 /hetja-care-agent-kit.zip
+
+# Design handoff zips (design v8); their contents are in docs/design/v8-desktop.
+/Hetja Design System.zip
+/stitch_hetja_design_system.zip

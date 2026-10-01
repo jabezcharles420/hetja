@@ -970,7 +970,27 @@ a.sosCard:focus-visible {
 
 /* --- desktop: the 420px left panel (the mock's media query) --------------- */
 
+/* Design v8: the desktop nav (components/DeskNav) sits over the map from
+ * 900px, and the map and its panel start under it. */
+.deskNav {
+  display: none;
+}
+
 @media (min-width: 900px) {
+  .deskNav {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1100;
+  }
+  .root {
+    top: var(--h-nav-h);
+  }
+  .top .nav {
+    display: none;
+  }
   .top {
     right: auto;
     width: 420px;

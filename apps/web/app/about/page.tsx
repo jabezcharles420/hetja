@@ -230,6 +230,9 @@ export default function AboutPage(): React.JSX.Element {
           trying to build.{" "}
           <Link href="/hetja" className={c.link}>
             Read why we built Hetja.
+          </Link>{" "}
+          <Link href="/credits" className={c.link}>
+            The people who helped.
           </Link>
         </p>
       </SectionFade>

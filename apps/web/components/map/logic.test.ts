@@ -184,7 +184,9 @@ describe("places", () => {
   it("draws pins zoomed in, or when both dog layers are off, or for the selection and nearby", () => {
     const p = place();
     expect(showPlace(p, 13, ALL_ON, null, new Set())).toBe(true);
-    expect(showPlace(p, 12, ALL_ON, null, new Set())).toBe(false);
+    // The city view shows every NGO and vet too (owner, 2026-10-01).
+    expect(showPlace(p, 10, ALL_ON, null, new Set())).toBe(true);
+    expect(showPlace(p, 12, ALL_ON, null, new Set())).toBe(true);
     expect(showPlace(p, 12, { ...ALL_ON, sos: false, hungry: false }, null, new Set())).toBe(true);
     expect(showPlace(p, 12, ALL_ON, "p1", new Set())).toBe(true);
     expect(showPlace(p, 12, ALL_ON, null, new Set(["p1"]))).toBe(true);

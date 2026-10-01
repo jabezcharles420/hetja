@@ -28,6 +28,13 @@ vi.mock("@/lib/useInstallPrompt", () => ({
   useInstallPrompt: () => install,
 }));
 
+// The invitation (with its own desktop nav, design v8) is CSS-hidden on a
+// phone but still in this DOM; its content is tested in V6Chrome.test.tsx.
+// Here only whether the shell mounts it matters.
+vi.mock("./DesktopInvite", () => ({
+  DesktopInvite: ({ className }: { className?: string }) => <div data-testid="desktop-invite" className={className} />,
+}));
+
 import { ChromeShell, chromeFor, READING_ROUTES, TAB_ROOTS } from "./ChromeShell";
 
 afterEach(() => {
@@ -87,8 +94,8 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor(route)).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: true, desktop: "invite" });
   });
 
-  it("/map: a tab root that draws the shared TabBar in its own sheet", () => {
-    expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: false, desktop: "invite" });
+  it("/map: a tab root that draws the shared TabBar in its own sheet, and a real page on a desktop (v8)", () => {
+    expect(chromeFor("/map")).toMatchObject({ kind: "tab", nav: null, footer: false, tabBar: false, desktop: "none" });
   });
 
   it.each([["/vet"], ["/ngo"]])("%s: a v7 role tab root with the tab bar", (route) => {

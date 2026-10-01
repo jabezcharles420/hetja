@@ -44,6 +44,10 @@ export interface TopNavProps {
   scrolled?: boolean;
   /** Replaces the logo on the left, e.g. a back link on /hetja. */
   leading?: ReactNode;
+  /** The link for the page being shown: semibold, aria-current (design v8 desktop nav). */
+  current?: string;
+  /** After "Sign in", e.g. the desktop nav's "Open on your phone" pill (design v8). */
+  cta?: ReactNode;
   className?: string;
 }
 
@@ -60,6 +64,8 @@ export function TopNav({
   sticky = true,
   scrolled = false,
   leading,
+  current,
+  cta,
   className,
 }: TopNavProps): React.JSX.Element {
   const memorial = tone === "memorial";
@@ -85,7 +91,11 @@ export function TopNav({
               <ul className={styles.links}>
                 {links.map((l) => (
                   <li key={l.href}>
-                    <Link href={l.href} className={styles.link}>
+                    <Link
+                      href={l.href}
+                      className={[styles.link, current === l.href ? styles.current : ""].filter(Boolean).join(" ")}
+                      aria-current={current === l.href ? "page" : undefined}
+                    >
                       {l.label}
                     </Link>
                   </li>
@@ -97,6 +107,7 @@ export function TopNav({
                 {signInLabel}
               </Link>
             )}
+            {cta}
           </nav>
         )}
       </div>

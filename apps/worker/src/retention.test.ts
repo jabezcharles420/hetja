@@ -17,10 +17,83 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { pool, query } from "@hetja/db";
-import { REFRESH_TOKEN_SWEEP_GRACE_DAYS, sweepExpiredChallengesAndTokens } from "./index.js";
+import {
+  HANDLERS,
+  REFRESH_TOKEN_SWEEP_GRACE_DAYS,
+  enqueueRetentionJobIfDue,
+  scheduleNextDailyRun,
+  sweepExpiredChallengesAndTokens,
+} from "./index.js";
+import type { PoolClient } from "pg";
 
 afterAll(async () => {
   await pool.end();
+});
+
+async function inRolledBackTx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    return await fn(client);
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+}
+
+/**
+ * The daily cadence. `enqueueRetentionJobIfDue` reads "ran in the last 24h"
+ * off the jobs table, and a completed job is DELETEd — so until the handler
+ * left its own next run behind, the producer found nothing every five-minute
+ * tick and enqueued again. The live worker journal showed the sweep running 288
+ * times a day.
+ */
+describe("daily cadence (scheduleNextDailyRun)", () => {
+  it("the handler books exactly one run 24h out, and the producer then stays quiet", async () => {
+    // Start from a queue with no live retention rows, committed, so the
+    // handler's own INSERT (which commits) is observed.
+    await query(`DELETE FROM jobs WHERE kind = 'retention' AND failed_at IS NULL`);
+    try {
+      await HANDLERS.retention({});
+      await HANDLERS.retention({}); // a retry must not book a second one
+      const future = await query<{ n: number; soonest: Date }>(
+        `SELECT count(*)::int AS n, min(run_after) AS soonest FROM jobs
+          WHERE kind = 'retention' AND failed_at IS NULL AND run_after > now()`,
+      );
+      expect(future.rows[0].n).toBe(1);
+      // ~24h out (allow the seconds the two handler runs took).
+      const hoursOut = (future.rows[0].soonest.getTime() - Date.now()) / 3_600_000;
+      expect(hoursOut).toBeGreaterThan(23.9);
+      expect(hoursOut).toBeLessThanOrEqual(24);
+
+      // The producer sees the booked run and does not enqueue on top of it.
+      await inRolledBackTx(async (client) => {
+        expect(await enqueueRetentionJobIfDue(client)).toBe(false);
+      });
+
+      // Without a booked run, the producer fires — this is the path a fresh
+      // box (or a dead-lettered sweep) takes.
+      await inRolledBackTx(async (client) => {
+        await client.query(`DELETE FROM jobs WHERE kind = 'retention'`);
+        expect(await enqueueRetentionJobIfDue(client)).toBe(true);
+      });
+    } finally {
+      await query(`DELETE FROM jobs WHERE kind = 'retention' AND run_after > now()`);
+    }
+  });
+
+  it("scheduleNextDailyRun is idempotent while a live future row exists", async () => {
+    const kind = `test_daily_${Date.now()}`;
+    try {
+      expect(await scheduleNextDailyRun(kind)).toBe(true);
+      expect(await scheduleNextDailyRun(kind)).toBe(false);
+      // A dead-lettered future row does not count as "booked".
+      await query(`UPDATE jobs SET failed_at = now() WHERE kind = $1`, [kind]);
+      expect(await scheduleNextDailyRun(kind)).toBe(true);
+    } finally {
+      await query(`DELETE FROM jobs WHERE kind = $1`, [kind]);
+    }
+  });
 });
 
 describe("sweepExpiredChallengesAndTokens", () => {

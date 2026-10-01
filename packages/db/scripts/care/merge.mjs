@@ -65,7 +65,7 @@ const COLUMNS = [
   "source_id", "name", "kind", "cost_tier", "address", "locality", "ward", "lat", "lng",
   "phone", "alt_phone", "ambulance", "is_24x7", "hours", "handles_wildlife",
   "confirmed_on", "notes", "source_url", "cost_source", "phone_source",
-  "address_source", "hours_source", "method", "confidence", "enriched_at",
+  "address_source", "hours_source", "method", "confidence", "verified_by", "enriched_at",
 ];
 
 function readJsonl(file) {
@@ -87,6 +87,8 @@ function assemble() {
   const found = readJsonl(path.join(WORK, "discover.jsonl"));
   const enriched = readJsonl(path.join(WORK, "enrich.jsonl"));
   const enrichById = new Map(enriched.filter((e) => e && e.candidate_id).map((e) => [e.candidate_id, e]));
+  const verdicts = readJsonl(path.join(WORK, "verify.jsonl"));
+  const verdictById = new Map(verdicts.filter((v) => v && v.candidate_id).map((v) => [v.candidate_id, v]));
 
   const base = new Map();
   for (const it of [...seeds, ...found]) {
@@ -137,6 +139,7 @@ function assemble() {
       notes: str(e.notes),
       enriched_at: str(e.fetched_at),
       source: b.source,
+      verify: verdictById.get(b.candidate_id) || null,
     });
   }
   return records;
@@ -178,6 +181,16 @@ function gate(records) {
     const ng = nameGate(r.name);
     if (!ng.ok) { rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: `name:${ng.reason}` }); continue; }
     if (!r.matched) { rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: "not-matched" }); continue; }
+    // The verifier is the last gate. A row it could not re-prove never reaches
+    // production: accept is required, unsure and reject both drop the row.
+    if (r.verify && r.verify.verdict === "reject") {
+      rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: `verifier-reject:${str(r.verify.reason).slice(0, 100)}`, source_url: r.source_url });
+      continue;
+    }
+    if (r.verify && r.verify.verdict === "unsure") {
+      rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: `verifier-unsure:${str(r.verify.reason).slice(0, 100)}`, source_url: r.source_url });
+      continue;
+    }
     if (notesLookForeign(r.notes)) { rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: "foreign-notes" }); continue; }
     if (r.lat !== null && !inMumbai(r.lat, r.lng)) {
       rejected.push({ name: r.name, candidate_id: r.candidate_id, reason: "out-of-mumbai", source_url: r.source_url });
@@ -277,6 +290,7 @@ function toRow(r) {
     hours_source: r.hours_source,
     method: r.method,
     confidence: r.confidence,
+    verified_by: r.verify ? `${r.verify.verdict}${r.verify.reason ? `: ${r.verify.reason}` : ""}`.slice(0, 160) : "",
     enriched_at: r.enriched_at,
   };
 }

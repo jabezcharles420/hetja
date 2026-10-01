@@ -1,0 +1,50 @@
+# Validates the care-directory agent's output. It does NOT run the agent: that
+# is a multi-hour job and GitHub caps a job at 6 hours. Run the agent locally
+# overnight (docs/CARE-ENRICH-AGENT.md), open a PR, and this checks the file
+# before it can be imported.
+name: Care directory check
+
+on:
+  pull_request:
+    paths:
+      - "packages/db/data/care/**.csv"
+      - "packages/db/scripts/care/**"
+      - "docs/CARE-ENRICH-AGENT.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The scripts import only node builtins and each other, so no install is
+      # needed. Parse them first: a syntax error is the cheapest failure to catch.
+      - name: Syntax check
+        run: |
+          for f in packages/db/scripts/care/*.mjs; do node --check "$f"; done
+
+      # Every generated monthly file must satisfy the same rules the importer
+      # enforces: non-empty ids, known kind and cost tier, BMC wards, Mumbai
+      # geometry, and no phone-less non-government rows.
+      - name: Validate the monthly directory files
+        run: |
+          shopt -s nullglob
+          files=(packages/db/data/care/[0-9][0-9][0-9][0-9]-[0-9][0-9]-mumbai.csv)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no monthly directory file in this PR; nothing to validate"
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            node packages/db/scripts/care/merge.mjs --check "$f"
+          done

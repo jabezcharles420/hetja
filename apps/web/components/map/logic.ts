@@ -411,9 +411,14 @@ export function showPlace(
   selectedId: string | null,
   nearbyIds: ReadonlySet<string>,
 ): boolean {
-  if (!f[p.kind]) return false;
-  const onlyPlaces = !f.sos && !f.hungry;
-  return zoom >= 13 || onlyPlaces || selectedId === p.id || nearbyIds.has(p.id);
+  // Every listed NGO and vet shows at every zoom, mini below 13 (placeMini).
+  // They used to appear only from zoom 13, so the city view a visitor lands
+  // on showed none of them and the map read as empty (owner, 2026-10-01).
+  // The arguments stay for the callers; the filter chips still decide.
+  void zoom;
+  void selectedId;
+  void nearbyIds;
+  return f[p.kind];
 }
 
 export interface ScreenRect {

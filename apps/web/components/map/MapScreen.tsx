@@ -38,6 +38,7 @@ import { addBaseLayer } from "./tiles";
 import { CityView, PlaceView, WardView, type FootState } from "./SheetViews";
 import { AlertsAsk } from "@/components/AlertsAsk";
 import styles from "./MapScreen.module.css";
+import { DeskNav } from "@/components/DeskNav";
 
 /**
  * /map, screen 19: every ward's dogs at a glance, vets and NGOs as pins, and
@@ -389,8 +390,8 @@ export function MapScreen(): React.JSX.Element {
 
   // --- places (pins) ------------------------------------------------------
 
-  const onlyPlaces = !filters.sos && !filters.hungry;
-  const wantPlaces = (mode === "full" || onlyPlaces) && placeKinds(filters).fetch;
+  // Pins at every zoom (logic.ts showPlace), so they are fetched at every zoom.
+  const wantPlaces = placeKinds(filters).fetch;
 
   const fetchPlaces = useCallback(() => {
     const map = mapRef.current;
@@ -724,6 +725,9 @@ export function MapScreen(): React.JSX.Element {
   }
 
   return (
+    <>
+    {/* Design v8: the desktop nav over the map, shown from 900px (CSS). */}
+    <DeskNav current="/map" className={styles.deskNav} />
     <div
       className={[
         styles.root,
@@ -806,5 +810,6 @@ export function MapScreen(): React.JSX.Element {
         />
       )}
     </div>
+    </>
   );
 }

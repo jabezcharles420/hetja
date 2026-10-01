@@ -14,46 +14,10 @@
   --side: clamp(40px, 12.5vw, 180px);
 }
 
-.nav {
-  height: 52px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--side);
-  background: var(--h-frost);
-  border-bottom: 1px solid var(--h-frost-line);
-}
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--h-ink);
-  text-decoration: none;
-  min-height: var(--h-target);
-}
 
-.links {
-  display: flex;
-  gap: 28px;
-}
 
-.link {
-  font-size: 13px;
-  color: var(--h-ink);
-  text-decoration: none;
-  min-height: var(--h-target);
-  display: inline-flex;
-  align-items: center;
-}
 
-.link:hover {
-  text-decoration: underline;
-}
 
 .grid {
   flex: 1;
@@ -61,7 +25,7 @@
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 80px;
   align-items: center;
-  padding: 40px var(--side);
+  padding: 72px var(--side) 64px;
 }
 
 .text {
@@ -71,22 +35,11 @@
   min-width: 0;
 }
 
-.chip {
-  align-self: flex-start;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: var(--h-r-pill);
-  background: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-}
 
 .title {
   margin: 0;
-  font-size: clamp(64px, 6.7vw, 96px);
-  line-height: 0.95;
+  font-size: clamp(64px, 6.1vw, 88px);
+  line-height: 0.94;
   font-weight: 700;
   letter-spacing: -0.055em;
   text-wrap: wrap;
@@ -127,11 +80,6 @@
   max-width: 240px;
 }
 
-.cardTitle {
-  font-size: 21px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
 
 .cardSub {
   font-size: 15px;
@@ -142,6 +90,61 @@
 .cardSub b {
   color: var(--h-ink);
   font-weight: 600;
+}
+
+/* Design v8 (ui_kits/desktop InviteScreen). */
+.cardLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.cardBody {
+  font-size: 17px;
+  line-height: 1.47;
+}
+
+.count {
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.countN {
+  font-size: 72px;
+  line-height: 0.9;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+.countText {
+  font-size: 19px;
+  line-height: 1.35;
+  color: var(--h-secondary);
+  padding-bottom: 4px;
+  max-width: 440px;
+}
+
+.more {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
+
+.moreLink {
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+  min-height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+.moreLink:hover {
+  text-decoration: underline;
 }
 
 .phoneWrap {

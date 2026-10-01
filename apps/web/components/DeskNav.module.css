@@ -1,0 +1,6 @@
+/* The desktop nav spans the window (ui_kits/desktop/DeskNav: no 1080px
+ * column, 32px sides), so the logo sits over the map's 420px panel. */
+.wide.wide > div {
+  max-width: none;
+  padding-inline: 32px;
+}

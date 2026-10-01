@@ -59,7 +59,10 @@ sheet). Every other app screen is a focused screen with a 52 px `AppHeader`
 pages (About, How it works, FAQ, Privacy, Contact). One file decides all of
 it, per route: `apps/web/components/ChromeShell.tsx`. **Desktop wider than
 744 px is an invitation, not an app:** every app route shows "Hetja lives on
-your phone" (D1, `components/DesktopInvite.tsx`, with a QR of the page), the
+your phone" (D1, `components/DesktopInvite.tsx`, with a QR of the page), except
+`/map`, which from 900 px is a real desktop page, its 420 px panel beside the
+map under the desktop nav (`components/DeskNav.tsx`; design v8,
+`docs/design/v8-desktop/CONTRACT.md`, where `/credits` is also described), the
 collar page shows its own QR plus a working SOS button (D2, in `apps/scan`),
 the reading pages, `/hetja` and 404s open in a 480 px phone column, `/sos/**`
 is framed at 480 px so a responder at a desk can still act, and the print

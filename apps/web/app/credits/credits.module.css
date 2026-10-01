@@ -1,0 +1,147 @@
+/* Credits (design v8, ui_kits/credits/CreditsScreen at 390). */
+
+.page {
+  min-height: 100vh;
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.body {
+  padding: 16px var(--h-gutter) 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.title {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.lead {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.memorial {
+  background: var(--h-memorial-bg);
+  border-radius: var(--h-r-inner);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--h-ink);
+  text-decoration: none;
+  box-shadow: inset 0 0 0 1px var(--h-memorial-divider);
+  min-height: var(--h-target);
+}
+
+.mark {
+  color: var(--h-text-mid);
+  display: flex;
+}
+
+.memText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memName {
+  font-family: var(--h-serif);
+  font-size: 19px;
+}
+
+.memSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.chev {
+  font-size: 20px;
+  color: var(--h-tertiary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px;
+  background: var(--h-white);
+  border-radius: var(--h-r-inner);
+}
+
+.row {
+  min-height: 64px;
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--h-divider);
+}
+
+.name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.did {
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--h-secondary);
+}
+
+.ask {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.foot {
+  margin: 0;
+  padding-top: 8px;
+  font-size: 13px;
+  color: var(--h-secondary);
+  text-align: center;
+}
+
+/* An in-text link is underlined, not told apart by colour alone (WCAG 1.4.1). */
+.ask a {
+  color: var(--h-link);
+  text-decoration: underline;
+}

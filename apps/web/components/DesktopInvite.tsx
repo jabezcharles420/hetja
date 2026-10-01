@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import qrcode from "qrcode-generator";
-import { LogoMark, StatusPill } from "@/components/ds";
+import { StatusPill } from "@/components/ds";
+import { DeskNav } from "@/components/DeskNav";
 import { API_BASE } from "@/lib/api";
 import { DESKTOP_QUERY } from "@/lib/desktop-invite";
 import { loadShowcaseDog, type ShowcaseDog } from "@/lib/showcase-dog";
@@ -20,13 +21,6 @@ import styles from "./DesktopInvite.module.css";
  * only: lib/showcase-dog), and otherwise the v4 sample dog, labelled as an
  * example: no fake dog is presented as real (v6 CONTRACT, adapted list).
  */
-
-const NAV = [
-  { href: "/about", label: "About" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/privacy", label: "Privacy" },
-];
 
 /** A QR as one SVG path of dark modules (quiet zone included). */
 export function qrPath(text: string): { size: number; d: string } {
@@ -110,56 +104,68 @@ function useShowcaseDog(): ShowcaseDog | null | undefined {
   return dog;
 }
 
+/** "hetja.in/map" for https://hetja.in/map, "hetja.in" for the root. */
+export function typedAddress(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/+$/, "");
+    return `hetja.in${path}`;
+  } catch {
+    return "hetja.in";
+  }
+}
+
 export function DesktopInvite({ className }: { className?: string }): React.JSX.Element {
   const url = useHereUrl();
   const dogs = useDogCount();
   const real = useShowcaseDog();
 
+  // Design v8 (docs/design/v8-desktop, the design system's ui_kits/desktop
+  // InviteScreen): the desktop nav over it, the QR card, today's count and
+  // two ways on, the city map here and the people who helped.
   return (
     <div className={[styles.page, className ?? ""].filter(Boolean).join(" ")} data-testid="desktop-invite">
-      <header className={styles.nav}>
-        <Link href="/" className={styles.brand} aria-label="Hetja home">
-          <LogoMark size={26} />
-          <span>Hetja</span>
-        </Link>
-        <nav aria-label="Main" className={styles.links}>
-          {NAV.map((l) => (
-            <Link key={l.href} href={l.href} className={styles.link}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
+      <DeskNav hideCta />
 
       <div className={styles.grid}>
         <div className={styles.text}>
-          <span className={styles.chip}>Hetja · for Mumbai&apos;s street dogs</span>
-          <h1 className={styles.title}>
-            Hetja lives
-            <br />
-            on your phone.
-          </h1>
+          <h1 className={styles.title}>Hetja lives on your phone.</h1>
           <p className={styles.lead}>
-            It&apos;s made for the street, not the desk.{" "}
-            <span className={styles.ink}>Point your phone&apos;s camera at the code</span>{" "}
-            {dogs !== null
-              ? `and ${new Intl.NumberFormat("en-IN").format(dogs)} dogs are one tap away.`
-              : "and every collared dog in Mumbai is one tap away."}
+            It&apos;s made for the street.{" "}
+            <span className={styles.ink}>
+              A laptop can&apos;t follow a dog down a lane, but the phone in your pocket can.
+            </span>{" "}
+            Point its camera here and this page opens there, right where you left it.
           </p>
           <div className={styles.card}>
             <PageQr url={url} size={148} label="QR code that opens this page on your phone" />
             <div className={styles.cardText}>
-              <span className={styles.cardTitle}>Open on your phone</span>
+              <span className={styles.cardLabel}>On your phone</span>
+              <span className={styles.cardBody}>Open the camera and point it at the code. No app to install.</span>
               <span className={styles.cardSub}>
-                Or type <b>hetja.in</b> into its browser. Then add it to your home screen.
+                Or type <b>{typedAddress(url)}</b> into its browser.
               </span>
             </div>
           </div>
+          {dogs !== null && (
+            <p className={styles.count}>
+              <span className={styles.countN}>{new Intl.NumberFormat("en-IN").format(dogs)}</span>
+              <span className={styles.countText}>
+                {dogs === 1 ? "dog in Mumbai has a collar today." : "dogs in Mumbai have a collar today."} Each one has
+                someone who noticed.
+              </span>
+            </p>
+          )}
+          <div className={styles.more}>
+            <Link href="/map" className={styles.moreLink}>
+              See the city map here ›
+            </Link>
+            <Link href="/credits" className={styles.moreLink}>
+              The people who helped ›
+            </Link>
+          </div>
         </div>
 
-        {/* Empty until the real dog has been looked up, then shown once:
-            painting the example first and swapping in a different dog a
-            moment later read as the page changing under the visitor. */}
         <figure className={styles.phoneWrap} data-loading={real === undefined ? "" : undefined}>
           {real ? (
             <div className={styles.phone} aria-hidden="true" data-testid="d1-real-dog">

@@ -13,7 +13,7 @@ vi.mock("next/link", async () => {
 
 vi.mock("@/lib/pwa", () => ({ isStandalone: () => false }));
 
-import { DesktopInvite, qrPath } from "@/components/DesktopInvite";
+import { DesktopInvite, qrPath, typedAddress } from "@/components/DesktopInvite";
 import NotFound from "@/app/not-found";
 import { AddToHomeScreen, AddToHomeScreenAfterFeed } from "@/components/AddToHomeScreen";
 import { __setHeldPromptForTests, INSTALL_OFFERED_KEY } from "@/lib/install-offer";
@@ -28,14 +28,24 @@ describe("D1 desktop invitation", () => {
   it("ships the mock's copy and a QR of this page", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => null })));
     render(<DesktopInvite />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Hetja liveson your phone.");
-    expect(screen.getByText("Hetja · for Mumbai's street dogs")).toBeTruthy();
-    expect(screen.getByText("Open on your phone")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Hetja lives on your phone.");
+    expect(screen.getByText("On your phone")).toBeTruthy();
+    expect(screen.getByText("Open the camera and point it at the code. No app to install.")).toBeTruthy();
     expect(screen.getByRole("img", { name: "QR code that opens this page on your phone" })).toBeTruthy();
-    for (const l of ["About", "How it works", "FAQ", "Privacy"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
+    // Design v8: the desktop nav, without the pill that would open this very page.
+    for (const l of ["Map", "How it works", "Feeders", "Vets", "Privacy"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open on your phone" })).toBeNull();
+    expect(screen.getByRole("link", { name: "See the city map here ›" }).getAttribute("href")).toBe("/map");
+    expect(screen.getByRole("link", { name: "The people who helped ›" }).getAttribute("href")).toBe("/credits");
     // The phone is an illustration and says so.
     expect(screen.getByText("An example of a dog's page.")).toBeTruthy();
     vi.unstubAllGlobals();
+  });
+
+  it("tells the visitor what to type: the page's own address", () => {
+    expect(typedAddress("https://hetja.in/map")).toBe("hetja.in/map");
+    expect(typedAddress("https://hetja.in/")).toBe("hetja.in");
+    expect(typedAddress("https://hetja.in/scan/")).toBe("hetja.in/scan");
   });
 
   it("encodes the URL it is given", () => {

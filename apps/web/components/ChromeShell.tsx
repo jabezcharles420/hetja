@@ -160,12 +160,19 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
       desktop: "frame",
     };
   }
+  // Design v8: the thank-you page. A focused screen (it draws "‹ About"),
+  // in the 480px column on a desktop like the reading pages.
+  if (under(path, "/credits")) {
+    return { ...NONE, desktop: "frame" };
+  }
   if (under(path, "/hetja")) {
     return { ...NONE, kind: "memorial", nav: "memorial", desktop: "frame" };
   }
-  // The map draws the shared TabBar inside its own sheet.
+  // The map draws the shared TabBar inside its own sheet. On a desktop it is
+  // the one app screen that is a real page (design v8, docs/design/v8-desktop):
+  // its 420px panel beside the map, under the desktop nav, never D1.
   if (under(path, "/map")) {
-    return { ...NONE, kind: "tab" };
+    return { ...NONE, kind: "tab", desktop: "none" };
   }
   if (path === "/scan" || path === "/me" || (ROLE_TAB_ROOTS as readonly string[]).includes(path)) {
     return { ...NONE, kind: "tab", tabBar: true };

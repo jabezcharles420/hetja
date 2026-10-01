@@ -43,7 +43,7 @@ async function inRolledBackTx<T>(fn: (client: PoolClient) => Promise<T>): Promis
 
 /**
  * The daily cadence. `enqueueRetentionJobIfDue` reads "ran in the last 24h"
- * off the jobs table, and a completed job is DELETEd — so until the handler
+ * off the jobs table, and a completed job is DELETEd, so until the handler
  * left its own next run behind, the producer found nothing every five-minute
  * tick and enqueued again. The live worker journal showed the sweep running 288
  * times a day.
@@ -71,7 +71,7 @@ describe("daily cadence (scheduleNextDailyRun)", () => {
         expect(await enqueueRetentionJobIfDue(client)).toBe(false);
       });
 
-      // Without a booked run, the producer fires — this is the path a fresh
+      // Without a booked run, the producer fires, this is the path a fresh
       // box (or a dead-lettered sweep) takes.
       await inRolledBackTx(async (client) => {
         await client.query(`DELETE FROM jobs WHERE kind = 'retention'`);

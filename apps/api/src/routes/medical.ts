@@ -24,7 +24,7 @@ import {
   type ProvenRecord,
 } from "@hetja/ledger";
 import { MedicalRecordInput } from "@hetja/contracts";
-import { query, withTx } from "@hetja/db";
+import { query, withTx, CHAIN_ORDER_ASC, CHAIN_ORDER_DESC } from "@hetja/db";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { capabilitiesFor } from "../lib/require-role.js";
 
@@ -53,25 +53,25 @@ const FK_CORRECTS = "medical_records_corrects_record_id_fkey";
  * be pure I/O, paid on every append while holding the chain lock, for bytes
  * that are never hashed.
  *
- * (created_at, id) is the ordering the chain itself already uses (the head
- * SELECT below is its `DESC` twin), and 0014 adds the matching
- * (dog_id, created_at, id) index so this is an index-ordered range scan rather
- * than a seq scan plus sort under the chain lock.
+ * CHAIN_ORDER_ASC is the ordering the chain itself uses, the head SELECT
+ * below is its `DESC` twin, and 0031 adds the matching
+ * (dog_id, chain_seq, created_at, id) index so this is an index-ordered range
+ * scan rather than a seq scan plus sort under the chain lock.
  *
- * Known limitation, inherited rather than introduced: `created_at` defaults to
- * `now()`, which in PostgreSQL is the TRANSACTION start time, so two appends
- * that overlap in time can be committed by the advisory lock in one order and
- * ordered by `created_at` in the other. The chain's own verification
- * (`recomputeHead`, ledger.ts) already depends on this ordering, so the Merkle
- * tree is no more exposed to it than the chain is. But it is why the ordering
- * is spelled out identically in both files instead of being left to each
- * query's convenience.
+ * That constant used to be spelled `created_at ASC, id ASC` here and in five
+ * other places. It was wrong, and not marginally: `created_at` defaults to
+ * `now()`, which is TRANSACTION START time, and this route issues BEGIN and
+ * pg_advisory_xact_lock in two separate round trips, so a transaction can
+ * start earlier and append later. Sixteen concurrent appends through this
+ * route inverted 51 of 120 pairs and produced 3 chain forks. See migration
+ * 0031 for the full measurement; the ordering now lives in one place precisely
+ * so the append path and the proof path cannot drift apart again.
  */
 const DOG_LEDGER_SQL = `
 SELECT id, hash_curr AS hash
   FROM medical_records
  WHERE dog_id = $1
- ORDER BY created_at ASC, id ASC`;
+ ORDER BY ${CHAIN_ORDER_ASC}`;
 
 /**
  * Placeholder id for the row being appended, which does not have one yet:
@@ -208,7 +208,7 @@ export async function appendMedicalRecord(client: TxClient, rec: ChainAppend): P
   const ts = new Date().toISOString();
   await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
   const head = await client.query<HeadRow>(
-    `SELECT hash_curr FROM medical_records ORDER BY created_at DESC, id DESC LIMIT 1`,
+    `SELECT hash_curr FROM medical_records ORDER BY ${CHAIN_ORDER_DESC} LIMIT 1`,
   );
   const prev = head.rows[0]?.hash_curr ?? GENESIS_PREV_HASH;
   const hashCurr = computeHash(prev, hashedPayload, hashVetId, ts);

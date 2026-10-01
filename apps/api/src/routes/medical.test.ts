@@ -245,7 +245,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
     const first = await appendSelfReport("merkle one");
     const rows = await query<ProvenRecord>(
       `SELECT id, hash_curr AS hash FROM medical_records
-        WHERE dog_id = $1 ORDER BY created_at ASC, id ASC`,
+        WHERE dog_id = $1 ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
       [merkleDogId],
     );
     expect(rows.rows).toHaveLength(1);
@@ -269,7 +269,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
 
     const rows = await query<ProvenRecord & { merkle_root: string }>(
       `SELECT id, hash_curr AS hash, merkle_root FROM medical_records
-        WHERE dog_id = $1 ORDER BY created_at ASC, id ASC`,
+        WHERE dog_id = $1 ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
       [merkleDogId],
     );
     expect(rows.rows).toHaveLength(3);
@@ -303,7 +303,7 @@ describe("persisted Merkle root (enhancement stack §D.1, Top-25 #15)", () => {
     // dog: the tree is per-dog (§D.1: "over each dog's medical_records rows").
     const rows = await query<ProvenRecord & { merkle_root: string }>(
       `SELECT id, hash_curr AS hash, merkle_root FROM medical_records
-        WHERE dog_id = $1 ORDER BY created_at ASC, id ASC`,
+        WHERE dog_id = $1 ORDER BY chain_seq ASC NULLS FIRST, created_at ASC, id ASC`,
       [merkleDogId],
     );
     expect(rows.rows).toHaveLength(3);

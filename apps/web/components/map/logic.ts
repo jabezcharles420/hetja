@@ -397,9 +397,16 @@ export function wardHtml(w: MapWard, mode: MarkerMode, f: Filters, selected: boo
   return `<div class="${c.ward}${sel}${mode === "mini" ? ` ${c.mini}` : ""}"><span class="${c.wc}">${code}</span><span class="${c.n}">${w.dogs}</span>${b}</div>`;
 }
 
-export function placeHtml(p: Pick<MapPlace, "kind">, mini: boolean, selected: boolean, c: ClassMap = IDENTITY_CLASSES): string {
+export function placeHtml(
+  p: Pick<MapPlace, "kind"> & { is24x7?: boolean },
+  mini: boolean,
+  selected: boolean,
+  c: ClassMap = IDENTITY_CLASSES,
+): string {
   const k = p.kind === "vet" ? c.pVet : c.pNgo;
-  const inner = mini ? (p.kind === "vet" ? "+" : "N") : p.kind === "vet" ? `<span class="${c.plus}">+</span>Vet` : "NGO";
+  // Design v8 (the Stitch page's "Vet 24h" tag): a place open round the clock says so when zoomed in.
+  const h24 = p.is24x7 ? " 24h" : "";
+  const inner = mini ? (p.kind === "vet" ? "+" : "N") : p.kind === "vet" ? `<span class="${c.plus}">+</span>Vet${h24}` : `NGO${h24}`;
   return `<div class="${c.place} ${k}${selected ? ` ${c.sel}` : ""}${mini ? ` ${c.mini}` : ""}"><div class="${c.pin}">${inner}</div><div class="${c.stem}"></div></div>`;
 }
 

@@ -39,6 +39,10 @@ import { CityView, PlaceView, WardView, type FootState } from "./SheetViews";
 import { AlertsAsk } from "@/components/AlertsAsk";
 import styles from "./MapScreen.module.css";
 import { DeskNav } from "@/components/DeskNav";
+import { DeskFooter } from "@/components/DeskFooter";
+import { DeskPanel } from "./DeskPanel";
+import { CollarLookup, PhoneHandoff } from "./DeskModals";
+import { LAYER_FILTERS, layerOf, type MapLayer } from "./desk";
 
 /**
  * /map, screen 19: every ward's dogs at a glance, vets and NGOs as pins, and
@@ -147,6 +151,17 @@ export function MapScreen(): React.JSX.Element {
   const [peek, setPeekState] = useState(true);
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [foot, setFoot] = useState<FootState>({ kind: "idle" });
+  // Design v8: the desktop inspector and its two dialogs (DeskPanel, DeskModals).
+  const [wide, setWide] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 900px)");
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
 
   const setPeek = useCallback((p: boolean) => setPeekState(isWide() ? false : p), []);
 
@@ -678,6 +693,12 @@ export function MapScreen(): React.JSX.Element {
   // --- render -------------------------------------------------------------
 
   const toggle = (f: Filter) => setFilters((cur) => ({ ...cur, [f]: !cur[f] }));
+  const layer = layerOf(filters);
+  const LAYERS: { k: MapLayer; label: string }[] = [
+    { k: "live", label: "Live feed" },
+    { k: "wards", label: "Ward view" },
+    { k: "care", label: "Care network" },
+  ];
   const selectedWard = selectedWardId ? (wards?.find((w) => w.id === selectedWardId) ?? null) : null;
 
   let view: React.ReactNode;
@@ -727,7 +748,7 @@ export function MapScreen(): React.JSX.Element {
   return (
     <>
     {/* Design v8: the desktop nav over the map, shown from 900px (CSS). */}
-    <DeskNav current="/map" className={styles.deskNav} />
+    <DeskNav current="/map" className={styles.deskNav} onOpenPhone={() => setPhoneOpen(true)} />
     <div
       className={[
         styles.root,
@@ -739,6 +760,30 @@ export function MapScreen(): React.JSX.Element {
       ref={rootRef}
     >
       <div className={styles.map} ref={mapEl} aria-label="Map of Mumbai wards" role="region" />
+      {/* Design v8: the map's layer tabs and its sources (desktop only, CSS). */}
+      <div className={styles.layers} role="group" aria-label="Map layers">
+        {LAYERS.map((l) => (
+          <button
+            key={l.k}
+            type="button"
+            className={styles.layer}
+            aria-pressed={layer === l.k}
+            onClick={() => setFilters(LAYER_FILTERS[l.k])}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className={styles.sources}
+        aria-label="Map data and credits"
+        aria-expanded={attrOpen}
+        onClick={() => setAttrOpen((o) => !o)}
+      >
+        <span className={styles.sourcesDot} aria-hidden="true" />
+        BMC ward centres · {noTiles ? "street map unavailable" : "Esri and OpenStreetMap"} · Hetja care directory
+      </button>
       <div className={styles.aurora} aria-hidden="true" />
 
       <div className={styles.top} ref={topRef}>
@@ -790,7 +835,33 @@ export function MapScreen(): React.JSX.Element {
         >
           i
         </button>
-        {view}
+        {wide && selection?.type !== "place" ? (
+          <DeskPanel
+            wards={wards}
+            summary={summary}
+            citySos={citySos}
+            places={places}
+            filters={filters}
+            onToggle={toggle}
+            onAll={() => setFilters(ALL_ON)}
+            ward={selectedWard}
+            detail={detail}
+            detailError={detailError}
+            foot={foot}
+            me={me}
+            loginHref={loginHref(selectedWard?.code ?? null)}
+            onWard={(id) => select({ type: "ward", id })}
+            onBack={() => select(null)}
+            onHelp={onHelp}
+            onFeedHere={onFeedHere}
+            onRetry={() => selectedWard && void loadDetail(selectedWard.id)}
+            onDismiss={() => setFoot({ kind: "idle" })}
+            onPlace={(pl) => select({ type: "place", place: pl, from: selectedWard?.id ?? null })}
+            onLookup={() => setLookupOpen(true)}
+          />
+        ) : (
+          view
+        )}
         {/* M4: taking a case is a focused task, so the tab bar steps aside. */}
         {foot.kind !== "acked" && <TabBar position="static" active="map" className={styles.tabs} />}
       </section>
@@ -809,7 +880,10 @@ export function MapScreen(): React.JSX.Element {
           }}
         />
       )}
+      {lookupOpen && <CollarLookup onClose={() => setLookupOpen(false)} />}
+      {phoneOpen && <PhoneHandoff onClose={() => setPhoneOpen(false)} />}
     </div>
+    {wide && <DeskFooter className={styles.deskFooter} />}
     </>
   );
 }

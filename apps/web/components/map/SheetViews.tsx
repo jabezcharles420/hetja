@@ -418,7 +418,7 @@ export function AckedView({ foot }: { foot: Extract<FootState, { kind: "acked" }
   );
 }
 
-function WardFoot({
+export function WardFoot({
   ward,
   detail,
   foot,

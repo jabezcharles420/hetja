@@ -4,8 +4,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, getAccessToken } from "@/lib/api";
 import { readTabRole, rememberTabRole, saveTabRole } from "@/lib/tab-role";
-import { Button, Footer, TabBar, TopNav } from "@/components/ds";
-import { DESK_LINKS } from "./DeskNav";
+import { Button, Footer, Logo, TabBar, TopNav } from "@/components/ds";
+import { DESK_LINKS, DeskBrand } from "./DeskNav";
+import { DeskFooter } from "./DeskFooter";
 import { AppHeader } from "@/components/ds/AppHeader";
 import { useScrolled } from "@/components/ds/useScrolled";
 import { DesktopInvite } from "./DesktopInvite";
@@ -268,11 +269,23 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
             layout={reading ? "responsive" : "mobile"}
             links={reading ? DESK_LINKS : undefined}
             current={reading ? pathname ?? undefined : undefined}
+            leading={
+              reading ? (
+                <>
+                  <span className={styles.mobileOnly}>
+                    <Logo href="/" size={30} tone="ink" />
+                  </span>
+                  <span className={styles.deskOnly}>
+                    <DeskBrand />
+                  </span>
+                </>
+              ) : undefined
+            }
             cta={
               reading ? (
                 <span className={styles.deskOnly}>
                   <Button variant="navPill" href="/">
-                    Open on your phone
+                    Open on phone
                   </Button>
                 </span>
               ) : undefined
@@ -283,7 +296,17 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
           />
         ) : null}
         <main>{children}</main>
-        {chrome.footer && <Footer layout={reading ? "responsive" : "mobile"} />}
+        {chrome.footer &&
+          (reading ? (
+            <>
+              <div className={styles.mobileOnly}>
+                <Footer layout="mobile" />
+              </div>
+              <DeskFooter className={styles.deskOnlyBlock} />
+            </>
+          ) : (
+            <Footer layout="mobile" />
+          ))}
         {chrome.tabBar && <div className={styles.tabSpacer} aria-hidden="true" />}
         {chrome.install && <InstallBanner />}
         {chrome.tabBar && <TabBar />}

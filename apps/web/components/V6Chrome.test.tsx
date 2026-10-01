@@ -33,8 +33,8 @@ describe("D1 desktop invitation", () => {
     expect(screen.getByText("Open the camera and point it at the code. No app to install.")).toBeTruthy();
     expect(screen.getByRole("img", { name: "QR code that opens this page on your phone" })).toBeTruthy();
     // Design v8: the desktop nav, without the pill that would open this very page.
-    for (const l of ["Map", "How it works", "Feeders", "Vets", "Privacy"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Open on your phone" })).toBeNull();
+    for (const l of ["Live map", "How it works", "About & memorial", "Vets & feeders", "Privacy & ledger"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open on phone" })).toBeNull();
     expect(screen.getByRole("link", { name: "See the city map here ›" }).getAttribute("href")).toBe("/map");
     expect(screen.getByRole("link", { name: "The people who helped ›" }).getAttribute("href")).toBe("/credits");
     // The phone is an illustration and says so.

@@ -99,12 +99,19 @@
 
 /* Design v8: the reading pages' "Open on your phone" pill, desktop only (the
  * nav switches to its desktop layout at 1024px). */
-.deskOnly {
+.deskOnly,
+.deskOnlyBlock {
   display: none;
 }
 
 @media (min-width: 1024px) {
   .deskOnly {
     display: inline-flex;
+  }
+  .deskOnlyBlock {
+    display: block;
+  }
+  .mobileOnly {
+    display: none;
   }
 }

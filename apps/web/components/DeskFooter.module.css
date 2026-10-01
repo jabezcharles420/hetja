@@ -1,0 +1,126 @@
+/* The desktop footer (design v8): mist, the 1080px column, 13px links. */
+
+.footer {
+  background: var(--h-mist);
+  color: var(--h-ink);
+  border-top: 1px solid var(--h-divider);
+}
+
+.inner {
+  max-width: calc(var(--h-content) + var(--h-gutter) * 2);
+  margin-inline: auto;
+  padding: 48px var(--h-gutter) 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: 40px;
+}
+
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.blurb {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--h-secondary);
+  max-width: 440px;
+}
+
+.badges {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--h-secondary);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.colTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--h-secondary);
+  text-decoration: none;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.link:hover {
+  color: var(--h-ink);
+  text-decoration: underline;
+}
+
+.bottom {
+  border-top: 1px solid var(--h-divider);
+  padding-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--h-secondary);
+}
+
+.bottom p {
+  margin: 0;
+}

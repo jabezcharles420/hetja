@@ -1,6 +1,49 @@
-/* The desktop nav spans the window (ui_kits/desktop/DeskNav: no 1080px
- * column, 32px sides), so the logo sits over the map's 420px panel. */
+/* The desktop nav spans the window (no 1080px column, 32px sides), so the
+ * logo sits over the map's 420px panel. Specificity matches ds TopNav's
+ * `.desktop .inner`. */
 .wide.wide > div {
   max-width: none;
   padding-inline: 32px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--h-ink);
+  text-decoration: none;
+  min-height: var(--h-target);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brandName {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brandSub {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--h-ink);
+  color: var(--h-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
 }

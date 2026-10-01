@@ -58,6 +58,56 @@ Owner handoff of 2026-10-01: two zips.
      longer the invitation, so a laptop can sign in. Admin sign-in uses it
      too. The app screens after it are still the invitation on a desktop.
 
+7. **The Stitch map page's content is kept, all of it, in the design
+   system** (owner, 2026-10-01: "all those desktop content was important to
+   me, I just wanted the design of the other zip"). The desktop map's panel
+   is `components/map/DeskPanel.tsx`; the phone sheet is unchanged.
+   - Header: the logo with "Mumbai canine ledger", Live map, How it works,
+     About & memorial, Vets & feeders, Privacy & ledger, Sign in (or the
+     account avatar), "Open on phone" (a QR dialog on the map).
+   - City panel: "Mumbai right now" with the IST clock, the two-line
+     headline ("N dogs need help." / "N waiting for dinner."), the Collars,
+     Hungry and SOS tiles, the chips All wards, SOS (n), Unfed (n), Vets (n),
+     NGOs (n), the open cases, the hungriest wards, and the panel foot
+     "Field actions happen on the street" with the collar lookup.
+   - Ward panel: "Back to all of Mumbai", the ward's name, its code and dog
+     count, the needs-care / not-fed / fed pills, each open case card (what
+     happened, the dog, how long ago, respond through the phone's own flow,
+     Share), the feeding round with its progress bar and goal, the vets and
+     shelters near the ward with Call, and the dogs with collars, each fed or
+     waiting.
+   - Map: the layer tabs (Live feed, Ward view, Care network), zoom, the
+     ward pills, NGO and vet pins with "24h" where they are open round the
+     clock, and the sources line (it opens the credits).
+   - Dialogs: "Look up a collar" (code, the dog, its ward, vaccination and
+     last feed, "Open health ledger") and "Open on your phone" (the QR).
+   - Footer (map and reading pages, `components/DeskFooter.tsx`): the
+     "Hetja network" blurb, Network index and Civic ledger columns, the
+     dedication, the copyright.
+
+   Changed from Stitch, each because the original would be false or unsafe:
+   - **No street on an SOS** ("Reported near Lokhandwala Complex, 2nd Cross
+     Road", "Bleeding · Lokhandwala Jcn" on the map). INVARIANT 2: a case is
+     "in K/W ward"; the exact spot unlocks only for whoever takes it. A
+     public street address for a hurt dog is what a poisoner would want.
+   - **No NFC.** Hetja collars are QR only, so "tap an NFC collar", "NFC
+     Mesh" and "NFC Collar Verification" became the typed code and "Collar
+     verification".
+   - **No "BMC Ward Sync" / "Hetja Node #04" / "Blockchain".** None exists.
+     The layer tabs became the map's real layers; the sources line names the
+     real sources; the footer badge reads "Ward level, never street".
+   - **No scheduled rounds or assigned volunteers** ("Scheduled 19:30",
+     "Pooja M., Sunil R. assigned"). Hetja has neither; the card is today's
+     real feeding count, naming the dogs not logged yet.
+   - **"Verified safe" is "fed today"**, which is what the data says.
+   - **No zone** ("Zone IV"): the contracts carry no BMC zones, and a wrong
+     one would be worse than none.
+   - **Example numbers are live numbers** (59 collars, 17 hungry, 12 vets):
+     the panel counts what is on the map now.
+   - Labels are sentence case (the design system's rule), and the
+     "Response vehicle en route" line became who has been told and whether
+     anyone has taken the case.
+
 ## Deliberate departures from the kit
 
 - **No placeholder names on Credits.** The kit's rows are all "[Name or

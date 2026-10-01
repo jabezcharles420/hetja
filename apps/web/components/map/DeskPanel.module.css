@@ -1,0 +1,619 @@
+/* The desktop inspector (design v8): the sections of the owner's Stitch map
+ * page in the design system's tokens. White panel, mist inner cards (radius
+ * 20), status colour always with an icon and words, one loud button. */
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--h-sos);
+}
+
+.clock {
+  font-size: 13px;
+  color: var(--h-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.h1Sub {
+  display: block;
+  color: var(--h-secondary);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  border-radius: var(--h-r-inner);
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--h-mist);
+}
+
+.tileN {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.tileL {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.okT .tileL {
+  color: var(--h-ok);
+}
+
+.warnT {
+  background: var(--h-warn-bg);
+}
+
+.warnT .tileN,
+.warnT .tileL {
+  color: var(--h-warn);
+}
+
+.dangerT {
+  background: var(--h-danger-bg);
+}
+
+.dangerT .tileN,
+.dangerT .tileL {
+  color: var(--h-danger);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--h-white);
+  color: var(--h-ink);
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+}
+
+.chip[aria-pressed="false"] {
+  color: var(--h-secondary);
+}
+
+.chip.on {
+  background: var(--h-ink);
+  color: var(--h-white);
+  box-shadow: none;
+}
+
+.danger.on {
+  background: var(--h-danger);
+}
+
+.warn.on {
+  background: var(--h-warn);
+}
+
+.blue.on {
+  background: var(--h-blue);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px;
+  background: var(--h-mist);
+  border-radius: var(--h-r-inner);
+}
+
+.list > li + li {
+  border-top: 1px solid var(--h-divider);
+}
+
+.row,
+.placeMain {
+  width: 100%;
+  min-height: 60px;
+  border: 0;
+  background: none;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rowSub {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.pillWarn,
+.pillDanger,
+.pillOk {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--h-r-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pillWarn {
+  background: var(--h-warn-bg);
+  color: var(--h-warn);
+}
+
+.pillDanger {
+  background: var(--h-danger-bg);
+  color: var(--h-danger);
+}
+
+.pillOk {
+  background: var(--h-ok-bg);
+  color: var(--h-ok);
+}
+
+.caseRow {
+  border: 0;
+  border-radius: var(--h-r-inner);
+  background: var(--h-danger-bg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.caseIcon,
+.sosIcon {
+  color: var(--h-sos);
+  display: flex;
+}
+
+.caseText,
+.sosText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.caseTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.caseSub {
+  font-size: 13px;
+  color: var(--h-danger);
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--h-secondary);
+}
+
+.inlineBtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--h-link);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* --- ward ------------------------------------------------------------------ */
+
+.back {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: var(--h-target);
+  font: inherit;
+  font-size: 15px;
+  color: var(--h-link);
+  cursor: pointer;
+  margin: -10px 0 -8px;
+}
+
+.wardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wardName {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.wardCode {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.dogPill {
+  flex: none;
+  margin-top: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--h-r-pill);
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.blueDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--h-blue);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sosCard {
+  border-radius: var(--h-r-inner);
+  background: var(--h-danger-bg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sosTop {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.sosTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sosDog {
+  margin: 0;
+  font-size: 14px;
+  color: var(--h-danger);
+}
+
+.ago {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--h-danger);
+}
+
+.sosBody {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.shareBtn {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--h-ink);
+  cursor: pointer;
+}
+
+.roundCard {
+  border-radius: var(--h-r-inner);
+  background: var(--h-mist);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roundHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.roundTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.roundMeta {
+  font-size: 13px;
+  color: var(--h-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.roundBody {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--h-text-mid);
+}
+
+.bar {
+  height: 8px;
+  border-radius: var(--h-r-pill);
+  background: var(--h-white);
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--h-ok);
+  border-radius: inherit;
+}
+
+.roundFoot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.placeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeVet,
+.placeNgo {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--h-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.placeVet {
+  background: var(--h-blue);
+}
+
+.placeNgo {
+  background: var(--h-ink);
+}
+
+.callBtn {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--h-r-pill);
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--h-link);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.dogs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dog {
+  border-radius: 16px;
+  background: var(--h-mist);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dogAv {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--h-av-apricot-bg);
+  color: var(--h-av-apricot-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.dogFed {
+  font-size: 13px;
+  color: var(--h-ok);
+}
+
+.dogWait {
+  font-size: 13px;
+  color: var(--h-warn);
+}
+
+.wardFoot {
+  border-top: 1px solid var(--h-divider);
+  padding-top: 14px;
+}
+
+/* --- the panel's foot (city view) ------------------------------------------ */
+
+.field {
+  flex: none;
+  border-top: 1px solid var(--h-divider);
+  padding: 14px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--h-white);
+}
+
+.fieldText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fieldTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fieldSub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--h-secondary);
+}
+
+.lookupBtn {
+  height: 52px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 113, 227, 0.28);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lookupBtn:hover {
+    background: var(--h-blue-press);
+  }
+  .row:hover .rowTitle,
+  .placeMain:hover .rowTitle {
+    text-decoration: underline;
+  }
+}

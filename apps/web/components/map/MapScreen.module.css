@@ -976,6 +976,14 @@ a.sosCard:focus-visible {
   display: none;
 }
 
+/* The map's layer tabs and sources line, and the footer under the map:
+ * desktop only (design v8, from the owner's Stitch page). */
+.layers,
+.sources,
+.deskFooter {
+  display: none;
+}
+
 @media (min-width: 900px) {
   .deskNav {
     display: block;
@@ -985,11 +993,78 @@ a.sosCard:focus-visible {
     right: 0;
     z-index: 1100;
   }
+  /* The page scrolls past the map to the footer (DeskFooter), as in the
+   * Stitch page, so the map is a block under the nav, not a fixed layer. */
   .root {
-    top: var(--h-nav-h);
+    position: relative;
+    inset: auto;
+    margin-top: var(--h-nav-h);
+    height: calc(100vh - var(--h-nav-h));
+    min-height: 640px;
   }
-  .top .nav {
-    display: none;
+  .deskFooter {
+    display: block;
+  }
+  /* The chips live in the inspector (DeskPanel) here. */
+  .top {
+    display: none !important;
+  }
+  .sheet {
+    padding-top: 0 !important;
+  }
+  .layers {
+    display: flex;
+    position: absolute;
+    top: 16px;
+    left: calc(420px + 20px);
+    z-index: 700;
+    gap: 2px;
+    padding: 4px;
+    border-radius: var(--h-r-pill);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--h-sh-chip, 0 4px 14px rgba(0, 0, 0, 0.08));
+  }
+  .layer {
+    height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--h-r-pill);
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--h-secondary);
+    cursor: pointer;
+  }
+  .layer[aria-pressed="true"] {
+    background: var(--h-ink);
+    color: var(--h-white);
+  }
+  .sources {
+    display: inline-flex;
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 700;
+    margin: 0;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--h-r-pill);
+    background: rgba(255, 255, 255, 0.92);
+    font-size: 13px;
+    color: var(--h-secondary);
+    box-shadow: inset 0 0 0 1px var(--h-divider);
+    border: 0;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .sourcesDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--h-ok);
   }
   .top {
     right: auto;
@@ -1422,11 +1497,9 @@ a.infoRow:focus-visible {
 }
 
 @media (min-width: 900px) {
+  /* Design v8: the sources caption on the map is the credits button here. */
   .attrBtn {
-    position: fixed;
-    top: auto;
-    right: 12px;
-    bottom: 12px;
+    display: none;
   }
   .root :global(.leaflet-bottom.leaflet-right) {
     bottom: 48px;

@@ -73,8 +73,18 @@ jobs:
             docker ps
             exit 1
           fi
-          docker exec "$CID" bash -c \
-            'apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector'
+          # Same as deploy.yml: bullseye-pgdg moved to apt-archive.postgresql.org
+          # (HTTPS only) on 2026-10-01; CA certificates first if the image has none.
+          docker exec "$CID" bash -euo pipefail -c '
+            list=/etc/apt/sources.list.d/pgdg.list
+            sed -i -E "s#https?://apt.postgresql.org/pub/repos/apt#https://apt-archive.postgresql.org/pub/repos/apt#" "$list"
+            if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
+              apt-get update -qq -o Dir::Etc::sourceparts=/nonexistent
+              apt-get install -y -qq --no-install-recommends ca-certificates
+            fi
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends postgresql-16-pgvector
+          '
 
       - name: Enable PostGIS, pgvector and pgcrypto
         env:

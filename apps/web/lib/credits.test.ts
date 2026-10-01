@@ -14,6 +14,7 @@ describe("credits", () => {
 
   it("carries no placeholder or em dash", () => {
     const text = JSON.stringify(CREDIT_GROUPS);
-    expect(text).not.toMatch(/\[Name|—/);
+    expect(text).not.toContain("[Name");
+    expect(text).not.toContain(String.fromCharCode(0x2014));
   });
 });

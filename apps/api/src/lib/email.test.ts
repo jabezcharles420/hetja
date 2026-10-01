@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  canInviteAddress,
   canonicalEmailAddress,
   isEligibleForSignup,
 } from "./email.js";
@@ -79,5 +80,19 @@ describe("isEligibleForSignup", () => {
     // full domain, never a suffix test.
     expect(isEligibleForSignup("feeder@notgmail.com")).toBe(false);
     expect(isEligibleForSignup("feeder@gmail.com.evil.example")).toBe(false);
+  });
+});
+
+describe("canInviteAddress", () => {
+  it("in production refuses only a new non-Gmail address", () => {
+    expect(canInviteAddress("dr.x@clinic.in", false, true)).toBe(false);
+    expect(canInviteAddress("dr.x@gmail.com", false, true)).toBe(true);
+    expect(canInviteAddress("Dr.X@GoogleMail.com", false, true)).toBe(true);
+    // An existing account signs in whatever its domain (grandfathered).
+    expect(canInviteAddress("dr.x@clinic.in", true, true)).toBe(true);
+  });
+
+  it("is open outside production, like sign-in", () => {
+    expect(canInviteAddress("dr.x@clinic.in", false, false)).toBe(true);
   });
 });

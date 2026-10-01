@@ -1,9 +1,16 @@
 import { flushQueue } from "./flush";
 import { recordDroppedFeed } from "./dropped";
 
-// v4: design v5 (tag problems, N8); v3 was the design v4 shell. A new name
-// drops the old shell on activate, so a returning visitor is not served the previous design from cache.
-const CACHE = "scan-shell-v4";
+// The build (scripts/build.mjs) replaces __SCAN_VERSION__ with a hash of
+// the page and its scripts, so every deploy is a new worker with a new cache,
+// and the page asks for /d/main.js?v=<that hash>. Until 2026-10-01 the cache
+// name was bumped by hand and the page and main.js were served cache-first,
+// so a returning visitor got the previous build once after every deploy, and
+// could get old HTML with a new main.js.
+const VERSION = "__SCAN_VERSION__";
+const CACHE = `scan-shell-${VERSION}`;
+/** How long a page load waits for the network before the cached page is shown. */
+const PAGE_WAIT_MS = 3000;
 const API_PREFIX = "/api/v1";
 const SYNC_TAG = "log-feed";
 
@@ -14,7 +21,7 @@ scope.addEventListener("install", (ev: ExtendableEvent) => {
   ev.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll([BASE, BASE + "index.html", BASE + "main.js"]))
+      .then((cache) => cache.addAll([BASE, `${BASE}main.js?v=${VERSION}`]))
       .then(() => scope.skipWaiting()),
   );
 });
@@ -37,8 +44,41 @@ scope.addEventListener("fetch", (ev: FetchEvent) => {
     ev.respondWith(networkFirst(req));
     return;
   }
-  ev.respondWith(shellFirst(req));
+  if (req.mode === "navigate") {
+    ev.respondWith(pageFirst(req));
+    return;
+  }
+  // A versioned script never changes at its URL; anything else (the font).
+  ev.respondWith(url.search.includes("v=") ? cacheFirst(req) : shellFirst(req));
 });
+
+/**
+ * The page: the network's when it answers within PAGE_WAIT_MS, else the
+ * cached one (a weak signal on a street must not mean a blank screen), and
+ * the cached one offline. The page is one file for every /d/<slug>, so it is
+ * kept once, under BASE. A cached page asks for its own versioned main.js,
+ * which is in the same cache: old and new never mix.
+ */
+async function pageFirst(req: Request): Promise<Response> {
+  const cache = await caches.open(CACHE);
+  const fresh = fetch(req).then((res) => {
+    if (res.ok) void cache.put(BASE, res.clone());
+    return res;
+  });
+  const cached = await cache.match(BASE).catch(() => undefined);
+  if (!cached) return fresh.catch(() => Response.error());
+  const late = new Promise<Response>((r) => setTimeout(() => r(cached), PAGE_WAIT_MS));
+  return Promise.race([fresh.catch(() => cached), late]);
+}
+
+async function cacheFirst(req: Request): Promise<Response> {
+  const cache = await caches.open(CACHE);
+  const hit = await cache.match(req).catch(() => undefined);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) void cache.put(req, res.clone());
+  return res;
+}
 
 // INVARIANT: medical/vaccination fields travel through /api/v1/dogs/*, which
 // is covered by API_PREFIX above and therefore always network-first. A
@@ -72,13 +112,6 @@ async function shellFirst(req: Request): Promise<Response> {
   if (cached) {
     void fresh;
     return cached;
-  }
-  if (req.mode === "navigate") {
-    const root = await cache.match(BASE).catch(() => undefined);
-    if (root) {
-      void fresh;
-      return root;
-    }
   }
   return (await fresh) ?? Response.error();
 }

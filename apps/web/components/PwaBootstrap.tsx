@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { FEED_LOGGED_EVENT } from "@/lib/api";
 import { registerServiceWorker, maybeSubscribeAfterFeed } from "@/lib/pwa";
 import { flushOnOpen } from "@/lib/offline-queue";
 import { captureInstallPrompt } from "@/lib/install-offer";
@@ -10,10 +11,10 @@ import { captureInstallPrompt } from "@/lib/install-offer";
  * PWA + enables Background Sync) and flushes the offline feed queue on app
  * open / reconnect (the iOS fallback path).
  *
- * Also listens for the service worker's HETJA_FEED_LOGGED message
- * (public/sw.js observing a successful POST /api/v1/scans) to ask for Web
- * Push permission at the moment that earns it -- a feeder's first logged
- * feed, never on page load (plan §3.3).
+ * Also asks for Web Push permission at the moment that earns it, a
+ * feeder's first logged feed, never on page load (plan §3.3): on the API
+ * client's FEED_LOGGED_EVENT (lib/api.ts), and on the service worker's
+ * HETJA_FEED_LOGGED message, which only fires for a same-origin API.
  */
 export function PwaBootstrap(): React.JSX.Element | null {
   useEffect(() => {
@@ -26,6 +27,10 @@ export function PwaBootstrap(): React.JSX.Element | null {
       void flushOnOpen();
     };
     window.addEventListener("online", onOnline);
+    const onFeedLogged = () => {
+      void maybeSubscribeAfterFeed();
+    };
+    window.addEventListener(FEED_LOGGED_EVENT, onFeedLogged);
 
     const onMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== "object") return;
@@ -40,6 +45,7 @@ export function PwaBootstrap(): React.JSX.Element | null {
 
     return () => {
       window.removeEventListener("online", onOnline);
+      window.removeEventListener(FEED_LOGGED_EVENT, onFeedLogged);
       navigator.serviceWorker?.removeEventListener("message", onMessage);
     };
   }, []);

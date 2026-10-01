@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -38,7 +39,23 @@ for (const [inFile, outFile] of entries) {
 // same esbuild, and line indentation removed. Nothing else changes, so the
 // source file stays the readable one. Measured on design v6: 6,324 B gzipped
 // copied verbatim, 5,084 B minified.
-writeFileSync(join(DIST, "index.html"), await minifyHtml(readFileSync(join(ROOT, "index.html"), "utf8")));
+const html = await minifyHtml(readFileSync(join(ROOT, "index.html"), "utf8"));
+
+// One version for the page and its scripts: a hash of all three, stamped into
+// the page's main.js URL, main.js's telemetry.js URL and the worker's cache
+// name (see the header of src/service-worker.ts). A cached page then always
+// loads the scripts it was built with. Each stamp must land exactly once, or
+// the build fails rather than shipping a page that mixes versions.
+const read = (f) => readFileSync(join(DIST, f), "utf8");
+const VERSION = createHash("sha256").update(html).update(read("main.js")).update(read("telemetry.js")).digest("hex").slice(0, 10);
+function stamp(text, from, to, where) {
+  const n = text.split(from).length - 1;
+  if (n !== 1) throw new Error(`build: expected exactly one ${from} in ${where}, found ${n}`);
+  return text.replace(from, to);
+}
+writeFileSync(join(DIST, "index.html"), stamp(html, '"/d/main.js"', `"/d/main.js?v=${VERSION}"`, "index.html"));
+writeFileSync(join(DIST, "main.js"), stamp(read("main.js"), '"/d/telemetry.js"', `"/d/telemetry.js?v=${VERSION}"`, "main.js"));
+writeFileSync(join(DIST, "service-worker.js"), stamp(read("service-worker.js"), "__SCAN_VERSION__", VERSION, "service-worker.js"));
 // Inter subset for non-Apple devices (see the font note in index.html). Built
 // from apps/web/public/fonts/Inter-latin-var.woff2 with fonttools:
 //   fonttools varLib.instancer Inter-latin-var.woff2 wght=400:700 -o inst.ttf

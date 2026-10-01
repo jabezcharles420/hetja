@@ -50,6 +50,7 @@ import { attachDocuments } from "../lib/vet-profile.js";
 import { AVATAR_SQL, PORTRAIT_SQL, photoUrlFor } from "../lib/photo-url.js";
 import { firstName, publicName } from "../lib/public-name.js";
 import { sterilisedFrom } from "./dogs.js";
+import { canInviteAddress, INVITE_NOT_ELIGIBLE_MESSAGE } from "../lib/email.js";
 
 const ROLES = ["coordinator", "rescue", "collars", "volunteer"] as const;
 const Offers = z.strictObject({
@@ -994,6 +995,9 @@ export default async function ngoRoutes(app: FastifyInstance): Promise<void> {
     const { email, role } = parsed.data;
     const pepper = app.config.HETJA_HMAC_PEPPER;
     const existing = await accountForEmail(email, pepper);
+    if (!canInviteAddress(email, existing !== null, app.config.NODE_ENV === "production")) {
+      return err(reply, 400, "ADDRESS_NOT_ELIGIBLE", INVITE_NOT_ELIGIBLE_MESSAGE);
+    }
     // The email is HMAC'd here and dropped (INVARIANT 3): never stored, never logged, never audited.
     const inv = await withTx(async (client) => {
       const ins = await client.query<{ id: string }>(

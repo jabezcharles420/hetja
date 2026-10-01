@@ -273,12 +273,14 @@ describe("/sos/[caseId] (design v6)", () => {
     expect(screen.queryByRole("button", { name: "I can go and help" })).toBeNull();
   });
 
-  it("L5: escalated with nobody on it says so plainly, and is still takeable", async () => {
+  // The API sends what the database holds: escalate_sos sets escalated_at and
+  // leaves the state open (nothing writes 'escalated'). Both must show L5.
+  it.each(["open", "escalated"] as const)("L5: escalated with nobody on it says so plainly, and is still takeable (state %s)", async (state) => {
     const opened = new Date(Date.now() - 60 * MIN).toISOString();
     m.getSosCaseV6!.mockResolvedValue(
       sosCase({
         severity: "serious",
-        state: "escalated",
+        state,
         openedAt: opened,
         escalatedAt: new Date(Date.parse(opened) + 30 * MIN).toISOString(),
         dog: { slug: "brunoab22", name: "Bruno", photoUrl: null, sex: "male" },

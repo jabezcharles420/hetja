@@ -328,11 +328,12 @@ GitHub secret only; never copy it to a laptop.
 - **The API test suite refuses to run unless `PGDATABASE` ends in `_test`.** A
   deliberate guard. Do not work around it.
 - **The scan bundle has a hard 40 KB gzipped budget** enforced in CI, and it
-  is full: 40,553 B of 40,960 B on 2026-10-01 (407 B left), of which 11,267 B
+  is full: 40,706 B of 40,960 B on 2026-10-01 (254 B left), of which 11,267 B
   is the Inter subset. It was 33,260 B before the v6 screens and 39,101 B
   after them; v7's health list and "Government vet · free" labels took most
   of the rest, and the SOS request timeout, the offline screen's own retry
-  and the nameless-responder copy (2026-10-01) another 207 B. Three cuts made room for v6 (build-time HTML minification in
+  and the nameless-responder copy (2026-10-01) another 207 B, and the
+  versioned, network-first page in the collar service worker 153 B more. Three cuts made room for v6 (build-time HTML minification in
   `apps/scan/scripts/build.mjs`, 20 rarely used ASCII symbols dropped from the
   subset, and the `web-vitals` package replaced by native `PerformanceObserver`
   measurement in a separate idle-loaded `telemetry.js`). It is the page a

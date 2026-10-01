@@ -51,6 +51,7 @@ import { enqueueFeederPush } from "../lib/dog-feeders.js";
 import { ALL_WARDS, publicPhone, validWards, type NgoStatus, type VetStatus } from "../lib/professionals.js";
 import { adminVetDetailOf, adminVetRowOf, documentsOf, loadVetProfileRow, VET_PROFILE_SQL, type VetProfileRow } from "../lib/vet-profile.js";
 import { readDocument } from "../lib/documents.js";
+import { canInviteAddress, INVITE_NOT_ELIGIBLE_MESSAGE } from "../lib/email.js";
 import { sendInviteEmail } from "../lib/mailer.js";
 import { MAX_OPEN_ACKS, NGO_WINDOW_MINUTES, TRUST_FLOOR } from "../lib/sos-eligibility.js";
 import { FEED_TRUST_DAILY_CAP } from "../lib/trust.js";
@@ -674,6 +675,7 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (!b.success) return err(reply, 400, "INVALID_INVITE", "body must be { email, name?, ngoId? }");
     const pepper = app.config.HETJA_HMAC_PEPPER;
     const existing = await accountForEmail(b.data.email, pepper);
+    if (!canInviteAddress(b.data.email, existing !== null, app.config.NODE_ENV === "production")) return err(reply, 400, "ADDRESS_NOT_ELIGIBLE", INVITE_NOT_ELIGIBLE_MESSAGE);
     const id = await withTx(async (client) => {
       const ins = await client.query<{ id: string }>(
         `INSERT INTO invites (kind, identity_hmac, ngo_id, invited_by) VALUES ('vet', $1, $2, $3) RETURNING id`,
@@ -854,6 +856,9 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (!phone) return err(reply, 400, "INVALID_PHONE", "that is not a valid Indian phone number");
     const pepper = app.config.HETJA_HMAC_PEPPER;
     const existing = n.coordinatorEmail ? await accountForEmail(n.coordinatorEmail, pepper) : null;
+    if (n.coordinatorEmail && !canInviteAddress(n.coordinatorEmail, existing !== null, app.config.NODE_ENV === "production")) {
+      return err(reply, 400, "ADDRESS_NOT_ELIGIBLE", INVITE_NOT_ELIGIBLE_MESSAGE);
+    }
     const id = await withTx(async (client) => {
       const ins = await client.query<{ id: string }>(
         `INSERT INTO ngos (name, reg_type, reg_no, since_year, has_80g, wards, citywide, offers_ambulance, offers_shelter,
@@ -1065,6 +1070,7 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     }
     const pepper = app.config.HETJA_HMAC_PEPPER;
     const existing = await accountForEmail(b.data.email, pepper);
+    if (!canInviteAddress(b.data.email, existing !== null, app.config.NODE_ENV === "production")) return err(reply, 400, "ADDRESS_NOT_ELIGIBLE", INVITE_NOT_ELIGIBLE_MESSAGE);
     const out = await withTx(async (client) => {
       if (existing) {
         await client.query(

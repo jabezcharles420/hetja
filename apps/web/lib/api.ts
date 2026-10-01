@@ -382,7 +382,34 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     throw new ApiError("Unexpected API response", { status: res.status });
   }
 
+  if (method === "POST" && isFeedLog(path, opts.body)) announceFeedLogged();
+
   return (payload as OkEnvelope<T>).data;
+}
+
+/** The window event PwaBootstrap listens for: a feed log just succeeded. */
+export const FEED_LOGGED_EVENT = "hetja:feed-logged";
+
+/** POST /scans with a feed (not a retag), or a round of feeds (/scans/batch). */
+function isFeedLog(path: string, body: unknown): boolean {
+  if (path === "/scans/batch") return true;
+  return path === "/scans" && (body as { type?: unknown } | null)?.type !== "retag";
+}
+
+/**
+ * The earned moment to ask for Web Push (plan §3.3) is a feeder's first
+ * logged feed. public/sw.js was meant to spot it by watching POST
+ * /api/v1/scans, but the API is on another origin (api.hetja.in), which that
+ * worker never looks at, so the ask never happened. The page announces it
+ * itself instead; live submits and offline-queue replays both come through
+ * here.
+ */
+function announceFeedLogged(): void {
+  try {
+    window.dispatchEvent(new Event(FEED_LOGGED_EVENT));
+  } catch {
+    /* no window (tests, SSR) */
+  }
 }
 
 // ---------------------------------------------------------------------------

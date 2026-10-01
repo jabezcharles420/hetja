@@ -3,6 +3,7 @@ import {
   api,
   ApiError,
   API_BASE,
+  FEED_LOGGED_EVENT,
   getAccessToken,
   getRefreshToken,
   setAccessToken,
@@ -324,5 +325,33 @@ describe("lib/api request deadline", () => {
     const err = await api.getDog("abc234567", "sig").catch((e: unknown) => e);
     expect((err as ApiError).status).toBe(0);
     expect((err as ApiError).code).toBe("NETWORK_ERROR");
+  });
+});
+
+describe("lib/api feed-logged announcement", () => {
+  it("announces a successful feed log, but not a retag or a failure", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    // This suite runs under node: a bare EventTarget stands in for window.
+    const win = new EventTarget();
+    vi.stubGlobal("window", win);
+    const heard = vi.fn();
+    win.addEventListener(FEED_LOGGED_EVENT, heard);
+    const ok = () => jsonResponse(201, { ok: true, data: { scanId: "s1" } });
+    const scan = (type: "feed" | "retag") => ({ clientUuid: "u", dogSlug: "abc234567", type, capturedAt: new Date().toISOString() });
+
+    fetchMock.mockResolvedValueOnce(ok());
+    await api.createScan(scan("feed"));
+    expect(heard).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockResolvedValueOnce(ok());
+    await api.createScan(scan("retag"));
+    expect(heard).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(429, { ok: false, error: { message: "slow", code: "RATE_LIMITED" } }));
+    await expect(api.createScan(scan("feed"))).rejects.toBeInstanceOf(ApiError);
+    expect(heard).toHaveBeenCalledTimes(1);
+
+    vi.unstubAllGlobals();
   });
 });

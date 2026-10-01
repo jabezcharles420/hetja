@@ -103,6 +103,21 @@ export function isEligibleForSignup(email: string): boolean {
   return at > 0 && ELIGIBLE_DOMAINS.has(lowered.slice(at + 1));
 }
 
+/**
+ * Whether an admin may invite this address (vet, team member, NGO
+ * coordinator). The same rule as sign-in: an address that already has an
+ * account may be invited whatever its domain, a new one only when it could
+ * sign up. Without this an invite to dr.x@clinic.in was accepted and emailed,
+ * and the invitee then got "We can't sign in that address right now" for
+ * good. `enforce` is the production switch, as for sign-in.
+ */
+export function canInviteAddress(email: string, hasAccount: boolean, enforce: boolean): boolean {
+  return hasAccount || !enforce || isEligibleForSignup(email);
+}
+
+/** What the admin is told when canInviteAddress refuses (admins may know the rule; strangers are told less). */
+export const INVITE_NOT_ELIGIBLE_MESSAGE = "Hetja sign-in works with Gmail addresses only. Invite their Gmail address instead.";
+
 export const ADDRESS_NOT_ELIGIBLE_MESSAGE = "We can't sign in that address right now.";
 
 export type ResolvedIdentity =

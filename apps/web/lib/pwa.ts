@@ -194,7 +194,21 @@ export async function subscribeToPush(): Promise<boolean> {
  * denial should not be re-prompted (the browser blocks it anyway), and a
  * grant only needs to happen the one time.
  */
+let askingAfterFeed = false;
+
 export async function maybeSubscribeAfterFeed(): Promise<void> {
+  // The page's own event and the service worker's message can both arrive
+  // for one feed: ask once.
+  if (askingAfterFeed) return;
+  askingAfterFeed = true;
+  try {
+    await askAfterFeed();
+  } finally {
+    askingAfterFeed = false;
+  }
+}
+
+async function askAfterFeed(): Promise<void> {
   if (typeof localStorage === "undefined") return;
   try {
     if (localStorage.getItem(PUSH_PROMPT_KEY)) return;

@@ -744,7 +744,11 @@ export default function SosCaseScreen({ caseId }: { caseId: string }): React.JSX
   }
 
   // --- P9 open / L5 escalated: takeable ------------------------------------
-  const escalated = c.state === "escalated";
+  // The 8-minute escalation (worker escalate_sos) records escalated_at and
+  // leaves the case open, so it stays takeable by every route that checks
+  // state = 'open'. Nothing ever writes state 'escalated', so keying on the
+  // state alone meant this screen never showed.
+  const escalated = c.state === "escalated" || (c.state === "open" && !!c.escalatedAt);
   const canTake = isTakeable(c.state);
   const dist = typeof c.distanceM === "number" ? c.distanceM : null;
   const takeLabel = escalated && name ? `I can go and help ${name}` : "I can go and help";

@@ -61,7 +61,7 @@ jobs:
           echo "::error::ops-maintenance is retired: the box is shared and Hetja runs in ops/room. See ops/room/README.md."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 

@@ -553,5 +553,137 @@
   margin-top: 8px;
 }
 
-/* No wider layouts: from 745px the reading pages open in the phone layout,
- * centred at 480px (design v6, "Desktop is an invitation"). */
+/* /join: each role's next step, under its card. */
+.joinCta {
+  margin-top: 20px;
+}
+
+/* --- Desktop (design v8, docs/design/v8-desktop) -------------------------
+ * From 1024px the reading pages are real desktop pages under the desktop nav
+ * (ChromeShell): the design system's desktop scale. The 1080px content column
+ * (.h-container), headlines from 64px with tighter tracking, the 720px
+ * reading measure kept for running text, card lists as grids, desktop cards
+ * at radius 32 and padding 40, and room between sections. */
+@media (min-width: 1024px) {
+  .head,
+  .headFaq,
+  .headPlain,
+  .headContact {
+    padding-block: calc(var(--page-top, 0px) + 88px) 72px;
+  }
+
+  .col {
+    max-width: 760px;
+  }
+
+  .title {
+    font-size: 72px;
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
+
+  .titleLg {
+    font-size: 88px;
+    line-height: 0.95;
+    letter-spacing: -0.055em;
+  }
+
+  .lead {
+    font-size: 23px;
+    line-height: 1.4;
+    max-width: 720px;
+  }
+
+  .stack {
+    gap: 22px;
+  }
+
+  .h2 {
+    font-size: 40px;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .sub,
+  .prose {
+    font-size: 19px;
+  }
+
+  .section {
+    padding-block: 64px;
+  }
+
+  .sectionTight {
+    padding-block: 0 64px;
+  }
+
+  .sectionEnd {
+    padding-bottom: 120px;
+  }
+
+  .sectionHead {
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  /* The three "A memory / A ledger / A voice" cards side by side. */
+  .missionCards {
+    padding-block: 48px 24px;
+  }
+
+  .miniList {
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .miniCard {
+    border-radius: var(--h-r-card-lg);
+    padding: 32px;
+  }
+
+  .miniTitle {
+    font-size: 24px;
+  }
+
+  .miniText {
+    font-size: 17px;
+    margin-top: 8px;
+  }
+
+  /* Four across at most, so a group of four never strands one card on its
+   * own row; empty tracks collapse, so three cards still fill the width. */
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    border-radius: var(--h-r-card-lg);
+    padding: 32px;
+    gap: 8px;
+  }
+
+  .cardTitle {
+    font-size: 24px;
+  }
+
+  .cardText {
+    font-size: 17px;
+  }
+
+  .quote {
+    font-size: 26px;
+    line-height: 1.3;
+  }
+
+  .cta {
+    padding-block: 96px 112px;
+  }
+
+  .ctaTitle {
+    font-size: 56px;
+    letter-spacing: -0.045em;
+  }
+}

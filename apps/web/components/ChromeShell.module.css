@@ -64,6 +64,22 @@
     background: var(--h-mist);
   }
 
+  /* Design v8: sign-in on a laptop, a 480px card as tall as its content. */
+  .shell[data-desktop="card"] {
+    min-height: 100vh;
+    background: var(--h-mist);
+    padding-block: 56px;
+  }
+
+  .shell[data-desktop="card"] > .app {
+    max-width: 480px;
+    margin-inline: auto;
+    border-radius: var(--h-r-card-lg);
+    overflow: hidden;
+    background: var(--h-white);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  }
+
   .shell[data-desktop="frame"] > .app {
     position: relative;
     max-width: 480px;
@@ -78,5 +94,17 @@
   .nav,
   .tabSpacer {
     display: none;
+  }
+}
+
+/* Design v8: the reading pages' "Open on your phone" pill, desktop only (the
+ * nav switches to its desktop layout at 1024px). */
+.deskOnly {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .deskOnly {
+    display: inline-flex;
   }
 }

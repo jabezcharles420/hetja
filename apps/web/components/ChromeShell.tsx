@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, getAccessToken } from "@/lib/api";
 import { readTabRole, rememberTabRole, saveTabRole } from "@/lib/tab-role";
-import { Footer, TabBar, TopNav } from "@/components/ds";
+import { Button, Footer, TabBar, TopNav } from "@/components/ds";
+import { DESK_LINKS } from "./DeskNav";
 import { AppHeader } from "@/components/ds/AppHeader";
 import { useScrolled } from "@/components/ds/useScrolled";
 import { DesktopInvite } from "./DesktopInvite";
@@ -64,8 +65,9 @@ export interface Chrome {
   footer: boolean;
   tabBar: boolean;
   install: boolean;
-  /** Wider than 744px: invite = D1, frame = the phone layout at 480px, none = as is. */
-  desktop: "invite" | "frame" | "none";
+  /** Wider than 744px: invite = D1, frame = the phone layout at 480px, card =
+   * the same 480px as a rounded card on mist (sign-in, design v8), none = as is. */
+  desktop: "invite" | "frame" | "card" | "none";
 }
 
 /** The four tab roots (v6 owner decision: Home, Map, Scan, Me). */
@@ -75,7 +77,7 @@ export const TAB_ROOTS = ["/", "/map", "/scan", "/me"] as const;
 export const ROLE_TAB_ROOTS = ["/vet", "/ngo"] as const;
 
 /** Website pages: the only routes that get the Footer. */
-export const READING_ROUTES = ["/about", "/how-it-works", "/faq", "/privacy", "/contact"] as const;
+export const READING_ROUTES = ["/about", "/how-it-works", "/faq", "/privacy", "/contact", "/join"] as const;
 
 /** Home plus the reading pages: the routes whose nav floats over an aurora. */
 export const MARKETING_ROUTES = ["/", ...READING_ROUTES] as const;
@@ -157,7 +159,9 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
       footer: true,
       tabBar: false,
       install: false,
-      desktop: "frame",
+      // Design v8: real desktop pages (the desktop nav, the 1080px column,
+      // the desktop footer), no longer the phone layout in a 480px frame.
+      desktop: "none",
     };
   }
   // Design v8: the thank-you page. A focused screen (it draws "‹ About"),
@@ -165,8 +169,15 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
   if (under(path, "/credits")) {
     return { ...NONE, desktop: "frame" };
   }
+  // Design v8: the memorial is a desktop page too; it already lays itself out
+  // in its own centred 640px column (hetja.module.css).
   if (under(path, "/hetja")) {
-    return { ...NONE, kind: "memorial", nav: "memorial", desktop: "frame" };
+    return { ...NONE, kind: "memorial", nav: "memorial", desktop: "none" };
+  }
+  // Design v8: "Sign in" is in the desktop nav, so it opens on a laptop, in
+  // the 480px column (as admin sign-in already did), not the invitation.
+  if (under(path, "/login")) {
+    return { ...NONE, desktop: "card" };
   }
   // The map draws the shared TabBar inside its own sheet. On a desktop it is
   // the one app screen that is a real page (design v8, docs/design/v8-desktop):
@@ -227,9 +238,11 @@ function useAdminContext(): boolean {
 
 export function ChromeShell({ children }: { children: React.ReactNode }): React.JSX.Element {
   useRoleRefresh();
-  const base = chromeFor(usePathname());
+  const pathname = usePathname();
+  const base = chromeFor(pathname);
+  const reading = base.kind === "reading";
   const adminContext = useAdminContext();
-  const chrome: Chrome = adminContext && base.desktop === "invite" ? { ...base, desktop: "frame" } : base;
+  const chrome: Chrome = adminContext && base.desktop === "invite" ? { ...base, desktop: "card" } : base;
   const scrolled = useScrolled();
   const navCls = [
     styles.nav,
@@ -251,10 +264,26 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
         {chrome.nav === "memorial" ? (
           <AppHeader tone="memorial" back={{ href: "/", label: "Back", history: true }} />
         ) : chrome.nav ? (
-          <TopNav layout="mobile" surface={chrome.navSurface} scrolled={scrolled} className={navCls || undefined} />
+          <TopNav
+            layout={reading ? "responsive" : "mobile"}
+            links={reading ? DESK_LINKS : undefined}
+            current={reading ? pathname ?? undefined : undefined}
+            cta={
+              reading ? (
+                <span className={styles.deskOnly}>
+                  <Button variant="navPill" href="/">
+                    Open on your phone
+                  </Button>
+                </span>
+              ) : undefined
+            }
+            surface={chrome.navSurface}
+            scrolled={scrolled}
+            className={navCls || undefined}
+          />
         ) : null}
         <main>{children}</main>
-        {chrome.footer && <Footer layout="mobile" />}
+        {chrome.footer && <Footer layout={reading ? "responsive" : "mobile"} />}
         {chrome.tabBar && <div className={styles.tabSpacer} aria-hidden="true" />}
         {chrome.install && <InstallBanner />}
         {chrome.tabBar && <TabBar />}

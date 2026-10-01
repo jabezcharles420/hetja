@@ -74,7 +74,8 @@ describe("chromeFor (route matrix)", () => {
   });
 
   it.each(READING_ROUTES.map((r) => [r]))("%s: a website page, TopNav + Footer, the phone layout at 480px", (route) => {
-    expect(chromeFor(route)).toMatchObject({ kind: "reading", footer: true, tabBar: false, overlay: true, desktop: "frame" });
+    // Design v8: real desktop pages, not the phone layout in a 480px frame.
+    expect(chromeFor(route)).toMatchObject({ kind: "reading", footer: true, tabBar: false, overlay: true, desktop: "none" });
     expect(chromeFor(route).nav).not.toBeNull();
   });
 
@@ -110,18 +111,26 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/alerts")).toMatchObject({ kind: "focused", tabBar: false });
   });
 
-  it("/hetja: the memorial header, no footer, no tab bar, framed at 480px", () => {
+  it("/hetja: the memorial header, no footer, no tab bar, its own column on a desktop (v8)", () => {
     expect(chromeFor("/hetja")).toMatchObject({
       kind: "memorial",
       nav: "memorial",
       footer: false,
       tabBar: false,
-      desktop: "frame",
+      desktop: "none",
     });
   });
 
+  it("/login: a focused screen, and a 480px card on a laptop (v8: Sign in is in the desktop nav)", () => {
+    expect(chromeFor("/login")).toMatchObject({ kind: "focused", nav: null, tabBar: false, desktop: "card" });
+  });
+
+  it("/join and /credits (v8): a reading page, and a focused screen in the 480px column", () => {
+    expect(chromeFor("/join")).toMatchObject({ kind: "reading", footer: true, desktop: "none" });
+    expect(chromeFor("/credits")).toMatchObject({ kind: "focused", desktop: "frame" });
+  });
+
   it.each([
-    ["/login"],
     ["/welcome"],
     ["/settings"],
     ["/alerts"],

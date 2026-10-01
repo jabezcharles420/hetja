@@ -259,3 +259,12 @@ b.ink {
   /* The mock's 8px gap + 26px home-indicator strip under the button. */
   padding-bottom: max(34px, calc(env(safe-area-inset-bottom, 0px) + 10px));
 }
+
+/* Design v8: on a laptop sign-in opens in the 480px column (ChromeShell
+ * "frame"). Full-height there put "Send code" ~840px under the field; capped,
+ * it stays within reach of it. */
+@media (min-width: 745px) {
+  .page {
+    min-height: min(100dvh, 640px);
+  }
+}

@@ -20,6 +20,8 @@ export const STATIC_ROUTES = [
   "/faq",
   "/how-it-works",
   "/contact",
+  "/join",
+  "/credits",
   "/register",
   /* Design v5 app screens that render without data when signed out. */
   "/alerts",

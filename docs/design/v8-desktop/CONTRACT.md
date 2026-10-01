@@ -40,6 +40,24 @@ Owner handoff of 2026-10-01: two zips.
    screen with "‹ About", linked from About and from the invitation; in the
    480px column on a desktop.
 
+6. **Every page in the Stitch nav is a desktop page** (2026-10-01, "it has
+   all desktop pages that need to be added"):
+   - **How it works, About, FAQ, Privacy, Contact**: from 1024px the desktop
+     nav (with the "Open on your phone" pill), the 1080px column, titles from
+     72px, card lists as grids of up to four, desktop cards (radius 32,
+     padding 32), the desktop footer (`components/Content.module.css`, the
+     "Desktop" block; `ChromeShell` reading pages `desktop: "none"`).
+   - **Feeders and vets** (`/join`, new): Stitch's "Vets & Feeders". One
+     section per role (feeders, vets, NGOs), each ending in that role's real
+     next step (`/welcome`, `/vet/apply`, `/ngo/register`); on a desktop those
+     open the invitation with a QR of the step. The nav's Feeders and Vets
+     link to `#feeders` and `#vets` here.
+   - **About & Memorial**: About as above; `/hetja` in its own centred 640px
+     column instead of the 480px frame.
+   - **Sign in** (`/login`): a 480px card on mist (`desktop: "card"`), no
+     longer the invitation, so a laptop can sign in. Admin sign-in uses it
+     too. The app screens after it are still the invitation on a desktop.
+
 ## Deliberate departures from the kit
 
 - **No placeholder names on Credits.** The kit's rows are all "[Name or
@@ -59,5 +77,6 @@ Owner handoff of 2026-10-01: two zips.
   invitation with a QR of the scanner).
 - **Street tiles stay on** when `NEXT_PUBLIC_ESRI_API_KEY` is set (as in
   production). The kit draws the no-tiles fallback.
-- **The reading pages are unchanged** (the 480px column on a desktop). Neither
-  zip designs them for a desktop.
+- **The reading pages are built from the design system's rules**, not a
+  mock: neither zip draws them for a desktop (Stitch only names them in its
+  nav). See decision 6.

@@ -13,8 +13,8 @@ import styles from "./DeskNav.module.css";
 export const DESK_LINKS = [
   { href: "/map", label: "Map" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/how-it-works#feeders", label: "Feeders" },
-  { href: "/how-it-works#vets", label: "Vets" },
+  { href: "/join#feeders", label: "Feeders" },
+  { href: "/join#vets", label: "Vets" },
   { href: "/privacy", label: "Privacy" },
 ];
 

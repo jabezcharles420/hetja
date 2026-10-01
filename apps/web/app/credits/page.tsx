@@ -16,6 +16,7 @@ export default function CreditsPage(): React.JSX.Element {
   return (
     <div className={styles.page}>
       <AppHeader back={{ href: "/about", label: "About", history: true }} surface="mist" />
+      <div className="h-container">
       <div className={styles.body}>
         <div className={styles.intro}>
           <h1 className={styles.title}>Thank you.</h1>
@@ -57,6 +58,7 @@ export default function CreditsPage(): React.JSX.Element {
           put you here.
         </p>
         <p className={styles.foot}>Free, open source, built in Mumbai.</p>
+      </div>
       </div>
     </div>
   );

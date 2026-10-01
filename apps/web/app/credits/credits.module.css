@@ -7,7 +7,8 @@
 }
 
 .body {
-  padding: 16px var(--h-gutter) 48px;
+  /* The side gutter is the shared .h-container around it (e2e mobile-layout). */
+  padding-block: 16px 48px;
   display: flex;
   flex-direction: column;
   gap: 18px;

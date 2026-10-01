@@ -93,23 +93,19 @@ describe("web-vitals client (§M.16)", () => {
   });
 
   describe("sendVitalsBeacon", () => {
-    it("beacons a JSON blob to the web-vitals endpoint", async () => {
-      const sendBeacon = vi.fn((_url: string, _data?: BodyInit) => true);
-      vi.stubGlobal("navigator", { sendBeacon });
+    it("posts JSON to the web-vitals endpoint without credentials", () => {
+      const fetchMock = vi.fn((_url: string, _init?: RequestInit) => Promise.resolve(new Response(null, { status: 204 })));
+      vi.stubGlobal("fetch", fetchMock);
       const ok = sendVitalsBeacon("/dog/c3di5esh8", metric("INP", 120, "good"));
       expect(ok).toBe(true);
-      expect(sendBeacon).toHaveBeenCalledTimes(1);
-      const [url, blob] = sendBeacon.mock.calls[0] as [string, Blob];
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toContain("/api/v1/metrics/web-vitals");
-      expect(blob.type).toBe("application/json");
-      // jsdom's Blob has no .text(); read via FileReader.
-      const text = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsText(blob);
-      });
-      expect(JSON.parse(text)).toEqual({
+      expect(init.method).toBe("POST");
+      expect(init.keepalive).toBe(true);
+      // A credentialed request fails the API's CORS preflight (credentials: false).
+      expect(init.credentials).toBe("omit");
+      expect(JSON.parse(init.body as string)).toEqual({
         path: "/dog/:slug",
         name: "INP",
         value: 120,
@@ -117,13 +113,17 @@ describe("web-vitals client (§M.16)", () => {
       });
     });
 
-    it("returns false instead of throwing when the beacon fails", () => {
-      vi.stubGlobal("navigator", {
-        sendBeacon: () => {
-          throw new Error("blocked");
-        },
+    it("returns false instead of throwing when fetch throws", () => {
+      vi.stubGlobal("fetch", () => {
+        throw new Error("blocked");
       });
       expect(sendVitalsBeacon("/privacy", metric("TTFB", 90, "good"))).toBe(false);
+    });
+
+    it("swallows a rejected request", async () => {
+      vi.stubGlobal("fetch", () => Promise.reject(new TypeError("offline")));
+      expect(sendVitalsBeacon("/privacy", metric("TTFB", 90, "good"))).toBe(true);
+      await Promise.resolve();
     });
   });
 });

@@ -6,10 +6,27 @@ export const RESEND_COOLDOWN_S = 30;
 /** The API's OTP_TTL_MS (apps/api/src/lib/otp.ts) is 5 minutes. */
 export const OTP_MINUTES = 5;
 
+const BASE = "https://hetja.invalid";
+
+/**
+ * `raw` as a same-origin path, or null. Parsed the way the browser will parse
+ * it, not by prefix: the URL parser drops tabs and newlines and reads `\` as
+ * `/`, so `/<TAB>/evil.example` passed a `//` prefix check and then
+ * navigated to evil.example after a real sign-in.
+ */
+function sameOriginPath(raw: string | null | undefined): string | null {
+  if (!raw || !raw.startsWith("/")) return null;
+  try {
+    const u = new URL(raw, BASE);
+    return u.origin === BASE ? `${u.pathname}${u.search}${u.hash}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Only same-origin paths may be a post-login destination (no open redirect). */
 export function safeNext(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/me";
-  return raw;
+  return sameOriginPath(raw) ?? "/me";
 }
 
 /** 24 -> "0:24". */
@@ -20,9 +37,10 @@ export function formatCountdown(s: number): string {
 
 /** Where "Cancel" on the sign-in step goes: back where the feeder came from. */
 export function cancelHref(next: string | null | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/";
+  const path = sameOriginPath(next);
+  if (!path) return "/";
   // A page that needs a session would only bounce back here.
-  return next === "/welcome" || next.startsWith("/welcome?") ? "/" : next;
+  return path === "/welcome" || path.startsWith("/welcome?") ? "/" : path;
 }
 
 /**

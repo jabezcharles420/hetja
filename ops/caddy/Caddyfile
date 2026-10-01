@@ -202,7 +202,14 @@ http://hetja.in {
 	# the filename is not content-hashed. More specific than /d/*, so Caddy
 	# matches it first; every other /d/ path stays no-store.
 	handle /d/inter-scan.woff2 {
-		header >Cache-Control "public, max-age=2592000"
+		header {
+			>Cache-Control "public, max-age=2592000"
+			match status 200
+		}
+		header {
+			>Cache-Control "no-store"
+			match status 4xx 5xx
+		}
 		reverse_proxy 127.0.0.1:8081 {
 			import real_ip
 		}
@@ -265,15 +272,52 @@ http://hetja.in {
 	# defeated INVARIANT 2 through a channel the coarsening code never sees. If
 	# that strip is ever removed, remove this handler with it.
 	handle /photos/* {
-		header >Cache-Control "public, max-age=31536000, immutable"
+		header {
+			>Cache-Control "public, max-age=31536000, immutable"
+			match status 200
+		}
+		header {
+			>Cache-Control "no-store"
+			match status 4xx 5xx
+		}
 		header X-Content-Type-Options "nosniff"
 		root * /srv/hetja/photos
 		file_server
 	}
 
-	# Next.js static assets: content-addressed, immutable for a year.
+	# The service worker decides how every later page load behaves, so a fix to
+	# it must reach phones on the next visit. It went out as Next's default,
+	# `public, max-age=14400`, which Cloudflare kept for four hours. no-cache:
+	# always revalidated with the origin (browsers also bypass their own HTTP
+	# cache for a worker update check after 24 h, which is not soon enough).
+	handle /sw.js {
+		header >Cache-Control "no-cache"
+		reverse_proxy 127.0.0.1:3100 {
+			import real_ip
+		}
+	}
+
+	# Next.js static assets: content-addressed, immutable for a year, but ONLY
+	# on a 200. Until 2026-10-01 the immutable header was stamped on every
+	# response, errors included. One transient 500 from the web app on
+	# 2026-09-29 (13:37 UTC, the room under memory pressure) went out as
+	# `500, public, max-age=31536000, immutable`, Cloudflare cached it, and for
+	# two days every visitor who hit that edge got a page with no CSS and no
+	# JavaScript although the origin had long recovered. An error is now
+	# no-store, so the next request goes back to the origin. The same pair of
+	# rules guards every long-lived handle below (photos, the collar font).
+	# Measured on caddy 2.11.4 against a stub upstream: 200 -> immutable,
+	# 404 and 500 -> no-store. A single unconditional deferred no-store plus a
+	# conditional immutable does NOT work: the unconditional one wins.
 	handle /_next/static/* {
-		header >Cache-Control "public, max-age=31536000, immutable"
+		header {
+			>Cache-Control "public, max-age=31536000, immutable"
+			match status 200
+		}
+		header {
+			>Cache-Control "no-store"
+			match status 4xx 5xx
+		}
 		reverse_proxy 127.0.0.1:3100 {
 			import real_ip
 		}
@@ -307,11 +351,18 @@ http://admin.hetja.in {
 
 	# Only the portal, sign-in and the app's own assets live on this host.
 	# Everything else is the street app, which belongs on hetja.in.
-	@street not path /admin /admin/* /login /login/* /_next/* /fonts/* /icons/* /favicon.ico /manifest.webmanifest /robots.txt
+	@street not path /admin /admin/* /login /login/* /_next/* /fonts/* /icons/* /favicon.ico /icon.svg /apple-icon.png /manifest.webmanifest /robots.txt
 	redir @street https://hetja.in{uri} 302
 
 	handle /_next/static/* {
-		header >Cache-Control "public, max-age=31536000, immutable"
+		header {
+			>Cache-Control "public, max-age=31536000, immutable"
+			match status 200
+		}
+		header {
+			>Cache-Control "no-store"
+			match status 4xx 5xx
+		}
 		reverse_proxy 127.0.0.1:3100 {
 			import real_ip
 		}
@@ -408,7 +459,14 @@ http://api.hetja.in {
 	# /api/v1 ones above, with no catch-all. See the matching block on hetja.in
 	# for the path arithmetic and why serving these publicly is safe.
 	handle /photos/* {
-		header >Cache-Control "public, max-age=31536000, immutable"
+		header {
+			>Cache-Control "public, max-age=31536000, immutable"
+			match status 200
+		}
+		header {
+			>Cache-Control "no-store"
+			match status 4xx 5xx
+		}
 		header X-Content-Type-Options "nosniff"
 		root * /srv/hetja/photos
 		file_server

@@ -318,6 +318,32 @@ describe("POST /api/v1/reports (anon-attested)", () => {
     await app.close();
   });
 
+  it("files an SOS as the device when the access token has expired, and refuses only with no device token", async () => {
+    const app = buildServer(config);
+    const token = issueDeviceToken(config.HETJA_DEVICE_SECRET);
+    const stale = { authorization: "Bearer not-a-valid-or-expired-jwt" };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      headers: stale,
+      payload: { dogSlug, severity: "serious", note: "stale session", deviceToken: token },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.created).toBe(true);
+
+    const bare = await app.inject({
+      method: "POST",
+      url: "/api/v1/reports",
+      headers: stale,
+      payload: { dogSlug, severity: "serious", note: "stale session, no device" },
+    });
+    expect(bare.statusCode).toBe(401);
+    expect(bare.json().error.code).toBe("BAD_ACCESS_TOKEN");
+
+    await app.close();
+  });
+
   /** A pending_activation tag resolves fine: the report path never gated on
    * dog status, and wave 7 did not change that. */
   it("accepts an SOS report for a pending_activation dog (not 404/403)", async () => {

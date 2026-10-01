@@ -44,3 +44,6 @@ apps/ai/__pycache__/
 # packages/db/data/care/ are deliverables and stay tracked; only the working
 # directory is ignored. See docs/CARE-ENRICH-AGENT.md.
 packages/db/data/care/.work/
+
+# The agent kit zip is a handoff artifact, regenerate with Compress-Archive.
+/hetja-care-agent-kit.zip

@@ -62,6 +62,9 @@ export function linkManifest(): void {
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  // The admin portal (admin.hetja.in) is not the offline street app, and Caddy
+  // serves no /sw.js there.
+  if (typeof location !== "undefined" && location.hostname.startsWith("admin.")) return null;
   try {
     return await navigator.serviceWorker.register(SW_PATH);
   } catch {

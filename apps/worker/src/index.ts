@@ -194,6 +194,9 @@ interface PushSubRow {
   auth: string;
 }
 
+/** What happened to one send: the push service took it, the subscription is gone, or it failed and may work on a retry. */
+export type PushOutcome = "sent" | "gone" | "transient" | "disabled";
+
 /**
  * Low-level VAPID send: honours PUSH_ENABLED and cleans up dead endpoints.
  *
@@ -201,22 +204,38 @@ interface PushSubRow {
  * same delivery logic without fabricating an `sos_notifications` row. The
  * SOS path layers its receipt on top via `sendOnePush` below.
  *
- * Returns true on a successful send, false otherwise (including PUSH_ENABLED
- * degrade: missing VAPID → do not send, do not crash the queue).
+ * A 404 or 410 means the subscription is dead (the row is deleted); anything
+ * else (a 5xx or 429 from FCM or autopush, a timeout, a reset) is
+ * "transient": the SOS fan-out throws on it so the queue retries the rows
+ * still undelivered. Before 2026-10-01 every failure returned false and the
+ * job finished as a success, so one bad minute at a push service meant that
+ * responder was never paged.
  */
-async function sendPush(sub: PushSubRow, payload: string): Promise<boolean> {
-  if (!PUSH_ENABLED) return false;
+async function sendPush(sub: PushSubRow, payload: string, options?: webpush.RequestOptions): Promise<PushOutcome> {
+  if (!PUSH_ENABLED) return "disabled";
   try {
-    await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
-    return true;
+    await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, {
+      timeout: 10_000,
+      ...options,
+    });
+    return "sent";
   } catch (err) {
     const statusCode = (err as { statusCode?: number } | null | undefined)?.statusCode;
     if (statusCode === 404 || statusCode === 410) {
       await query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]);
+      return "gone";
     }
-    return false;
+    return "transient";
   }
 }
+
+/**
+ * An SOS is urgent and stale an hour later. web-push's defaults (urgency
+ * "normal", a TTL of four weeks) let Android batch even a delivered SOS for
+ * minutes under Doze, and would show a week-old case to a phone that comes
+ * back online.
+ */
+export const SOS_PUSH_OPTIONS: webpush.RequestOptions = { urgency: "high", TTL: 3_600 };
 
 /**
  * Sends one VAPID-signed push for the SOS fan-out. Writes delivered_at on
@@ -224,11 +243,12 @@ async function sendPush(sub: PushSubRow, payload: string): Promise<boolean> {
  * receipt, kept separate so the reminder path does not fabricate an SOS
  * notification row.
  */
-async function sendOnePush(sub: PushSubRow, notificationId: string, payload: string): Promise<void> {
-  const delivered = await sendPush(sub, payload);
-  if (delivered) {
+async function sendOnePush(sub: PushSubRow, notificationId: string, payload: string): Promise<PushOutcome> {
+  const outcome = await sendPush(sub, payload, SOS_PUSH_OPTIONS);
+  if (outcome === "sent") {
     await query(`UPDATE sos_notifications SET delivered_at = now() WHERE id = $1`, [notificationId]);
   }
+  return outcome;
 }
 
 /**
@@ -413,6 +433,11 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     );
     if (notifs.rowCount === 0) return;
 
+    // A retry (below) must never page anyone about a case that has since
+    // been taken or closed: only an open case is worth a push.
+    const live = await query(`SELECT 1 FROM sos_cases WHERE id = $1 AND state IN ('open', 'escalated')`, [p.caseId]);
+    if (live.rowCount === 0) return;
+
     // Design v6 (L6): the payload also carries what the alert was about, so
     // the case page can show it on a first open: the dog's name, the WARD
     // (never a position) and when it was raised.
@@ -423,14 +448,29 @@ export const HANDLERS: Record<string, (payload: any) => Promise<void>> = {
     );
     const payload = sosPushPayload(p.caseId, caseRow.rows[0]);
 
+    let transient = 0;
     for (const notif of notifs.rows) {
       const subs = await query<PushSubRow>(
         `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE feeder_id = $1`,
         [notif.feeder_id],
       );
+      let delivered = false;
+      let failed = false;
       for (const sub of subs.rows) {
-        await sendOnePush(sub, notif.id, payload);
+        const outcome = await sendOnePush(sub, notif.id, payload);
+        if (outcome === "sent") delivered = true;
+        if (outcome === "transient") failed = true;
       }
+      // One phone that took it is enough; a responder is "failed" only when
+      // none of their devices did and one might on a retry.
+      if (failed && !delivered) transient++;
+    }
+    // Throwing hands the job back to the queue's backoff (5 s, 10 s, 20 s,
+    // up to MAX_ATTEMPTS). A plain retry sends only the rows still
+    // undelivered. A repage retry pages again everyone it paged, which the
+    // notification's tag (sos-<caseId>) collapses into one alert on a phone.
+    if (transient > 0) {
+      throw new Error(`send_sos_push: ${transient} responder(s) not reached (push service error), retrying`);
     }
   },
 

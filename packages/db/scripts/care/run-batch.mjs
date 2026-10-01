@@ -61,7 +61,11 @@ const BATCH_SIZE = Number(process.env.HETJA_AGENT_BATCH || "25") || 25;
 const BATCH_MIN = Number(process.env.HETJA_AGENT_BATCH_MIN || "20") || 20;
 const BUDGET_MIN = Number(process.env.HETJA_AGENT_BUDGET_MIN || "480") || 480;
 const MODEL = process.env.HETJA_AGENT_MODEL || "";
-const AGENTS = { discover: process.env.HETJA_AGENT_DISCOVER || "care-discoverer", enrich: process.env.HETJA_AGENT_ENRICH || "care-enricher" };
+const AGENTS = {
+  discover: process.env.HETJA_AGENT_DISCOVER || "care-discoverer",
+  enrich: process.env.HETJA_AGENT_ENRICH || "care-enricher",
+  verify: process.env.HETJA_AGENT_VERIFY || "care-verifier",
+};
 const isWin = process.platform === "win32";
 const DEADLINE = Date.now() + BUDGET_MIN * 60_000;
 
@@ -130,8 +134,9 @@ function enrichItems() {
 }
 
 function pending(phase, done) {
-  const all = phase === "discover"
-    ? readJsonl(path.join(WORK, "discover-tasks.jsonl"))
+  const all =
+    phase === "discover" ? readJsonl(path.join(WORK, "discover-tasks.jsonl"))
+    : phase === "verify" ? readJsonl(path.join(WORK, "enrich.jsonl"))
     : enrichItems();
   const seen = new Set(done[phase]);
   const out = [];
@@ -216,7 +221,7 @@ async function main() {
   if (!existsSync(path.join(WORK, "discover-tasks.jsonl"))) {
     throw new Error("no queue: run `node packages/db/scripts/care/queue.mjs` first");
   }
-  const phases = PHASE === "both" ? ["discover", "enrich"] : [PHASE];
+  const phases = PHASE === "both" ? ["discover", "enrich", "verify"] : [PHASE];
   const done = loadDone();
   let processed = 0;
   let consecutiveFailures = 0;

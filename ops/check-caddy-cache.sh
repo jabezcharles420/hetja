@@ -53,6 +53,8 @@ if [ "${1:-}" = "--self-test" ]; then
   expect_fail 'reports-made-cacheable' 's#handle /api/v1/stats/impact {#handle /api/v1/reports* {#'
   expect_fail 'd-star-cached' '/handle \/d\/\* {/,/}/ s#"no-store"#"public, max-age=60"#'
   expect_fail 'cache-header-not-deferred' '/handle \/d\/\* {/,/reverse_proxy/ s#header >Cache-Control#header Cache-Control#'
+  expect_fail 'static-errors-cached-a-year' '/handle \/_next\/static\/\* {/,/reverse_proxy/ { /"no-store"/d; }'
+  expect_fail 'immutable-not-gated-on-200' '0,/match status 200/ s#match status 200##'
   expect_fail 'reverse-proxy-without-real-ip' '0,/import real_ip/ s#import real_ip#import common#'
   if CADDY="$CADDY" bash "$0" >/dev/null 2>&1; then
     echo "SELF-TEST ok: gate passes the real $CADDY"
@@ -175,6 +177,27 @@ require_all '/api/v1/care*'     'care* is cached for 60s'           'max-age'  '
 
 # Content-addressed build output; safe to cache for a year.
 require_all '/_next/static/*'   '_next/static is immutable'         'immutable' '-'
+
+# A long-lived header must never reach an ERROR. On 2026-09-29 a transient
+# 500 from the web app went out as `public, max-age=31536000, immutable`;
+# Cloudflare kept it and served CSS-less, script-less pages for two days after
+# the origin recovered. So every long-lived handle sets its max-age only under
+# `match status 200` and sends `no-store` under `match status 4xx 5xx`.
+for pat in '/_next/static/*' '/photos/*' '/d/inter-scan.woff2'; do
+  require_all "$pat" "$pat errors are no-store" 'no-store' '-'
+done
+ungated=$(awk '
+  /^[[:space:]]*#/ { next }
+  pending { if ($0 !~ /match[[:space:]]+status[[:space:]]+200[[:space:]]*$/) print pending; pending = "" }
+  /Cache-Control/ && /max-age=(31536000|2592000)/ { pending = NR ": " $0 }
+' "$CADDY")
+if [ -z "$ungated" ]; then
+  pass "every long-lived Cache-Control is gated on status 200"
+else
+  bad "long-lived Cache-Control not followed by 'match status 200' (errors would be cached):"
+  printf '%s
+' "$ungated" | sed 's/^/       /'
+fi
 
 # Feeder-uploaded dog photos, served off disk. The filename is a random UUID so
 # the bytes never change, and a photo is orders of magnitude larger than any JSON

@@ -864,6 +864,25 @@ describe("professionals are public; government is free", () => {
 });
 
 describe("NGOs and SOS routing", () => {
+  it("opens an SOS to the vets at once when the ward's NGO has no coordinator to page", async () => {
+    // routeCaseToNgo returns the NGO even when it paged nobody; holding the
+    // vets back for the NGO window then meant nobody at all for 15 minutes.
+    const owner = await insertOwner();
+    const coordinator = await insertFeeder({ name: "Gone Coordinator" });
+    const ngoId = await activeNgo(owner, coordinator, ["R-North"]);
+    await query(`UPDATE ngo_members SET left_at = now() WHERE ngo_id = $1`, [ngoId]);
+    const dog = await insertDog({ ward: "R-North" });
+    const rep = await app.inject({ method: "POST", url: "/api/v1/reports", payload: { dogSlug: dog.slug, severity: "serious", deviceToken: device().token } });
+    const caseId = rep.json().data.caseId;
+    const routed = await query<{ ngo_id: string | null }>(`SELECT ngo_id FROM sos_cases WHERE id = $1`, [caseId]);
+    expect(routed.rows[0].ngo_id).toBe(ngoId);
+    const job = await query<{ mins: number }>(
+      `SELECT round(extract(epoch FROM run_after - now()) / 60)::int AS mins FROM jobs WHERE kind = 'sos_open_to_vets' AND payload->>'caseId' = $1`,
+      [caseId],
+    );
+    expect(job.rows[0].mins).toBeLessThanOrEqual(0);
+  });
+
   it("routes an SOS to the NGO's coordinators, queues the vets' turn, and a dispatched member takes it with the ordinary ack", async () => {
     const owner = await insertOwner();
     const kavita = await insertFeeder({ name: "Kavita Nair" });

@@ -153,6 +153,24 @@
   gap: 24px;
 }
 
+/* While the real dog is looked up the frame stays empty (see DesktopInvite). */
+.phone > *,
+.caption {
+  transition: opacity 0.25s ease;
+}
+
+.phoneWrap[data-loading] .phone > *,
+.phoneWrap[data-loading] .caption {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone > *,
+  .caption {
+    transition: none;
+  }
+}
+
 .phone {
   width: 300px;
   height: 620px;

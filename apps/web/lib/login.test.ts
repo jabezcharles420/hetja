@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCountdown, safeNext } from "./login";
+import { cancelHref, formatCountdown, safeNext } from "./login";
 
 describe("login helpers", () => {
   it("only follows same-origin paths after sign-in", () => {
@@ -8,6 +8,12 @@ describe("login helpers", () => {
     expect(safeNext("https://evil.example")).toBe("/me");
     expect(safeNext("//evil.example")).toBe("/me");
     expect(safeNext("/\\evil.example")).toBe("/me");
+    // The URL parser drops tabs and newlines, so these become //evil.example.
+    expect(safeNext("/\t/evil.example")).toBe("/me");
+    expect(safeNext("/\n/evil.example")).toBe("/me");
+    expect(safeNext("/admin?tab=vets#x")).toBe("/admin?tab=vets#x");
+    expect(cancelHref("/\t/evil.example")).toBe("/");
+    expect(cancelHref("/map")).toBe("/map");
   });
 
   it("formats the resend countdown like the mock", () => {

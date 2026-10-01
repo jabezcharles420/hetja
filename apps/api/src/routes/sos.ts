@@ -536,9 +536,15 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
       try {
         feederId = verifyAccessToken(rawAuth.slice(7), app.config.JWT_SECRET).sub;
       } catch {
-        return reply
-          .status(401)
-          .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
+        // An SOS is not the moment to insist on a fresh session: with an
+        // expired access token and a valid device token, file it as the
+        // device (the device's own caps and blocks apply, exactly as for a
+        // stranger). Only with no other proof at all is it refused.
+        if (!deviceSubject) {
+          return reply
+            .status(401)
+            .send({ ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } });
+        }
       }
     } else if (!deviceSubject) {
       return reply
@@ -917,7 +923,9 @@ export default async function sosRoutes(app: FastifyInstance): Promise<void> {
         if (!silenced) {
           const ngo = await routeCaseToNgo(client, caseId, dog.ward_id);
           if (ngo && ngo.paged > 0) anyToldProfessional = true;
-          await scheduleOpenToVets(client, caseId, ngo || anyTold ? NGO_WINDOW_MINUTES : 0);
+          // An NGO that covers the ward but has no coordinator to page told
+          // nobody, so it is no reason to hold the vets back for the window.
+          await scheduleOpenToVets(client, caseId, (ngo && ngo.paged > 0) || anyTold ? NGO_WINDOW_MINUTES : 0);
         }
         if (anyToldProfessional && !anyTold) {
           await client.query(`INSERT INTO jobs (kind, payload, run_after) VALUES ('send_sos_push', $1::jsonb, now())`, [

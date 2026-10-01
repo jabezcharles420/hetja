@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import qrcode from "qrcode-generator";
 import { LogoMark, StatusPill } from "@/components/ds";
 import { API_BASE } from "@/lib/api";
+import { DESKTOP_QUERY } from "@/lib/desktop-invite";
 import { loadShowcaseDog, type ShowcaseDog } from "@/lib/showcase-dog";
 import styles from "./DesktopInvite.module.css";
 
@@ -91,8 +92,12 @@ function useDogCount(): number | null {
 function useShowcaseDog(): ShowcaseDog | null | undefined {
   const [dog, setDog] = useState<ShowcaseDog | null | undefined>(undefined);
   useEffect(() => {
-    // Only a desktop ever sees D1: skip the requests on a phone.
-    if (typeof window.matchMedia === "function" && !window.matchMedia("(min-width: 745px)").matches) return;
+    // Only a desktop ever sees D1: skip the requests on a phone (the example
+    // dog stands in if the window is later widened).
+    if (typeof window.matchMedia === "function" && !window.matchMedia(DESKTOP_QUERY).matches) {
+      setDog(null);
+      return;
+    }
     let alive = true;
     loadShowcaseDog().then(
       (d) => alive && setDog(d),
@@ -152,7 +157,10 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
           </div>
         </div>
 
-        <figure className={styles.phoneWrap}>
+        {/* Empty until the real dog has been looked up, then shown once:
+            painting the example first and swapping in a different dog a
+            moment later read as the page changing under the visitor. */}
+        <figure className={styles.phoneWrap} data-loading={real === undefined ? "" : undefined}>
           {real ? (
             <div className={styles.phone} aria-hidden="true" data-testid="d1-real-dog">
               <span className={styles.found}>You found {real.name}</span>

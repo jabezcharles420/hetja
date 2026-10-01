@@ -158,6 +158,13 @@ export function buildServer(config: AppConfig): FastifyInstance {
     });
   });
 
+  // An unknown route answers in the same envelope as every other error.
+  // Fastify's default ({statusCode, error, message}) is not an envelope, so
+  // the web app could only say "Request failed (HTTP 404)".
+  app.setNotFoundHandler((request, reply) =>
+    reply.status(404).send({ ok: false, error: { message: `no such route: ${request.method} ${request.url.split("?")[0]}`, code: "NOT_FOUND" } }),
+  );
+
   app.get("/healthz", async () => ({
     ok: true,
     service: "hetja-api",

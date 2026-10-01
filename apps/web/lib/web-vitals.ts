@@ -1,8 +1,8 @@
 /**
  * Web-vitals client (enhancement stack §M.16).
  *
- * Reports LCP/CLS/INP/TTFB to POST /api/v1/metrics/web-vitals via
- * navigator.sendBeacon. The one privacy rule that matters here: the path is
+ * Reports LCP/CLS/INP/TTFB to POST /api/v1/metrics/web-vitals with a
+ * keepalive fetch (it outlives the page like a beacon). The one privacy rule that matters here: the path is
  * slug-stripped before it leaves the page ("/dog/:slug", never "/dog/xyz123abc"),
  * so per-dog page identity is never collected; the server enforces the same
  * contract (it rejects any path carrying a 9-char collar slug or ?s=).
@@ -50,12 +50,24 @@ export function vitalsPayload(
   return { path: slugStrippedPath(pathname), name: m.name, value: m.value, rating: m.rating };
 }
 
+/**
+ * Not navigator.sendBeacon: a beacon is always sent with credentials, and a
+ * JSON body is not a CORS-safelisted type, so the browser preflights it as a
+ * credentialed request. api.hetja.in answers CORS with credentials: false
+ * (no cookies are ever used), the preflight fails, and every report on
+ * hetja.in was dropped with a CORS error in the console. A keepalive fetch
+ * with credentials omitted passes the same preflight the rest of the app does.
+ */
 export function sendVitalsBeacon(pathname: string, m: MetricType): boolean {
   try {
-    return navigator.sendBeacon(
-      `${API_ORIGIN}/api/v1/metrics/web-vitals`,
-      new Blob([JSON.stringify(vitalsPayload(pathname, m))], { type: "application/json" }),
-    );
+    void fetch(`${API_ORIGIN}/api/v1/metrics/web-vitals`, {
+      method: "POST",
+      keepalive: true,
+      credentials: "omit",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(vitalsPayload(pathname, m)),
+    }).catch(() => undefined);
+    return true;
   } catch {
     return false;
   }

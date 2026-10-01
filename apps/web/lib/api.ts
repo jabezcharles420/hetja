@@ -133,58 +133,87 @@ export function clearSession(): void {
   setRefreshToken(null);
 }
 
+/**
+ * How a refresh ended: renewed (a fresh pair is stored), refused (the server
+ * answered that this refresh token is no good: the session is over), or
+ * unavailable (offline, a timeout, a 5xx or a 429: the session may be fine).
+ */
+export type RefreshOutcome = "renewed" | "refused" | "unavailable";
+
 /** Shared by concurrent 401s so one expired access token costs one exchange. */
-let refreshInFlight: Promise<boolean> | undefined;
+let refreshInFlight: Promise<RefreshOutcome> | undefined;
+
+/** The browser's Web Locks, where there are any (every current browser; not jsdom). */
+function webLocks(): { request: (name: string, cb: () => Promise<RefreshOutcome>) => Promise<RefreshOutcome> } | null {
+  const locks = (globalThis.navigator as { locks?: unknown } | undefined)?.locks as
+    | { request?: (name: string, cb: () => Promise<RefreshOutcome>) => Promise<RefreshOutcome> }
+    | undefined;
+  return locks && typeof locks.request === "function" ? (locks as never) : null;
+}
+
+async function exchangeRefreshToken(presented: string | null): Promise<RefreshOutcome> {
+  // Another tab may have rotated the pair while this one waited for the lock:
+  // the stored token is then the new one, and presenting the old one again is
+  // exactly the reuse the server reads as theft (it revokes the whole family).
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return "refused";
+  if (presented && refreshToken !== presented) return "renewed";
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+    const payload: unknown = await res.json().catch(() => null);
+    const data = (payload as { ok?: unknown; data?: { accessToken?: unknown; refreshToken?: unknown } } | null)?.data;
+    if (
+      res.ok &&
+      (payload as { ok?: unknown } | null)?.ok === true &&
+      typeof data?.accessToken === "string" &&
+      typeof data?.refreshToken === "string"
+    ) {
+      setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+      return "renewed";
+    }
+    // Only a 4xx other than 429 says the token itself is bad.
+    return res.status >= 400 && res.status < 500 && res.status !== 429 ? "refused" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
 
 /**
- * Exchange the stored refresh token for a fresh pair. Resolves true when the
- * session was renewed and stored, false when it could not be: no refresh
- * token, the server refused it (REFRESH_REUSED, BAD_REFRESH_TOKEN, FEEDER_GONE),
- * or the network failed. Never throws.
+ * Exchange the stored refresh token for a fresh pair. Never throws.
  *
  * Raw fetch rather than `request()`: the route takes no Authorization header
  * (the refresh token IS the credential), and routing it through `request`
  * would re-enter this very 401 handling.
  *
- * Single-flight: several requests can fail on the same expired access token in
- * the same tick (the /me page fires two). Each refresh token is one-time-use
- * on the server (presenting it twice is treated as theft and revokes every
- * session the feeder holds), so the second caller must WAIT for the first
- * exchange, not race it with the same token.
+ * Single-flight, twice over. Several requests can fail on the same expired
+ * access token in the same tick (the /me page fires two), and several TABS
+ * can wake together after the 15 minutes (an admin with four portal tabs).
+ * Each refresh token is one-time-use on the server (presenting it twice is
+ * treated as theft and revokes every session the feeder holds), so the second
+ * caller must wait for the first exchange, not race it with the same token:
+ * a promise inside one tab, a Web Lock across tabs.
  */
-export async function refreshSession(): Promise<boolean> {
+export function refreshSessionOutcome(): Promise<RefreshOutcome> {
   if (!refreshInFlight) {
-    refreshInFlight = (async () => {
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) return false;
-      try {
-        const res = await fetch(`${API_BASE}/auth/refresh`, {
-          method: "POST",
-          headers: { accept: "application/json", "content-type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
-          signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-        });
-        const payload: unknown = await res.json().catch(() => null);
-        const data = (payload as { ok?: unknown; data?: { accessToken?: unknown; refreshToken?: unknown } } | null)
-          ?.data;
-        if (
-          !res.ok ||
-          (payload as { ok?: unknown } | null)?.ok !== true ||
-          typeof data?.accessToken !== "string" ||
-          typeof data?.refreshToken !== "string"
-        ) {
-          return false;
-        }
-        setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-        return true;
-      } catch {
-        return false;
-      }
-    })().finally(() => {
-      refreshInFlight = undefined;
-    });
+    const presented = getRefreshToken();
+    const locks = webLocks();
+    refreshInFlight = (locks ? locks.request("hetja-refresh", () => exchangeRefreshToken(presented)) : exchangeRefreshToken(presented))
+      .catch((): RefreshOutcome => "unavailable")
+      .finally(() => {
+        refreshInFlight = undefined;
+      });
   }
   return refreshInFlight;
+}
+
+/** True when the session was renewed and stored. */
+export async function refreshSession(): Promise<boolean> {
+  return (await refreshSessionOutcome()) === "renewed";
 }
 
 /**
@@ -315,11 +344,18 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   // feeder out because an unrelated proof-of-work expired.
   const sessionRejected = res.status === 401 && auth && sentSession;
 
-  if (sessionRejected && !opts.afterRefresh && (await refreshSession())) {
+  if (sessionRejected && !opts.afterRefresh) {
+    const outcome = await refreshSessionOutcome();
     // The access token was stale, the refresh token was good, the pair is
     // stored: run the original request once more with the new session. A 401
     // on THAT attempt falls through to the sign-out below.
-    return request<T>(path, { ...opts, afterRefresh: true });
+    if (outcome === "renewed") return request<T>(path, { ...opts, afterRefresh: true });
+    // The refresh could not be tried (weak 4G, a timeout, the API restarting).
+    // The session is probably fine: keep both tokens and let the caller retry,
+    // rather than signing the feeder out and making them fetch a new code.
+    if (outcome === "unavailable") {
+      throw new ApiError("Could not reach Hetja to renew your session. Try again.", { status: 0, code: "NETWORK_ERROR" });
+    }
   }
 
   const retryAfterSec = parseRetryAfter(res.headers?.get?.("retry-after"));

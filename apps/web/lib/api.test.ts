@@ -177,6 +177,50 @@ describe("lib/api", () => {
     expect(getRefreshToken()).toBeNull();
   });
 
+  it.each([
+    ["the API restarting", () => fetchMock.mockResolvedValueOnce(jsonResponse(503, null))],
+    ["a rate limit", () => fetchMock.mockResolvedValueOnce(jsonResponse(429, { ok: false, error: { message: "slow down", code: "RATE_LIMITED" } }))],
+    ["a dropped connection", () => fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"))],
+  ])("keeps the session when the refresh fails on %s", async (_label, refreshFails) => {
+    setSession({ accessToken: "stale-access", refreshToken: "refresh-1" });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } }),
+    );
+    refreshFails();
+
+    await expect(api.getStreak()).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+    // Signing out here would cost the feeder a new email code for a blip.
+    expect(getAccessToken()).toBe("stale-access");
+    expect(getRefreshToken()).toBe("refresh-1");
+  });
+
+  it("does not present a refresh token another tab has already rotated", async () => {
+    setSession({ accessToken: "stale-access", refreshToken: "refresh-1" });
+    // While this tab waits for the cross-tab lock, the other tab rotates the pair.
+    vi.stubGlobal("navigator", {
+      ...globalThis.navigator,
+      locks: {
+        request: async (_name: string, cb: () => Promise<unknown>) => {
+          setSession({ accessToken: "other-tab-access", refreshToken: "refresh-2" });
+          return cb();
+        },
+      },
+    });
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(401, { ok: false, error: { message: "invalid access token", code: "BAD_ACCESS_TOKEN" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { trustScore: 31, streakDays: 2, badges: [] } }));
+
+    await expect(api.getStreak()).resolves.toMatchObject({ streakDays: 2 });
+    // No /auth/refresh call: presenting refresh-1 again would revoke the whole family.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith("/auth/refresh"))).toBe(false);
+    const [, retryInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect((retryInit.headers as Record<string, string>).authorization).toBe("Bearer other-tab-access");
+    vi.unstubAllGlobals();
+  });
+
   it("does not loop: a 401 on the retried request signs out instead of refreshing again", async () => {
     setSession({ accessToken: "stale-access", refreshToken: "refresh-1" });
     const denied = () =>

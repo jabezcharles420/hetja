@@ -74,6 +74,11 @@ let raisedAt = "";
 let screen = "";
 let left = false;
 let status: Status = {};
+// The offline screen's own retry. The browser's "online" event never fires on
+// a weak signal or a captive portal (it was never "offline"), so waiting for
+// it alone could leave a written SOS unsent. Backs off 10 s, 20 s ... 2 min.
+let retryMs = 1e4;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
 const q = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
 const on = (sel: string, fn: () => void): void => q(sel)?.addEventListener("click", fn);
@@ -108,6 +113,7 @@ export function wireHistory(): void {
 
 export function openSos(context: SosContext): void {
   ctx = context;
+  retryMs = 1e4;
   choice = undefined;
   photoBase64 = undefined;
   renderStep1();
@@ -353,6 +359,9 @@ async function fileReport(c: Choice, text?: string, pos?: Pos): Promise<ReportRe
     const res = await fetch("/api/v1/reports", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      // A stalled connection must reach the offline screen and its numbers,
+      // not sit on "Sending..." forever. Longer with a photo (up to 2.8 MB).
+      signal: AbortSignal.timeout?.(photoBase64 ? 6e4 : 2e4),
       body: JSON.stringify({
         ...(ctx.dogless ? {} : { dogSlug: ctx.slug }),
         severity: apiSeverity(c),
@@ -497,6 +506,9 @@ function renderNoLocation(): void {
 function renderOffline(): void {
   screen = "offline";
   savePending();
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => screen === "offline" && void post(lastPos), retryMs);
+  retryMs = Math.min(retryMs * 2, 12e4);
   const text = asText(true);
   const saved = savedCare();
   const body = encodeURIComponent(text);
@@ -657,7 +669,9 @@ export function readStatus(body: unknown): Status {
 }
 
 const isDone = (s: Status): boolean => s.state === "resolved" || s.state === "false_alarm" || !!s.outcome;
-const isTaken = (s: Status): boolean => !!s.responderFirstName && (s.state === "acked" || !!s.takenAt);
+// Not gated on the name: a responder who hides their first name (or whose
+// account is gone) still took it, and the reporter must see that.
+const isTaken = (s: Status): boolean => s.state === "acked" || !!s.takenAt;
 
 /**
  * Polls the case every 15 s while the screen is visible, for up to an hour,
@@ -709,7 +723,8 @@ function startPolling(): void {
 function renderComing(): void {
   screen = "coming";
   const s = status;
-  const first = s.responderFirstName ?? "";
+  const first = s.responderFirstName ?? "Someone";
+  const to = s.responderFirstName ?? "them";
   const pr = pronouns(ctx.profile?.sex);
   const name = dogName();
   const knows = name && ctx.profile?.feederNames?.includes(first) ? `${first} feeds ${name} and knows ${pr.obj}. ` : "";
@@ -718,7 +733,7 @@ function renderComing(): void {
   q("#v-sent")!.innerHTML = `
     <div class="body sent-body">
       <h1 class="title xl" tabindex="-1" data-focus>${escapeHtml(s.arrivedAt ? `${first} is there.` : `${first} is on the way.`)}</h1>
-      <p class="lead2">${escapeHtml(s.arrivedAt ? "Thank you for waiting. You can go when you're ready." : `${knows}If you can, stay until ${first} arrives.`)}</p>
+      <p class="lead2">${escapeHtml(s.arrivedAt ? "Thank you for waiting. You can go when you're ready." : `${knows}If you can, stay until ${s.responderFirstName ? `${first} arrives` : "they arrive"}.`)}</p>
       <ol class="tl">
         ${step(true, "You sent the SOS", raisedAt)}
         ${step(true, `${first} took it`, s.takenAt)}
@@ -730,10 +745,10 @@ function renderComing(): void {
         .join("")}</ol></div>
     </div>
     <div class="foot">
-      <button type="button" class="btn blue" id="upd">${escapeHtml(`Send ${first} an update`)}</button>
+      <button type="button" class="btn blue" id="upd">${escapeHtml(`Send ${to} an update`)}</button>
       ${left || s.leftAt ? "" : `<button type="button" class="link-btn" id="left">I had to leave</button>`}
     </div>`;
-  on("#upd", () => updateSheet(`Send ${first} an update`, `Sent to ${first}.`));
+  on("#upd", () => updateSheet(`Send ${to} an update`, `Sent to ${to}.`));
   on("#left", async () => {
     if (await caseCall("left")) {
       left = true;

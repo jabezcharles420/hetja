@@ -9,8 +9,12 @@
  *     `X-Hetja-Stale: 1`.
  *  3. Network-first for navigations, falling back to the cached route, then
  *     the cached root, then the branded /offline.html page.
- *  4. Stale-while-revalidate for the static shell (/_next CSS/JS, images) so
- *     the shell is cached after the first visit.
+ *  4. Stale-while-revalidate for the static shell (/_next/static, icons,
+ *     fonts, the manifest) so the shell is cached after the first visit.
+ *     Nothing else: Next's in-app navigation data (?_rsc=) and every other
+ *     same-origin GET go straight to the network. Served cache-first, those
+ *     carried the previous build after a deploy, and Next answered the
+ *     mismatch with a full reload on the first click to each route.
  *  5. On a Background Sync `hetja-feed-flush` event, wake any open tab so
  *     it can replay the IndexedDB feed queue; a closed-tab flush falls back to
  *     the flush-on-open path in lib/offline-queue.ts. Sync registration and
@@ -79,9 +83,24 @@ scope.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static shell (/_next CSS/JS, images, manifest): stale-while-revalidate.
-  event.respondWith(shellFirst(req));
+  // Static shell only: stale-while-revalidate. Everything else is the network's.
+  if (isShellAsset(url)) event.respondWith(shellFirst(req));
 });
+
+/** Content-addressed or rarely changing files that are safe to serve from the cache first. */
+function isShellAsset(url) {
+  const p = url.pathname;
+  if (url.search.includes("_rsc=")) return false;
+  return (
+    p.startsWith("/_next/static/") ||
+    p.startsWith("/icons/") ||
+    p.startsWith("/fonts/") ||
+    p === "/manifest.webmanifest" ||
+    p === "/icon.svg" ||
+    p === "/apple-icon.png" ||
+    p === "/favicon.ico"
+  );
+}
 
 /** Network-first: fresh response cached, stale copy served offline when the fetch fails. */
 async function networkFirst(req) {
@@ -99,16 +118,22 @@ async function networkFirst(req) {
   }
 }
 
-/** Network-first for navigations with cache → root → offline.html fallbacks. */
+/**
+ * Network-first for navigations with cache → root → offline.html fallbacks.
+ *
+ * The fallbacks are for being OFFLINE (fetch rejects), never for an HTTP
+ * answer. A navigation fetched from a worker does not follow redirects (it
+ * comes back as an opaque redirect, not ok), so treating !ok as a failure
+ * served the cached Home under /dog/<slug>, which answers 307: every dog
+ * notification opened Home. A 404 or a 500 was papered over the same way.
+ * Every response the server gives is now passed through as it is.
+ */
 async function navigationFirst(req) {
   const cache = await caches.open(CACHE);
   try {
     const res = await fetch(req);
-    if (res.ok) {
-      void cache.put(req, res.clone());
-      return res;
-    }
-    throw new Error(`navigation fetch failed: ${res.status}`);
+    if (res.ok && res.type === "basic") void cache.put(req, res.clone());
+    return res;
   } catch {
     const cached = await cache.match(req).catch(() => undefined);
     if (cached) return cached;

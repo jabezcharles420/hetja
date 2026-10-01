@@ -96,8 +96,10 @@ describe("the error handler does not leak internals", () => {
   });
 
   it("keeps a 404 a 404", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/v1/definitely-not-a-route" });
+    const res = await app.inject({ method: "GET", url: "/api/v1/definitely-not-a-route?x=1" });
     expect(res.statusCode).toBe(404);
+    // In the envelope, so a client has one response format to parse.
+    expect(res.json()).toEqual({ ok: false, error: { message: "no such route: GET /api/v1/definitely-not-a-route", code: "NOT_FOUND" } });
   });
 
   it("still serves healthz", async () => {

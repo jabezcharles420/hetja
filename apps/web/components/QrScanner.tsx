@@ -7,6 +7,7 @@ import { ChoiceRows } from "@/components/scan/ScanParts";
 import { api, ApiError } from "@/lib/api";
 import { parseCollarCode } from "@/lib/collar";
 import { destinationFor, normaliseCode, withIntent, type ScannedCollar } from "@/lib/scan-code";
+import { inviteCoversApp, onDesktopChange } from "@/lib/desktop-invite";
 import styles from "./QrScanner.module.css";
 
 /**
@@ -288,7 +289,17 @@ export default function QrScanner(): React.JSX.Element {
   useEffect(() => {
     aliveRef.current = true;
     setIntent(intentNow());
-    void startCamera();
+    // Never behind the desktop invitation (lib/desktop-invite): the camera
+    // opens when the window narrows to the phone layout, and closes again if
+    // it widens back.
+    if (!inviteCoversApp()) void startCamera();
+    const offDesktop = onDesktopChange(() => {
+      if (inviteCoversApp()) {
+        if (streamRef.current) stopCamera();
+      } else if (!streamRef.current && !resolvingRef.current) {
+        void startCamera();
+      }
+    });
     const onVisibility = () => {
       if (document.hidden) {
         if (streamRef.current) {
@@ -296,13 +307,14 @@ export default function QrScanner(): React.JSX.Element {
           pausedRef.current = true;
           setCamera("checking");
         }
-      } else if (pausedRef.current && !resolvingRef.current) {
+      } else if (pausedRef.current && !resolvingRef.current && !inviteCoversApp()) {
         pausedRef.current = false;
         void startCamera();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      offDesktop();
       aliveRef.current = false;
       document.removeEventListener("visibilitychange", onVisibility);
       stopCamera();

@@ -491,6 +491,13 @@ export function MapScreen(): React.JSX.Element {
       el.style.removeProperty("--py");
     }
     if (pins.length === 0) return;
+    // City zoom: every pin stays on its own point. Nudging pins apart is for
+    // a handful of them at street zoom; with every NGO and vet shown at city
+    // zoom (design v8), ten pins clustered on the Malad and Versova coast
+    // were fanned out one after another, and the western ones were drawn in
+    // the Arabian Sea. Overlapping small pins are fine; a false place is not.
+    const map = mapRef.current;
+    if (!map || placeMini(map.getZoom())) return;
     const obstacles: ScreenRect[] = els("w:", `.${styles.ward}`).map((el) => el.getBoundingClientRect());
     const placed = pins
       .map((el) => ({ el, r: el.getBoundingClientRect() }))

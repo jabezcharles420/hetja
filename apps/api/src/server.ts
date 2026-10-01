@@ -79,7 +79,12 @@ export function buildServer(config: AppConfig): FastifyInstance {
     },
     // RESEARCH-2: trustProxy must be pinned to the real proxy, never `true`
     // (true lets any client forge X-Forwarded-For).
-    trustProxy: config.TRUST_PROXY || false,
+    //
+    // A hop count. Fastify 5.12's types list only boolean | string | string[]
+    // | function, but its runtime still takes a number (lib/request.js:
+    // `typeof tp === 'number'` trusts that many hops), and a hop count is the
+    // one form that cannot be widened by a forged header. Hence the cast.
+    trustProxy: (config.TRUST_PROXY || false) as unknown as boolean,
     // 64 KiB for every route (hardening batch 1, T5, audit A-06). This used to
     // be MAX_PHOTO_BASE64_CHARS + 64 KiB (~2.9 MB) on EVERY route, because the
     // scan photo needed it: Fastify buffers the whole body before a handler

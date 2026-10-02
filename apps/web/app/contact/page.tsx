@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Aurora, Label, SectionFade } from "@/components/ds";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskContact } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "Contact · Hetja",
@@ -17,6 +19,7 @@ const PARTNER_POINTS = [
 
 export default function ContactPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskContact />}>
     <div className={`${c.page} ${c.base}`}>
       <Aurora variant="contact" className={c.headContact}>
         <div className="h-container">
@@ -80,5 +83,6 @@ export default function ContactPage(): React.JSX.Element {
         </div>
       </section>
     </div>
+    </DeskSwitch>
   );
 }

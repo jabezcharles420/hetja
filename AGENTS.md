@@ -62,9 +62,12 @@ it, per route: `apps/web/components/ChromeShell.tsx`. **Desktop wider than
 your phone" (D1, `components/DesktopInvite.tsx`, with a QR of the page), except
 `/map`, which from 900 px is a real desktop page, its 420 px panel beside the
 map under the desktop nav (`components/DeskNav.tsx`; design v8,
-`docs/design/v8-desktop/CONTRACT.md`, where `/credits` is also described), the
+`docs/design/v8-desktop/CONTRACT.md`), the
 collar page shows its own QR plus a working SOS button (D2, in `apps/scan`),
-the reading pages, `/hetja` and 404s open in a 480 px phone column, `/sos/**`
+and from 1024 px the reading pages, `/join`, `/credits` and `/hetja` are desktop
+pages with one header, footer and pair of dialogs (design v9,
+`docs/design/v9-desktop/CONTRACT.md`: each page renders its phone and its desktop
+layout and CSS shows one), 404s open in a 480 px phone column, `/sos/**`
 is framed at 480 px so a responder at a desk can still act, and the print
 sheets (`/register/<slug>/print`, `/register/batch`) and `/design` are left
 as they are. There are no languages yet: English only, until human

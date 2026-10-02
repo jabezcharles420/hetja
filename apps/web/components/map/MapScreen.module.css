@@ -999,8 +999,8 @@ a.sosCard:focus-visible {
   .root {
     position: relative;
     inset: auto;
-    margin-top: var(--h-nav-h);
-    height: calc(100vh - var(--h-nav-h));
+    margin-top: 56px; /* the desktop header (DeskNav, design v9) */
+    height: calc(100vh - 56px);
     min-height: 640px;
   }
   .deskFooter {

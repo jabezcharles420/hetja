@@ -3,6 +3,8 @@ import { Aurora } from "@/components/ds";
 import FaqList from "@/components/FaqList";
 import { FAQ_GROUPS } from "./questions";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskFaq } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "FAQ · Hetja",
@@ -12,6 +14,7 @@ export const metadata: Metadata = {
 
 export default function FaqPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskFaq />}>
     <div className={`${c.page} ${c.mist}`}>
       <Aurora variant="faq" className={c.headFaq}>
         <div className="h-container">
@@ -34,5 +37,6 @@ export default function FaqPage(): React.JSX.Element {
         </div>
       </section>
     </div>
+    </DeskSwitch>
   );
 }

@@ -338,3 +338,47 @@
     margin-top: 20pt;
   }
 }
+
+/* Design v9 desktop ("Memorial" in the owner's "Hetja Desktop" export): from
+ * 1024px the word at 104px over a hairline, a 660px essay at 20px, and the
+ * three songs side by side. The phone layout above is unchanged. */
+@media (min-width: 1024px) {
+  .masthead {
+    max-width: 660px;
+    margin-inline: auto;
+    padding: 96px 40px 72px;
+    border-bottom: 1px solid var(--h-memorial-divider);
+  }
+  .word {
+    font-size: 104px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .definition {
+    font-size: 28px;
+  }
+  .prose {
+    max-width: calc(660px + 80px);
+    padding: 72px 40px 40px;
+    font-size: 20px;
+    line-height: 1.65;
+  }
+  .songs {
+    max-width: calc(900px + 80px);
+    padding: 48px 40px 120px;
+    border-top: 1px solid var(--h-memorial-divider);
+    gap: 24px;
+  }
+  .songsLabel {
+    text-align: center;
+  }
+  .songList {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .song,
+  .song:last-child {
+    border: 0;
+  }
+}

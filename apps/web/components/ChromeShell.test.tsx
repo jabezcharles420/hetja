@@ -125,9 +125,9 @@ describe("chromeFor (route matrix)", () => {
     expect(chromeFor("/login")).toMatchObject({ kind: "focused", nav: null, tabBar: false, desktop: "card" });
   });
 
-  it("/join and /credits (v8): a reading page, and a focused screen in the 480px column", () => {
+  it("/join and /credits: a reading page, and a focused screen that is a desktop page from 1024px (v9)", () => {
     expect(chromeFor("/join")).toMatchObject({ kind: "reading", footer: true, desktop: "none" });
-    expect(chromeFor("/credits")).toMatchObject({ kind: "focused", desktop: "frame" });
+    expect(chromeFor("/credits")).toMatchObject({ kind: "focused", desktop: "none" });
   });
 
   it.each([

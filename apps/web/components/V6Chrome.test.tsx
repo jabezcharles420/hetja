@@ -14,6 +14,7 @@ vi.mock("next/link", async () => {
 vi.mock("@/lib/pwa", () => ({ isStandalone: () => false }));
 
 import { DesktopInvite, qrPath, typedAddress } from "@/components/DesktopInvite";
+import { prettyCode } from "@/lib/scan-code";
 import NotFound from "@/app/not-found";
 import { AddToHomeScreen, AddToHomeScreenAfterFeed } from "@/components/AddToHomeScreen";
 import { __setHeldPromptForTests, INSTALL_OFFERED_KEY } from "@/lib/install-offer";
@@ -32,11 +33,16 @@ describe("D1 desktop invitation", () => {
     expect(screen.getByText("On your phone")).toBeTruthy();
     expect(screen.getByText("Open the camera and point it at the code. No app to install.")).toBeTruthy();
     expect(screen.getByRole("img", { name: "QR code that opens this page on your phone" })).toBeTruthy();
-    // Design v8: the desktop nav, without the pill that would open this very page.
-    for (const l of ["Live map", "How it works", "About & memorial", "Vets & feeders", "Privacy & ledger"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Open on phone" })).toBeNull();
-    expect(screen.getByRole("link", { name: "See the city map here ›" }).getAttribute("href")).toBe("/map");
-    expect(screen.getByRole("link", { name: "The people who helped ›" }).getAttribute("href")).toBe("/credits");
+    // Design v9: the desktop header (Live map first, then the five sections of
+    // the export), "Look up a collar", "Open on phone", and the two ways on.
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect([...nav.querySelectorAll("a")].map((a) => a.textContent)).toEqual(["Live map", "How it works", "About", "Vets & feeders", "Privacy", "FAQ"]);
+    expect(screen.getByRole("button", { name: "Look up a collar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open on phone" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Look up a collar code ›" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "How it works ›" }).getAttribute("href")).toBe("/how-it-works");
+    // And the footer, with its eight links.
+    expect(screen.getByRole("navigation", { name: "Site links" }).querySelectorAll("a")).toHaveLength(8);
     // The phone is an illustration and says so.
     expect(screen.getByText("An example of a dog's page.")).toBeTruthy();
     vi.unstubAllGlobals();
@@ -131,7 +137,9 @@ describe("D1 with a real dog (v6 contract, adapted list)", () => {
     expect(phone.textContent).toContain("K/W ward · Andheri West");
     expect(phone.textContent).toContain("Vaccinated");
     expect(phone.textContent).not.toContain("Sterilised");
-    expect(phone.textContent).toContain("Anil fed him 3 hours ago.");
+    // Design v9: the collar code on the phone (the fed line is gone; a pill
+    // says "Not fed today" when that is true).
+    expect(phone.textContent).toContain(prettyCode("klu123abc"));
     expect(screen.getByText("Kalu is one of Mumbai's dogs on Hetja.")).toBeTruthy();
     vi.unstubAllGlobals();
   });

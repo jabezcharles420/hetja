@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Label, StatusIcon } from "@/components/ds";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskPrivacy } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "Privacy · Hetja",
@@ -119,6 +121,7 @@ function Rows({ items }: { items: { title: string; text: string }[] }): React.JS
 
 export default function PrivacyPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskPrivacy />}>
     <div className={`${c.page} ${c.black}`}>
       <section className={`h-container ${c.headPlain}`} aria-labelledby="privacy-title">
         <div className={`${c.col} ${c.stack}`}>
@@ -223,5 +226,6 @@ export default function PrivacyPage(): React.JSX.Element {
         </figure>
       </section>
     </div>
+    </DeskSwitch>
   );
 }

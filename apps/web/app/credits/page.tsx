@@ -3,6 +3,8 @@ import { LogoMark } from "@/components/ds";
 import { AppHeader } from "@/components/ds/AppHeader";
 import { shownGroups } from "@/lib/credits";
 import styles from "./credits.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskCredits } from "@/components/desk/DeskPages";
 
 /**
  * Credits (design v8, the design system's ui_kits/credits, 390): a thank-you
@@ -14,6 +16,7 @@ export const metadata = { title: "Thank you · Hetja" };
 export default function CreditsPage(): React.JSX.Element {
   const groups = shownGroups();
   return (
+    <DeskSwitch desk={<DeskCredits />}>
     <div className={styles.page}>
       <AppHeader back={{ href: "/about", label: "About", history: true }} surface="mist" />
       <div className="h-container">
@@ -61,5 +64,6 @@ export default function CreditsPage(): React.JSX.Element {
       </div>
       </div>
     </div>
+    </DeskSwitch>
   );
 }

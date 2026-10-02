@@ -1,0 +1,188 @@
+/* The desktop dialogs (design v9): a 0.32 scrim, a white card at radius 32. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  background: var(--h-white);
+  border-radius: 32px;
+  padding: 36px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  color: var(--h-ink);
+}
+
+.wide {
+  max-width: 460px;
+  align-items: stretch;
+  text-align: left;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.qr {
+  width: 200px;
+  height: 200px;
+  padding: 14px;
+  border-radius: 24px;
+  box-shadow: inset 0 0 0 1px var(--h-divider);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--h-secondary);
+}
+
+.small {
+  margin: 0;
+  font-size: 14px;
+  color: var(--h-tertiary);
+}
+
+.mono {
+  color: var(--h-ink);
+  font-weight: 600;
+  font-family: var(--h-mono);
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.code {
+  height: 64px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--h-white);
+  box-shadow: inset 0 0 0 1.5px #d2d2d7;
+  font-family: var(--h-mono);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--h-ink);
+}
+
+.code:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--h-blue);
+}
+
+.dog {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--h-mist);
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+
+.av {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--h-av-apricot-bg);
+  color: var(--h-av-apricot-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.dogText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dogName {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dogMeta {
+  font-size: 14px;
+  color: var(--h-secondary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn {
+  height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.full {
+  width: 100%;
+}
+
+.quiet {
+  background: var(--h-mist);
+  color: var(--h-ink);
+}
+
+.primary {
+  height: 56px;
+  background: var(--h-blue);
+  color: var(--h-white);
+  box-shadow: 0 8px 24px rgba(0, 113, 227, 0.28);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+}

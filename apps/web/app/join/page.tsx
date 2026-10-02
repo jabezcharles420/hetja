@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Aurora, Button, Label, SectionFade, StatusIcon } from "@/components/ds";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskJoin } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "Feeders and vets · Hetja",
@@ -57,6 +59,7 @@ const ROLES = [
 
 export default function JoinPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskJoin />}>
     <div className={`${c.page} ${c.mist}`}>
       <Aurora variant="about" className={c.head}>
         <div className="h-container">
@@ -95,5 +98,6 @@ export default function JoinPage(): React.JSX.Element {
         </SectionFade>
       ))}
     </div>
+    </DeskSwitch>
   );
 }

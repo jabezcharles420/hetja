@@ -4,8 +4,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, getAccessToken } from "@/lib/api";
 import { readTabRole, rememberTabRole, saveTabRole } from "@/lib/tab-role";
-import { Button, Footer, Logo, TabBar, TopNav } from "@/components/ds";
-import { DESK_LINKS, DeskBrand } from "./DeskNav";
+import { Footer, TabBar, TopNav } from "@/components/ds";
+import { DeskNav } from "./DeskNav";
+import { DeskDialogs } from "./desk/DeskDialogs";
 import { DeskFooter } from "./DeskFooter";
 import { AppHeader } from "@/components/ds/AppHeader";
 import { useScrolled } from "@/components/ds/useScrolled";
@@ -165,10 +166,10 @@ export function chromeFor(pathname: string | null | undefined): Chrome {
       desktop: "none",
     };
   }
-  // Design v8: the thank-you page. A focused screen (it draws "‹ About"),
-  // in the 480px column on a desktop like the reading pages.
+  // The thank-you page. A focused screen on a phone (it draws "‹ About");
+  // from 1024px a desktop page like the reading pages (design v9).
   if (under(path, "/credits")) {
-    return { ...NONE, desktop: "frame" };
+    return { ...NONE, desktop: "none" };
   }
   // Design v8: the memorial is a desktop page too; it already lays itself out
   // in its own centred 640px column (hetja.module.css).
@@ -242,6 +243,9 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
   const pathname = usePathname();
   const base = chromeFor(pathname);
   const reading = base.kind === "reading";
+  // Design v9: from 1024px these are desktop pages with the desktop header
+  // and footer (DeskNav, DeskFooter); their phone layout keeps its own.
+  const deskPage = reading || under((pathname ?? "/").replace(/\/+$/, "") || "/", "/credits");
   const adminContext = useAdminContext();
   const chrome: Chrome = adminContext && base.desktop === "invite" ? { ...base, desktop: "card" } : base;
   const scrolled = useScrolled();
@@ -254,6 +258,7 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
     .join(" ");
 
   return (
+    <DeskDialogs>
     <div
       className={[styles.shell, chrome.overlay ? styles.overlay : "", chrome.tabBar ? styles.withTabs : ""]
         .filter(Boolean)
@@ -265,45 +270,23 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
         {chrome.nav === "memorial" ? (
           <AppHeader tone="memorial" back={{ href: "/", label: "Back", history: true }} />
         ) : chrome.nav ? (
-          <TopNav
-            layout={reading ? "responsive" : "mobile"}
-            links={reading ? DESK_LINKS : undefined}
-            current={reading ? pathname ?? undefined : undefined}
-            leading={
-              reading ? (
-                <>
-                  <span className={styles.mobileOnly}>
-                    <Logo href="/" size={30} tone="ink" />
-                  </span>
-                  <span className={styles.deskOnly}>
-                    <DeskBrand />
-                  </span>
-                </>
-              ) : undefined
-            }
-            cta={
-              reading ? (
-                <span className={styles.deskOnly}>
-                  <Button variant="navPill" href="/">
-                    Open on phone
-                  </Button>
-                </span>
-              ) : undefined
-            }
-            surface={chrome.navSurface}
-            scrolled={scrolled}
-            className={navCls || undefined}
-          />
+          <div className={deskPage ? styles.mobileOnly : undefined}>
+            <TopNav
+              layout="mobile"
+              surface={chrome.navSurface}
+              scrolled={scrolled}
+              className={navCls || undefined}
+            />
+          </div>
         ) : null}
+        {deskPage && <DeskNav className={styles.deskOnlyBlock} />}
         <main>{children}</main>
+        {deskPage && <DeskFooter className={styles.deskOnlyBlock} />}
         {chrome.footer &&
-          (reading ? (
-            <>
-              <div className={styles.mobileOnly}>
-                <Footer layout="mobile" />
-              </div>
-              <DeskFooter className={styles.deskOnlyBlock} />
-            </>
+          (deskPage ? (
+            <div className={styles.mobileOnly}>
+              <Footer layout="mobile" />
+            </div>
           ) : (
             <Footer layout="mobile" />
           ))}
@@ -313,5 +296,6 @@ export function ChromeShell({ children }: { children: React.ReactNode }): React.
       </div>
       {chrome.desktop === "invite" && <DesktopInvite className={styles.invite} />}
     </div>
+    </DeskDialogs>
   );
 }

@@ -41,7 +41,7 @@ import styles from "./MapScreen.module.css";
 import { DeskNav } from "@/components/DeskNav";
 import { DeskFooter } from "@/components/DeskFooter";
 import { DeskPanel } from "./DeskPanel";
-import { CollarLookup, PhoneHandoff } from "./DeskModals";
+import { useDeskDialogs } from "@/components/desk/DeskDialogs";
 import { LAYER_FILTERS, layerOf, type MapLayer } from "./desk";
 
 /**
@@ -151,10 +151,9 @@ export function MapScreen(): React.JSX.Element {
   const [peek, setPeekState] = useState(true);
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [foot, setFoot] = useState<FootState>({ kind: "idle" });
-  // Design v8: the desktop inspector and its two dialogs (DeskPanel, DeskModals).
+  // Design v8: the desktop inspector (DeskPanel); its dialogs are the site-wide ones (desk/DeskDialogs).
   const [wide, setWide] = useState(false);
-  const [lookupOpen, setLookupOpen] = useState(false);
-  const [phoneOpen, setPhoneOpen] = useState(false);
+  const { openLookup } = useDeskDialogs();
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 900px)");
     const on = () => setWide(mq.matches);
@@ -755,7 +754,7 @@ export function MapScreen(): React.JSX.Element {
   return (
     <>
     {/* Design v8: the desktop nav over the map, shown from 900px (CSS). */}
-    <DeskNav current="/map" className={styles.deskNav} onOpenPhone={() => setPhoneOpen(true)} />
+    <DeskNav className={styles.deskNav} fixed />
     <div
       className={[
         styles.root,
@@ -864,7 +863,7 @@ export function MapScreen(): React.JSX.Element {
             onRetry={() => selectedWard && void loadDetail(selectedWard.id)}
             onDismiss={() => setFoot({ kind: "idle" })}
             onPlace={(pl) => select({ type: "place", place: pl, from: selectedWard?.id ?? null })}
-            onLookup={() => setLookupOpen(true)}
+            onLookup={openLookup}
           />
         ) : (
           view
@@ -887,8 +886,6 @@ export function MapScreen(): React.JSX.Element {
           }}
         />
       )}
-      {lookupOpen && <CollarLookup onClose={() => setLookupOpen(false)} />}
-      {phoneOpen && <PhoneHandoff onClose={() => setPhoneOpen(false)} />}
     </div>
     {wide && <DeskFooter className={styles.deskFooter} />}
     </>

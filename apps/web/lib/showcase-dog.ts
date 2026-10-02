@@ -21,6 +21,19 @@ export interface ShowcaseDog {
   sterilised: boolean;
   /** "Priya fed her 2 hours ago." / "Fed 2 hours ago." / null when never fed. */
   fedLine: string | null;
+  /** The collar code (design v9 shows it on the phone). Absent in a session cache written before it. */
+  slug?: string;
+  /** Logged since midnight in Mumbai (the "Not fed today" pill when false). */
+  fedToday?: boolean;
+}
+
+/** Whether an ISO time falls on the current date in Mumbai. */
+export function isTodayInMumbai(iso: string | null | undefined, now: Date = new Date()): boolean {
+  if (!iso) return false;
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return false;
+  const day = (x: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(x);
+  return day(t) === day(now);
 }
 
 export const SHOWCASE_KEY = "hetja:d1-dog";
@@ -95,6 +108,8 @@ export async function loadShowcaseDog(now: Date = new Date()): Promise<ShowcaseD
             vaccinated: p.vaccinated === "yes",
             sterilised: p.sterilised === "yes",
             fedLine: fedLine(p.lastFedAt, extra.lastFedBy, name, extra.sex, now),
+            slug: p.slug,
+            fedToday: isTodayInMumbai(p.lastFedAt, now),
           };
         }
       }

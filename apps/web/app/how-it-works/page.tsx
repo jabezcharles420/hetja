@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Button, Label, SectionFade, StatusIcon } from "@/components/ds";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskHow } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "How it works · Hetja",
@@ -72,6 +74,7 @@ const OFFLINE_POINTS = [
 
 export default function HowItWorksPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskHow />}>
     <div className={`${c.page} ${c.white}`}>
       <section className={`h-container ${c.headPlain}`} aria-labelledby="how-title">
         <div className={`${c.col} ${c.stack14}`}>
@@ -149,5 +152,6 @@ export default function HowItWorksPage(): React.JSX.Element {
         </div>
       </section>
     </div>
+    </DeskSwitch>
   );
 }

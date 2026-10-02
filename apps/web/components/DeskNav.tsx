@@ -1,89 +1,59 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Button, LogoMark, TopNav } from "@/components/ds";
-import { getAccessToken } from "@/lib/api";
+import { usePathname } from "next/navigation";
+import { LogoMark } from "@/components/ds";
+import { useDeskDialogs } from "@/components/desk/DeskDialogs";
 import styles from "./DeskNav.module.css";
 
 /**
- * The desktop nav (design v8, docs/design/v8-desktop): the owner's Stitch
- * header in the design system. The logo with its "Mumbai canine ledger" line,
- * the five sections Stitch names, "Sign in" (or the account's avatar when
- * signed in) and the "Open on phone" pill: a QR dialog where the page offers
- * one (`onOpenPhone`, the map), otherwise the invitation ("/").
+ * The desktop header (design v9, the owner's "Hetja Desktop" export): the
+ * logo, the five sections, "Look up a collar" and the "Open on phone" pill,
+ * both opening the site-wide dialogs (components/desk/DeskDialogs). Sticky,
+ * 56px, frosted. "Live map" leads the links: the export has no map page,
+ * and the desktop map (design v8) must stay reachable
+ * (docs/design/v9-desktop/CONTRACT.md).
  */
 export const DESK_LINKS = [
   { href: "/map", label: "Live map" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/about", label: "About & memorial" },
+  { href: "/about", label: "About" },
   { href: "/join", label: "Vets & feeders" },
-  { href: "/privacy", label: "Privacy & ledger" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/faq", label: "FAQ" },
 ];
 
-export function DeskBrand(): React.JSX.Element {
+export function DeskNav({ className, fixed = false }: { className?: string; fixed?: boolean }): React.JSX.Element {
+  const path = (usePathname() ?? "/").replace(/\/+$/, "") || "/";
+  const { openLookup, openPhone } = useDeskDialogs();
   return (
-    <Link href="/" className={styles.brand} aria-label="Hetja home">
-      <LogoMark size={34} />
-      <span className={styles.brandText}>
-        <span className={styles.brandName}>Hetja</span>
-        <span className={styles.brandSub}>Mumbai canine ledger</span>
-      </span>
-    </Link>
-  );
-}
-
-function useSignedIn(): boolean {
-  const [signedIn, setSignedIn] = useState(false);
-  useEffect(() => setSignedIn(!!getAccessToken()), []);
-  return signedIn;
-}
-
-export function DeskNav({
-  current,
-  hideCta = false,
-  onOpenPhone,
-  className,
-}: {
-  current?: string;
-  /** On the invitation itself the pill would open the page it is on. */
-  hideCta?: boolean;
-  /** Show this page's QR in place (the map's dialog) instead of opening the invitation. */
-  onOpenPhone?: () => void;
-  className?: string;
-}): React.JSX.Element {
-  const signedIn = useSignedIn();
-  return (
-    <TopNav
-      layout="desktop"
-      surface="solid"
-      scrolled
-      links={DESK_LINKS}
-      current={current}
-      leading={<DeskBrand />}
-      showSignIn={!signedIn}
-      className={[styles.wide, className ?? ""].filter(Boolean).join(" ")}
-      cta={
-        <>
-          {hideCta ? null : onOpenPhone ? (
-            <Button variant="navPill" onClick={onOpenPhone}>
-              Open on phone
-            </Button>
-          ) : (
-            <Button variant="navPill" href="/">
-              Open on phone
-            </Button>
-          )}
-          {signedIn && (
-            <Link href="/me" className={styles.avatar} aria-label="Your account">
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="8" r="4" fill="currentColor" />
-                <path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" fill="currentColor" />
-              </svg>
+    <header className={[styles.bar, fixed ? styles.fixed : "", className ?? ""].filter(Boolean).join(" ")}>
+      <div className={styles.inner}>
+        <Link href="/" className={styles.brand} aria-label="Hetja home">
+          <LogoMark size={28} />
+          <span>Hetja</span>
+        </Link>
+        <nav className={styles.links} aria-label="Main">
+          {DESK_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={[styles.link, path === l.href ? styles.current : ""].filter(Boolean).join(" ")}
+              aria-current={path === l.href ? "page" : undefined}
+            >
+              {l.label}
             </Link>
-          )}
-        </>
-      }
-    />
+          ))}
+        </nav>
+        <div className={styles.actions}>
+          <button type="button" className={styles.lookup} onClick={openLookup}>
+            Look up a collar
+          </button>
+          <button type="button" className={styles.pill} onClick={() => openPhone()}>
+            Open on phone
+          </button>
+        </div>
+      </div>
+    </header>
   );
 }

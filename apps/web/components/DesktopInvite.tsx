@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import qrcode from "qrcode-generator";
 import { StatusPill } from "@/components/ds";
 import { DeskNav } from "@/components/DeskNav";
-import { API_BASE } from "@/lib/api";
+import { DeskFooter } from "@/components/DeskFooter";
+import { useDeskDialogs } from "@/components/desk/DeskDialogs";
+import { prettyCode } from "@/lib/scan-code";
 import { DESKTOP_QUERY } from "@/lib/desktop-invite";
 import { loadShowcaseDog, type ShowcaseDog } from "@/lib/showcase-dog";
 import styles from "./DesktopInvite.module.css";
@@ -65,24 +67,6 @@ export function useHereUrl(): string {
   return url;
 }
 
-function useDogCount(): number | null {
-  const [n, setN] = useState<number | null>(null);
-  useEffect(() => {
-    let alive = true;
-    fetch(`${API_BASE}/stats/impact`, { headers: { accept: "application/json" } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { ok?: boolean; data?: { dogsTracked?: unknown } } | null) => {
-        const v = j?.ok ? j.data?.dogsTracked : null;
-        if (alive && typeof v === "number" && Number.isFinite(v) && v > 0) setN(v);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return n;
-}
-
 function useShowcaseDog(): ShowcaseDog | null | undefined {
   const [dog, setDog] = useState<ShowcaseDog | null | undefined>(undefined);
   useEffect(() => {
@@ -117,28 +101,27 @@ export function typedAddress(url: string): string {
 
 export function DesktopInvite({ className }: { className?: string }): React.JSX.Element {
   const url = useHereUrl();
-  const dogs = useDogCount();
   const real = useShowcaseDog();
+  const { openLookup } = useDeskDialogs();
 
-  // Design v8 (docs/design/v8-desktop, the design system's ui_kits/desktop
-  // InviteScreen): the desktop nav over it, the QR card, today's count and
-  // two ways on, the city map here and the people who helped.
+  // Design v9 (docs/design/v9-desktop, the owner's "Hetja Desktop" export,
+  // "Home A: invitation"): the desktop header, the title, the QR card, a
+  // collar lookup and How it works, the phone with a real dog, the footer.
   return (
     <div className={[styles.page, className ?? ""].filter(Boolean).join(" ")} data-testid="desktop-invite">
-      <DeskNav hideCta />
+      <DeskNav />
 
       <div className={styles.grid}>
         <div className={styles.text}>
           <h1 className={styles.title}>Hetja lives on your phone.</h1>
           <p className={styles.lead}>
             It&apos;s made for the street.{" "}
-            <span className={styles.ink}>
-              A laptop can&apos;t follow a dog down a lane, but the phone in your pocket can.
-            </span>{" "}
-            Point its camera here and this page opens there, right where you left it.
+            <span className={styles.ink}>A laptop can&apos;t follow a dog down a lane, but the phone in your pocket can.</span>
           </p>
           <div className={styles.card}>
-            <PageQr url={url} size={148} label="QR code that opens this page on your phone" />
+            <div className={styles.qrBox}>
+              <PageQr url={url} size={112} label="QR code that opens this page on your phone" />
+            </div>
             <div className={styles.cardText}>
               <span className={styles.cardLabel}>On your phone</span>
               <span className={styles.cardBody}>Open the camera and point it at the code. No app to install.</span>
@@ -147,21 +130,12 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
               </span>
             </div>
           </div>
-          {dogs !== null && (
-            <p className={styles.count}>
-              <span className={styles.countN}>{new Intl.NumberFormat("en-IN").format(dogs)}</span>
-              <span className={styles.countText}>
-                {dogs === 1 ? "dog in Mumbai has a collar today." : "dogs in Mumbai have a collar today."} Each one has
-                someone who noticed.
-              </span>
-            </p>
-          )}
           <div className={styles.more}>
-            <Link href="/map" className={styles.moreLink}>
-              See the city map here ›
-            </Link>
-            <Link href="/credits" className={styles.moreLink}>
-              The people who helped ›
+            <button type="button" className={styles.moreLink} onClick={openLookup}>
+              Look up a collar code ›
+            </button>
+            <Link href="/how-it-works" className={styles.moreLink}>
+              How it works ›
             </Link>
           </div>
         </div>
@@ -169,6 +143,7 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
         <figure className={styles.phoneWrap} data-loading={real === undefined ? "" : undefined}>
           {real ? (
             <div className={styles.phone} aria-hidden="true" data-testid="d1-real-dog">
+              <span className={styles.notch} />
               <span className={styles.found}>You found {real.name}</span>
               {real.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -178,25 +153,35 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
               )}
               <span className={styles.name}>{real.name}</span>
               <span className={styles.ward}>{real.wardLine}</span>
-              {(real.vaccinated || real.sterilised) && (
-                <div className={styles.pills}>
-                  {real.vaccinated && (
-                    <StatusPill variant="ok" icon="check" size="small">
-                      Vaccinated
-                    </StatusPill>
-                  )}
-                  {real.sterilised && (
-                    <StatusPill variant="ok" icon="check" size="small">
-                      Sterilised
-                    </StatusPill>
-                  )}
+              <div className={styles.pills}>
+                {real.fedToday === false && (
+                  <StatusPill variant="warn" icon="clock" size="small">
+                    Not fed today
+                  </StatusPill>
+                )}
+                {real.vaccinated ? (
+                  <StatusPill variant="ok" icon="check" size="small">
+                    Vaccinated
+                  </StatusPill>
+                ) : (
+                  <StatusPill variant="neutral" icon="clock" size="small">
+                    Vaccination unknown
+                  </StatusPill>
+                )}
+              </div>
+              {real.slug && (
+                <div className={styles.codeBox}>
+                  <span className={styles.codeLabel}>Collar code</span>
+                  <span className={styles.code}>{prettyCode(real.slug)}</span>
                 </div>
               )}
-              {real.fedLine && <span className={styles.fed}>{real.fedLine}</span>}
-              <span className={styles.sos}>This dog needs help</span>
+              <span className={styles.sos}>
+                <span className={styles.bang}>!</span>This dog needs help
+              </span>
             </div>
           ) : (
             <div className={styles.phone} aria-hidden="true">
+              <span className={styles.notch} />
               <span className={styles.found}>You found Rani</span>
               <div className={styles.photo} />
               <span className={styles.name}>Rani</span>
@@ -205,12 +190,14 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
                 <StatusPill variant="ok" icon="check" size="small">
                   Vaccinated
                 </StatusPill>
-                <StatusPill variant="ok" icon="check" size="small">
-                  Sterilised
-                </StatusPill>
               </div>
-              <span className={styles.fed}>Priya fed her 2 hours ago.</span>
-              <span className={styles.sos}>This dog needs help</span>
+              <div className={styles.codeBox}>
+                <span className={styles.codeLabel}>Collar code</span>
+                <span className={styles.code}>DDR 017 XK2</span>
+              </div>
+              <span className={styles.sos}>
+                <span className={styles.bang}>!</span>This dog needs help
+              </span>
             </div>
           )}
           <figcaption className={styles.caption}>
@@ -218,6 +205,7 @@ export function DesktopInvite({ className }: { className?: string }): React.JSX.
           </figcaption>
         </figure>
       </div>
+      <DeskFooter />
     </div>
   );
 }

@@ -1,49 +1,106 @@
-/* The desktop nav spans the window (no 1080px column, 32px sides), so the
- * logo sits over the map's 420px panel. Specificity matches ds TopNav's
- * `.desktop .inner`. */
-.wide.wide > div {
-  max-width: none;
-  padding-inline: 32px;
+/* The desktop header (design v9): 56px, white 72% + blur, a 1px hairline. */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--h-ink);
+}
+
+.fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+}
+
+.inner {
+  max-width: 1160px;
+  height: 100%;
+  margin-inline: auto;
+  padding-inline: 40px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 32px;
 }
 
 .brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
   color: var(--h-ink);
   text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   min-height: var(--h-target);
 }
 
-.brandText {
+.links {
+  margin-left: auto;
   display: flex;
-  flex-direction: column;
-  line-height: 1;
+  align-items: center;
+  gap: 28px;
 }
 
-.brandName {
-  font-size: 21px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.brandSub {
-  margin-top: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--h-secondary);
-}
-
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--h-ink);
-  color: var(--h-white);
+.link {
+  font-size: 14px;
+  color: var(--h-ink);
+  opacity: 0.8;
+  text-decoration: none;
+  min-height: var(--h-target);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  margin-left: 4px;
+}
+
+.current {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.link:hover {
+  opacity: 1;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lookup {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--h-link);
+  cursor: pointer;
+  min-height: var(--h-target);
+}
+
+.lookup:hover {
+  text-decoration: underline;
+}
+
+.pill {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--h-r-pill);
+  background: var(--h-blue);
+  color: var(--h-white);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill:hover {
+  background: var(--h-blue-press);
 }

@@ -1,0 +1,12 @@
+.desk {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .phone {
+    display: none;
+  }
+  .desk {
+    display: block;
+  }
+}

@@ -104,9 +104,13 @@ describe.each(COPY)("%s", (_name, page, lines) => {
     for (const line of lines) expect(text, line).toContain(line);
   });
 
-  it("has exactly one h1 and no em dashes", () => {
+  // Design v9: the page carries its phone layout and its desktop layout; CSS
+  // shows one (components/desk/DeskSwitch), so each must have one h1.
+  it("has exactly one h1 in each layout and no em dashes", () => {
     const text = body(page);
-    expect(document.querySelectorAll("h1").length).toBe(1);
+    const layouts = [...document.querySelectorAll("[data-layout]")];
+    expect(layouts.map((l) => l.getAttribute("data-layout"))).toEqual(["phone", "desk"]);
+    for (const l of layouts) expect(l.querySelectorAll("h1").length).toBe(1);
     expect(text).not.toContain("\u2014");
   });
 

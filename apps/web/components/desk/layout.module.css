@@ -1,0 +1,199 @@
+/* Design v9 desktop (the owner's "Hetja Desktop" Claude Design export,
+ * docs/design/v9-desktop): the shared measurements. A 1160px column with 40px
+ * sides, titles at 88px (96 on home and privacy), section titles at 44-48px,
+ * cards at radius 28-32 on mist or white. Used from 1024px only; phones keep
+ * their own pages. */
+
+.wrap {
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-inline: 40px;
+  box-sizing: border-box;
+}
+
+.mist {
+  background: var(--h-mist);
+}
+
+.white {
+  background: var(--h-white);
+}
+
+.black {
+  background: #000;
+  color: #f5f5f7;
+}
+
+.kicker {
+  align-self: flex-start;
+  background: var(--h-white);
+  border-radius: var(--h-r-pill);
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.h1 {
+  margin: 0;
+  font-size: 88px;
+  line-height: 0.94;
+  font-weight: 700;
+  letter-spacing: -0.055em;
+}
+
+.h1xl {
+  font-size: 96px;
+}
+
+.lead {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.42;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+}
+
+.label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-secondary);
+}
+
+.bandLabel {
+  color: #a1a1a6;
+}
+
+.h2 {
+  margin: 0;
+  font-size: 48px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.h2m {
+  font-size: 44px;
+  line-height: 1.04;
+}
+
+.sub {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.42;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+}
+
+.grid3 {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.grid4 {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 64px;
+}
+
+.halves {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.card {
+  background: var(--h-white);
+  border-radius: 28px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardMist {
+  background: var(--h-mist);
+}
+
+.cardLg {
+  border-radius: 32px;
+  padding: 36px;
+  gap: 14px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cardTitleLg {
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.cardText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.47;
+  color: var(--h-secondary);
+  text-wrap: pretty;
+}
+
+.checkIcon {
+  color: var(--h-ok);
+  flex: none;
+  display: flex;
+  margin-top: 3px;
+}
+
+.checkList {
+  list-style: none;
+  margin: 0;
+  padding: 8px 32px;
+  border-radius: 32px;
+}
+
+.checkList > li {
+  display: flex;
+  gap: 12px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--h-divider);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.link {
+  font-size: 17px;
+  color: var(--h-link);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  min-height: var(--h-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

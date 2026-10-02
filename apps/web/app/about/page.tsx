@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Aurora, Button, Label, SectionFade, StatusIcon } from "@/components/ds";
 import c from "@/components/Content.module.css";
+import { DeskSwitch } from "@/components/desk/DeskSwitch";
+import { DeskAbout } from "@/components/desk/DeskPages";
 
 export const metadata: Metadata = {
   title: "About · Hetja",
@@ -87,6 +89,7 @@ const ROLES = [
 
 export default function AboutPage(): React.JSX.Element {
   return (
+    <DeskSwitch desk={<DeskAbout />}>
     <div className={`${c.page} ${c.mist}`}>
       <Aurora variant="about" className={c.head}>
         <div className="h-container">
@@ -247,5 +250,6 @@ export default function AboutPage(): React.JSX.Element {
         </div>
       </section>
     </div>
+    </DeskSwitch>
   );
 }

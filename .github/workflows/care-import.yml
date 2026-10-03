@@ -68,7 +68,7 @@ jobs:
       IN_CLAIM: ${{ inputs.claim }}
       IN_MASS: ${{ inputs.allow_mass_retire }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 

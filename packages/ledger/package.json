@@ -17,7 +17,7 @@
     "keygen": "node dist/keygen.js"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0"
+    "@types/node": "^26.6.3"
   },
   "dependencies": {
     "jose": "^6.2.12"

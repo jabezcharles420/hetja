@@ -45,7 +45,11 @@ jobs:
       # fail with "Multiple versions of pnpm specified".
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, matching .nvmrc and the runtime node on the box (v22.23.3),
+          # not 20: jsdom 30 -- apps/web's vitest environment -- declares
+          # engines ^22.22.2 || ^24.15.0 || >=26.0.0, and its workers die on
+          # Node 20 with "webidl.util.markAsUncloneable is not a function".
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build workspace libraries

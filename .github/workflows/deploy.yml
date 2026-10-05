@@ -104,7 +104,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: 20
+  # 22 (the box's node is v22.23.3, and .nvmrc says 22), not 20: the Gate job
+  # installs jsdom 30 for apps/web's vitest run, which declares engines
+  # ^22.22.2 || ^24.15.0 || >=26.0.0 and refuses Node 20.
+  NODE_VERSION: 22
   # Supabase schema mirror. "true" applies each push's migrations to the
   # Supabase project through its session pooler; "false" skips that step and
   # only the destructive-change gate runs. Set to "false" on 2026-09-05 because

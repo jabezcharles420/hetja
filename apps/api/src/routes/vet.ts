@@ -802,7 +802,7 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
     if (!vet) return reply;
     if (!limited(req, reply, vet.auth, passkeyPerAccount, "passkeyPerAccount")) return reply;
     const parsed = z
-      .strictObject({ response: z.record(z.unknown()), label: z.string().trim().min(1).max(60).optional() })
+      .strictObject({ response: z.record(z.string(), z.unknown()), label: z.string().trim().min(1).max(60).optional() })
       .safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({ ok: false, error: { message: "body must be { response, label? }", code: "INVALID_PASSKEY" } });
@@ -915,7 +915,7 @@ export default async function vetRoutes(app: FastifyInstance): Promise<void> {
     if (!vet) return reply;
     if (!limited(req, reply, vet.auth, vetSignPerAccount, "vetSignPerAccount")) return reply;
     const parsed = z
-      .strictObject({ challengeId: z.string().uuid(), record: Draft, assertion: z.record(z.unknown()) })
+      .strictObject({ challengeId: z.string().uuid(), record: Draft, assertion: z.record(z.string(), z.unknown()) })
       .safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply

@@ -243,10 +243,14 @@ function Portal({ me, children }: { me: AdminMe; children: ReactNode }): React.J
           <Link key={n.href} href={n.href} className={s.navItem} aria-current={isCurrent(path, n.href) ? "page" : undefined}>
             <span>{n.label}</span>
             {c && c.n > 0 && (
-              <span className={c.loud ? s.navBadge : s.navCount}>
-                {c.n}
-                <span className="h-sr-only"> waiting</span>
-              </span>
+              <>
+                {" "}
+                <span className={c.loud ? s.navBadge : s.navCount}>
+                  {c.n}
+                  {" "}
+                  <span className="h-sr-only">waiting</span>
+                </span>
+              </>
             )}
           </Link>
         );

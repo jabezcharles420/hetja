@@ -178,13 +178,29 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     const { code, expiresAt } = await issueOtp(idHmac, app.config.HETJA_HMAC_PEPPER);
 
     if (app.config.NODE_ENV === "production") {
-      await sendOtpEmail(email, code, {
-        host: app.config.BREVO_SMTP_HOST,
-        port: app.config.BREVO_SMTP_PORT,
-        user: app.config.BREVO_SMTP_USER,
-        pass: app.config.BREVO_SMTP_PASS,
-        from: app.config.MAIL_FROM,
-      });
+      // A relay or auth failure here (the live one: Brevo answering
+      // "525 5.7.1 Unauthorized IP address" when this host's IP is not in the
+      // SMTP key's allow-list) used to escape to the global error handler,
+      // which answers a bare 500 INTERNAL: the caller cannot tell "mail is
+      // down" from "the API is broken", and neither can the log reader.
+      // 503 + a named code says the request is retryable, and the error line
+      // names the cause. The issued code stays in Postgres; a retry inside
+      // its 5-minute TTL re-issues and re-sends.
+      try {
+        await sendOtpEmail(email, code, {
+          host: app.config.BREVO_SMTP_HOST,
+          port: app.config.BREVO_SMTP_PORT,
+          user: app.config.BREVO_SMTP_USER,
+          pass: app.config.BREVO_SMTP_PASS,
+          from: app.config.MAIL_FROM,
+        });
+      } catch (err) {
+        req.log.error({ err }, "OTP email delivery failed; sign-in code not sent");
+        return reply.status(503).send({
+          ok: false,
+          error: { message: "Could not send the sign-in code. Try again shortly.", code: "EMAIL_DELIVERY_FAILED" },
+        });
+      }
     }
 
     return {

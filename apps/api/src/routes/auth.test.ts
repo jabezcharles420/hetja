@@ -762,3 +762,36 @@ describe("canonicalisation: one mailbox, one account", () => {
     await app.close();
   });
 });
+
+describe("POST /api/v1/auth/otp with the mail relay down", () => {
+  it("answers 503 EMAIL_DELIVERY_FAILED, not an unattributed 500", async () => {
+    // Production is the only mode that sends mail, so this is the only way to
+    // exercise the send path. The relay is pointed at loopback port 1, which
+    // refuses the connection immediately: the same *shape* as the live Brevo
+    // failure ("525 5.7.1 Unauthorized IP address" -- the box's IP is not in
+    // the SMTP key's allow-list), without depending on the outside world.
+    // Before the try/catch in routes/auth.ts this escaped to the global error
+    // handler and rendered as 500 INTERNAL.
+    const email = `feeder-${randomUUID().slice(0, 8)}@gmail.com`;
+    usedEmails.push(email);
+    const app = buildServer({
+      ...config,
+      NODE_ENV: "production",
+      BREVO_SMTP_HOST: "127.0.0.1",
+      BREVO_SMTP_PORT: 1,
+      BREVO_SMTP_USER: "u",
+      BREVO_SMTP_PASS: "p",
+      MAIL_FROM: "no-reply@hetja.in",
+    });
+
+    const res = await app.inject({ method: "POST", url: "/api/v1/auth/otp", payload: { email } });
+
+    expect(res.statusCode).toBe(503);
+    const body = res.json();
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe("EMAIL_DELIVERY_FAILED");
+    // The code was minted and delivered to nobody: it must not leak.
+    expect(JSON.stringify(body)).not.toContain("devCode");
+    await app.close();
+  });
+});

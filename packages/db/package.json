@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@hetja/contracts": "workspace:*",
-    "libphonenumber-js": "^1.13.13",
-    "pg": "^8.23.0"
+    "libphonenumber-js": "^1.13.14",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/pg": "^8.23.1"

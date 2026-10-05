@@ -24,13 +24,13 @@
     "@hetja/contracts": "workspace:*",
     "@hetja/db": "workspace:*",
     "@hetja/ledger": "workspace:^",
-    "@simplewebauthn/server": "^13",
+    "@simplewebauthn/server": "^14",
     "altcha-lib": "2.5.0",
     "fastify": "^5.12.5",
-    "libphonenumber-js": "^1.13.13",
+    "libphonenumber-js": "^1.13.14",
     "lru-cache": "^11.5.3",
     "nodemailer": "^9.0.5",
-    "zod": "^3.23.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1"

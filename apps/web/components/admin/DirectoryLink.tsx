@@ -135,7 +135,8 @@ function PickEntry({
               </span>
               <button type="button" className={cx(s.btn, s.btnXs, s.btnDark)} disabled={busy || e.id === current} onClick={() => pick(e)}>
                 {e.id === current ? "Linked" : "Link"}
-                <span className="h-sr-only"> {e.name}</span>
+                {" "}
+                <span className="h-sr-only">{e.name}</span>
               </button>
             </li>
           ))}

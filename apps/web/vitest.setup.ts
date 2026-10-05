@@ -59,3 +59,33 @@ afterEach(() => {
     });
   }
 });
+
+/**
+ * jsdom implements neither `URL.createObjectURL` nor `URL.revokeObjectURL`,
+ * and on jsdom 30.1 vitest's shim for the former throws instead of helping:
+ * it reads the Blob implementation through the first own symbol of a Blob
+ * instance (`blob[implSymbol]._buffer`), but 30.1 moved that implementation
+ * into a private field, so `_buffer` is read off `undefined`
+ * (vitest-dev/vitest#11336, still open on vitest 5.0.1). Every test that goes
+ * through `lib/collar-print.ts#downloadSheet` -- the print sheet and the batch
+ * sheet -- failed with "expected 'click' to be called at least once", because
+ * the throw happened before the download link was clicked.
+ *
+ * Nothing in the suite fetches the URL back, and jsdom could not load a real
+ * `blob:` URL anyway, so a synthetic unique string is all that is needed.
+ * Defined on the URL class itself rather than via `vi.stubGlobal`, so
+ * `vi.unstubAllGlobals()` (which several suites call in `afterEach`) cannot
+ * take it away -- same reasoning as the localStorage block above. Delete this
+ * the day the vitest shim stops reading the pre-30.1 Blob shape.
+ */
+let objectUrlSeq = 0;
+Object.defineProperty(URL, "createObjectURL", {
+  value: () => `blob:hetja-test/${++objectUrlSeq}`,
+  writable: true,
+  configurable: true,
+});
+Object.defineProperty(URL, "revokeObjectURL", {
+  value: () => undefined,
+  writable: true,
+  configurable: true,
+});

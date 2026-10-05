@@ -263,6 +263,15 @@ migration `0010_identity_email.sql`; this section said the old name until
 
 - **Offline replay duplicates**: check `scans_client_uuid_uix` violations
   (should never happen; idempotency is by design).
+- **Sign-in emails not arriving**: `POST /api/v1/auth/otp` now answers 503
+  `EMAIL_DELIVERY_FAILED` when the API cannot hand the message to Brevo, and
+  the `req.log.error` line above it names why (`journalctl -u hetja-api | grep
+  525`). The failure seen live on 2026-10-05 was `525 5.7.1 Unauthorized IP
+  address`: the box's egress IP (51.68.204.210) is not in the SMTP key's
+  authorized-IP list, which is a Brevo dashboard change (SMTP & API -> SMTP ->
+  that key -> Authorized IPs -> add it, or drop the restriction). Nothing on
+  the box changes. Before commit 266878e this same failure surfaced as an
+  opaque `500 INTERNAL`, with no code and nothing in the log to act on.
 - **SOS silence**: an unacked case fires the 8-min escalation job; if the
   escalation job itself is missing, check the `jobs` table for
   `escalate_sos` kind rows.

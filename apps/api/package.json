@@ -29,7 +29,7 @@
     "fastify": "^5.12.5",
     "libphonenumber-js": "^1.13.14",
     "lru-cache": "^11.5.3",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^10.0.16",
     "zod": "^4.6.5"
   },
   "devDependencies": {

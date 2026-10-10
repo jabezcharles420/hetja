@@ -25,7 +25,7 @@
     "@hetja/db": "workspace:*",
     "@hetja/ledger": "workspace:^",
     "@simplewebauthn/server": "^14",
-    "altcha-lib": "2.5.0",
+    "altcha-lib": "2.6.0",
     "fastify": "^5.12.5",
     "libphonenumber-js": "^1.13.14",
     "lru-cache": "^11.5.3",

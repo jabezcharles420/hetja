@@ -17,20 +17,20 @@
     "verified:list": "tsx src/cli/grant-verified.ts list"
   },
   "dependencies": {
-    "@fastify/compress": "^9.2.0",
+    "@fastify/compress": "^9.2.2",
     "@fastify/cors": "^10.0.0",
-    "@fastify/etag": "^6.2.0",
-    "@fastify/helmet": "^13.1.1",
+    "@fastify/etag": "^6.2.1",
+    "@fastify/helmet": "^13.2.0",
     "@hetja/contracts": "workspace:*",
     "@hetja/db": "workspace:*",
     "@hetja/ledger": "workspace:^",
     "@simplewebauthn/server": "^14",
-    "altcha-lib": "2.5.0",
-    "fastify": "^5.12.5",
-    "libphonenumber-js": "^1.13.14",
+    "altcha-lib": "2.7.0",
+    "fastify": "^5.12.7",
+    "libphonenumber-js": "^1.13.15",
     "lru-cache": "^11.5.3",
     "nodemailer": "^9.0.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1"
